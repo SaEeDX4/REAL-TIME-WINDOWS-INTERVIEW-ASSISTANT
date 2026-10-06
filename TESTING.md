@@ -1,46 +1,43 @@
-# Testing & Test Report
+# Testing, Validation Evidence & Known Limitations
 
-Run: `powershell -File scripts\run-tests.ps1` (Windows) or `dotnet test tests/InterviewAssistant.Tests -c Release` (any OS).
-Live LLM evaluation: set `OPENAI_API_KEY` first (otherwise that one test reports *SKIPPED* and passes).
+## Windows CI (real `windows-latest` runner, Windows NT 10.0.26100) — run #4, commit `e77fbeb`: ✅ all green
+https://github.com/SaEeDX4/REAL-TIME-WINDOWS-INTERVIEW-ASSISTANT/actions/runs/37502533008
 
-## Results (2026-10-06, Linux x64 build host, .NET 8)
-**82 tests passed, 0 failed** (the live-LLM test self-skips without a key). The whole solution (including the WPF app) compiles for win-x64 with warnings-as-errors.
-
-| Area | Result |
+| Step | Result |
 |---|---|
-| Knowledge integrity | 97 prepared questions (≥80 required), 107 test utterances, all evidence ids resolve to verified stories |
-| Prepared-answer evaluation (automated) | All 97 answers: 3–4 bullets, 6–30 words per bullet, ≤85 words total, **no unverified numbers, no unsupported past claims**; average 47.4 words (~20 s spoken). Bridge answers all open with an honest bridge. |
-| Matcher — indexed paraphrases | 97/97 top-1, 0 wrong high-confidence |
-| Matcher — **held-out novel phrasings** | **25/30 (83%) top-1; 0 wrong high-confidence matches** → misses go to the LLM, never show a wrong prepared answer |
-| Unexpected questions | ≤1 of 10 served from cache (goes to LLM) |
-| Matching speed | ~3.7 ms per question |
-| Turn detection | clear question finalizes 300–700 ms after speech-stopped; multi-part with pause → **one** question; interviewer resumes during settle → finalization cancelled; revised transcript → no duplicate; pleasantries ("Okay, great, thank you") ignored; missing transcript → no hang |
-| Duplicate protection | punctuation/word revisions suppressed; re-ask after 30 s answered again |
-| Audio conversion | 48k/44.1k/96k/16k stereo float → 24k mono PCM16: correct length (±0.4%) and amplitude; odd chunk sizes and split frames are continuous (±2 LSB) |
-| Providers | SSE streaming parse; 401/429/500/400/network/missing-key mapped to typed errors; realtime `session.update` JSON matches the documented GA shape (and legacy beta shape); realtime events dispatched; malformed JSON ignored |
-| Engine end-to-end (fake transcriber + fake LLM) | cache hit → 0 LLM calls; unknown → 1 streaming call, bullets appended once in order; LLM failure → prepared fallback; invalid key → actionable message + `API ERROR`; manual question works with no audio and no provider; variants use LLM with follow-up context; fabricated "I built … 43%" softened + flagged; new question cancels in-flight generation; reconnect surfaced and recovered; pause blocks audio and answers; no-audio warning appears/clears |
-| **60-minute soak (simulated clock)** | 36,153 audio frames, 139 questions (30% multi-part), 28 small-talk turns, 1 reconnect: **139 answers for 139 questions, 0 duplicates, LLM requests 54 ≤ questions, history capped at 30, metrics capped, managed memory flat (6.6 MB → 6.4 MB)** |
+| Restore / build (warnings = errors) | ✅ |
+| 88 automated tests | ✅ 88/88 |
+| Publish win-x64 self-contained single-file | ✅ |
+| **Smoke test** (`scripts/smoke-test.ps1`): real EXE launched, top-level window created (~1.3 s), alive 15 s (~228 MB working set), closed via WM_CLOSE, **exit code 0**, log shows *Knowledge loaded → Main window loaded → Close requested → Clean shutdown*, no UI/fatal exceptions | ✅ |
+| **In-app self-test** (`InterviewAssistant.exe --selftest`, no API key) | ✅ 20/20 (below) |
+| Artifact `InterviewAssistant-Windows-x64` (60.8 MB) + `validation-evidence` (logs, self-test JSON, TRX) | ✅ uploaded |
 
-### Latency
-| Segment | Measured / estimated |
-|---|---|
-| Speech-stopped → question finalized (settle logic) | **measured in simulation: 460 ms** for a clear question (450 ms rule + tick); 1.7 s when the sentence trails off ("…and") |
-| Question → prepared answer on screen | **measured: <5 ms** (match + render) |
-| Interviewer stops talking → question finalized (real) | *estimated* 0.85–1.3 s = server VAD silence 400 ms + max(transcription ≈0.3–0.8 s, settle 450 ms). **Not measured — needs live Windows run.** |
-| Question → first AI bullet (real) | *estimated* 0.8–2 s (first-token + first full sentence). Probe in Pre-interview check measures first-token latency live. |
-Diagnostics (pulse icon) shows real per-question numbers and p50/p95 during use.
+Self-test checks executed inside the real WPF process on Windows:
+main window + XAML · topmost · knowledge pack · question bank (97) · fact validator on all prepared answers · manual question → exactly 3 distinct bullets in UI (≈0.4 s incl. UI) · spoken paraphrase match · missing key: Start shows guidance and does not listen · missing key: unknown question shows actionable message · previous/next navigation · Settings window XAML · Pre-interview window XAML + local checks · compact mode · diagnostics panel · DPAPI round-trip (wrong entropy rejected) · settings persistence · hotkey parsing · audio enumeration with **zero devices** (no crash, status `NO PLAYBACK DEVICE`) · turn detector + duplicate guard · stop → idle.
+
+### Bugs found and fixed by this Windows validation
+1. **App ignored WM_CLOSE while the first-run check was open** (modal dialog disabled the main window) → check is now non-modal, owned windows close first, cleanup capped at 5 s.
+2. **Every prepared answer rendered twice** in the UI (6 bullets instead of 3) → idempotent append-only rendering from a thread-safe snapshot; self-test asserts exact count.
+3. **`reasoning_effort: "minimal"` would have been rejected by gpt-5.x models** → per-family effort + automatic retry/fallback.
+
+## Automated tests (any OS): 88/88
+Knowledge integrity & answer-quality evaluation (all 97 answers: 3–4 bullets, ≤85 words, no unverified numbers, no unsupported past claims) · matcher 97/97 indexed, **25/30 held-out phrasings, 0 wrong high-confidence** · turn detection (multi-part, resume-cancel, revisions, pleasantries, missing transcript) · duplicate guard · audio conversion 16–96 kHz · providers (SSE, error mapping, reasoning-effort retry, model fallback, realtime session JSON, transcription model fallback) · engine end-to-end with fakes · **simulated 60-minute soak**: 139/139 answers, 0 duplicates, LLM calls ≤ questions, flat memory · repository secret scan · optional live LLM evaluation (runs when `OPENAI_API_KEY` is set).
 
 ## TESTED / NOT TESTED
-| Item | Status | Why / how to close |
-|---|---|---|
-| Core pipeline logic, matching, validation, turn detection, soak | **TESTED** (automated, above) | — |
-| WPF app compiles for win-x64; self-contained single-file EXE produced | **TESTED** (PE32+ GUI x86-64, 66 MB) | — |
-| XAML resource keys resolve | **TESTED** (static check script) | — |
-| App launches on Windows | **NOT TESTED by me** | Build host is Linux. CI `smoke-test.ps1` launches the EXE on `windows-latest` and fails on startup/XAML errors. |
-| WASAPI loopback from Chrome/Meet, device change, Bluetooth reconnect | **NOT TESTED** | Needs real Windows audio hardware. Use Pre-interview check → Audio. |
-| Live OpenAI realtime transcription & live LLM quality/latency | **NOT TESTED** | No API key in the build environment. `LiveEvaluationTests` runs automatically when `OPENAI_API_KEY` is set (locally or as CI secret). |
-| Always-on-top, hotkeys, multi-monitor placement, DPI | **NOT TESTED** | Needs Windows desktop; implemented with standard Win32/WPF APIs. |
-| Real 60-minute session | **NOT TESTED** (simulated soak passed) | Run a 60-min YouTube interview video through the app with Diagnostics on; watch memory/CPU. |
+| Area | Status |
+|---|---|
+| Windows startup, XAML/resources, all three windows, clean shutdown, exit code | **TESTED on Windows CI** |
+| Manual question UI, prepared answers, navigation, compact, diagnostics | **TESTED on Windows CI** |
+| Missing-API-key behaviour, error states, no-audio-device behaviour | **TESTED on Windows CI** |
+| DPAPI credential protection, settings persistence, hotkey parsing | **TESTED on Windows CI** |
+| Pipeline logic, turn detection, dedupe, matcher, validator, soak | **TESTED** (unit/sim) |
+| WASAPI loopback with a real headset, Chrome/Meet audio, Bluetooth reconnect | **NOT TESTED** — CI runners have no audio endpoint. Your test: docs/PRE_INTERVIEW_CHECKLIST.md tests 4, 10, 13 (Test audio button) |
+| Live OpenAI transcription (`gpt-live-transcribe`) and answers (`gpt-5.4-mini`), real latency | **NOT TESTED** — no API key in CI. Your test: tests 3, 5, 6, 9 (Test transcription / Test AI). Add repo secret `OPENAI_API_KEY` to also run the live evaluation in CI |
+| Global hotkey delivery, always-on-top over Chrome, multi-monitor/DPI | **NOT TESTED** interactively — tests 11, 12 |
 
-### Manual Windows test script (15 min)
-1. Pre-interview check all green. 2. Play a YouTube "product owner interview questions" video → questions appear, bullets follow. 3. Pause the video mid-question for 1 s, resume → still one question. 4. Unplug/replug the headset → status recovers. 5. Disable Wi-Fi 10 s → `RECONNECTING`, type a question → prepared answer; re-enable → `LISTENING`. 6. Press Shorter / Technical / Full. 7. Stop, close → reopen at same position.
+## Known limitations
+- Physical audio + live API paths need the 10–15 min check on your PC.
+- Unsigned EXE → SmartScreen "More info → Run anyway".
+- Size ~64 MB EXE / ~58 MB ZIP. Measured alternatives: uncompressed single-file 140 MB; folder layout 146 MB; ReadyToRun +4 MB; framework-dependent 2 MB but requires installing the .NET 8 Desktop Runtime (extra failure point). Trimming not used (WPF/reflection unsafe). Current choice = smallest reliable.
+- Model availability depends on your OpenAI account; fallbacks are automatic (`gpt-live-transcribe`→`gpt-4o-transcribe`→`gpt-4o-mini-transcribe`; `gpt-5.4-mini`→`gpt-4.1-mini`) and Settings can override.
+- Company facts (Teroxx/Abloxx/whitepaper/job posting) came from search extracts because those sites were blocked for the build environment; they are labelled by source in `knowledge/` and should be re-read before the interview. Résumé facts are verbatim from the CV.
