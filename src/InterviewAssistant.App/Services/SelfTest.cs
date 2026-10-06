@@ -44,14 +44,18 @@ public static class SelfTest
         {
             var sw = Stopwatch.StartNew();
             await vm.SubmitManualAsync("How would you increase XAB adoption?");
-            var ok = await WaitFor(() => vm.Bullets.Count >= 3, 3000);
-            return (ok && vm.Question.Contains("XAB"), $"{vm.Bullets.Count} bullets in {sw.ElapsedMilliseconds} ms: \"{vm.Bullets.FirstOrDefault()?.Text}\"");
+            var expected = vm.Engine!.Current!.SnapshotBullets().Count;
+            await WaitFor(() => vm.Bullets.Count >= expected && vm.Question.Contains("XAB"), 3000);
+            await Task.Delay(300); await Idle(); // let any late notifications land: count must stay exact (no duplicates)
+            var distinct = vm.Bullets.Select(b => b.Text).Distinct().Count();
+            return (vm.Bullets.Count == 3 && distinct == 3 && vm.Question.Contains("XAB"), $"{vm.Bullets.Count} bullets ({distinct} distinct) in {sw.ElapsedMilliseconds} ms: \"{vm.Bullets.FirstOrDefault()?.Text}\"");
         });
         await Check("Spoken-style paraphrase matches", async () =>
         {
             await vm.SubmitManualAsync("so um tell me a little bit about yourself");
             var ok = await WaitFor(() => vm.Bullets.Count >= 3 && vm.Question.Contains("yourself", StringComparison.OrdinalIgnoreCase), 3000);
-            return (ok, vm.Bullets.FirstOrDefault()?.Text ?? "");
+            await Task.Delay(300); await Idle();
+            return (ok && vm.Bullets.Count == 4, $"{vm.Bullets.Count} bullets: {vm.Bullets.FirstOrDefault()?.Text}");
         });
         if (!SecretStore.HasKey)
         {
@@ -62,13 +66,15 @@ public static class SelfTest
             });
             await Check("Missing API key: unknown question shows actionable message, no crash", async () =>
             {
+                vm.Note = null;
                 await vm.SubmitManualAsync("Zebra quantum basketball orchestra symphony?");
-                var ok = await WaitFor(() => !string.IsNullOrEmpty(vm.Note), 5000);
-                return (ok, vm.Note ?? "");
+                var ok = await WaitFor(() => vm.Question.Contains("Zebra") && !string.IsNullOrEmpty(vm.Note), 5000);
+                return (ok && (vm.Note ?? "").Contains("Settings"), vm.Note ?? "");
             });
         }
         await Check("Previous / next answer navigation", async () =>
         {
+            await Idle();
             var before = vm.Question;
             vm.PreviousCommand.Execute(null); await Idle();
             var moved = vm.Question != before;

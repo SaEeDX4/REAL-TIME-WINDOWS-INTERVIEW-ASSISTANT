@@ -130,7 +130,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _engine.StatusChanged += (s, d) => Post(() => ApplyStatus(s, d));
         _engine.LiveTranscriptChanged += t => Post(() => LiveTranscript = t);
         _engine.AnswerStarted += a => Post(() => ShowAnswer(a, isNew: true));
-        _engine.BulletAdded += (a, b) => Post(() => { if (a.Id == _displayedAnswerId) { Bullets.Add(new BulletVm { Text = b, IsParagraph = a.Style == AnswerStyle.Full }); Pending = ""; Raise(nameof(IsThinking)); } });
+        _engine.BulletAdded += (a, _) => Post(() => { if (a.Id == _displayedAnswerId) { SyncBullets(a); Pending = ""; Raise(nameof(IsThinking)); } });
         _engine.PendingTextChanged += (a, p) => Post(() => { if (a.Id == _displayedAnswerId) Pending = p; });
         _engine.AnswerCompleted += a => Post(() => { if (a.Id == _displayedAnswerId) { Pending = ""; Note = a.Note; AnswerMeta = Meta(a); Raise(nameof(IsThinking)); } LiveTranscript = ""; });
         _engine.LatencyMeasured += s => AppLog.Info($"Latency [{s.Source}] finalize {s.SpeechEndToFinalizedMs} ms, first bullet {s.FinalizedToFirstBulletMs} ms, total {s.FinalizedToCompleteMs} ms");
@@ -247,13 +247,23 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _displayedAnswerId = a.Id;
         Question = a.Question;
         Bullets.Clear();
-        foreach (var b in a.Bullets.ToList()) Bullets.Add(new BulletVm { Text = b, IsParagraph = a.Style == AnswerStyle.Full });
+        SyncBullets(a);
         Pending = "";
         Note = a.Note;
         AnswerMeta = Meta(a);
         if (isNew && _engine != null) HistoryPosition = _engine.History.Count - 1;
         Raise(nameof(HistoryLabel));
         Raise(nameof(IsThinking));
+    }
+
+    /// <summary>
+    /// Idempotent, append-only render: shows bullets of the answer not yet on screen. Safe however many times
+    /// AnswerStarted/BulletAdded notifications arrive (prevents duplicate bullets).
+    /// </summary>
+    private void SyncBullets(AnswerView a)
+    {
+        var snapshot = a.SnapshotBullets();
+        for (int i = Bullets.Count; i < snapshot.Count; i++) Bullets.Add(new BulletVm { Text = snapshot[i], IsParagraph = a.Style == AnswerStyle.Full });
     }
 
     private string Meta(AnswerView a)

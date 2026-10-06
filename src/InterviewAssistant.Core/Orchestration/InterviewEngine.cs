@@ -264,7 +264,7 @@ public sealed class InterviewEngine : IAsyncDisposable
                     if (view.Bullets.Count == 0 && match.Question != null && match.Confidence >= MatchConfidence.Low)
                     {
                         EmitCached(view, match.Question, AnswerSource.CacheFallback);
-                        view.Note = "Prepared answer (AI unavailable: " + ex.Kind + ")";
+                        view.Note = ex.Kind == ProviderErrorKind.InvalidApiKey ? "Prepared answer — AI off: add/fix the API key in Settings" : "Prepared answer (AI unavailable: " + ex.Kind + ")";
                         firstBullet = _clock.NowMs;
                         Metrics.IncFallback();
                     }
@@ -306,7 +306,7 @@ public sealed class InterviewEngine : IAsyncDisposable
         view.Source = source;
         view.Mode = q.Mode;
         var bullets = view.Style == AnswerStyle.Full ? new List<string> { q.OptionalFullAnswer } : q.ShortBullets;
-        foreach (var b in bullets) { view.Bullets.Add(b); BulletAdded?.Invoke(view, b); }
+        foreach (var b in bullets) { view.AppendBullet(b); BulletAdded?.Invoke(view, b); }
     }
 
     private async Task<(long FirstToken, long FirstBullet)> StreamLlmAsync(AnswerView view, string question, Classification cls, MatchResult match, AnswerStyle style, CancellationToken ct)
@@ -344,7 +344,7 @@ public sealed class InterviewEngine : IAsyncDisposable
             if (issue.Kind == "UNSUPPORTED_CLAIM") text = FactValidator.SoftenClaim(text);
         }
         if (view.Bullets.Count >= 6) return; // hard cap: never flood the reader
-        view.Bullets.Add(text);
+        view.AppendBullet(text);
         BulletAdded?.Invoke(view, text);
     }
 

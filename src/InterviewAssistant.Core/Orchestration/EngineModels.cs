@@ -19,6 +19,9 @@ public sealed class AnswerView
     public string? MatchedQuestionId { get; set; }
     public double MatchScore { get; set; }
     public List<string> Bullets { get; } = new();
+    /// <summary>Thread-safe copy (engine appends on a background thread while the UI reads).</summary>
+    public IReadOnlyList<string> SnapshotBullets() { lock (Bullets) return Bullets.ToArray(); }
+    internal void AppendBullet(string b) { lock (Bullets) Bullets.Add(b); }
     public bool IsComplete { get; set; }
     public string? Note { get; set; }
     public List<string> ValidationFlags { get; } = new();
