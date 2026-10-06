@@ -23,9 +23,9 @@ public partial class SettingsWindow : Window
         DataContext = vm; // for the live level meter
         KeyStatus.Text = SecretStore.HasKey ? "Saved key: " + SecretStore.Mask(SecretStore.GetApiKey()) : "No key saved yet.";
         LoadDevices();
-        foreach (var m in new[] { "gpt-4.1-mini", "gpt-4.1", "gpt-4o-mini", "gpt-4o", "gpt-5-mini", "gpt-5" }) ModelBox.Items.Add(m);
+        foreach (var m in new[] { "gpt-5.4-mini", "gpt-4.1-mini", "gpt-5-mini", "gpt-4.1" }) ModelBox.Items.Add(m);
         ModelBox.Text = _s.AnswerModel;
-        foreach (var m in new[] { "gpt-4o-transcribe", "gpt-4o-mini-transcribe" }) SttBox.Items.Add(m);
+        foreach (var m in new[] { "gpt-live-transcribe", "gpt-4o-transcribe", "gpt-4o-mini-transcribe" }) SttBox.Items.Add(m);
         SttBox.Text = _s.TranscriptionModel;
         foreach (var p in new[] { "auto", "ga", "beta" }) ProtocolBox.Items.Add(p);
         ProtocolBox.SelectedItem = _s.RealtimeProtocol;
@@ -110,7 +110,7 @@ public static class AnswerServiceProbe
 
     public static async Task<Result> RunAsync(Func<string?> key, string model)
     {
-        using var p = new OpenAiChatAnswerProvider(key, new ChatProviderOptions { Model = string.IsNullOrWhiteSpace(model) ? "gpt-4.1-mini" : model });
+        using var p = new OpenAiChatAnswerProvider(key, new ChatProviderOptions { Model = string.IsNullOrWhiteSpace(model) ? "gpt-5.4-mini" : model });
         var sw = Stopwatch.StartNew();
         try
         {

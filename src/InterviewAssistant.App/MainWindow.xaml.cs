@@ -38,6 +38,16 @@ public partial class MainWindow : Window
         if (error != null) { ShowTransientError(error); return; }
         RegisterHotkeys();
         _vm.StartAudioPreview(); // meter works before the interview starts
+        AppLog.Info("Main window loaded");
+        if (App.SelfTestOutput is { } outPath)
+        {
+            Dispatcher.BeginInvoke(async () =>
+            {
+                App.RequestedExitCode = await SelfTest.RunAsync(this, _vm, outPath);
+                Close();
+            }, DispatcherPriority.ApplicationIdle);
+            return;
+        }
         if (!_vm.Settings.FirstRunCompleted || !SecretStore.HasKey)
             Dispatcher.BeginInvoke(() => OpenReadiness(firstRun: true), DispatcherPriority.ApplicationIdle);
     }
@@ -52,6 +62,8 @@ public partial class MainWindow : Window
         ApplyCompact(_vm.Settings.CompactMode);
         _vm.RefreshFonts();
     }
+
+    public void SetCompact(bool compact) { _vm.Settings.CompactMode = compact; ApplyCompact(compact); }
 
     private void ApplyCompact(bool compact)
     {
@@ -207,6 +219,7 @@ public partial class MainWindow : Window
         _hotkeys?.Dispose();
         try { await _vm.DisposeAsync(); }
         catch (Exception ex) { AppLog.Error("Shutdown cleanup", ex); }
-        Application.Current.Shutdown();
+        AppLog.Info("Clean shutdown");
+        Application.Current.Shutdown(App.RequestedExitCode);
     }
 }

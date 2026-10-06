@@ -49,5 +49,17 @@ public static class SecretStore
         if (File.Exists(FilePath)) File.Delete(FilePath);
     }
 
+    /// <summary>DPAPI protect/unprotect round-trip without touching the stored key (used by --selftest).</summary>
+    public static bool SelfTestRoundTrip()
+    {
+        var sample = Encoding.UTF8.GetBytes("sk-selftest-" + Guid.NewGuid());
+        var enc = ProtectedData.Protect(sample, Entropy, DataProtectionScope.CurrentUser);
+        if (enc.AsSpan().IndexOf(sample.AsSpan(0, 8)) >= 0) return false; // ciphertext must not contain plaintext
+        var dec = ProtectedData.Unprotect(enc, Entropy, DataProtectionScope.CurrentUser);
+        try { ProtectedData.Unprotect(enc, Encoding.UTF8.GetBytes("wrong"), DataProtectionScope.CurrentUser); return false; }
+        catch (CryptographicException) { /* expected: wrong entropy must fail */ }
+        return dec.AsSpan().SequenceEqual(sample);
+    }
+
     public static string Mask(string? key) => string.IsNullOrEmpty(key) ? "(not set)" : key.Length <= 8 ? "••••" : key[..3] + "…" + key[^4..];
 }

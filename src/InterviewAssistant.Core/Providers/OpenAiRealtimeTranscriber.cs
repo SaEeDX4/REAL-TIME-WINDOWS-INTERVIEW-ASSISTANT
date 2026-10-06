@@ -10,7 +10,12 @@ namespace InterviewAssistant.Core.Providers;
 public sealed class RealtimeTranscriberOptions
 {
     public string Endpoint { get; set; } = "wss://api.openai.com/v1/realtime?intent=transcription";
-    public string Model { get; set; } = "gpt-4o-transcribe";
+    /// <summary>
+    /// gpt-live-transcribe (OpenAI, Jul 2026): streaming model that emits transcript deltas WHILE the interviewer speaks.
+    /// If the account/session rejects it, the transcriber falls back to FallbackModels in order.
+    /// </summary>
+    public string Model { get; set; } = "gpt-live-transcribe";
+    public string[] FallbackModels { get; set; } = { "gpt-4o-transcribe", "gpt-4o-mini-transcribe" };
     public string Language { get; set; } = "en";
     /// <summary>Vocabulary prompt that biases recognition toward domain terms.</summary>
     public string Prompt { get; set; } =
@@ -40,6 +45,8 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
     private CancellationTokenSource? _cts;
     private Task? _loop;
     private bool _useBeta;
+    private int _modelIndex; // 0 = Options.Model, then FallbackModels
+    public string ActiveModel => _modelIndex == 0 ? _opt.Model : _opt.FallbackModels[Math.Min(_modelIndex - 1, _opt.FallbackModels.Length - 1)];
     private volatile bool _inSpeech;
 
     public event Action? SpeechStarted;
@@ -99,7 +106,7 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
                 connectCts.CancelAfter(TimeSpan.FromSeconds(10));
                 await ws.ConnectAsync(new Uri(_opt.Endpoint), connectCts.Token).ConfigureAwait(false);
                 await SendJsonAsync(ws, BuildSessionUpdate(), ct).ConfigureAwait(false);
-                SetStatus(ConnectionStatus.Connected, _useBeta ? "beta protocol" : null);
+                SetStatus(ConnectionStatus.Connected, ActiveModel + (_useBeta ? " (beta protocol)" : ""));
                 backoff.Reset();
                 var started = DateTime.UtcNow;
                 using var sessionCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -225,7 +232,15 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
                 var message = node?["error"]?["message"]?.GetValue<string>() ?? "unknown error";
                 _lastServerError = string.IsNullOrEmpty(code) ? message : $"{code}: {message}";
                 Diagnostic?.Invoke("Realtime error: " + _lastServerError);
-                if (code is "invalid_api_key" or "insufficient_quota" or "model_not_found") _fatal = true;
+                bool early = (DateTime.UtcNow - connectedAt).TotalSeconds < 5;
+                bool modelProblem = code == "model_not_found" || (early && message.Contains("model", StringComparison.OrdinalIgnoreCase));
+                if (code is "invalid_api_key" or "insufficient_quota") _fatal = true;
+                else if (modelProblem && _modelIndex < _opt.FallbackModels.Length)
+                {
+                    _modelIndex++; _switchProtocol = true; _rotateRequested = true;
+                    Diagnostic?.Invoke($"Transcription model rejected; falling back to {ActiveModel}");
+                }
+                else if (modelProblem) _fatal = true;
                 // Session config rejected shortly after connect on GA protocol -> try legacy beta protocol once.
                 else if (!_useBeta && _opt.Protocol == "auto" && (DateTime.UtcNow - connectedAt).TotalSeconds < 5 &&
                          (message.Contains("session", StringComparison.OrdinalIgnoreCase) || code.Contains("param", StringComparison.OrdinalIgnoreCase) || code.Contains("unknown", StringComparison.OrdinalIgnoreCase)))
@@ -246,7 +261,7 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
             ["prefix_padding_ms"] = _opt.VadPrefixPaddingMs,
             ["silence_duration_ms"] = _opt.VadSilenceMs,
         };
-        var transcription = new JsonObject { ["model"] = _opt.Model, ["language"] = _opt.Language, ["prompt"] = _opt.Prompt };
+        var transcription = new JsonObject { ["model"] = ActiveModel, ["language"] = _opt.Language, ["prompt"] = _opt.Prompt };
         JsonObject msg = _useBeta
             ? new JsonObject
             {

@@ -8,8 +8,9 @@ public enum FontPreset { Compact, Normal, Large, ExtraLarge }
 public sealed class AppSettings
 {
     public string? PlaybackDeviceId { get; set; }           // null = follow Windows default playback device
-    public string AnswerModel { get; set; } = "gpt-4.1-mini";
-    public string TranscriptionModel { get; set; } = "gpt-4o-transcribe";
+    public int SettingsVersion { get; set; } = 2;
+    public string AnswerModel { get; set; } = "gpt-5.4-mini";
+    public string TranscriptionModel { get; set; } = "gpt-live-transcribe";
     public string RealtimeProtocol { get; set; } = "auto";
     public FontPreset FontPreset { get; set; } = FontPreset.Large;
     public double WindowOpacity { get; set; } = 0.97;
@@ -28,18 +29,30 @@ public sealed class AppSettings
     public double Height { get; set; } = 560;
     public bool FirstRunCompleted { get; set; }
     // Approximate unit prices for the cost estimate shown in diagnostics (editable; estimates only).
-    public double PriceTranscribePerMinute { get; set; } = 0.006;
-    public double PriceInputPerMTok { get; set; } = 0.40;
-    public double PriceOutputPerMTok { get; set; } = 1.60;
+    public double PriceTranscribePerMinute { get; set; } = 0.017;
+    public double PriceInputPerMTok { get; set; } = 0.75;
+    public double PriceOutputPerMTok { get; set; } = 4.50;
 
-    private static string FilePath => Path.Combine(AppPaths.Roaming, "settings.json");
+    public static string? OverridePath { get; set; } // self-test isolation
+    private static string FilePath => OverridePath ?? Path.Combine(AppPaths.Roaming, "settings.json");
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
     public static AppSettings Load()
     {
         try
         {
-            if (File.Exists(FilePath)) return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), Json) ?? new AppSettings();
+            if (File.Exists(FilePath))
+            {
+                var s = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), Json) ?? new AppSettings();
+                if (s.SettingsVersion < 2)
+                {
+                    // v1 defaults -> current recommended models (only if the user never changed them)
+                    if (s.AnswerModel == "gpt-4.1-mini") s.AnswerModel = "gpt-5.4-mini";
+                    if (s.TranscriptionModel == "gpt-4o-transcribe") s.TranscriptionModel = "gpt-live-transcribe";
+                    s.SettingsVersion = 2;
+                }
+                return s;
+            }
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {

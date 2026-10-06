@@ -122,8 +122,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         if (Knowledge == null) return;
         if (_engine != null) _ = _engine.DisposeAsync().AsTask(); // releases the previous transcriber connection
         _provider?.Dispose();
-        _provider = new OpenAiChatAnswerProvider(SecretStore.GetApiKey, new ChatProviderOptions { Model = Settings.AnswerModel });
-        _transcriber = new OpenAiRealtimeTranscriber(SecretStore.GetApiKey, new RealtimeTranscriberOptions { Model = Settings.TranscriptionModel, Protocol = Settings.RealtimeProtocol });
+        _provider = new OpenAiChatAnswerProvider(SecretStore.GetApiKey, ChatOptions());
+        _transcriber = new OpenAiRealtimeTranscriber(SecretStore.GetApiKey, TranscriberOptions());
         _transcriber.Diagnostic += m => AppLog.Info(m);
         _engine = new InterviewEngine(Knowledge, _transcriber, _provider, new EngineOptions { UseFastCache = Settings.UseFastCache });
         _engine.Turn.Sensitivity = Settings.VadSensitivity;
@@ -142,9 +142,13 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
     // ---------------- audio ----------------
 
+    /// <summary>Extra consumer of the exact production capture stream (used by Test Transcription).</summary>
+    private Action<byte[]>? _audioTap;
+
     private void OnAudioFrame(byte[] frame, double db)
     {
         _engine?.OnAudioFrame(frame, db);
+        _audioTap?.Invoke(frame);
         _peakDb = Math.Max(_peakDb, db);
         var now = Environment.TickCount64;
         if (now - Interlocked.Read(ref _lastMeterTick) < 60) return; // ~16 Hz UI updates, never per-packet
@@ -157,6 +161,47 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public void StartAudioPreview() { if (!_capture.IsRunning) _capture.Start(Settings.PlaybackDeviceId); }
     public void RestartAudio() { _capture.Stop(); _capture.Start(Settings.PlaybackDeviceId); }
     public string CurrentDeviceName => _capture.CurrentDeviceName;
+    public AudioCaptureService Capture => _capture;
+
+    public RealtimeTranscriberOptions TranscriberOptions() => new() { Model = Settings.TranscriptionModel, Protocol = Settings.RealtimeProtocol };
+    public ChatProviderOptions ChatOptions() => new() { Model = Settings.AnswerModel };
+
+    /// <summary>
+    /// Live transcription test through the SAME capture service, converter, framer and OpenAiRealtimeTranscriber class
+    /// used in interviews (separate instance so it never triggers answers).
+    /// </summary>
+    public async Task<string> TestTranscriptionAsync(Action<string> onTranscript, Action<string> onStatus, TimeSpan duration, CancellationToken ct)
+    {
+        StartAudioPreview();
+        await using var t = new OpenAiRealtimeTranscriber(SecretStore.GetApiKey, TranscriberOptions());
+        var text = new System.Text.StringBuilder();
+        var partials = new Dictionary<string, string>();
+        void Render() { var all = text + (partials.Count > 0 ? " " + string.Join(" ", partials.Values) : ""); Post(() => onTranscript(all.Trim())); }
+        t.PartialTranscript += (id, d) => { lock (partials) { partials[id] = partials.GetValueOrDefault(id, "") + d; Render(); } };
+        t.SegmentCompleted += (id, tr) => { lock (partials) { partials.Remove(id); if (tr.Length > 0) text.Append(' ').Append(tr.Trim()); Render(); } };
+        t.SpeechStarted += () => Post(() => onStatus("Speech detected…"));
+        t.StatusChanged += (st, d) => Post(() => onStatus($"{st} {d}"));
+        t.Diagnostic += m => Post(() => onStatus(m));
+        _audioTap = t.SendAudio;
+        try
+        {
+            await t.StartAsync(ct);
+            try { await Task.Delay(duration, ct); } catch (OperationCanceledException) { }
+        }
+        finally { _audioTap = null; }
+        return $"{t.ActiveModel}: {t.Status}";
+    }
+
+    /// <summary>AI test through the production answer pipeline (classify → retrieve → prompt → stream → validate).</summary>
+    public async Task<(AnswerView Answer, LatencySample? Sample, string Model)> TestAiAsync(string question, Action<string> onBullet)
+    {
+        if (Knowledge == null) throw new InvalidOperationException("Knowledge not loaded");
+        using var provider = new OpenAiChatAnswerProvider(SecretStore.GetApiKey, ChatOptions());
+        var engine = new InterviewEngine(Knowledge, null, provider, new EngineOptions { AutoTick = false, UseFastCache = false });
+        engine.BulletAdded += (_, b) => Post(() => onBullet(b));
+        await engine.SubmitManualQuestionAsync(question);
+        return (engine.Current!, engine.Metrics.Samples.LastOrDefault(), provider.ActiveModel);
+    }
 
     // ---------------- controls ----------------
 
@@ -281,6 +326,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     public IAnswerProvider? Provider => _provider;
+    public InterviewEngine? Engine => _engine;
 
     public async ValueTask DisposeAsync()
     {

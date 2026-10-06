@@ -11,12 +11,16 @@ namespace InterviewAssistant.Core.Providers;
 public sealed class ChatProviderOptions
 {
     public string Endpoint { get; set; } = "https://api.openai.com/v1/chat/completions";
-    /// <summary>Fast non-reasoning model by default (low first-token latency). Configurable in Settings.</summary>
-    public string Model { get; set; } = "gpt-4.1-mini";
+    /// <summary>
+    /// Default: gpt-5.4-mini with reasoning off (OpenAI, Mar 2026: ~0.7 s first token, ~175 tok/s). Configurable in Settings.
+    /// </summary>
+    public string Model { get; set; } = "gpt-5.4-mini";
+    /// <summary>Used automatically if the configured model is rejected as unknown/unavailable for this account.</summary>
+    public string FallbackModel { get; set; } = "gpt-4.1-mini";
     public double Temperature { get; set; } = 0.4;
     public TimeSpan FirstTokenTimeout { get; set; } = TimeSpan.FromSeconds(8);
-    /// <summary>Reasoning effort sent only for reasoning-model families (gpt-5*, o*).</summary>
-    public string ReasoningEffort { get; set; } = "minimal";
+    /// <summary>"auto" picks the lowest-latency effort the model family accepts (gpt-5.x: none; gpt-5/5-mini/o*: minimal).</summary>
+    public string ReasoningEffort { get; set; } = "auto";
 }
 
 /// <summary>
@@ -28,7 +32,7 @@ public sealed class OpenAiChatAnswerProvider : IAnswerProvider, IDisposable
     private readonly HttpClient _http;
     private readonly Func<string?> _apiKey;
     public ChatProviderOptions Options { get; }
-    public string Name => "OpenAI " + Options.Model;
+    public string Name => "OpenAI " + ActiveModel;
     public int RequestCount { get; private set; }
     public long ApproxInputChars { get; private set; }
     public long ApproxOutputChars { get; private set; }
@@ -47,17 +51,33 @@ public sealed class OpenAiChatAnswerProvider : IAnswerProvider, IDisposable
         model.StartsWith("gpt-5", StringComparison.OrdinalIgnoreCase) || model.StartsWith("o1", StringComparison.OrdinalIgnoreCase) ||
         model.StartsWith("o3", StringComparison.OrdinalIgnoreCase) || model.StartsWith("o4", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>Lowest-latency reasoning effort accepted by the model family.</summary>
+    public static string AutoEffort(string model)
+    {
+        var m = model.ToLowerInvariant();
+        // gpt-5.1 and later (gpt-5.4-mini, ...) accept "none"; the original gpt-5 family and o-series use "minimal"/"low".
+        if (System.Text.RegularExpressions.Regex.IsMatch(m, @"^gpt-5\.\d")) return "none";
+        if (m.StartsWith("gpt-5")) return "minimal";
+        return "low";
+    }
+
+    private string? _activeModel;
+    private bool _omitReasoning;
+    /// <summary>The model actually in use (differs from Options.Model after an automatic fallback).</summary>
+    public string ActiveModel => _activeModel ?? Options.Model;
+
     internal string BuildBody(IReadOnlyList<ChatMessage> messages, int maxTokens)
     {
+        var model = ActiveModel;
         var body = new JsonObject
         {
-            ["model"] = Options.Model,
+            ["model"] = model,
             ["stream"] = true,
             ["messages"] = new JsonArray(messages.Select(m => (JsonNode)new JsonObject { ["role"] = m.Role, ["content"] = m.Content }).ToArray()),
         };
-        if (IsReasoningModel(Options.Model))
+        if (IsReasoningModel(model))
         {
-            body["reasoning_effort"] = Options.ReasoningEffort;
+            if (!_omitReasoning) body["reasoning_effort"] = Options.ReasoningEffort == "auto" ? AutoEffort(model) : Options.ReasoningEffort;
             body["max_completion_tokens"] = maxTokens + 600; // reasoning tokens count toward the limit
         }
         else
@@ -73,31 +93,45 @@ public sealed class OpenAiChatAnswerProvider : IAnswerProvider, IDisposable
         var key = _apiKey();
         if (string.IsNullOrWhiteSpace(key)) throw new ProviderException(ProviderErrorKind.InvalidApiKey, "No API key configured");
 
-        var json = BuildBody(messages, maxTokens);
-        ApproxInputChars += json.Length;
-        RequestCount++;
-        using var req = new HttpRequestMessage(HttpMethod.Post, Options.Endpoint) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
-        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
-        req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
-
         using var firstTokenCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         firstTokenCts.CancelAfter(Options.FirstTokenTimeout);
 
+        // Up to 3 attempts, only for configuration rejections that are fixable automatically (never mid-stream):
+        //  1) unsupported reasoning_effort -> resend without it; 2) unknown/unavailable model -> fallback model.
         HttpResponseMessage resp;
-        try
+        int attempt = 0;
+        while (true)
         {
-            resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, firstTokenCts.Token).ConfigureAwait(false);
+            var json = BuildBody(messages, maxTokens);
+            ApproxInputChars += json.Length;
+            RequestCount++;
+            using var req = new HttpRequestMessage(HttpMethod.Post, Options.Endpoint) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
+            req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+            try
+            {
+                resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, firstTokenCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested) { throw new ProviderException(ProviderErrorKind.Timeout, "Answer service timed out"); }
+            catch (HttpRequestException ex) { throw new ProviderException(ProviderErrorKind.Network, "Network error: " + ex.Message, ex); }
+            if (resp.IsSuccessStatusCode) break;
+
+            var err = await SafeReadAsync(resp, ct).ConfigureAwait(false);
+            var mapped = MapError(resp.StatusCode, err);
+            resp.Dispose();
+            attempt++;
+            if (attempt < 3 && mapped.Kind == ProviderErrorKind.BadRequest)
+            {
+                if (!_omitReasoning && err.Contains("reasoning", StringComparison.OrdinalIgnoreCase)) { _omitReasoning = true; continue; }
+                if (ActiveModel != Options.FallbackModel && !string.IsNullOrEmpty(Options.FallbackModel) &&
+                    (err.Contains("model", StringComparison.OrdinalIgnoreCase) || resp.StatusCode == HttpStatusCode.NotFound))
+                { _activeModel = Options.FallbackModel; _omitReasoning = false; continue; }
+            }
+            throw mapped;
         }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested) { throw new ProviderException(ProviderErrorKind.Timeout, "Answer service timed out"); }
-        catch (HttpRequestException ex) { throw new ProviderException(ProviderErrorKind.Network, "Network error: " + ex.Message, ex); }
 
         using (resp)
         {
-            if (!resp.IsSuccessStatusCode)
-            {
-                var err = await SafeReadAsync(resp, ct).ConfigureAwait(false);
-                throw MapError(resp.StatusCode, err);
-            }
             using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             using var reader = new StreamReader(stream, Encoding.UTF8);
             bool gotFirst = false;

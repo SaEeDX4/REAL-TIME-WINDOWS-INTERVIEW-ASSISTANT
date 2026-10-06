@@ -2,7 +2,7 @@
 .SYNOPSIS
   Builds, tests and packages Interview Assistant for Windows x64.
 .DESCRIPTION
-  Produces artifacts\InterviewAssistant-win-x64.zip containing a self-contained single-file
+  Produces artifacts\InterviewAssistant-Windows-x64.zip containing a self-contained single-file
   InterviewAssistant.exe (no .NET install needed) plus the knowledge\ folder and docs.
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1
@@ -23,7 +23,7 @@ Write-Host "dotnet $(dotnet --version)" -ForegroundColor Cyan
 
 dotnet restore InterviewAssistant.sln
 if ($LASTEXITCODE) { throw "restore failed" }
-dotnet build InterviewAssistant.sln -c $Configuration --no-restore
+dotnet build InterviewAssistant.sln -c $Configuration --no-restore -p:TreatWarningsAsErrors=true
 if ($LASTEXITCODE) { throw "build failed" }
 
 if (-not $SkipTests) {
@@ -39,13 +39,13 @@ dotnet publish src/InterviewAssistant.App -c $Configuration -r win-x64 --self-co
     -p:DebugType=none -o $out
 if ($LASTEXITCODE) { throw "publish failed" }
 
-Copy-Item README.md, docs\PRE_INTERVIEW_CHECKLIST.md, docs\TROUBLESHOOTING.md -Destination $out -ErrorAction SilentlyContinue
+Copy-Item README.md, TESTING.md, docs\PRE_INTERVIEW_CHECKLIST.md, docs\TROUBLESHOOTING.md -Destination $out -ErrorAction SilentlyContinue
 
 # Safety: never ship secrets or local settings.
 $bad = Get-ChildItem $out -Recurse -Include *.dpapi, settings.json, *.env -ErrorAction SilentlyContinue
 if ($bad) { throw "Refusing to package secret/settings files: $($bad.FullName -join ', ')" }
 
-$zip = Join-Path $root "artifacts\InterviewAssistant-win-x64.zip"
+$zip = Join-Path $root "artifacts\InterviewAssistant-Windows-x64.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path "$out\*" -DestinationPath $zip
 $hash = (Get-FileHash $zip -Algorithm SHA256).Hash

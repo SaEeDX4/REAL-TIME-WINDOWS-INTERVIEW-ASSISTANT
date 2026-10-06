@@ -33,6 +33,14 @@ public sealed class AudioCaptureService : IDisposable, IMMNotificationClient
     public event Action<byte[], double>? FrameReady;   // pcm16 frame (100 ms), level dBFS
     public event Action<string>? StatusChanged;
     public string CurrentDeviceName { get; private set; } = "";
+    public string Status { get; private set; } = "STOPPED";
+    public int SampleRate { get; private set; }
+    public int Channels { get; private set; }
+    public string Encoding { get; private set; } = "";
+    /// <summary>Peak / RMS of the most recent 100 ms frame (dBFS).</summary>
+    public double LastPeakDb { get; private set; } = -100;
+    public double LastRmsDb { get; private set; } = -100;
+    public long FramesWithSignal;
     public bool IsRunning => _running;
 
     public static IReadOnlyList<PlaybackDevice> ListDevices()
@@ -77,6 +85,7 @@ public sealed class AudioCaptureService : IDisposable, IMMNotificationClient
         {
             _running = false;
             StopCaptureLocked();
+            SetStatus("STOPPED");
         }
     }
 
@@ -90,19 +99,21 @@ public sealed class AudioCaptureService : IDisposable, IMMNotificationClient
                 : _enumerator!.GetDevice(_requestedDeviceId);
             CurrentDeviceName = device.FriendlyName;
             _capture = new WasapiLoopbackCapture(device);
-            _converter = new PcmConverter(ToSourceFormat(_capture.WaveFormat));
+            var fmt = ToSourceFormat(_capture.WaveFormat);
+            _converter = new PcmConverter(fmt);
+            SampleRate = fmt.SampleRate; Channels = fmt.Channels; Encoding = fmt.Encoding.ToString();
             _framer = new AudioFramer();
             _capture.DataAvailable += OnData;
             _capture.RecordingStopped += OnStopped;
             Interlocked.Exchange(ref _lastDataTicks, Environment.TickCount64);
             _capture.StartRecording();
             AppLog.Info($"Loopback capture started: {CurrentDeviceName} ({_capture.WaveFormat})");
-            StatusChanged?.Invoke("ACTIVE");
+            SetStatus("ACTIVE");
         }
         catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
             AppLog.Error("Could not start loopback capture", ex);
-            StatusChanged?.Invoke("DEVICE ERROR");
+            SetStatus(ex is System.Runtime.InteropServices.COMException c && (uint)c.HResult == 0x80070490 ? "NO PLAYBACK DEVICE" : "DEVICE ERROR");
             ScheduleRestart();
         }
     }
@@ -134,7 +145,23 @@ public sealed class AudioCaptureService : IDisposable, IMMNotificationClient
         if (conv == null) return;
         var pcm = conv.Convert(e.Buffer.AsSpan(0, e.BytesRecorded));
         if (pcm.Length == 0) return;
-        foreach (var frame in framer.Push(pcm)) FrameReady?.Invoke(frame, PcmConverter.LevelDb(frame));
+        foreach (var frame in framer.Push(pcm))
+        {
+            var rms = PcmConverter.LevelDb(frame);
+            LastRmsDb = rms;
+            LastPeakDb = PeakDb(frame);
+            if (rms > -50) Interlocked.Increment(ref FramesWithSignal);
+            FrameReady?.Invoke(frame, rms);
+        }
+    }
+
+    private void SetStatus(string s) { Status = s; StatusChanged?.Invoke(s); }
+
+    private static double PeakDb(byte[] pcm16)
+    {
+        int peak = 0;
+        for (int i = 0; i + 1 < pcm16.Length; i += 2) peak = Math.Max(peak, Math.Abs((int)(short)(pcm16[i] | pcm16[i + 1] << 8)));
+        return peak == 0 ? -100 : 20 * Math.Log10(peak / 32768.0);
     }
 
     private void InjectSilenceIfStalled()
@@ -150,7 +177,7 @@ public sealed class AudioCaptureService : IDisposable, IMMNotificationClient
     private void OnStopped(object? sender, StoppedEventArgs e)
     {
         if (e.Exception != null) AppLog.Warn("Capture stopped: " + e.Exception.Message);
-        if (_running) { StatusChanged?.Invoke("RECONNECTING DEVICE"); ScheduleRestart(); }
+        if (_running) { SetStatus("RECONNECTING DEVICE"); ScheduleRestart(); }
     }
 
     private void ScheduleRestart()

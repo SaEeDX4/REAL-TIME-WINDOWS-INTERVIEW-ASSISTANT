@@ -24,32 +24,47 @@ jobs:
       - name: Restore
         run: dotnet restore InterviewAssistant.sln
 
-      - name: Build
-        run: dotnet build InterviewAssistant.sln -c Release --no-restore
+      - name: Build (warnings are errors)
+        run: dotnet build InterviewAssistant.sln -c Release --no-restore -p:TreatWarningsAsErrors=true
 
       - name: Test (unit, engine, 60-min simulated soak, answer evaluation)
-        run: dotnet test tests/InterviewAssistant.Tests -c Release --no-build --logger "console;verbosity=detailed"
+        run: dotnet test tests/InterviewAssistant.Tests -c Release --no-build --logger "console;verbosity=normal" --logger "trx;LogFileName=tests.trx" --results-directory artifacts/test-results
         env:
-          # Optional: add a repository secret named OPENAI_API_KEY to enable the live LLM evaluation test.
+          # Optional: repository secret OPENAI_API_KEY enables the live LLM evaluation test.
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
-      - name: Publish + package
+      - name: Publish win-x64 self-contained + package
         shell: pwsh
         run: ./scripts/build-release.ps1 -SkipTests
 
-      - name: Smoke test (launch the real EXE on Windows)
+      - name: Smoke test — launch real EXE, window appears, stays alive, clean exit
         shell: pwsh
         run: ./scripts/smoke-test.ps1
+
+      - name: In-app self-test — XAML windows, manual UI, missing-key paths, DPAPI, settings
+        shell: pwsh
+        run: ./scripts/selftest.ps1
 
       - name: Upload release ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: InterviewAssistant-win-x64
-          path: artifacts/InterviewAssistant-win-x64.zip
+          name: InterviewAssistant-Windows-x64
+          path: artifacts/InterviewAssistant-Windows-x64.zip
           if-no-files-found: error
+
+      - name: Upload validation evidence (logs, self-test JSON, test results)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-evidence
+          path: |
+            artifacts/selftest-result.json
+            artifacts/test-results/
+            ~/AppData/Local/InterviewAssistant/logs/
+          if-no-files-found: warn
 
       - name: GitHub Release (tags only)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/InterviewAssistant-win-x64.zip
+          files: artifacts/InterviewAssistant-Windows-x64.zip

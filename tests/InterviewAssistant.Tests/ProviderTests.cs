@@ -36,7 +36,9 @@ public class ProviderTests
         Assert.Equal("MODE: HYPOTHETICAL\n• I'd start.\n", string.Concat(parts));
         var body = JsonNode.Parse(h.LastBody!)!;
         Assert.True(body["stream"]!.GetValue<bool>());
-        Assert.Equal("gpt-4.1-mini", body["model"]!.GetValue<string>());
+        Assert.Equal("gpt-5.4-mini", body["model"]!.GetValue<string>());
+        Assert.Equal("none", body["reasoning_effort"]!.GetValue<string>());
+        Assert.Null(body["temperature"]);
     }
 
     [Theory]
@@ -75,6 +77,60 @@ public class ProviderTests
         var body = JsonNode.Parse(p.BuildBody(Msgs, 100))!;
         Assert.Null(body["temperature"]);
         Assert.Equal("minimal", body["reasoning_effort"]!.GetValue<string>());
+        using var p2 = new OpenAiChatAnswerProvider(() => "k", new ChatProviderOptions { Model = "gpt-4.1-mini" });
+        var b2 = JsonNode.Parse(p2.BuildBody(Msgs, 100))!;
+        Assert.Null(b2["reasoning_effort"]);
+        Assert.NotNull(b2["temperature"]);
+    }
+
+    [Fact]
+    public async Task UnsupportedReasoningEffortIsRetriedWithoutIt()
+    {
+        int calls = 0;
+        var h = new StubHandler(r =>
+        {
+            calls++;
+            var body = r.Content!.ReadAsStringAsync().Result;
+            return body.Contains("reasoning_effort")
+                ? new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = new StringContent("{\"error\":{\"message\":\"Unsupported value for reasoning_effort\"}}") }
+                : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Sse("ok\n")) };
+        });
+        using var p = new OpenAiChatAnswerProvider(() => "k", null, h);
+        var parts = new List<string>();
+        await foreach (var d in p.StreamAsync(Msgs, 10, CancellationToken.None)) parts.Add(d);
+        Assert.Equal(2, calls);
+        Assert.Equal("ok\n", string.Concat(parts));
+    }
+
+    [Fact]
+    public async Task UnknownModelFallsBackAutomatically()
+    {
+        var h = new StubHandler(r =>
+        {
+            var body = r.Content!.ReadAsStringAsync().Result;
+            return body.Contains("gpt-5.4-mini")
+                ? new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("{\"error\":{\"message\":\"The model gpt-5.4-mini does not exist\"}}") }
+                : new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Sse("hi")) };
+        });
+        using var p = new OpenAiChatAnswerProvider(() => "k", null, h);
+        await foreach (var _ in p.StreamAsync(Msgs, 10, CancellationToken.None)) { }
+        Assert.Equal("gpt-4.1-mini", p.ActiveModel);
+    }
+
+    [Theory]
+    [InlineData("gpt-5.4-mini", "none")]
+    [InlineData("gpt-5-mini", "minimal")]
+    [InlineData("o4-mini", "low")]
+    public void AutoEffortPerFamily(string model, string effort) => Assert.Equal(effort, OpenAiChatAnswerProvider.AutoEffort(model));
+
+    [Fact]
+    public void TranscriberFallsBackToNextModelWhenRejected()
+    {
+        var t = new OpenAiRealtimeTranscriber(() => "k");
+        Assert.Equal("gpt-live-transcribe", t.ActiveModel);
+        t.HandleEvent(Encoding.UTF8.GetBytes("{\"type\":\"error\",\"error\":{\"code\":\"model_not_found\",\"message\":\"unknown model\"}}"), DateTime.UtcNow);
+        Assert.Equal("gpt-4o-transcribe", t.ActiveModel);
+        Assert.Contains("gpt-4o-transcribe", t.BuildSessionUpdate());
     }
 
     [Fact]
