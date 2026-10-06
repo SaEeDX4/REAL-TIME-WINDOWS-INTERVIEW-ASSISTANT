@@ -1,0 +1,37 @@
+using InterviewAssistant.Core.Intelligence;
+using InterviewAssistant.Core.Knowledge;
+
+namespace InterviewAssistant.Core.Orchestration;
+
+public enum EngineStatus { Ready, Listening, SpeechDetected, Finalizing, Answering, Paused, Reconnecting, NoAudio, ApiError, Stopped }
+
+public enum AnswerSource { Cache, Llm, CacheFallback, Error }
+
+/// <summary>An answer being displayed. Bullets are append-only (stable under the reader's eyes).</summary>
+public sealed class AnswerView
+{
+    public required int Id { get; init; }
+    public required string Question { get; init; }
+    public required AnswerStyle Style { get; init; }
+    public AnswerSource Source { get; set; }
+    public AnswerMode Mode { get; set; }
+    public string Category { get; set; } = "";
+    public string? MatchedQuestionId { get; set; }
+    public double MatchScore { get; set; }
+    public List<string> Bullets { get; } = new();
+    public bool IsComplete { get; set; }
+    public string? Note { get; set; }
+    public List<string> ValidationFlags { get; } = new();
+}
+
+public sealed class EngineOptions
+{
+    public bool AutoTick { get; set; } = true;
+    public int TickMs { get; set; } = 40;
+    /// <summary>Use the prepared answer instantly when the match is High confidence.</summary>
+    public bool UseFastCache { get; set; } = true;
+    public AnswerStyle DefaultStyle { get; set; } = AnswerStyle.Balanced;
+    /// <summary>Seconds without audio level above the floor while listening before "NO AUDIO" is shown.</summary>
+    public int NoAudioWarningSeconds { get; set; } = 20;
+    public int HistoryCapacity { get; set; } = 30;
+}

@@ -1,0 +1,135 @@
+{
+  "policy": "Evidence-backed skeletons only. 'situation' and 'action' paraphrase résumé lines; no invented details. If an interviewer asks for specifics not listed here, answers should stay at the level of the résumé or describe approach, never invent.",
+  "stories": [
+    {
+      "id": "arzif_growth",
+      "company": "Arzif Crypto Exchange", "role": "Business Management Lead",
+      "situation": "Crypto exchange that needed to grow its active trader base.",
+      "action": "Led blockchain operations and strategic planning.",
+      "result": "Platform grew to 60,000 active traders in two years.",
+      "verified_numbers": ["60,000", "2 years"],
+      "skills": ["strategy", "growth", "crypto operations"],
+      "question_types": ["CRYPTO", "RESUME_EXPERIENCE", "PRODUCT_STRATEGY", "BEHAVIOURAL"]
+    },
+    {
+      "id": "arzif_revenue_retention",
+      "company": "Arzif Crypto Exchange", "role": "Business Management Lead",
+      "situation": "Needed to grow revenue and keep traders active.",
+      "action": "Optimised digital marketing and introduced user-retention strategies.",
+      "result": "Sales revenue up 60% over three years.",
+      "verified_numbers": ["60%", "3 years"],
+      "skills": ["retention", "growth marketing", "data-driven optimisation"],
+      "question_types": ["METRICS", "REWARDS", "XAB", "BEHAVIOURAL", "PRODUCT_STRATEGY"]
+    },
+    {
+      "id": "arzif_partnerships",
+      "company": "Arzif Crypto Exchange", "role": "Business Management Lead",
+      "situation": "A younger platform needing credibility with traders.",
+      "action": "Established co-branding partnerships with Binance, CoinEx and KuCoin.",
+      "result": "Enhanced platform credibility.",
+      "verified_numbers": [],
+      "skills": ["partnerships", "stakeholder management", "negotiation"],
+      "question_types": ["STAKEHOLDER", "CRYPTO", "BEHAVIOURAL"]
+    },
+    {
+      "id": "arzif_ux",
+      "company": "Arzif Crypto Exchange", "role": "Business Management Lead",
+      "situation": "User experience and support friction affected satisfaction.",
+      "action": "Drove UX enhancements and streamlined customer-support processes.",
+      "result": "User satisfaction improved by 25%.",
+      "verified_numbers": ["25%"],
+      "skills": ["customer focus", "UX", "process improvement"],
+      "question_types": ["PRODUCT_DISCOVERY", "PRODUCT_EXECUTION", "BEHAVIOURAL"]
+    },
+    {
+      "id": "arzif_infra",
+      "company": "Arzif Crypto Exchange", "role": "Business Management Lead",
+      "situation": "Platform reliability under growth.",
+      "action": "Drove technical infrastructure upgrades and scalability improvements with the technical team.",
+      "result": "Platform downtime reduced by 20%.",
+      "verified_numbers": ["20%"],
+      "skills": ["technical collaboration", "reliability", "prioritising tech debt"],
+      "question_types": ["TECHNICAL_CONCEPT", "PRIORITIZATION", "STAKEHOLDER", "BEHAVIOURAL"]
+    },
+    {
+      "id": "arzif_compliance",
+      "company": "Arzif Crypto Exchange", "role": "Business Management Lead",
+      "situation": "Operating a crypto exchange across jurisdictions.",
+      "action": "Ensured compliance with international cryptocurrency regulations.",
+      "result": "Mitigated financial and operational risks.",
+      "verified_numbers": [],
+      "skills": ["regulatory awareness", "risk management"],
+      "question_types": ["COMPLIANCE", "MICAR", "CRYPTO"]
+    },
+    {
+      "id": "gabrielyte_ops",
+      "company": "Gabrielyte UAB", "role": "Executive Director",
+      "situation": "Building a business in Vilnius from the initial team.",
+      "action": "Recruited and onboarded the initial team; managed purchasing, sales, marketing and customer service end to end.",
+      "result": "Onboarding time down 30%, service-delivery scores up 18%, turnover down 25%.",
+      "verified_numbers": ["30%", "18%", "25%"],
+      "skills": ["leadership", "operations", "team building"],
+      "question_types": ["LEADERSHIP", "BEHAVIOURAL", "RESUME_EXPERIENCE"]
+    },
+    {
+      "id": "gabrielyte_growth",
+      "company": "Gabrielyte UAB", "role": "Executive Director",
+      "situation": "Need for growth and stronger client relationships.",
+      "action": "Developed and executed growth plans via targeted market expansion; strategic networking with clients; negotiated contracts.",
+      "result": "Revenue up 20%, client retention up 15%, 10% cost reduction.",
+      "verified_numbers": ["20%", "15%", "10%"],
+      "skills": ["growth", "retention", "negotiation"],
+      "question_types": ["METRICS", "BEHAVIOURAL", "GENERAL_BUSINESS"]
+    },
+    {
+      "id": "lg_gtm",
+      "company": "LG Electronics", "role": "Senior Product Marketing Manager",
+      "situation": "New product launches across multiple markets.",
+      "action": "Led go-to-market strategies; market analysis with SPSS and advanced Excel.",
+      "result": "Contributed to a 10% market-share increase.",
+      "verified_numbers": ["10%"],
+      "skills": ["GTM", "market analysis", "data"],
+      "question_types": ["PRODUCT_STRATEGY", "PRODUCT_DISCOVERY", "METRICS", "BEHAVIOURAL"]
+    },
+    {
+      "id": "lg_channel",
+      "company": "LG Electronics", "role": "Senior Product Marketing Manager",
+      "situation": "Growing sales through channels.",
+      "action": "Strategic channel management; expanded retailer network.",
+      "result": "Annual sales +20% over 4 years; retailer network +25% (50 partners in 3 years); 100% of targets five years running; Top Performer.",
+      "verified_numbers": ["20%", "4 years", "25%", "50", "3 years", "100%", "5"],
+      "skills": ["execution", "partnerships", "consistency"],
+      "question_types": ["BEHAVIOURAL", "RESUME_EXPERIENCE"]
+    },
+    {
+      "id": "lg_mentoring",
+      "company": "LG Electronics", "role": "Senior Product Marketing Manager",
+      "situation": "Sales team capability.",
+      "action": "Trained and mentored 10 sales representatives.",
+      "result": "Team performance improved by 15%.",
+      "verified_numbers": ["10", "15%"],
+      "skills": ["coaching", "leadership"],
+      "question_types": ["LEADERSHIP", "BEHAVIOURAL"]
+    },
+    {
+      "id": "philips_pricing_crm",
+      "company": "Philips", "role": "Director of Sales and Marketing",
+      "situation": "Margin and conversion pressure.",
+      "action": "Developed pricing models aligned to market conditions; implemented CRM to track sales activity; analysed customer data for trends.",
+      "result": "Margins +12%, lead conversion +18%, customer retention +10%, costs -8% via vendor negotiation.",
+      "verified_numbers": ["12%", "18%", "10%", "8%"],
+      "skills": ["pricing", "CRM", "data analysis", "budget"],
+      "question_types": ["METRICS", "PRODUCT_EXECUTION", "BEHAVIOURAL"]
+    },
+    {
+      "id": "epson_channels",
+      "company": "Epson", "role": "Sales Manager",
+      "situation": "Expanding market coverage in MEA.",
+      "action": "Channel management; implemented CRM; trained 12 reps.",
+      "result": "Channels 128 to 254; sales +22% over 5 years; pipeline efficiency +15%; Top Performer in MEA.",
+      "verified_numbers": ["128", "254", "22%", "5 years", "15%", "12"],
+      "skills": ["scaling", "CRM", "execution"],
+      "question_types": ["BEHAVIOURAL", "RESUME_EXPERIENCE"]
+    }
+  ]
+}

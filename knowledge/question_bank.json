@@ -1,0 +1,3498 @@
+{
+ "version": 1,
+ "questions": [
+  {
+   "question_id": "Q001",
+   "canonical_question": "Tell me about yourself.",
+   "category": "INTRODUCTION",
+   "intent": "Tell me about yourself",
+   "keywords": [
+    "yourself",
+    "walk",
+    "through",
+    "background",
+    "introduce",
+    "give",
+    "quick",
+    "introduction",
+    "bit",
+    "career",
+    "far",
+    "shervin"
+   ],
+   "semantic_variants": [
+    "Walk me through your background",
+    "Introduce yourself",
+    "Can you give us a quick introduction",
+    "Tell us a bit about your career so far",
+    "Walk me through your CV",
+    "Who is Shervin"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "I'm a business and operations leader with over fifteen years across consumer electronics, IT and crypto.",
+    "At Arzif Crypto Exchange I led operations and strategy, growing the platform to sixty thousand active traders and revenue by sixty percent.",
+    "Before that, at LG I led go-to-market for product launches, and my software engineering degree helps me work closely with tech teams.",
+    "Product Ownership of XAB is the natural next step, because it combines users, crypto, growth and technology in one role."
+   ],
+   "optional_full_answer": "I'm a business and operations leader with more than fifteen years across consumer electronics, IT and crypto. Most relevant here, at Arzif Crypto Exchange I led blockchain operations and strategic planning, growing the platform to around sixty thousand active traders in two years and revenue by sixty percent, while working on UX, infrastructure, partnerships with Binance, CoinEx and KuCoin, and regulatory compliance. Before that I spent seven years at LG leading go-to-market for new products, and I hold a degree in software engineering, which helps me translate between business and engineering. Today I run operations as Executive Director at Gabrielyte. Product Ownership of XAB brings all of this together: users, crypto, growth and technology.",
+   "candidate_evidence": [
+    "arzif_growth",
+    "arzif_revenue_retention",
+    "lg_gtm"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": [
+    "Why Product Owner?",
+    "Why Teroxx?"
+   ]
+  },
+  {
+   "question_id": "Q002",
+   "canonical_question": "Why do you want to become a Product Owner?",
+   "category": "MOTIVATION",
+   "intent": "Why do you want to become a Product Owner",
+   "keywords": [
+    "want",
+    "become",
+    "product",
+    "owner",
+    "ownership",
+    "move",
+    "into",
+    "role",
+    "switch",
+    "attracts"
+   ],
+   "semantic_variants": [
+    "Why product ownership",
+    "Why move into a product role",
+    "Why the switch to product",
+    "What attracts you to product ownership"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "Throughout my career I've worked where customer needs, business value and technology meet.",
+    "At Arzif that meant growth, UX, infrastructure and compliance decisions together, which is essentially product work.",
+    "I want to own outcomes formally, with clear prioritization, well-defined stories and measurable results."
+   ],
+   "optional_full_answer": "Throughout my career I've worked where customer needs, business value and technology meet. At Arzif that meant growth, UX, infrastructure and compliance decisions together, which is essentially product work. I want to own outcomes formally, with clear prioritization, well-defined stories and measurable results.",
+   "candidate_evidence": [
+    "arzif_ux",
+    "arzif_infra",
+    "lg_gtm"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q003",
+   "canonical_question": "Why do you want to work at Teroxx?",
+   "category": "MOTIVATION",
+   "intent": "Why do you want to work at Teroxx",
+   "keywords": [
+    "want",
+    "work",
+    "teroxx",
+    "company",
+    "know",
+    "interested",
+    "job"
+   ],
+   "semantic_variants": [
+    "Why Teroxx",
+    "Why this company",
+    "What do you know about Teroxx",
+    "Why are you interested in us",
+    "Why do you want this job"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "Teroxx combines a MiCA-regulated platform with premium client service, which is exactly where crypto needs to go.",
+    "XAB sits at the centre of that experience, connecting rewards, status levels and utility for clients.",
+    "With my exchange background, I can help turn that token ecosystem into measurable engagement and retention."
+   ],
+   "optional_full_answer": "Teroxx combines a MiCA-regulated platform with premium client service, which is exactly where crypto needs to go. XAB sits at the centre of that experience, connecting rewards, status levels and utility for clients. With my exchange background, I can help turn that token ecosystem into measurable engagement and retention.",
+   "candidate_evidence": [
+    "arzif_growth"
+   ],
+   "gap_warning": "Company facts from company_brief.md (CySEC CASP004/25).",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": [
+    "What would you change in XAB first?"
+   ]
+  },
+  {
+   "question_id": "Q004",
+   "canonical_question": "Why should we hire you?",
+   "category": "MOTIVATION",
+   "intent": "Why should we hire you",
+   "keywords": [
+    "hire",
+    "makes",
+    "right",
+    "candidate",
+    "bring",
+    "role",
+    "unique",
+    "value"
+   ],
+   "semantic_variants": [
+    "What makes you the right candidate",
+    "Why you",
+    "What would you bring to this role",
+    "What's your unique value"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "I bring real crypto-exchange experience, growing Arzif to sixty thousand active traders and revenue by sixty percent.",
+    "I combine growth, operations and customer experience with a software engineering education, so I bridge business and engineering.",
+    "And I've worked with regulators' requirements and partners like Binance, so I understand trust and compliance in this market."
+   ],
+   "optional_full_answer": "I bring real crypto-exchange experience, growing Arzif to sixty thousand active traders and revenue by sixty percent. I combine growth, operations and customer experience with a software engineering education, so I bridge business and engineering. And I've worked with regulators' requirements and partners like Binance, so I understand trust and compliance in this market.",
+   "candidate_evidence": [
+    "arzif_growth",
+    "arzif_revenue_retention",
+    "arzif_partnerships",
+    "arzif_compliance"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q005",
+   "canonical_question": "You haven't formally been a Product Owner. Why should we trust you with this role?",
+   "category": "GAP_EXPERIENCE",
+   "intent": "You haven't formally been a Product Owner. Why should we trust you with this role",
+   "keywords": [
+    "haven",
+    "formally",
+    "product",
+    "owner",
+    "trust",
+    "role",
+    "have",
+    "experience",
+    "never",
+    "had",
+    "title",
+    "background",
+    "sales",
+    "marketing"
+   ],
+   "semantic_variants": [
+    "You have no product owner experience",
+    "You've never had a product title",
+    "Your background is sales and marketing, not product",
+    "Have you worked as a product owner before",
+    "This would be your first product owner role"
+   ],
+   "answer_mode": "BRIDGE",
+   "short_bullets": [
+    "That's correct, Product Owner wasn't my formal title, although much of my work was product-oriented.",
+    "At Arzif I worked across users, growth, UX, infrastructure, blockchain operations and regulatory requirements.",
+    "What I'm adding now is formal product discipline: clear prioritization, strong stories and acceptance criteria, and measurable outcomes."
+   ],
+   "optional_full_answer": "That's correct, Product Owner wasn't my formal title, although much of my work was product-oriented. At Arzif I worked across users, growth, UX, infrastructure, blockchain operations and regulatory requirements. What I'm adding now is formal product discipline: clear prioritization, strong stories and acceptance criteria, and measurable outcomes.",
+   "candidate_evidence": [
+    "arzif_ux",
+    "arzif_infra",
+    "arzif_compliance"
+   ],
+   "gap_warning": "No formal PO title on résumé.",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q006",
+   "canonical_question": "Have you personally built or owned a financial ledger?",
+   "category": "GAP_EXPERIENCE",
+   "intent": "Have you personally built or owned a financial ledger",
+   "keywords": [
+    "have",
+    "personally",
+    "built",
+    "owned",
+    "financial",
+    "ledger",
+    "before",
+    "experience",
+    "system",
+    "ledgers"
+   ],
+   "semantic_variants": [
+    "Have you built a ledger before",
+    "Do you have ledger experience",
+    "Have you owned a financial ledger system",
+    "Tell me about your experience with ledgers"
+   ],
+   "answer_mode": "BRIDGE",
+   "short_bullets": [
+    "I haven't owned a ledger implementation directly, but I understand the Product Owner responsibilities around it.",
+    "I'd define every balance-changing event, transaction states, reversals, idempotency, reconciliation and audit requirements.",
+    "Then I'd work closely with Engineering and Compliance to turn those rules into testable acceptance criteria."
+   ],
+   "optional_full_answer": "I haven't owned a ledger implementation directly, but I understand the Product Owner responsibilities around it. I'd define every balance-changing event, transaction states, reversals, idempotency, reconciliation and audit requirements. Then I'd work closely with Engineering and Compliance to turn those rules into testable acceptance criteria.",
+   "candidate_evidence": [
+    "arzif_infra"
+   ],
+   "gap_warning": "Job requires proven ledger/wallet/closed-loop ownership; résumé does not show it.",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q007",
+   "canonical_question": "Have you worked with closed-loop reward systems or wallet architectures?",
+   "category": "GAP_EXPERIENCE",
+   "intent": "Have you worked with closed-loop reward systems or wallet architectures",
+   "keywords": [
+    "have",
+    "worked",
+    "closed-loop",
+    "reward",
+    "systems",
+    "wallet",
+    "architectures",
+    "built",
+    "system",
+    "experience",
+    "architecture",
+    "designed",
+    "loyalty",
+    "program"
+   ],
+   "semantic_variants": [
+    "Have you built a reward system",
+    "Experience with wallet architecture",
+    "Have you designed a loyalty program",
+    "Tell me about your experience with rewards systems"
+   ],
+   "answer_mode": "BRIDGE",
+   "short_bullets": [
+    "I haven't owned a closed-loop reward system build directly, but retention mechanics were central to my work at Arzif.",
+    "We grew revenue by sixty percent over three years partly through user-retention strategies.",
+    "For XAB, I'd define earn, hold and use rules clearly, and measure incremental behaviour against reward cost."
+   ],
+   "optional_full_answer": "I haven't owned a closed-loop reward system build directly, but retention mechanics were central to my work at Arzif. We grew revenue by sixty percent over three years partly through user-retention strategies. For XAB, I'd define earn, hold and use rules clearly, and measure incremental behaviour against reward cost.",
+   "candidate_evidence": [
+    "arzif_revenue_retention"
+   ],
+   "gap_warning": "No résumé evidence of owning a rewards/wallet build.",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q008",
+   "canonical_question": "Have you worked directly with MiCA?",
+   "category": "GAP_EXPERIENCE",
+   "intent": "Have you worked directly with MiCA",
+   "keywords": [
+    "have",
+    "worked",
+    "directly",
+    "mica",
+    "experience",
+    "under",
+    "micar",
+    "regulation"
+   ],
+   "semantic_variants": [
+    "Do you have MiCA experience",
+    "Have you worked under MiCAR",
+    "What is your experience with MiCA regulation"
+   ],
+   "answer_mode": "BRIDGE",
+   "short_bullets": [
+    "I haven't been the owner of a MiCA implementation, but at Arzif I was responsible for compliance with international crypto regulations.",
+    "Under MiCA, I'd treat requirements as product rules from the start, with Legal and Compliance in discovery.",
+    "That means clear allowed flows, audit data, fair marketing consistent with the white paper, and testable acceptance criteria."
+   ],
+   "optional_full_answer": "I haven't been the owner of a MiCA implementation, but at Arzif I was responsible for compliance with international crypto regulations. Under MiCA, I'd treat requirements as product rules from the start, with Legal and Compliance in discovery. That means clear allowed flows, audit data, fair marketing consistent with the white paper, and testable acceptance criteria.",
+   "candidate_evidence": [
+    "arzif_compliance"
+   ],
+   "gap_warning": "Résumé: 'international cryptocurrency regulations', not MiCA specifically.",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q009",
+   "canonical_question": "Tell me about your crypto experience.",
+   "category": "RESUME_EXPERIENCE",
+   "intent": "Tell me about your crypto experience",
+   "keywords": [
+    "crypto",
+    "experience",
+    "background",
+    "arzif",
+    "exchange",
+    "blockchain",
+    "role"
+   ],
+   "semantic_variants": [
+    "What's your background in crypto",
+    "Tell me about Arzif",
+    "What did you do at Arzif Crypto Exchange",
+    "Tell me about your blockchain experience",
+    "What was your role at the exchange"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "At Arzif Crypto Exchange I was Business Management Lead, responsible for blockchain operations and strategic planning.",
+    "We grew to sixty thousand active traders in two years and increased revenue by sixty percent over three years.",
+    "I also built partnerships with Binance, CoinEx and KuCoin, improved satisfaction by twenty-five percent and kept us compliant."
+   ],
+   "optional_full_answer": "At Arzif Crypto Exchange I was Business Management Lead, responsible for blockchain operations and strategic planning. We grew to sixty thousand active traders in two years and increased revenue by sixty percent over three years. I also built partnerships with Binance, CoinEx and KuCoin, improved satisfaction by twenty-five percent and kept us compliant.",
+   "candidate_evidence": [
+    "arzif_growth",
+    "arzif_revenue_retention",
+    "arzif_partnerships",
+    "arzif_ux",
+    "arzif_compliance"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": [
+    "How did you grow to 60,000 traders?"
+   ]
+  },
+  {
+   "question_id": "Q010",
+   "canonical_question": "How did you grow Arzif to 60,000 active traders?",
+   "category": "BEHAVIOURAL",
+   "intent": "How did you grow Arzif to 60,000 active traders",
+   "keywords": [
+    "grow",
+    "arzif",
+    "active",
+    "traders",
+    "user",
+    "base",
+    "get",
+    "growth"
+   ],
+   "semantic_variants": [
+    "How did you grow the user base",
+    "How did you get 60,000 traders",
+    "Tell me about the growth at Arzif"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "The growth came from combining strategy, digital marketing optimization and a focus on keeping traders active.",
+    "We improved UX and customer support, which raised user satisfaction by twenty-five percent.",
+    "And partnerships with Binance, CoinEx and KuCoin built credibility, which mattered a lot for a younger exchange."
+   ],
+   "optional_full_answer": "The growth came from combining strategy, digital marketing optimization and a focus on keeping traders active. We improved UX and customer support, which raised user satisfaction by twenty-five percent. And partnerships with Binance, CoinEx and KuCoin built credibility, which mattered a lot for a younger exchange.",
+   "candidate_evidence": [
+    "arzif_growth",
+    "arzif_revenue_retention",
+    "arzif_ux",
+    "arzif_partnerships"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q011",
+   "canonical_question": "Tell me about a time you improved retention.",
+   "category": "BEHAVIOURAL",
+   "intent": "Tell me about a time you improved retention",
+   "keywords": [
+    "time",
+    "improved",
+    "retention",
+    "give",
+    "example",
+    "improving",
+    "have",
+    "reduced",
+    "churn",
+    "success"
+   ],
+   "semantic_variants": [
+    "Give an example of improving retention",
+    "How have you reduced churn",
+    "Tell me about a retention success"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "At Arzif, retention was a core lever, and user-retention strategies were part of how revenue grew sixty percent over three years.",
+    "We paired that with UX and support improvements, raising user satisfaction by twenty-five percent.",
+    "At Philips, analysing customer data to identify trends drove a ten percent increase in customer retention."
+   ],
+   "optional_full_answer": "At Arzif, retention was a core lever, and user-retention strategies were part of how revenue grew sixty percent over three years. We paired that with UX and support improvements, raising user satisfaction by twenty-five percent. At Philips, analysing customer data to identify trends drove a ten percent increase in customer retention.",
+   "candidate_evidence": [
+    "arzif_revenue_retention",
+    "arzif_ux",
+    "philips_pricing_crm"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q012",
+   "canonical_question": "Tell me about a time you worked with engineering on a technical problem.",
+   "category": "BEHAVIOURAL",
+   "intent": "Tell me about a time you worked with engineering on a technical problem",
+   "keywords": [
+    "time",
+    "worked",
+    "engineering",
+    "technical",
+    "problem",
+    "example",
+    "working",
+    "developers",
+    "have",
+    "collaborated",
+    "teams",
+    "infrastructure",
+    "improvements",
+    "drove"
+   ],
+   "semantic_variants": [
+    "Example of working with developers",
+    "How have you collaborated with technical teams",
+    "Tell me about infrastructure improvements you drove"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "At Arzif, platform reliability was critical, so we prioritised infrastructure upgrades and scalability improvements with the technical team.",
+    "My software engineering background helped me understand the trade-offs and translate them for the business.",
+    "The result was a twenty percent reduction in platform downtime."
+   ],
+   "optional_full_answer": "At Arzif, platform reliability was critical, so we prioritised infrastructure upgrades and scalability improvements with the technical team. My software engineering background helped me understand the trade-offs and translate them for the business. The result was a twenty percent reduction in platform downtime.",
+   "candidate_evidence": [
+    "arzif_infra"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q013",
+   "canonical_question": "Tell me about a partnership you negotiated.",
+   "category": "BEHAVIOURAL",
+   "intent": "Tell me about a partnership you negotiated",
+   "keywords": [
+    "partnership",
+    "negotiated",
+    "binance",
+    "work",
+    "coinex",
+    "kucoin",
+    "example",
+    "strategic"
+   ],
+   "semantic_variants": [
+    "Tell me about the Binance partnership",
+    "How did you work with Binance, CoinEx and KuCoin",
+    "Example of a strategic partnership"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "At Arzif I established co-branding partnerships with Binance, CoinEx and KuCoin.",
+    "For a younger exchange, that association mattered because traders choose platforms they can trust.",
+    "It enhanced the platform's credibility and supported our growth to sixty thousand active traders."
+   ],
+   "optional_full_answer": "At Arzif I established co-branding partnerships with Binance, CoinEx and KuCoin. For a younger exchange, that association mattered because traders choose platforms they can trust. It enhanced the platform's credibility and supported our growth to sixty thousand active traders.",
+   "candidate_evidence": [
+    "arzif_partnerships",
+    "arzif_growth"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q014",
+   "canonical_question": "Tell me about a product launch you led.",
+   "category": "BEHAVIOURAL",
+   "intent": "Tell me about a product launch you led",
+   "keywords": [
+    "product",
+    "launch",
+    "led",
+    "go-to-market",
+    "give",
+    "example",
+    "have",
+    "launched",
+    "products"
+   ],
+   "semantic_variants": [
+    "Tell me about a go-to-market",
+    "Give me a launch example",
+    "How have you launched products"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "At LG Electronics I led go-to-market strategies for new product launches across multiple markets.",
+    "I used market analysis in SPSS and Excel to understand customers and position products.",
+    "That work contributed to a ten percent market-share increase."
+   ],
+   "optional_full_answer": "At LG Electronics I led go-to-market strategies for new product launches across multiple markets. I used market analysis in SPSS and Excel to understand customers and position products. That work contributed to a ten percent market-share increase.",
+   "candidate_evidence": [
+    "lg_gtm"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q015",
+   "canonical_question": "Tell me about a time you used data to make a decision.",
+   "category": "BEHAVIOURAL",
+   "intent": "Tell me about a time you used data to make a decision",
+   "keywords": [
+    "time",
+    "used",
+    "data",
+    "make",
+    "decision",
+    "example",
+    "data-driven",
+    "use",
+    "analytics",
+    "analysis",
+    "experience"
+   ],
+   "semantic_variants": [
+    "Example of data-driven decision",
+    "How do you use analytics",
+    "Tell me about your data analysis experience"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "At LG I ran market analysis with SPSS and advanced Excel to guide where and how we competed.",
+    "That analysis contributed to a ten percent increase in market share.",
+    "At Philips, analysing customer data to spot trends drove a ten percent increase in retention."
+   ],
+   "optional_full_answer": "At LG I ran market analysis with SPSS and advanced Excel to guide where and how we competed. That analysis contributed to a ten percent increase in market share. At Philips, analysing customer data to spot trends drove a ten percent increase in retention.",
+   "candidate_evidence": [
+    "lg_gtm",
+    "philips_pricing_crm"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q016",
+   "canonical_question": "Tell me about your leadership style.",
+   "category": "LEADERSHIP",
+   "intent": "Tell me about your leadership style",
+   "keywords": [
+    "leadership",
+    "style",
+    "lead",
+    "teams",
+    "describe",
+    "manage",
+    "people",
+    "kind",
+    "leader"
+   ],
+   "semantic_variants": [
+    "How do you lead teams",
+    "Describe how you manage people",
+    "What kind of leader are you"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "I lead by making goals clear, giving people ownership, and staying close enough to remove blockers.",
+    "At Gabrielyte I built the initial team, cutting onboarding time by thirty percent and turnover by twenty-five percent.",
+    "At LG I mentored ten sales representatives, which improved team performance by fifteen percent."
+   ],
+   "optional_full_answer": "I lead by making goals clear, giving people ownership, and staying close enough to remove blockers. At Gabrielyte I built the initial team, cutting onboarding time by thirty percent and turnover by twenty-five percent. At LG I mentored ten sales representatives, which improved team performance by fifteen percent.",
+   "candidate_evidence": [
+    "gabrielyte_ops",
+    "lg_mentoring"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q017",
+   "canonical_question": "What do you do in your current role?",
+   "category": "LEADERSHIP",
+   "intent": "What do you do in your current role",
+   "keywords": [
+    "current",
+    "role",
+    "gabrielyte",
+    "position",
+    "doing",
+    "now"
+   ],
+   "semantic_variants": [
+    "Tell me about Gabrielyte",
+    "What is your current position",
+    "What are you doing now"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "I'm Executive Director at Gabrielyte in Vilnius, running operations end to end: purchasing, sales, marketing and customer service.",
+    "I grew revenue by twenty percent through targeted market expansion and raised client retention by fifteen percent.",
+    "Service-delivery scores improved eighteen percent, and I'm now looking to apply this in a crypto product role."
+   ],
+   "optional_full_answer": "I'm Executive Director at Gabrielyte in Vilnius, running operations end to end: purchasing, sales, marketing and customer service. I grew revenue by twenty percent through targeted market expansion and raised client retention by fifteen percent. Service-delivery scores improved eighteen percent, and I'm now looking to apply this in a crypto product role.",
+   "candidate_evidence": [
+    "gabrielyte_ops",
+    "gabrielyte_growth"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q018",
+   "canonical_question": "Tell me about a time you reduced costs.",
+   "category": "BEHAVIOURAL",
+   "intent": "Tell me about a time you reduced costs",
+   "keywords": [
+    "time",
+    "reduced",
+    "costs",
+    "example",
+    "cost",
+    "optimization",
+    "have",
+    "managed",
+    "budgets",
+    "negotiation",
+    "saved",
+    "money"
+   ],
+   "semantic_variants": [
+    "Example of cost optimization",
+    "How have you managed budgets",
+    "Tell me about a negotiation that saved money"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "At Gabrielyte I negotiated contracts that reduced costs by ten percent and improved operational efficiency.",
+    "At Philips I managed sales and marketing budgets and cut costs by eight percent through vendor negotiations.",
+    "My approach is always to protect what customers value and remove spend that doesn't change outcomes."
+   ],
+   "optional_full_answer": "At Gabrielyte I negotiated contracts that reduced costs by ten percent and improved operational efficiency. At Philips I managed sales and marketing budgets and cut costs by eight percent through vendor negotiations. My approach is always to protect what customers value and remove spend that doesn't change outcomes.",
+   "candidate_evidence": [
+    "gabrielyte_growth",
+    "philips_pricing_crm"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q019",
+   "canonical_question": "Tell me about your experience with CRM systems.",
+   "category": "BEHAVIOURAL",
+   "intent": "Tell me about your experience with CRM systems",
+   "keywords": [
+    "experience",
+    "crm",
+    "systems",
+    "have",
+    "used",
+    "salesforce",
+    "hubspot",
+    "implementation"
+   ],
+   "semantic_variants": [
+    "Have you used Salesforce or HubSpot",
+    "How have you used CRM",
+    "Tell me about CRM implementation"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "I've used Salesforce and HubSpot, and implemented CRM at both Philips and Epson.",
+    "At Philips it improved lead conversion by eighteen percent; at Epson it improved pipeline efficiency by fifteen percent.",
+    "For XAB, I'd work closely with CRM to target rewards, tier communication and re-engagement by segment."
+   ],
+   "optional_full_answer": "I've used Salesforce and HubSpot, and implemented CRM at both Philips and Epson. At Philips it improved lead conversion by eighteen percent; at Epson it improved pipeline efficiency by fifteen percent. For XAB, I'd work closely with CRM to target rewards, tier communication and re-engagement by segment.",
+   "candidate_evidence": [
+    "philips_pricing_crm",
+    "epson_channels"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q020",
+   "canonical_question": "Tell me about a time you failed or something didn't go as planned.",
+   "category": "BEHAVIOURAL",
+   "intent": "Tell me about a time you failed or something didn't go as planned",
+   "keywords": [
+    "time",
+    "failed",
+    "something",
+    "didn",
+    "planned",
+    "failure",
+    "describe",
+    "mistake",
+    "made",
+    "setback",
+    "learned"
+   ],
+   "semantic_variants": [
+    "Tell me about a failure",
+    "Describe a mistake you made",
+    "What's a setback you learned from"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "Early in fast growth, it's easy to focus on acquisition and underinvest in reliability and support.",
+    "At Arzif we corrected that by prioritising infrastructure upgrades and support processes alongside growth.",
+    "Downtime dropped twenty percent and satisfaction rose twenty-five percent, and I learned to treat reliability as a product feature."
+   ],
+   "optional_full_answer": "Early in fast growth, it's easy to focus on acquisition and underinvest in reliability and support. At Arzif we corrected that by prioritising infrastructure upgrades and support processes alongside growth. Downtime dropped twenty percent and satisfaction rose twenty-five percent, and I learned to treat reliability as a product feature.",
+   "candidate_evidence": [
+    "arzif_infra",
+    "arzif_ux"
+   ],
+   "gap_warning": "Framed as a lesson; résumé doesn't describe a specific failure — Shervin should adapt with his own real memory.",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q021",
+   "canonical_question": "Tell me about a time you handled a difficult stakeholder.",
+   "category": "BEHAVIOURAL",
+   "intent": "Tell me about a time you handled a difficult stakeholder",
+   "keywords": [
+    "time",
+    "handled",
+    "difficult",
+    "stakeholder",
+    "example",
+    "conflict",
+    "disagreement",
+    "partner",
+    "deal"
+   ],
+   "semantic_variants": [
+    "Example of stakeholder conflict",
+    "Tell me about a disagreement with a partner",
+    "How did you deal with a difficult stakeholder"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "In partnerships like those with Binance, CoinEx and KuCoin, each side had its own priorities and brand concerns.",
+    "I focus on the shared goal, understand their constraints, and make trade-offs explicit and in writing.",
+    "That approach helped us build partnerships that enhanced our credibility and supported growth."
+   ],
+   "optional_full_answer": "In partnerships like those with Binance, CoinEx and KuCoin, each side had its own priorities and brand concerns. I focus on the shared goal, understand their constraints, and make trade-offs explicit and in writing. That approach helped us build partnerships that enhanced our credibility and supported growth.",
+   "candidate_evidence": [
+    "arzif_partnerships"
+   ],
+   "gap_warning": "Specific conflict details not in résumé — speak at principle level.",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q022",
+   "canonical_question": "What is your biggest achievement?",
+   "category": "BEHAVIOURAL",
+   "intent": "What is your biggest achievement",
+   "keywords": [
+    "biggest",
+    "achievement",
+    "most",
+    "proud",
+    "greatest",
+    "accomplishment"
+   ],
+   "semantic_variants": [
+    "What are you most proud of",
+    "Your greatest accomplishment"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "I'm most proud of the growth at Arzif, reaching sixty thousand active traders in two years.",
+    "It wasn't one lever; it combined retention strategy, UX, infrastructure reliability and strong partnerships.",
+    "Revenue grew sixty percent over three years while we stayed compliant in a demanding regulatory environment."
+   ],
+   "optional_full_answer": "I'm most proud of the growth at Arzif, reaching sixty thousand active traders in two years. It wasn't one lever; it combined retention strategy, UX, infrastructure reliability and strong partnerships. Revenue grew sixty percent over three years while we stayed compliant in a demanding regulatory environment.",
+   "candidate_evidence": [
+    "arzif_growth",
+    "arzif_revenue_retention",
+    "arzif_compliance"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q023",
+   "canonical_question": "How does your software engineering background help you?",
+   "category": "RESUME_EXPERIENCE",
+   "intent": "How does your software engineering background help you",
+   "keywords": [
+    "software",
+    "engineering",
+    "background",
+    "help",
+    "technical",
+    "work",
+    "engineers"
+   ],
+   "semantic_variants": [
+    "Are you technical",
+    "How technical are you",
+    "Tell me about your technical background",
+    "Can you work with engineers"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "My bachelor's is in Computer Software Engineering, so I understand architecture, data and how systems fail.",
+    "That lets me discuss trade-offs credibly with engineers and write precise, testable requirements.",
+    "At Arzif it helped when we prioritised infrastructure upgrades that cut downtime by twenty percent."
+   ],
+   "optional_full_answer": "My bachelor's is in Computer Software Engineering, so I understand architecture, data and how systems fail. That lets me discuss trade-offs credibly with engineers and write precise, testable requirements. At Arzif it helped when we prioritised infrastructure upgrades that cut downtime by twenty percent.",
+   "candidate_evidence": [
+    "arzif_infra"
+   ],
+   "gap_warning": "Degree only — never claim professional developer work.",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q024",
+   "canonical_question": "What languages do you speak?",
+   "category": "RESUME_EXPERIENCE",
+   "intent": "What languages do you speak",
+   "keywords": [
+    "languages",
+    "speak",
+    "lithuanian",
+    "english",
+    "level"
+   ],
+   "semantic_variants": [
+    "Do you speak Lithuanian",
+    "What is your English level"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "Persian is my native language and I work professionally in English.",
+    "I'm also learning Lithuanian, currently at a basic A1 level.",
+    "I've worked across Iran, Dubai and Lithuania, so international collaboration is natural for me."
+   ],
+   "optional_full_answer": "Persian is my native language and I work professionally in English. I'm also learning Lithuanian, currently at a basic A1 level. I've worked across Iran, Dubai and Lithuania, so international collaboration is natural for me.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q025",
+   "canonical_question": "Do you have experience working remotely and in international teams?",
+   "category": "RESUME_EXPERIENCE",
+   "intent": "Do you have experience working remotely and in international teams",
+   "keywords": [
+    "have",
+    "experience",
+    "working",
+    "remotely",
+    "international",
+    "teams",
+    "remote",
+    "work",
+    "distributed",
+    "worked",
+    "environments"
+   ],
+   "semantic_variants": [
+    "Remote work experience",
+    "How do you work with distributed teams",
+    "Have you worked in international environments"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "Yes, I've worked across Tehran, Dubai and Vilnius, and Arzif operated across Tehran and Vilnius.",
+    "Remote collaboration works best with clear written goals, a steady cadence and transparent priorities.",
+    "As a Product Owner, I'd keep the backlog, decisions and metrics visible so everyone stays aligned."
+   ],
+   "optional_full_answer": "Yes, I've worked across Tehran, Dubai and Vilnius, and Arzif operated across Tehran and Vilnius. Remote collaboration works best with clear written goals, a steady cadence and transparent priorities. As a Product Owner, I'd keep the backlog, decisions and metrics visible so everyone stays aligned.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q026",
+   "canonical_question": "What is your experience with Jira and Agile?",
+   "category": "AGILE_JIRA",
+   "intent": "What is your experience with Jira and Agile",
+   "keywords": [
+    "experience",
+    "jira",
+    "agile",
+    "have",
+    "used",
+    "use",
+    "familiar",
+    "scrum"
+   ],
+   "semantic_variants": [
+    "Have you used Jira",
+    "How do you use Jira",
+    "Are you familiar with Scrum",
+    "Tell me about your agile experience"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "I've used Jira and MS Project for project management, and I see Jira as the tool that executes strategy, not the strategy itself.",
+    "I'd structure work from objective and outcome down to epics, stories, business rules and acceptance criteria.",
+    "Then refinement, sprint delivery, validation, release and measurement, so every ticket links back to a goal."
+   ],
+   "optional_full_answer": "I've used Jira and MS Project for project management, and I see Jira as the tool that executes strategy, not the strategy itself. I'd structure work from objective and outcome down to epics, stories, business rules and acceptance criteria. Then refinement, sprint delivery, validation, release and measurement, so every ticket links back to a goal.",
+   "candidate_evidence": [],
+   "gap_warning": "Résumé lists JIRA and MS Project under competencies.",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q027",
+   "canonical_question": "How would you increase XAB adoption?",
+   "category": "XAB",
+   "intent": "How would you increase XAB adoption",
+   "keywords": [
+    "increase",
+    "xab",
+    "adoption",
+    "drive",
+    "get",
+    "more",
+    "users",
+    "use",
+    "grow",
+    "user",
+    "base",
+    "usage",
+    "token"
+   ],
+   "semantic_variants": [
+    "How would you drive XAB adoption",
+    "How do we get more users to use XAB",
+    "How would you grow the XAB user base",
+    "How would you increase usage of the token"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd start with utility, understanding exactly why users should earn, hold and use XAB.",
+    "Then I'd connect meaningful benefits like fee advantages, rewards and status progression to real user behaviour.",
+    "Finally, I'd measure activation, XAB usage, retention, reward cost and incremental business value."
+   ],
+   "optional_full_answer": "I'd start with utility, understanding exactly why users should earn, hold and use XAB. Then I'd connect meaningful benefits like fee advantages, rewards and status progression to real user behaviour. Finally, I'd measure activation, XAB usage, retention, reward cost and incremental business value.",
+   "candidate_evidence": [
+    "arzif_revenue_retention"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": [
+    "Which metric would you look at first?"
+   ]
+  },
+  {
+   "question_id": "Q028",
+   "canonical_question": "How would you improve XAB utility?",
+   "category": "XAB",
+   "intent": "How would you improve XAB utility",
+   "keywords": [
+    "improve",
+    "xab",
+    "utility",
+    "make",
+    "more",
+    "useful",
+    "add",
+    "strengthen",
+    "token"
+   ],
+   "semantic_variants": [
+    "How would you make XAB more useful",
+    "What utility would you add to XAB",
+    "How do you strengthen token utility"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd first map where XAB appears in the client journey today and where users actually feel the benefit.",
+    "Then I'd prioritise utility that changes behaviour, such as fee discounts, reward boosters and exclusive experiences.",
+    "I'd measure usage frequency, time to first utility event and retention to see which utilities truly matter."
+   ],
+   "optional_full_answer": "I'd first map where XAB appears in the client journey today and where users actually feel the benefit. Then I'd prioritise utility that changes behaviour, such as fee discounts, reward boosters and exclusive experiences. I'd measure usage frequency, time to first utility event and retention to see which utilities truly matter.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q029",
+   "canonical_question": "What would be your first priorities in this role?",
+   "category": "XAB",
+   "intent": "What would be your first priorities in this role",
+   "keywords": [
+    "first",
+    "priorities",
+    "role",
+    "thing",
+    "tackle",
+    "where",
+    "start",
+    "xab"
+   ],
+   "semantic_variants": [
+    "What would you do first",
+    "What's the first thing you'd tackle",
+    "Where would you start with XAB"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "First I'd understand the XAB lifecycle end to end, including ledger, rewards logic, tiers and current metrics.",
+    "Then I'd meet Engineering, Compliance, CRM and leadership to align on the biggest problems and constraints.",
+    "From that, I'd build a prioritised backlog focused on integrity first, then utility and retention."
+   ],
+   "optional_full_answer": "First I'd understand the XAB lifecycle end to end, including ledger, rewards logic, tiers and current metrics. Then I'd meet Engineering, Compliance, CRM and leadership to align on the biggest problems and constraints. From that, I'd build a prioritised backlog focused on integrity first, then utility and retention.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q030",
+   "canonical_question": "What would you do in your first 90 days?",
+   "category": "XAB",
+   "intent": "What would you do in your first 90 days",
+   "keywords": [
+    "first",
+    "days",
+    "day",
+    "plan",
+    "three",
+    "months",
+    "onboard",
+    "into",
+    "role"
+   ],
+   "semantic_variants": [
+    "What's your 30 60 90 day plan",
+    "First three months plan",
+    "How would you onboard into the role"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "In the first thirty days I'd learn the XAB lifecycle, ledger and reward logic, customers, metrics and the backlog.",
+    "By sixty days I'd have mapped friction points, clarified KPIs and prioritised the strongest opportunities with stakeholders.",
+    "By ninety days I'd ship measurable improvements and set a steady cadence of refinement, reviews and metric tracking."
+   ],
+   "optional_full_answer": "In the first thirty days I'd learn the XAB lifecycle, ledger and reward logic, customers, metrics and the backlog. By sixty days I'd have mapped friction points, clarified KPIs and prioritised the strongest opportunities with stakeholders. By ninety days I'd ship measurable improvements and set a steady cadence of refinement, reviews and metric tracking.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q031",
+   "canonical_question": "How would you prioritize improvements to the XAB rewards ecosystem?",
+   "category": "REWARDS",
+   "intent": "How would you prioritize improvements to the XAB rewards ecosystem",
+   "keywords": [
+    "prioritize",
+    "improvements",
+    "xab",
+    "rewards",
+    "ecosystem",
+    "prioritise",
+    "reward",
+    "decide",
+    "features",
+    "build",
+    "prioritizing",
+    "roadmap"
+   ],
+   "semantic_variants": [
+    "How would you prioritise reward improvements",
+    "How do you decide which rewards features to build",
+    "Prioritizing the rewards roadmap"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd start with the customer and business outcome, whether retention, utility, revenue or a specific friction point.",
+    "I'd rank opportunities by user impact, business value, regulatory risk, dependencies and engineering effort.",
+    "Then I'd ship the highest-value hypothesis, measure its effect, and use the data to adjust the roadmap."
+   ],
+   "optional_full_answer": "I'd start with the customer and business outcome, whether retention, utility, revenue or a specific friction point. I'd rank opportunities by user impact, business value, regulatory risk, dependencies and engineering effort. Then I'd ship the highest-value hypothesis, measure its effect, and use the data to adjust the roadmap.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q032",
+   "canonical_question": "How would you design a reward booster?",
+   "category": "REWARDS",
+   "intent": "How would you design a reward booster",
+   "keywords": [
+    "design",
+    "reward",
+    "booster",
+    "boosters",
+    "work",
+    "mechanic",
+    "use",
+    "drive",
+    "engagement"
+   ],
+   "semantic_variants": [
+    "How would reward boosters work",
+    "Design a booster mechanic",
+    "How would you use boosters to drive engagement"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd tie the booster to one specific behaviour we want, like locking XAB longer or trying a new product.",
+    "I'd set clear rules, time limits, caps and budget, and check them with Compliance for fair communication.",
+    "Then I'd measure incremental behaviour versus a control group and the reward cost per retained user."
+   ],
+   "optional_full_answer": "I'd tie the booster to one specific behaviour we want, like locking XAB longer or trying a new product. I'd set clear rules, time limits, caps and budget, and check them with Compliance for fair communication. Then I'd measure incremental behaviour versus a control group and the reward cost per retained user.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q033",
+   "canonical_question": "How do you make sure rewards are sustainable and not just a cost?",
+   "category": "REWARDS",
+   "intent": "How do you make sure rewards are sustainable and not just a cost",
+   "keywords": [
+    "make",
+    "sure",
+    "rewards",
+    "sustainable",
+    "not",
+    "just",
+    "cost",
+    "control",
+    "reward",
+    "costs",
+    "measure",
+    "roi",
+    "expensive",
+    "manage"
+   ],
+   "semantic_variants": [
+    "How do you control reward costs",
+    "How do you measure reward ROI",
+    "Rewards are expensive, how would you manage that"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd treat every reward as an investment that must change behaviour, not just a giveaway.",
+    "So I'd measure incremental retention, trading and usage against a control group, not raw participation.",
+    "Rewards with weak ROI get redesigned or retired, and budget moves to mechanics that create real value."
+   ],
+   "optional_full_answer": "I'd treat every reward as an investment that must change behaviour, not just a giveaway. So I'd measure incremental retention, trading and usage against a control group, not raw participation. Rewards with weak ROI get redesigned or retired, and budget moves to mechanics that create real value.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q034",
+   "canonical_question": "How would you design VIP tier governance?",
+   "category": "VIP",
+   "intent": "How would you design VIP tier governance",
+   "keywords": [
+    "design",
+    "vip",
+    "tier",
+    "governance",
+    "tiers",
+    "work",
+    "manage",
+    "status",
+    "levels",
+    "eligibility",
+    "lite",
+    "silver",
+    "gold",
+    "platinum"
+   ],
+   "semantic_variants": [
+    "How should VIP tiers work",
+    "How would you manage status levels",
+    "How do you design VIP eligibility",
+    "Lite Silver Gold Platinum how would you improve them"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd define clear, transparent eligibility rules, for example balance, activity and tenure, with explicit upgrade and downgrade logic.",
+    "I'd add anti-gaming rules, grace periods and an audit trail so every tier change is explainable.",
+    "Then I'd check that each tier's benefits actually drive progression, retention and value, not just cost."
+   ],
+   "optional_full_answer": "I'd define clear, transparent eligibility rules, for example balance, activity and tenure, with explicit upgrade and downgrade logic. I'd add anti-gaming rules, grace periods and an audit trail so every tier change is explainable. Then I'd check that each tier's benefits actually drive progression, retention and value, not just cost.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q035",
+   "canonical_question": "How would you increase engagement of VIP clients?",
+   "category": "VIP",
+   "intent": "How would you increase engagement of VIP clients",
+   "keywords": [
+    "increase",
+    "engagement",
+    "vip",
+    "clients",
+    "keep",
+    "high",
+    "value",
+    "engaged",
+    "premium",
+    "client",
+    "retain",
+    "users"
+   ],
+   "semantic_variants": [
+    "How do you keep high value clients engaged",
+    "Premium client engagement",
+    "How to retain VIP users"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd start by understanding what high-value clients actually value, through data and direct conversations.",
+    "Then I'd design exclusive benefits and experiences that feel personal, working closely with CRM and client support.",
+    "I'd track VIP retention, activity, tier progression and satisfaction to see what really works."
+   ],
+   "optional_full_answer": "I'd start by understanding what high-value clients actually value, through data and direct conversations. Then I'd design exclusive benefits and experiences that feel personal, working closely with CRM and client support. I'd track VIP retention, activity, tier progression and satisfaction to see what really works.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q036",
+   "canonical_question": "How do you think about tokenomics for a utility token like XAB?",
+   "category": "TOKENOMICS",
+   "intent": "How do you think about tokenomics for a utility token like XAB",
+   "keywords": [
+    "think",
+    "tokenomics",
+    "utility",
+    "token",
+    "like",
+    "xab",
+    "explain",
+    "makes",
+    "good",
+    "supply",
+    "demand"
+   ],
+   "semantic_variants": [
+    "Explain tokenomics",
+    "What makes good tokenomics",
+    "How would you think about XAB supply and demand"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "Healthy tokenomics balance how tokens enter circulation with real reasons to hold and use them.",
+    "For XAB, the supply is capped at two hundred fifty million, so utility and sinks matter more than distribution volume.",
+    "I'd monitor emissions, usage, holding behaviour and reward cost so the ecosystem stays sustainable."
+   ],
+   "optional_full_answer": "Healthy tokenomics balance how tokens enter circulation with real reasons to hold and use them. For XAB, the supply is capped at two hundred fifty million, so utility and sinks matter more than distribution volume. I'd monitor emissions, usage, holding behaviour and reward cost so the ecosystem stays sustainable.",
+   "candidate_evidence": [],
+   "gap_warning": "Supply cap is a whitepaper fact.",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q037",
+   "canonical_question": "What risks do you see in a token rewards ecosystem?",
+   "category": "TOKENOMICS",
+   "intent": "What risks do you see in a token rewards ecosystem",
+   "keywords": [
+    "risks",
+    "see",
+    "token",
+    "rewards",
+    "ecosystem",
+    "wrong",
+    "reward",
+    "tokens",
+    "xab"
+   ],
+   "semantic_variants": [
+    "What could go wrong with token rewards",
+    "Risks of reward tokens",
+    "What are the risks of XAB"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "The biggest risk is rewards that create sell pressure without real utility, which erodes trust and value.",
+    "There are also integrity risks like duplicate payouts or reconciliation breaks, and regulatory risk in how rewards are marketed.",
+    "I'd manage these with clear rules, strong ledger controls, Compliance in discovery, and close monitoring."
+   ],
+   "optional_full_answer": "The biggest risk is rewards that create sell pressure without real utility, which erodes trust and value. There are also integrity risks like duplicate payouts or reconciliation breaks, and regulatory risk in how rewards are marketed. I'd manage these with clear rules, strong ledger controls, Compliance in discovery, and close monitoring.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q038",
+   "canonical_question": "What metrics would you use to measure success of XAB?",
+   "category": "XAB",
+   "intent": "What metrics would you use to measure success of XAB",
+   "keywords": [
+    "metrics",
+    "use",
+    "measure",
+    "success",
+    "xab",
+    "kpis",
+    "track",
+    "token",
+    "north",
+    "star",
+    "metric",
+    "know",
+    "succeeding"
+   ],
+   "semantic_variants": [
+    "Which KPIs would you track",
+    "How do you measure token success",
+    "What would your north star metric be",
+    "How would you know XAB is succeeding"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd use a North Star like monthly active XAB utility users, meaning clients who actually use a benefit.",
+    "Supporting that I'd track activation, usage frequency, tier progression, retention by cohort and time to first utility event.",
+    "And guardrails like reward cost, reward ROI, reconciliation breaks and complaints, so growth stays healthy."
+   ],
+   "optional_full_answer": "I'd use a North Star like monthly active XAB utility users, meaning clients who actually use a benefit. Supporting that I'd track activation, usage frequency, tier progression, retention by cohort and time to first utility event. And guardrails like reward cost, reward ROI, reconciliation breaks and complaints, so growth stays healthy.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q039",
+   "canonical_question": "What would your vision be for the XAB product?",
+   "category": "PRODUCT_STRATEGY",
+   "intent": "What would your vision be for the XAB product",
+   "keywords": [
+    "vision",
+    "xab",
+    "product",
+    "where",
+    "two",
+    "years",
+    "describe",
+    "abloxx"
+   ],
+   "semantic_variants": [
+    "What's your product vision",
+    "Where should XAB be in two years",
+    "Describe your vision for Abloxx"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd want XAB to be the simple key that makes every Teroxx client relationship more rewarding.",
+    "Clients should clearly understand why to earn, hold and use it, with benefits that grow as they engage.",
+    "Underneath, it needs a trustworthy ledger, full compliance and metrics proving it creates real value."
+   ],
+   "optional_full_answer": "I'd want XAB to be the simple key that makes every Teroxx client relationship more rewarding. Clients should clearly understand why to earn, hold and use it, with benefits that grow as they engage. Underneath, it needs a trustworthy ledger, full compliance and metrics proving it creates real value.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q040",
+   "canonical_question": "How would you build a product roadmap?",
+   "category": "PRODUCT_STRATEGY",
+   "intent": "How would you build a product roadmap",
+   "keywords": [
+    "build",
+    "product",
+    "roadmap",
+    "create",
+    "planning",
+    "plan"
+   ],
+   "semantic_variants": [
+    "How do you create a roadmap",
+    "Roadmap planning",
+    "How do you plan a product roadmap"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd start from business objectives and user problems, and express the roadmap as outcomes rather than a feature list.",
+    "Then I'd sequence work by value, risk, regulatory needs, dependencies and effort, with near-term detail and longer-term themes.",
+    "I'd review it regularly with stakeholders and adjust based on results and learning."
+   ],
+   "optional_full_answer": "I'd start from business objectives and user problems, and express the roadmap as outcomes rather than a feature list. Then I'd sequence work by value, risk, regulatory needs, dependencies and effort, with near-term detail and longer-term themes. I'd review it regularly with stakeholders and adjust based on results and learning.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q041",
+   "canonical_question": "What is the difference between a Product Owner and a Product Manager?",
+   "category": "PRODUCT_STRATEGY",
+   "intent": "What is the difference between a Product Owner and a Product Manager",
+   "keywords": [
+    "difference",
+    "between",
+    "product",
+    "owner",
+    "manager",
+    "versus",
+    "different"
+   ],
+   "semantic_variants": [
+    "Product owner versus product manager",
+    "How is a PO different from a PM"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "A Product Manager often focuses more on market, strategy and discovery, while the Product Owner maximises value delivered by the team.",
+    "The Product Owner owns the backlog, priorities, stories and acceptance criteria, and works closest with Engineering.",
+    "In practice, for XAB I'd do both: connect strategy and tokenomics to precise, testable delivery."
+   ],
+   "optional_full_answer": "A Product Manager often focuses more on market, strategy and discovery, while the Product Owner maximises value delivered by the team. The Product Owner owns the backlog, priorities, stories and acceptance criteria, and works closest with Engineering. In practice, for XAB I'd do both: connect strategy and tokenomics to precise, testable delivery.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q042",
+   "canonical_question": "How would you compete with other exchanges' token programs?",
+   "category": "PRODUCT_STRATEGY",
+   "intent": "How would you compete with other exchanges' token programs",
+   "keywords": [
+    "compete",
+    "other",
+    "exchanges",
+    "token",
+    "programs",
+    "xab",
+    "compare",
+    "bnb",
+    "exchange",
+    "tokens",
+    "competitive",
+    "analysis",
+    "competitors"
+   ],
+   "semantic_variants": [
+    "How does XAB compare to BNB or other exchange tokens",
+    "Competitive analysis of exchange tokens",
+    "Who are the competitors"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I wouldn't copy large exchange tokens; I'd build on Teroxx's strengths: regulation, premium service and simplicity.",
+    "XAB should make the boutique experience more rewarding, with benefits clients clearly feel.",
+    "I'd benchmark competitors' utilities, then focus on the few that matter most to our client segments."
+   ],
+   "optional_full_answer": "I wouldn't copy large exchange tokens; I'd build on Teroxx's strengths: regulation, premium service and simplicity. XAB should make the boutique experience more rewarding, with benefits clients clearly feel. I'd benchmark competitors' utilities, then focus on the few that matter most to our client segments.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q043",
+   "canonical_question": "How would you approach an internal XAB ledger?",
+   "category": "LEDGER",
+   "intent": "How would you approach an internal XAB ledger",
+   "keywords": [
+    "approach",
+    "internal",
+    "xab",
+    "ledger",
+    "design",
+    "own",
+    "manage",
+    "token"
+   ],
+   "semantic_variants": [
+    "How would you design the internal ledger",
+    "Tell me how you would own the ledger",
+    "Internal ledger for XAB",
+    "How would you manage the token ledger"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd first define every event that can change an XAB balance and make the ledger the clear source of truth.",
+    "I'd specify transaction states, duplicate protection, reversals, reconciliation, auditability and exception handling with Engineering and Compliance.",
+    "Then I'd turn those rules into acceptance criteria and monitor reconciliation accuracy and failed transactions after release."
+   ],
+   "optional_full_answer": "I'd first define every event that can change an XAB balance and make the ledger the clear source of truth. I'd specify transaction states, duplicate protection, reversals, reconciliation, auditability and exception handling with Engineering and Compliance. Then I'd turn those rules into acceptance criteria and monitor reconciliation accuracy and failed transactions after release.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q044",
+   "canonical_question": "How would you prevent duplicate financial transactions?",
+   "category": "LEDGER",
+   "intent": "How would you prevent duplicate financial transactions",
+   "keywords": [
+    "prevent",
+    "duplicate",
+    "financial",
+    "transactions",
+    "avoid",
+    "double",
+    "spending",
+    "payouts",
+    "idempotency",
+    "explain"
+   ],
+   "semantic_variants": [
+    "How do you avoid double spending",
+    "How do you prevent duplicate payouts",
+    "What is idempotency",
+    "Explain idempotency"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd require every transaction to carry a unique idempotency key, so repeated requests can't create a second posting.",
+    "The ledger should return the original result for duplicates and keep a complete audit trail.",
+    "I'd test retries, timeouts and partial failures, and reconciliation, before treating the flow as production-ready."
+   ],
+   "optional_full_answer": "I'd require every transaction to carry a unique idempotency key, so repeated requests can't create a second posting. The ledger should return the original result for duplicates and keep a complete audit trail. I'd test retries, timeouts and partial failures, and reconciliation, before treating the flow as production-ready.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q045",
+   "canonical_question": "How would you design an automated reconciliation process?",
+   "category": "RECONCILIATION",
+   "intent": "How would you design an automated reconciliation process",
+   "keywords": [
+    "design",
+    "automated",
+    "reconciliation",
+    "process",
+    "reconcile",
+    "ledger",
+    "explain",
+    "ensure",
+    "balances",
+    "match",
+    "rules"
+   ],
+   "semantic_variants": [
+    "How would you reconcile the ledger",
+    "Explain reconciliation",
+    "How do you ensure balances match",
+    "Automated reconciliation rules"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd define which sources must agree, for example the ledger, the rewards engine, custody or on-chain balances, and finance.",
+    "Then I'd set automated matching rules, tolerances and frequency, with every break becoming an exception with an owner and SLA.",
+    "I'd track the break rate and resolution time as critical KPIs, and alert immediately on supply mismatches."
+   ],
+   "optional_full_answer": "I'd define which sources must agree, for example the ledger, the rewards engine, custody or on-chain balances, and finance. Then I'd set automated matching rules, tolerances and frequency, with every break becoming an exception with an owner and SLA. I'd track the break rate and resolution time as critical KPIs, and alert immediately on supply mismatches.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q046",
+   "canonical_question": "How would you ensure token supply compliance?",
+   "category": "LEDGER",
+   "intent": "How would you ensure token supply compliance",
+   "keywords": [
+    "ensure",
+    "token",
+    "supply",
+    "compliance",
+    "make",
+    "sure",
+    "correct",
+    "integrity",
+    "guarantee",
+    "total",
+    "never",
+    "exceeds",
+    "cap"
+   ],
+   "semantic_variants": [
+    "How do you make sure supply is correct",
+    "Supply integrity",
+    "How do you guarantee total supply never exceeds the cap"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd make it an invariant: total balances plus reserves must always equal the issued supply, and never exceed the cap.",
+    "That check should run automatically, with immediate alerts and a frozen issuance path if it ever fails.",
+    "Every mint, burn and transfer would be logged and auditable, so Compliance can verify it at any time."
+   ],
+   "optional_full_answer": "I'd make it an invariant: total balances plus reserves must always equal the issued supply, and never exceed the cap. That check should run automatically, with immediate alerts and a frozen issuance path if it ever fails. Every mint, burn and transfer would be logged and auditable, so Compliance can verify it at any time.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q047",
+   "canonical_question": "How would you migrate XAB from an on-chain model toward an internal ledger?",
+   "category": "LEDGER",
+   "intent": "How would you migrate XAB from an on-chain model toward an internal ledger",
+   "keywords": [
+    "migrate",
+    "xab",
+    "on-chain",
+    "model",
+    "toward",
+    "internal",
+    "ledger",
+    "off-chain",
+    "migration",
+    "migrating",
+    "moving",
+    "tokens",
+    "closed-loop",
+    "system"
+   ],
+   "semantic_variants": [
+    "On-chain to off-chain migration",
+    "Migrating to an internal ledger",
+    "Moving tokens to a closed-loop system"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd first map ownership, balances, token states and every business event that must stay consistent during migration.",
+    "Then I'd define migration, reconciliation, rollback and audit rules with Engineering, Finance, Legal and Compliance.",
+    "I'd launch in controlled stages, reconcile both systems rigorously, and retire the old path only after the data is proven."
+   ],
+   "optional_full_answer": "I'd first map ownership, balances, token states and every business event that must stay consistent during migration. Then I'd define migration, reconciliation, rollback and audit rules with Engineering, Finance, Legal and Compliance. I'd launch in controlled stages, reconcile both systems rigorously, and retire the old path only after the data is proven.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q048",
+   "canonical_question": "What is double-entry accounting and why does it matter for a ledger?",
+   "category": "LEDGER",
+   "intent": "What is double-entry accounting and why does it matter for a ledger",
+   "keywords": [
+    "double-entry",
+    "accounting",
+    "matter",
+    "ledger",
+    "explain",
+    "double",
+    "entry",
+    "debits",
+    "credits",
+    "bookkeeping"
+   ],
+   "semantic_variants": [
+    "Explain double entry",
+    "Debits and credits in a ledger",
+    "Why double-entry bookkeeping"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "Double entry means every movement is recorded as an equal debit and credit, so the books always balance.",
+    "For XAB, a reward payout debits a rewards pool and credits the user, so supply is never created by accident.",
+    "It makes errors detectable and every balance fully explainable, which is essential for audit and trust."
+   ],
+   "optional_full_answer": "Double entry means every movement is recorded as an equal debit and credit, so the books always balance. For XAB, a reward payout debits a rewards pool and credits the user, so supply is never created by accident. It makes errors detectable and every balance fully explainable, which is essential for audit and trust.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q049",
+   "canonical_question": "How would you handle a reversal or correction in the ledger?",
+   "category": "LEDGER",
+   "intent": "How would you handle a reversal or correction in the ledger",
+   "keywords": [
+    "handle",
+    "reversal",
+    "correction",
+    "ledger",
+    "refunds",
+    "happens",
+    "transaction",
+    "wrong",
+    "correct",
+    "errors"
+   ],
+   "semantic_variants": [
+    "How do you handle refunds",
+    "What happens when a transaction is wrong",
+    "How do you correct ledger errors"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd never edit or delete entries; corrections should be new reversing entries linked to the original.",
+    "Each reversal needs a reason, an authorised approver and a full audit trail, ideally with maker-checker for manual cases.",
+    "Then reconciliation confirms the corrected balances, and we track root causes to prevent repeats."
+   ],
+   "optional_full_answer": "I'd never edit or delete entries; corrections should be new reversing entries linked to the original. Each reversal needs a reason, an authorised approver and a full audit trail, ideally with maker-checker for manual cases. Then reconciliation confirms the corrected balances, and we track root causes to prevent repeats.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q050",
+   "canonical_question": "What edge cases would you consider for ledger transactions?",
+   "category": "LEDGER",
+   "intent": "What edge cases would you consider for ledger transactions",
+   "keywords": [
+    "edge",
+    "cases",
+    "consider",
+    "ledger",
+    "transactions",
+    "wrong",
+    "transaction",
+    "failure",
+    "scenarios"
+   ],
+   "semantic_variants": [
+    "Ledger edge cases",
+    "What can go wrong in a transaction",
+    "Failure scenarios for transactions"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd consider retries and timeouts, duplicate requests, partial failures and concurrent updates on the same balance.",
+    "Also pending transactions that never settle, reversals after tier changes, and rounding on reward calculations.",
+    "Each one becomes an explicit rule and acceptance criterion, tested before release and monitored afterward."
+   ],
+   "optional_full_answer": "I'd consider retries and timeouts, duplicate requests, partial failures and concurrent updates on the same balance. Also pending transactions that never settle, reversals after tier changes, and rounding on reward calculations. Each one becomes an explicit rule and acceptance criterion, tested before release and monitored afterward.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q051",
+   "canonical_question": "What are the transaction states you would define?",
+   "category": "LEDGER",
+   "intent": "What are the transaction states you would define",
+   "keywords": [
+    "transaction",
+    "states",
+    "define",
+    "lifecycle",
+    "pending",
+    "settled",
+    "reversed",
+    "state",
+    "machine"
+   ],
+   "semantic_variants": [
+    "Transaction lifecycle",
+    "Pending settled reversed",
+    "Transaction state machine"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd keep it simple and explicit: initiated, pending, settled, failed and reversed.",
+    "Each state needs allowed transitions, who or what can trigger them, and how balances are affected.",
+    "That clarity makes reconciliation, customer support and audit much easier."
+   ],
+   "optional_full_answer": "I'd keep it simple and explicit: initiated, pending, settled, failed and reversed. Each state needs allowed transitions, who or what can trigger them, and how balances are affected. That clarity makes reconciliation, customer support and audit much easier.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q052",
+   "canonical_question": "How would you write acceptance criteria for a reward payout feature?",
+   "category": "LEDGER",
+   "intent": "How would you write acceptance criteria for a reward payout feature",
+   "keywords": [
+    "write",
+    "acceptance",
+    "criteria",
+    "reward",
+    "payout",
+    "feature",
+    "give",
+    "example",
+    "user",
+    "story",
+    "rewards"
+   ],
+   "semantic_variants": [
+    "Give an example of acceptance criteria",
+    "Write a user story for rewards",
+    "How do you write acceptance criteria"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "Given an eligible locked position, when the daily payout runs, the user is credited the exact calculated XAB once.",
+    "If the job reruns, no duplicate credit is created, and every payout has a ledger entry, reference and audit record.",
+    "Reconciliation must match total payouts to the rewards pool debit, and failures must raise an alert."
+   ],
+   "optional_full_answer": "Given an eligible locked position, when the daily payout runs, the user is credited the exact calculated XAB once. If the job reruns, no duplicate credit is created, and every payout has a ledger entry, reference and audit record. Reconciliation must match total payouts to the rewards pool debit, and failures must raise an alert.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q053",
+   "canonical_question": "What is a closed-loop token economy?",
+   "category": "TECHNICAL_CONCEPT",
+   "intent": "What is a closed-loop token economy",
+   "keywords": [
+    "closed-loop",
+    "token",
+    "economy",
+    "explain",
+    "closed",
+    "loop",
+    "mean",
+    "tokens"
+   ],
+   "semantic_variants": [
+    "Explain closed loop economy",
+    "What does closed-loop mean for tokens"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "A closed-loop economy means tokens circulate inside the platform: users earn, hold, use and redeem them within the ecosystem.",
+    "It's often run on an internal ledger, which gives speed, low cost and control over rules.",
+    "The trade-off is that the platform must guarantee integrity, transparency and compliance itself."
+   ],
+   "optional_full_answer": "A closed-loop economy means tokens circulate inside the platform: users earn, hold, use and redeem them within the ecosystem. It's often run on an internal ledger, which gives speed, low cost and control over rules. The trade-off is that the platform must guarantee integrity, transparency and compliance itself.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q054",
+   "canonical_question": "What is the difference between a custodial and non-custodial wallet?",
+   "category": "TECHNICAL_CONCEPT",
+   "intent": "What is the difference between a custodial and non-custodial wallet",
+   "keywords": [
+    "difference",
+    "between",
+    "custodial",
+    "non-custodial",
+    "wallet",
+    "non",
+    "explain",
+    "types"
+   ],
+   "semantic_variants": [
+    "Custodial vs non custodial",
+    "Explain wallet types",
+    "What is a custodial wallet"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "In a custodial wallet the platform holds the keys and manages assets on the client's behalf.",
+    "In a non-custodial wallet the user controls their own private keys and full responsibility.",
+    "For a regulated boutique like Teroxx, custody brings simplicity for clients but strict safeguarding and reconciliation duties."
+   ],
+   "optional_full_answer": "In a custodial wallet the platform holds the keys and manages assets on the client's behalf. In a non-custodial wallet the user controls their own private keys and full responsibility. For a regulated boutique like Teroxx, custody brings simplicity for clients but strict safeguarding and reconciliation duties.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q055",
+   "canonical_question": "What is an ERC-20 token?",
+   "category": "TECHNICAL_CONCEPT",
+   "intent": "What is an ERC-20 token",
+   "keywords": [
+    "erc-20",
+    "token",
+    "explain",
+    "erc20",
+    "standard",
+    "xab"
+   ],
+   "semantic_variants": [
+    "Explain ERC20",
+    "What standard is XAB"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "ERC-20 is the standard interface for fungible tokens on Ethereum, defining balances and transfers.",
+    "It makes tokens like XAB compatible with wallets and exchanges across the ecosystem.",
+    "From a product view, it matters for interoperability, fees and how on-chain and internal balances reconcile."
+   ],
+   "optional_full_answer": "ERC-20 is the standard interface for fungible tokens on Ethereum, defining balances and transfers. It makes tokens like XAB compatible with wallets and exchanges across the ecosystem. From a product view, it matters for interoperability, fees and how on-chain and internal balances reconcile.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q056",
+   "canonical_question": "How do you think about API security for a financial product?",
+   "category": "TECHNICAL_CONCEPT",
+   "intent": "How do you think about API security for a financial product",
+   "keywords": [
+    "think",
+    "api",
+    "security",
+    "financial",
+    "product",
+    "secure",
+    "apis",
+    "requirements",
+    "token",
+    "platform"
+   ],
+   "semantic_variants": [
+    "API security",
+    "How do you secure APIs",
+    "Security requirements for the token platform"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd define security as product requirements: strong authentication, least-privilege access and signed requests.",
+    "I'd add rate limiting, idempotency keys, input validation and full audit logs on every balance-changing call.",
+    "And I'd make monitoring and alerting part of the definition of done, with Security reviewing before release."
+   ],
+   "optional_full_answer": "I'd define security as product requirements: strong authentication, least-privilege access and signed requests. I'd add rate limiting, idempotency keys, input validation and full audit logs on every balance-changing call. And I'd make monitoring and alerting part of the definition of done, with Security reviewing before release.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q057",
+   "canonical_question": "What is staking and how is it different from your rewards program?",
+   "category": "TECHNICAL_CONCEPT",
+   "intent": "What is staking and how is it different from your rewards program",
+   "keywords": [
+    "staking",
+    "different",
+    "rewards",
+    "program",
+    "explain",
+    "versus",
+    "yield",
+    "crypto"
+   ],
+   "semantic_variants": [
+    "Explain staking",
+    "Is the rewards program staking",
+    "Staking versus rewards",
+    "What is yield in crypto"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "Staking usually means locking tokens to help secure a blockchain network in return for protocol rewards.",
+    "A platform rewards program pays rewards from the platform under its own rules, for example fixed daily XAB on locked assets.",
+    "The difference matters for risk disclosure, compliance and how we communicate it to clients."
+   ],
+   "optional_full_answer": "Staking usually means locking tokens to help secure a blockchain network in return for protocol rewards. A platform rewards program pays rewards from the platform under its own rules, for example fixed daily XAB on locked assets. The difference matters for risk disclosure, compliance and how we communicate it to clients.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q058",
+   "canonical_question": "How would you write a technical specification for engineering?",
+   "category": "TECHNICAL_CONCEPT",
+   "intent": "How would you write a technical specification for engineering",
+   "keywords": [
+    "write",
+    "technical",
+    "specification",
+    "engineering",
+    "specs",
+    "translate",
+    "business",
+    "into",
+    "requirements",
+    "developers"
+   ],
+   "semantic_variants": [
+    "How do you write specs",
+    "How do you translate business into technical requirements",
+    "Requirements for developers"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd start with the goal and the user problem, so engineers understand why, not just what.",
+    "Then business rules, data and state changes, edge cases, non-functional needs like audit and performance, and acceptance criteria.",
+    "I'd review it with Engineering early, so they shape the solution and we agree what done means."
+   ],
+   "optional_full_answer": "I'd start with the goal and the user problem, so engineers understand why, not just what. Then business rules, data and state changes, edge cases, non-functional needs like audit and performance, and acceptance criteria. I'd review it with Engineering early, so they shape the solution and we agree what done means.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q059",
+   "canonical_question": "What do you know about MiCA and how does it affect this product?",
+   "category": "MICAR",
+   "intent": "What do you know about MiCA and how does it affect this product",
+   "keywords": [
+    "know",
+    "mica",
+    "affect",
+    "product",
+    "micar",
+    "explain",
+    "regulation",
+    "impact",
+    "xab",
+    "markets",
+    "crypto",
+    "assets"
+   ],
+   "semantic_variants": [
+    "What is MiCAR",
+    "Explain MiCA",
+    "How does MiCA regulation impact XAB",
+    "Markets in crypto assets regulation"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "MiCA is the EU framework for crypto-assets, covering service providers, white papers and marketing communications.",
+    "Teroxx is authorised as a CASP by CySEC, so client protection, disclosures and conduct rules apply to everything we build.",
+    "For XAB, marketing and product features must stay consistent with the white paper, fair and not misleading."
+   ],
+   "optional_full_answer": "MiCA is the EU framework for crypto-assets, covering service providers, white papers and marketing communications. Teroxx is authorised as a CASP by CySEC, so client protection, disclosures and conduct rules apply to everything we build. For XAB, marketing and product features must stay consistent with the white paper, fair and not misleading.",
+   "candidate_evidence": [
+    "arzif_compliance"
+   ],
+   "gap_warning": "CySEC CASP004/25 is a public register fact.",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q060",
+   "canonical_question": "How do you work with Legal and Compliance as a Product Owner?",
+   "category": "COMPLIANCE",
+   "intent": "How do you work with Legal and Compliance as a Product Owner",
+   "keywords": [
+    "work",
+    "legal",
+    "compliance",
+    "product",
+    "owner",
+    "collaborate",
+    "working",
+    "include",
+    "development"
+   ],
+   "semantic_variants": [
+    "How do you collaborate with compliance",
+    "Working with legal",
+    "How do you include compliance in product development"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I treat compliance as part of product discovery, not a final approval step.",
+    "I bring Legal and Compliance in early, translate requirements into business rules, allowed flows and audit needs.",
+    "Then we turn them into testable acceptance criteria, validate before release and monitor after launch."
+   ],
+   "optional_full_answer": "I treat compliance as part of product discovery, not a final approval step. I bring Legal and Compliance in early, translate requirements into business rules, allowed flows and audit needs. Then we turn them into testable acceptance criteria, validate before release and monitor after launch.",
+   "candidate_evidence": [
+    "arzif_compliance"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q061",
+   "canonical_question": "What would you do if Compliance blocks a feature?",
+   "category": "COMPLIANCE",
+   "intent": "What would you do if Compliance blocks a feature",
+   "keywords": [
+    "compliance",
+    "blocks",
+    "feature",
+    "says",
+    "legal",
+    "rejected",
+    "regulatory",
+    "blocker",
+    "roadmap"
+   ],
+   "semantic_variants": [
+    "Compliance says no",
+    "Legal rejected your feature",
+    "Regulatory blocker on the roadmap"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd first understand exactly which risk or rule is the issue, rather than treating it as a no.",
+    "Then I'd work with Compliance to redesign the flow so we reach the business goal in a compliant way.",
+    "And I'd bring them in earlier next time, so constraints shape the design from the start."
+   ],
+   "optional_full_answer": "I'd first understand exactly which risk or rule is the issue, rather than treating it as a no. Then I'd work with Compliance to redesign the flow so we reach the business goal in a compliant way. And I'd bring them in earlier next time, so constraints shape the design from the start.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q062",
+   "canonical_question": "How do KYC and AML affect product design?",
+   "category": "COMPLIANCE",
+   "intent": "How do KYC and AML affect product design",
+   "keywords": [
+    "kyc",
+    "aml",
+    "affect",
+    "product",
+    "design",
+    "explain",
+    "know",
+    "customer",
+    "requirements",
+    "anti",
+    "money",
+    "laundering"
+   ],
+   "semantic_variants": [
+    "Explain KYC AML",
+    "Know your customer requirements",
+    "Anti money laundering in product"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "KYC and AML define who can access which features and when, so they shape onboarding and eligibility flows.",
+    "I'd design them to be as smooth as possible while meeting requirements, with clear states like pending or restricted.",
+    "Rewards and tiers must respect those rules, and every decision should be auditable."
+   ],
+   "optional_full_answer": "KYC and AML define who can access which features and when, so they shape onboarding and eligibility flows. I'd design them to be as smooth as possible while meeting requirements, with clear states like pending or restricted. Rewards and tiers must respect those rules, and every decision should be auditable.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q063",
+   "canonical_question": "How would you ensure marketing of XAB rewards is compliant?",
+   "category": "COMPLIANCE",
+   "intent": "How would you ensure marketing of XAB rewards is compliant",
+   "keywords": [
+    "ensure",
+    "marketing",
+    "xab",
+    "rewards",
+    "compliant",
+    "tokens",
+    "communicate",
+    "communications",
+    "under",
+    "mica"
+   ],
+   "semantic_variants": [
+    "Compliant marketing of tokens",
+    "How do you communicate rewards",
+    "Marketing communications under MiCA"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "Under MiCA, communications must be fair, clear, not misleading and consistent with the white paper.",
+    "I'd agree messaging rules and required risk wording with Compliance and Marketing before any campaign.",
+    "And I'd make sure product behaviour exactly matches what we promise, which protects trust long-term."
+   ],
+   "optional_full_answer": "Under MiCA, communications must be fair, clear, not misleading and consistent with the white paper. I'd agree messaging rules and required risk wording with Compliance and Marketing before any campaign. And I'd make sure product behaviour exactly matches what we promise, which protects trust long-term.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q064",
+   "canonical_question": "How do you prioritize the backlog?",
+   "category": "PRIORITIZATION",
+   "intent": "How do you prioritize the backlog",
+   "keywords": [
+    "prioritize",
+    "backlog",
+    "prioritise",
+    "features",
+    "prioritization",
+    "approach",
+    "decide",
+    "build",
+    "next",
+    "framework",
+    "use"
+   ],
+   "semantic_variants": [
+    "How do you prioritise features",
+    "Prioritization approach",
+    "How do you decide what to build next",
+    "What prioritization framework do you use"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I prioritise by outcome: customer impact, business value, risk and regulatory urgency, weighed against effort and dependencies.",
+    "Integrity and compliance issues come first, because trust is the foundation of a financial product.",
+    "I use frameworks like RICE or cost of delay when helpful, but I always make the trade-off transparent."
+   ],
+   "optional_full_answer": "I prioritise by outcome: customer impact, business value, risk and regulatory urgency, weighed against effort and dependencies. Integrity and compliance issues come first, because trust is the foundation of a financial product. I use frameworks like RICE or cost of delay when helpful, but I always make the trade-off transparent.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q065",
+   "canonical_question": "How do you balance technical debt against new features?",
+   "category": "PRIORITIZATION",
+   "intent": "How do you balance technical debt against new features",
+   "keywords": [
+    "balance",
+    "technical",
+    "debt",
+    "against",
+    "new",
+    "features",
+    "tech",
+    "versus",
+    "prioritise",
+    "pay",
+    "down"
+   ],
+   "semantic_variants": [
+    "Tech debt versus features",
+    "How do you prioritise technical debt",
+    "When do you pay down tech debt"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I treat technical debt as business risk, so I quantify its impact on incidents, speed and integrity.",
+    "Debt that threatens the ledger or blocks the roadmap goes first; I also reserve steady capacity for it.",
+    "At Arzif, prioritising infrastructure upgrades cut downtime by twenty percent, so I've seen the payoff."
+   ],
+   "optional_full_answer": "I treat technical debt as business risk, so I quantify its impact on incidents, speed and integrity. Debt that threatens the ledger or blocks the roadmap goes first; I also reserve steady capacity for it. At Arzif, prioritising infrastructure upgrades cut downtime by twenty percent, so I've seen the payoff.",
+   "candidate_evidence": [
+    "arzif_infra"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q066",
+   "canonical_question": "How do you write a good user story?",
+   "category": "PRODUCT_EXECUTION",
+   "intent": "How do you write a good user story",
+   "keywords": [
+    "write",
+    "good",
+    "user",
+    "story",
+    "makes",
+    "format",
+    "stories"
+   ],
+   "semantic_variants": [
+    "What makes a good user story",
+    "User story format",
+    "How do you write stories"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "A good story states who the user is, what they need and why, in a slice small enough to deliver in a sprint.",
+    "It includes business rules, edge cases and clear acceptance criteria, often written as given, when, then.",
+    "And it's refined with Engineering and QA, so everyone agrees on what done means."
+   ],
+   "optional_full_answer": "A good story states who the user is, what they need and why, in a slice small enough to deliver in a sprint. It includes business rules, edge cases and clear acceptance criteria, often written as given, when, then. And it's refined with Engineering and QA, so everyone agrees on what done means.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q067",
+   "canonical_question": "What is your Definition of Ready and Definition of Done?",
+   "category": "AGILE_JIRA",
+   "intent": "What is your Definition of Ready and Definition of Done",
+   "keywords": [
+    "definition",
+    "ready",
+    "done",
+    "story"
+   ],
+   "semantic_variants": [
+    "Definition of ready",
+    "Definition of done",
+    "When is a story ready"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "Ready means the value is clear, acceptance criteria are testable, dependencies and legal input are known, and it's sized.",
+    "Done means acceptance criteria are met, edge cases tested, documentation and monitoring in place, and it's released.",
+    "For financial features, I'd also include audit logging and reconciliation checks in done."
+   ],
+   "optional_full_answer": "Ready means the value is clear, acceptance criteria are testable, dependencies and legal input are known, and it's sized. Done means acceptance criteria are met, edge cases tested, documentation and monitoring in place, and it's released. For financial features, I'd also include audit logging and reconciliation checks in done.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q068",
+   "canonical_question": "How do you run sprint planning and refinement?",
+   "category": "AGILE_JIRA",
+   "intent": "How do you run sprint planning and refinement",
+   "keywords": [
+    "run",
+    "sprint",
+    "planning",
+    "refinement",
+    "backlog",
+    "process",
+    "scrum",
+    "ceremonies"
+   ],
+   "semantic_variants": [
+    "Backlog refinement",
+    "Sprint planning process",
+    "Scrum ceremonies"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "Before planning, I make sure top stories are refined, prioritised and ready with clear acceptance criteria.",
+    "In planning, we agree a sprint goal tied to an outcome, and the team commits to what they can deliver.",
+    "Then reviews and retros close the loop on results and how we work."
+   ],
+   "optional_full_answer": "Before planning, I make sure top stories are refined, prioritised and ready with clear acceptance criteria. In planning, we agree a sprint goal tied to an outcome, and the team commits to what they can deliver. Then reviews and retros close the loop on results and how we work.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q069",
+   "canonical_question": "How do you run user acceptance testing and releases?",
+   "category": "PRODUCT_EXECUTION",
+   "intent": "How do you run user acceptance testing and releases",
+   "keywords": [
+    "run",
+    "user",
+    "acceptance",
+    "testing",
+    "releases",
+    "uat",
+    "process",
+    "validate",
+    "before",
+    "release",
+    "planning"
+   ],
+   "semantic_variants": [
+    "UAT process",
+    "How do you validate before release",
+    "Release planning"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I define UAT scenarios from the acceptance criteria, including negative and edge cases.",
+    "For sensitive financial features, I prefer staged rollouts with feature flags and a clear rollback plan.",
+    "After release, I monitor the key metrics and errors closely before scaling to everyone."
+   ],
+   "optional_full_answer": "I define UAT scenarios from the acceptance criteria, including negative and edge cases. For sensitive financial features, I prefer staged rollouts with feature flags and a clear rollback plan. After release, I monitor the key metrics and errors closely before scaling to everyone.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q070",
+   "canonical_question": "How do you do product discovery?",
+   "category": "PRODUCT_DISCOVERY",
+   "intent": "How do you do product discovery",
+   "keywords": [
+    "product",
+    "discovery",
+    "understand",
+    "user",
+    "needs",
+    "customer",
+    "research",
+    "approach",
+    "validate",
+    "idea"
+   ],
+   "semantic_variants": [
+    "How do you understand user needs",
+    "Customer research approach",
+    "How do you validate an idea"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I combine data, like funnels and cohorts, with direct conversations, support tickets and CRM feedback.",
+    "Then I identify the riskiest assumption and test it as cheaply as possible, with a prototype, survey or small experiment.",
+    "Only validated problems move into the delivery backlog."
+   ],
+   "optional_full_answer": "I combine data, like funnels and cohorts, with direct conversations, support tickets and CRM feedback. Then I identify the riskiest assumption and test it as cheaply as possible, with a prototype, survey or small experiment. Only validated problems move into the delivery backlog.",
+   "candidate_evidence": [
+    "lg_gtm",
+    "arzif_ux"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q071",
+   "canonical_question": "How would you run an experiment to test a new reward?",
+   "category": "METRICS",
+   "intent": "How would you run an experiment to test a new reward",
+   "keywords": [
+    "run",
+    "experiment",
+    "test",
+    "new",
+    "reward",
+    "testing",
+    "experiments",
+    "hypothesis"
+   ],
+   "semantic_variants": [
+    "A/B testing",
+    "How do you run experiments",
+    "Test a hypothesis"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd write a clear hypothesis: this reward will increase a specific behaviour by a target amount.",
+    "Then I'd run it on a randomised segment against a control group, with guardrails on cost and complaints.",
+    "If it delivers incremental value, we scale it; if not, we learn and iterate."
+   ],
+   "optional_full_answer": "I'd write a clear hypothesis: this reward will increase a specific behaviour by a target amount. Then I'd run it on a randomised segment against a control group, with guardrails on cost and complaints. If it delivers incremental value, we scale it; if not, we learn and iterate.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q072",
+   "canonical_question": "How do you set OKRs or a North Star metric?",
+   "category": "METRICS",
+   "intent": "How do you set OKRs or a North Star metric",
+   "keywords": [
+    "set",
+    "okrs",
+    "north",
+    "star",
+    "metric",
+    "define",
+    "objectives"
+   ],
+   "semantic_variants": [
+    "What are OKRs",
+    "Define a north star metric",
+    "How do you set objectives"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "A North Star should capture the core value users get, for XAB perhaps active users of token benefits.",
+    "OKRs then define a clear objective with two or three measurable outcomes, not feature outputs.",
+    "I'd connect every epic in the backlog to one of those outcomes."
+   ],
+   "optional_full_answer": "A North Star should capture the core value users get, for XAB perhaps active users of token benefits. OKRs then define a clear objective with two or three measurable outcomes, not feature outputs. I'd connect every epic in the backlog to one of those outcomes.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q073",
+   "canonical_question": "How would you reduce churn?",
+   "category": "METRICS",
+   "intent": "How would you reduce churn",
+   "keywords": [
+    "reduce",
+    "churn",
+    "improve",
+    "retention",
+    "users",
+    "leaving",
+    "reduction",
+    "strategy"
+   ],
+   "semantic_variants": [
+    "How do you improve retention",
+    "Users are leaving, what do you do",
+    "Churn reduction strategy"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd first find where and why users churn, using cohorts, behaviour data and direct feedback.",
+    "Then I'd fix the biggest friction and strengthen reasons to return, like meaningful rewards and tier benefits.",
+    "At Arzif, retention strategies were part of how we grew revenue sixty percent over three years."
+   ],
+   "optional_full_answer": "I'd first find where and why users churn, using cohorts, behaviour data and direct feedback. Then I'd fix the biggest friction and strengthen reasons to return, like meaningful rewards and tier benefits. At Arzif, retention strategies were part of how we grew revenue sixty percent over three years.",
+   "candidate_evidence": [
+    "arzif_revenue_retention"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q074",
+   "canonical_question": "A feature you launched is underperforming. What do you do?",
+   "category": "PRODUCT_EXECUTION",
+   "intent": "A feature you launched is underperforming. What do you do",
+   "keywords": [
+    "feature",
+    "launched",
+    "underperforming",
+    "failed",
+    "after",
+    "launch",
+    "low",
+    "adoption",
+    "release",
+    "doesn",
+    "hit",
+    "targets"
+   ],
+   "semantic_variants": [
+    "Feature failed after launch",
+    "Low adoption after release",
+    "What if a release doesn't hit targets"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "First I'd check the data and instrumentation to confirm it's really underperforming.",
+    "Then I'd talk to users and look at the funnel to find whether it's awareness, usability or value.",
+    "Based on that, I'd iterate quickly, or retire it, and share the learning openly."
+   ],
+   "optional_full_answer": "First I'd check the data and instrumentation to confirm it's really underperforming. Then I'd talk to users and look at the funnel to find whether it's awareness, usability or value. Based on that, I'd iterate quickly, or retire it, and share the learning openly.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q075",
+   "canonical_question": "What do you do when Engineering disagrees with you?",
+   "category": "STAKEHOLDER",
+   "intent": "What do you do when Engineering disagrees with you",
+   "keywords": [
+    "engineering",
+    "disagrees",
+    "conflict",
+    "developers",
+    "engineers",
+    "push",
+    "back",
+    "requirement",
+    "disagreement",
+    "tech",
+    "team"
+   ],
+   "semantic_variants": [
+    "Conflict with developers",
+    "Engineers push back on your requirement",
+    "Disagreement with the tech team"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd first understand their concern, because engineers often see risks I don't.",
+    "Then we'd go back to the user outcome and data, and look at options with their trade-offs together.",
+    "I make the decision transparently, document why, and stay open to revisiting it if new facts appear."
+   ],
+   "optional_full_answer": "I'd first understand their concern, because engineers often see risks I don't. Then we'd go back to the user outcome and data, and look at options with their trade-offs together. I make the decision transparently, document why, and stay open to revisiting it if new facts appear.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q076",
+   "canonical_question": "How do you handle an urgent request from the C-level?",
+   "category": "STAKEHOLDER",
+   "intent": "How do you handle an urgent request from the C-level",
+   "keywords": [
+    "handle",
+    "urgent",
+    "request",
+    "c-level",
+    "ceo",
+    "wants",
+    "feature",
+    "now",
+    "executive",
+    "asks",
+    "something",
+    "urgently",
+    "leadership",
+    "changes"
+   ],
+   "semantic_variants": [
+    "CEO wants a feature now",
+    "Executive asks for something urgently",
+    "Leadership changes priorities"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd clarify the outcome behind the request, because the real need is often different from the first ask.",
+    "Then I'd show the impact on current commitments and offer options, like reducing scope or swapping priorities.",
+    "That keeps leadership in control of the trade-off while protecting the team's focus."
+   ],
+   "optional_full_answer": "I'd clarify the outcome behind the request, because the real need is often different from the first ask. Then I'd show the impact on current commitments and offer options, like reducing scope or swapping priorities. That keeps leadership in control of the trade-off while protecting the team's focus.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q077",
+   "canonical_question": "Two stakeholders want opposite priorities. How do you decide?",
+   "category": "STAKEHOLDER",
+   "intent": "Two stakeholders want opposite priorities. How do you decide",
+   "keywords": [
+    "two",
+    "stakeholders",
+    "want",
+    "opposite",
+    "priorities",
+    "decide",
+    "conflicting",
+    "stakeholder",
+    "marketing",
+    "engineering",
+    "different",
+    "things",
+    "resolve",
+    "competing"
+   ],
+   "semantic_variants": [
+    "Conflicting stakeholder priorities",
+    "Marketing and engineering want different things",
+    "How do you resolve competing demands"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd bring them back to the shared goal and the data on customer and business impact.",
+    "Then I'd make the trade-off explicit and propose a recommendation, sometimes with a phased approach.",
+    "If we still can't agree, I'd escalate with that recommendation rather than leave it unresolved."
+   ],
+   "optional_full_answer": "I'd bring them back to the shared goal and the data on customer and business impact. Then I'd make the trade-off explicit and propose a recommendation, sometimes with a phased approach. If we still can't agree, I'd escalate with that recommendation rather than leave it unresolved.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q078",
+   "canonical_question": "Marketing wants to launch before Engineering is ready. What do you do?",
+   "category": "STAKEHOLDER",
+   "intent": "Marketing wants to launch before Engineering is ready. What do you do",
+   "keywords": [
+    "marketing",
+    "wants",
+    "launch",
+    "before",
+    "engineering",
+    "ready",
+    "pressure",
+    "early",
+    "date",
+    "versus",
+    "readiness",
+    "pushes",
+    "release"
+   ],
+   "semantic_variants": [
+    "Pressure to launch early",
+    "Launch date versus readiness",
+    "Marketing pushes the release"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd align everyone on clear readiness criteria, especially integrity, compliance and support.",
+    "Often a beta or staged rollout lets Marketing start while we limit risk.",
+    "But I wouldn't compromise ledger integrity or compliance for a date."
+   ],
+   "optional_full_answer": "I'd align everyone on clear readiness criteria, especially integrity, compliance and support. Often a beta or staged rollout lets Marketing start while we limit risk. But I wouldn't compromise ledger integrity or compliance for a date.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q079",
+   "canonical_question": "Requirements change in the middle of a sprint. How do you handle it?",
+   "category": "STAKEHOLDER",
+   "intent": "Requirements change in the middle of a sprint. How do you handle it",
+   "keywords": [
+    "requirements",
+    "change",
+    "middle",
+    "sprint",
+    "handle",
+    "mid",
+    "scope",
+    "new",
+    "urgent",
+    "requirement",
+    "during"
+   ],
+   "semantic_variants": [
+    "Mid sprint scope change",
+    "New urgent requirement during the sprint"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd protect the sprint goal and assess whether the change is truly urgent.",
+    "If it's critical, like a compliance or integrity issue, we swap scope transparently with the team.",
+    "Otherwise it goes into refinement and the next sprint."
+   ],
+   "optional_full_answer": "I'd protect the sprint goal and assess whether the change is truly urgent. If it's critical, like a compliance or integrity issue, we swap scope transparently with the team. Otherwise it goes into refinement and the next sprint.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q080",
+   "canonical_question": "How do you handle an unrealistic deadline?",
+   "category": "STAKEHOLDER",
+   "intent": "How do you handle an unrealistic deadline",
+   "keywords": [
+    "handle",
+    "unrealistic",
+    "deadline",
+    "too",
+    "tight",
+    "impossible",
+    "timeline",
+    "date",
+    "met"
+   ],
+   "semantic_variants": [
+    "Deadline is too tight",
+    "Impossible timeline",
+    "What if the date can't be met"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd make the risk visible early with a clear view of scope, capacity and dependencies.",
+    "Then I'd propose options: a smaller MVP, phased delivery, or moving the date.",
+    "I'd agree what done means for that date, so no one is surprised."
+   ],
+   "optional_full_answer": "I'd make the risk visible early with a clear view of scope, capacity and dependencies. Then I'd propose options: a smaller MVP, phased delivery, or moving the date. I'd agree what done means for that date, so no one is surprised.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q081",
+   "canonical_question": "What if data contradicts what leadership believes?",
+   "category": "STAKEHOLDER",
+   "intent": "What if data contradicts what leadership believes",
+   "keywords": [
+    "data",
+    "contradicts",
+    "leadership",
+    "believes",
+    "disagrees",
+    "ceo",
+    "challenging",
+    "executive",
+    "assumptions"
+   ],
+   "semantic_variants": [
+    "Data disagrees with the CEO",
+    "Challenging executive assumptions"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd present the data neutrally and focus on the shared goal, not on being right.",
+    "If there's still doubt, I'd propose a small experiment to test the assumption.",
+    "Leadership then decides with evidence, and we move forward together."
+   ],
+   "optional_full_answer": "I'd present the data neutrally and focus on the shared goal, not on being right. If there's still doubt, I'd propose a small experiment to test the assumption. Leadership then decides with evidence, and we move forward together.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q082",
+   "canonical_question": "How would you work with the CRM team on XAB?",
+   "category": "STAKEHOLDER",
+   "intent": "How would you work with the CRM team on XAB",
+   "keywords": [
+    "work",
+    "crm",
+    "team",
+    "xab",
+    "collaboration",
+    "use",
+    "rewards",
+    "working",
+    "marketing"
+   ],
+   "semantic_variants": [
+    "Collaboration with CRM",
+    "How do you use CRM for rewards",
+    "Working with marketing and CRM"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "CRM is key for turning XAB benefits into behaviour, through segmentation, communication and re-engagement.",
+    "I'd align on target segments and triggers, like tier upgrades or unused benefits, and share clear eligibility data.",
+    "Then we'd measure campaign impact on usage and retention, not just opens or clicks."
+   ],
+   "optional_full_answer": "CRM is key for turning XAB benefits into behaviour, through segmentation, communication and re-engagement. I'd align on target segments and triggers, like tier upgrades or unused benefits, and share clear eligibility data. Then we'd measure campaign impact on usage and retention, not just opens or clicks.",
+   "candidate_evidence": [
+    "philips_pricing_crm"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q083",
+   "canonical_question": "How do you keep stakeholders aligned?",
+   "category": "STAKEHOLDER",
+   "intent": "How do you keep stakeholders aligned",
+   "keywords": [
+    "keep",
+    "stakeholders",
+    "aligned",
+    "stakeholder",
+    "management",
+    "communicate",
+    "alignment"
+   ],
+   "semantic_variants": [
+    "Stakeholder management",
+    "How do you communicate with stakeholders",
+    "Stakeholder alignment"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I keep a visible roadmap and backlog linked to outcomes, so everyone sees what we're doing and why.",
+    "I run a steady cadence of reviews with IT, Compliance, CRM and leadership, and share metrics openly.",
+    "And I make trade-offs explicit early, so decisions don't surprise anyone."
+   ],
+   "optional_full_answer": "I keep a visible roadmap and backlog linked to outcomes, so everyone sees what we're doing and why. I run a steady cadence of reviews with IT, Compliance, CRM and leadership, and share metrics openly. And I make trade-offs explicit early, so decisions don't surprise anyone.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q084",
+   "canonical_question": "Design a trading fee discount feature using XAB.",
+   "category": "CASE_STUDY",
+   "intent": "Design a trading fee discount feature using XAB",
+   "keywords": [
+    "design",
+    "trading",
+    "fee",
+    "discount",
+    "feature",
+    "using",
+    "xab",
+    "tokens",
+    "management",
+    "work",
+    "use",
+    "pay",
+    "lower",
+    "fees"
+   ],
+   "semantic_variants": [
+    "Fee discount with tokens",
+    "How would trading fee management work",
+    "Use XAB to pay lower fees"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd define the goal first, for example more active trading and XAB usage, and the eligible clients and products.",
+    "Then rules: discount levels by tier or holding, how fees are calculated and recorded in the ledger, and limits.",
+    "I'd launch to a segment, measure trading activity, XAB demand and fee revenue impact, and adjust."
+   ],
+   "optional_full_answer": "I'd define the goal first, for example more active trading and XAB usage, and the eligible clients and products. Then rules: discount levels by tier or holding, how fees are calculated and recorded in the ledger, and limits. I'd launch to a segment, measure trading activity, XAB demand and fee revenue impact, and adjust.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q085",
+   "canonical_question": "How would you design an exclusive experience for top-tier clients?",
+   "category": "CASE_STUDY",
+   "intent": "How would you design an exclusive experience for top-tier clients",
+   "keywords": [
+    "design",
+    "exclusive",
+    "experience",
+    "top-tier",
+    "clients",
+    "user",
+    "experiences",
+    "premium",
+    "benefits",
+    "platinum",
+    "vip"
+   ],
+   "semantic_variants": [
+    "Exclusive user experiences",
+    "Premium benefits for Platinum",
+    "VIP experiences"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd start by learning what top clients value most, such as access, insight or personal service.",
+    "Then design a few high-quality experiences tied to tier status, delivered with CRM and client support.",
+    "I'd measure retention, activity and satisfaction of that segment against the cost."
+   ],
+   "optional_full_answer": "I'd start by learning what top clients value most, such as access, insight or personal service. Then design a few high-quality experiences tied to tier status, delivered with CRM and client support. I'd measure retention, activity and satisfaction of that segment against the cost.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q086",
+   "canonical_question": "A reconciliation shows a mismatch in XAB balances. What do you do?",
+   "category": "CASE_STUDY",
+   "intent": "A reconciliation shows a mismatch in XAB balances. What do you do",
+   "keywords": [
+    "reconciliation",
+    "shows",
+    "mismatch",
+    "xab",
+    "balances",
+    "break",
+    "don",
+    "match",
+    "ledger",
+    "incident"
+   ],
+   "semantic_variants": [
+    "Reconciliation break",
+    "Balances don't match",
+    "Ledger mismatch incident"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "First I'd contain it, pausing affected flows if needed, and inform Engineering, Finance and Compliance.",
+    "Then we trace the break to specific transactions, correct with reversing entries, and communicate with affected clients.",
+    "Finally a root-cause review, with new rules or tests so it can't happen the same way again."
+   ],
+   "optional_full_answer": "First I'd contain it, pausing affected flows if needed, and inform Engineering, Finance and Compliance. Then we trace the break to specific transactions, correct with reversing entries, and communicate with affected clients. Finally a root-cause review, with new rules or tests so it can't happen the same way again.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q087",
+   "canonical_question": "How would you redesign the rewards program onboarding to improve activation?",
+   "category": "CASE_STUDY",
+   "intent": "How would you redesign the rewards program onboarding to improve activation",
+   "keywords": [
+    "redesign",
+    "rewards",
+    "program",
+    "onboarding",
+    "improve",
+    "activation",
+    "get",
+    "new",
+    "users",
+    "their",
+    "first",
+    "reward",
+    "funnel"
+   ],
+   "semantic_variants": [
+    "Improve activation",
+    "Get new users to their first reward",
+    "Onboarding funnel"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd map the funnel from sign-up to first reward and find the biggest drop-off.",
+    "Then simplify that step, explain the benefit clearly, and guide users to a first utility event quickly.",
+    "I'd measure activation rate and time to first reward, and test changes against a control."
+   ],
+   "optional_full_answer": "I'd map the funnel from sign-up to first reward and find the biggest drop-off. Then simplify that step, explain the benefit clearly, and guide users to a first utility event quickly. I'd measure activation rate and time to first reward, and test changes against a control.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q088",
+   "canonical_question": "If the XAB price drops sharply, how would that affect your product decisions?",
+   "category": "CASE_STUDY",
+   "intent": "If the XAB price drops sharply, how would that affect your product decisions",
+   "keywords": [
+    "xab",
+    "price",
+    "drops",
+    "sharply",
+    "affect",
+    "product",
+    "decisions",
+    "token",
+    "falls",
+    "market",
+    "downturn",
+    "impact",
+    "bear",
+    "strategy"
+   ],
+   "semantic_variants": [
+    "Token price falls",
+    "Market downturn impact",
+    "Bear market strategy for XAB"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd focus even more on utility, so XAB's value to clients doesn't depend only on price.",
+    "I'd review reward costs and communication with Compliance, keeping messaging fair and clear.",
+    "And I'd watch retention and sell pressure closely to adjust mechanics if needed."
+   ],
+   "optional_full_answer": "I'd focus even more on utility, so XAB's value to clients doesn't depend only on price. I'd review reward costs and communication with Compliance, keeping messaging fair and clear. And I'd watch retention and sell pressure closely to adjust mechanics if needed.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q089",
+   "canonical_question": "How would you launch a new XAB utility feature end to end?",
+   "category": "CASE_STUDY",
+   "intent": "How would you launch a new XAB utility feature end to end",
+   "keywords": [
+    "launch",
+    "new",
+    "xab",
+    "utility",
+    "feature",
+    "end",
+    "walk",
+    "through",
+    "launching",
+    "delivery",
+    "idea",
+    "release"
+   ],
+   "semantic_variants": [
+    "Walk me through launching a feature",
+    "End to end feature delivery",
+    "From idea to release"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd start with the problem and goal, validate it with data and users, and involve Compliance early.",
+    "Then define stories, business rules and acceptance criteria with Engineering, and build in slices.",
+    "We'd launch in stages with CRM support, measure adoption and impact, and iterate."
+   ],
+   "optional_full_answer": "I'd start with the problem and goal, validate it with data and users, and involve Compliance early. Then define stories, business rules and acceptance criteria with Engineering, and build in slices. We'd launch in stages with CRM support, measure adoption and impact, and iterate.",
+   "candidate_evidence": [
+    "lg_gtm"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q090",
+   "canonical_question": "What are your strengths?",
+   "category": "GENERAL_BUSINESS",
+   "intent": "What are your strengths",
+   "keywords": [
+    "strengths",
+    "main",
+    "good"
+   ],
+   "semantic_variants": [
+    "Your main strengths",
+    "What are you good at"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "I connect business, customers and technology, which is exactly where product decisions live.",
+    "I'm strongly results-oriented, with growth at Arzif, LG, Philips and Epson to show for it.",
+    "And I build trust across teams and partners, from engineers to partners like Binance."
+   ],
+   "optional_full_answer": "I connect business, customers and technology, which is exactly where product decisions live. I'm strongly results-oriented, with growth at Arzif, LG, Philips and Epson to show for it. And I build trust across teams and partners, from engineers to partners like Binance.",
+   "candidate_evidence": [
+    "arzif_growth",
+    "lg_channel",
+    "arzif_partnerships"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q091",
+   "canonical_question": "What is your biggest weakness?",
+   "category": "GENERAL_BUSINESS",
+   "intent": "What is your biggest weakness",
+   "keywords": [
+    "biggest",
+    "weakness",
+    "weaknesses",
+    "need",
+    "improve"
+   ],
+   "semantic_variants": [
+    "Your weaknesses",
+    "What do you need to improve"
+   ],
+   "answer_mode": "VERIFIED",
+   "short_bullets": [
+    "Product Owner hasn't been my formal title, so I'm deliberately strengthening formal backlog and story-writing discipline.",
+    "I've been practising with structured acceptance criteria and outcome-based roadmaps.",
+    "My strength in business and crypto operations means I can focus that learning where it matters most."
+   ],
+   "optional_full_answer": "Product Owner hasn't been my formal title, so I'm deliberately strengthening formal backlog and story-writing discipline. I've been practising with structured acceptance criteria and outcome-based roadmaps. My strength in business and crypto operations means I can focus that learning where it matters most.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q092",
+   "canonical_question": "Where do you see yourself in five years?",
+   "category": "GENERAL_BUSINESS",
+   "intent": "Where do you see yourself in five years",
+   "keywords": [
+    "where",
+    "see",
+    "yourself",
+    "five",
+    "years",
+    "year",
+    "plan",
+    "career",
+    "goals"
+   ],
+   "semantic_variants": [
+    "Five year plan",
+    "Career goals"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I see myself as a strong product leader in digital assets, owning products that clients genuinely value.",
+    "Ideally growing XAB into a central, trusted part of the Teroxx ecosystem.",
+    "And helping build a product culture that combines growth, compliance and technical excellence."
+   ],
+   "optional_full_answer": "I see myself as a strong product leader in digital assets, owning products that clients genuinely value. Ideally growing XAB into a central, trusted part of the Teroxx ecosystem. And helping build a product culture that combines growth, compliance and technical excellence.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q093",
+   "canonical_question": "What are your salary expectations?",
+   "category": "GENERAL_BUSINESS",
+   "intent": "What are your salary expectations",
+   "keywords": [
+    "salary",
+    "expectations",
+    "expectation",
+    "compensation",
+    "looking"
+   ],
+   "semantic_variants": [
+    "Salary expectation",
+    "What compensation are you looking for"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'm flexible and most interested in the role and the impact I can have.",
+    "I'd expect a package in line with the market for a Product Owner in European FinTech.",
+    "I'm happy to discuss the details once we see the fit is right."
+   ],
+   "optional_full_answer": "I'm flexible and most interested in the role and the impact I can have. I'd expect a package in line with the market for a Product Owner in European FinTech. I'm happy to discuss the details once we see the fit is right.",
+   "candidate_evidence": [],
+   "gap_warning": "Shervin should replace with his own number.",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q094",
+   "canonical_question": "Do you have any questions for us?",
+   "category": "GENERAL_BUSINESS",
+   "intent": "Do you have any questions for us",
+   "keywords": [
+    "have",
+    "any",
+    "questions",
+    "like",
+    "ask",
+    "there",
+    "anything",
+    "want",
+    "know"
+   ],
+   "semantic_variants": [
+    "Any questions for me",
+    "What would you like to ask us",
+    "Is there anything you want to know"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "How do you currently define success for the XAB ecosystem?",
+    "What's the biggest product problem you'd want this role to solve in the first six months?",
+    "How do Product, Engineering and Compliance work together when a new reward or token mechanic is designed?"
+   ],
+   "optional_full_answer": "Other good questions: How is the internal ledger and reconciliation set up today, and where are the pain points? How do clients currently experience XAB and the status levels? Which metrics does leadership review for XAB? How is the roadmap decided between XAB and other Teroxx products? What does the engineering team look like? How do you see XAB evolving under MiCA? What would make someone exceptional in this role after a year?",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q095",
+   "canonical_question": "What trends in crypto do you think matter most right now?",
+   "category": "CRYPTO",
+   "intent": "What trends in crypto do you think matter most right now",
+   "keywords": [
+    "trends",
+    "crypto",
+    "think",
+    "matter",
+    "most",
+    "right",
+    "now",
+    "market",
+    "happening",
+    "industry",
+    "future",
+    "digital",
+    "assets"
+   ],
+   "semantic_variants": [
+    "Crypto market trends",
+    "What's happening in the crypto industry",
+    "Future of digital assets"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "Regulation like MiCA is making trust and compliance a real competitive advantage in Europe.",
+    "Users increasingly expect simple, premium experiences, not just access to trading.",
+    "And token utility is shifting from speculation toward real benefits that drive loyalty."
+   ],
+   "optional_full_answer": "Regulation like MiCA is making trust and compliance a real competitive advantage in Europe. Users increasingly expect simple, premium experiences, not just access to trading. And token utility is shifting from speculation toward real benefits that drive loyalty.",
+   "candidate_evidence": [],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q096",
+   "canonical_question": "How do you build user trust in a crypto product?",
+   "category": "CRYPTO",
+   "intent": "How do you build user trust in a crypto product",
+   "keywords": [
+    "build",
+    "user",
+    "trust",
+    "crypto",
+    "product",
+    "make",
+    "users",
+    "platform",
+    "security"
+   ],
+   "semantic_variants": [
+    "Trust in crypto",
+    "How do you make users trust the platform",
+    "Security and trust"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "Trust comes from reliability, transparency and regulation working together.",
+    "That means accurate balances, clear rules for rewards and tiers, and fast, human support.",
+    "At Arzif, reducing downtime twenty percent and improving satisfaction twenty-five percent were central to building trust."
+   ],
+   "optional_full_answer": "Trust comes from reliability, transparency and regulation working together. That means accurate balances, clear rules for rewards and tiers, and fast, human support. At Arzif, reducing downtime twenty percent and improving satisfaction twenty-five percent were central to building trust.",
+   "candidate_evidence": [
+    "arzif_infra",
+    "arzif_ux"
+   ],
+   "gap_warning": "",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  },
+  {
+   "question_id": "Q097",
+   "canonical_question": "Can you give a concrete example?",
+   "category": "FOLLOW_UP",
+   "intent": "Can you give a concrete example",
+   "keywords": [
+    "give",
+    "concrete",
+    "example",
+    "more",
+    "specific",
+    "look",
+    "like",
+    "practice"
+   ],
+   "semantic_variants": [
+    "Give me an example",
+    "Can you be more specific",
+    "What would that look like in practice"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "For example, at Arzif we combined UX and support improvements with retention strategies.",
+    "That raised user satisfaction by twenty-five percent and supported sixty percent revenue growth over three years.",
+    "For XAB, I'd apply the same approach: fix friction first, then reward the behaviour that matters."
+   ],
+   "optional_full_answer": "For example, at Arzif we combined UX and support improvements with retention strategies. That raised user satisfaction by twenty-five percent and supported sixty percent revenue growth over three years. For XAB, I'd apply the same approach: fix friction first, then reward the behaviour that matters.",
+   "candidate_evidence": [
+    "arzif_ux",
+    "arzif_revenue_retention"
+   ],
+   "gap_warning": "Generic fallback — the LLM should contextualise using the previous question.",
+   "technical_notes": "",
+   "product_notes": "",
+   "follow_up_questions": []
+  }
+ ]
+}

@@ -1,0 +1,226 @@
+<Window x:Class="InterviewAssistant.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="clr-namespace:InterviewAssistant.App.Views"
+        Title="Interview Assistant" Icon="Assets/app.ico"
+        Width="620" Height="560" MinWidth="380" MinHeight="260"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="CanResize" Topmost="True" ShowInTaskbar="True"
+        FontFamily="{StaticResource F.Ui}" UseLayoutRounding="True" TextOptions.TextFormattingMode="Ideal">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="7" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+    <Window.Resources>
+        <v:BoolToVisibility x:Key="BoolVis"/>
+        <v:BoolToVisibility x:Key="BoolVisInv" Invert="True"/>
+        <v:StringToVisibility x:Key="StrVis"/>
+        <v:StringToVisibility x:Key="StrVisInv" Invert="True"/>
+        <v:LevelToWidth x:Key="LevelW"/>
+        <v:Multiply x:Key="LineH" Factor="1.42"/>
+
+        <Storyboard x:Key="Pulse" RepeatBehavior="Forever" AutoReverse="True">
+            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.3" Duration="0:0:0.9">
+                <DoubleAnimation.EasingFunction><SineEase EasingMode="EaseInOut"/></DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+    </Window.Resources>
+
+    <Grid Background="#01000000"><!-- near-transparent: keeps the resize margin hit-testable on a layered window -->
+    <!-- Shadow lives on a static, childless sibling so animations in the content never force the effect to re-render. -->
+    <Border x:Name="ShadowLayer" Margin="8" CornerRadius="14" Background="{StaticResource B.Bg}" Effect="{StaticResource E.Shadow}"/>
+    <Border x:Name="Root" Background="{StaticResource B.Bg}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" CornerRadius="14" Margin="8">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- ===== Header / drag area ===== -->
+            <Grid x:Name="Header" Grid.Row="0" Background="Transparent" Margin="14,10,8,6" MouseLeftButtonDown="Header_MouseDown">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- status pill -->
+                <Border Grid.Column="0" Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" CornerRadius="14" Padding="10,5,12,5"
+                        ToolTip="{Binding StatusDetail}">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="8" Height="8" Fill="{Binding StatusBrush}" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding StatusPulse}" Value="True">
+                                            <DataTrigger.EnterActions><BeginStoryboard x:Name="PulseBegin" Storyboard="{StaticResource Pulse}"/></DataTrigger.EnterActions>
+                                            <DataTrigger.ExitActions><StopStoryboard BeginStoryboardName="PulseBegin"/></DataTrigger.ExitActions>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="{Binding StatusText}" Margin="8,0,0,0" FontSize="11" FontWeight="SemiBold" Foreground="{Binding StatusBrush}" VerticalAlignment="Center"/>
+                        <!-- audio meter -->
+                        <Border Width="56" Height="4" CornerRadius="2" Background="{StaticResource B.Surface3}" Margin="12,0,0,0" VerticalAlignment="Center" ToolTip="Playback audio level (should move when the interviewer speaks)">
+                            <Border HorizontalAlignment="Left" CornerRadius="2" Background="{StaticResource B.Listening}" Width="{Binding AudioLevel, Converter={StaticResource LevelW}}"/>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="StartBtn" Style="{StaticResource Btn.Primary}" Command="{Binding StartPauseCommand}" Padding="12,5" Margin="0,0,6,0" ToolTip="Start / pause listening (Ctrl+Alt+L)">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="StartIcon" Style="{StaticResource T.Icon}" Text="&#xE768;" FontSize="12" Margin="0,0,6,0"/>
+                            <TextBlock Text="{Binding StartPauseLabel}"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Command="{Binding StopCommand}" ToolTip="Stop listening"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE71A;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Compact_Click" ToolTip="Compact interview mode"><TextBlock x:Name="CompactIcon" Style="{StaticResource T.Icon}" Text="&#xE73F;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Diagnostics_Click" ToolTip="Diagnostics / latency"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE9D9;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Readiness_Click" ToolTip="Pre-interview check"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Settings_Click" ToolTip="Settings"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE713;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Minimize_Click" ToolTip="Minimize"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE921;" FontSize="11"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Close_Click" ToolTip="Close"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE8BB;" FontSize="11"/></Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- ===== Body ===== -->
+            <Grid Grid.Row="1" Margin="14,4,14,8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Question -->
+                <Border x:Name="QuestionCard" Style="{StaticResource Card}" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock x:Name="QuestionLabel" Text="QUESTION" Style="{StaticResource T.Label}"/>
+                        <TextBlock Text="{Binding Question}" FontSize="{Binding QuestionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"
+                                   Visibility="{Binding Question, Converter={StaticResource StrVis}}"/>
+                        <TextBlock Text="Waiting for the interviewer…" FontSize="{Binding QuestionFontSize}" Foreground="{StaticResource B.TextFaint}"
+                                   Visibility="{Binding Question, Converter={StaticResource StrVisInv}}"/>
+                        <TextBlock Text="{Binding LiveTranscript}" Margin="0,8,0,0" FontSize="13" FontStyle="Italic" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap"
+                                   Visibility="{Binding LiveTranscript, Converter={StaticResource StrVis}}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Answer -->
+                <Border Grid.Row="1" Style="{StaticResource Card}" Background="{StaticResource B.Surface}" Padding="20,16">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <DockPanel x:Name="AnswerHeader">
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding AnswerMeta}" FontSize="11" Foreground="{StaticResource B.TextFaint}"/>
+                            <TextBlock Text="ANSWER" Style="{StaticResource T.Label}"/>
+                        </DockPanel>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                            <StackPanel MaxWidth="820" HorizontalAlignment="Left">
+                                <ItemsControl ItemsSource="{Binding Bullets}" Focusable="False">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="0,0,0,14" Opacity="0">
+                                                <Grid.RenderTransform><TranslateTransform Y="6"/></Grid.RenderTransform>
+                                                <Grid.Triggers>
+                                                    <EventTrigger RoutedEvent="Loaded">
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.22"/>
+                                                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)" To="0" Duration="0:0:0.22">
+                                                                    <DoubleAnimation.EasingFunction><CubicEase EasingMode="EaseOut"/></DoubleAnimation.EasingFunction>
+                                                                </DoubleAnimation>
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </EventTrigger>
+                                                </Grid.Triggers>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="22"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Ellipse Width="7" Height="7" Fill="{StaticResource B.Accent}" VerticalAlignment="Top" HorizontalAlignment="Left"
+                                                         Margin="2,13,0,0" Visibility="{Binding IsParagraph, Converter={StaticResource BoolVisInv}}"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Text}" TextWrapping="Wrap" Foreground="{StaticResource B.Text}"
+                                                           FontSize="{Binding DataContext.AnswerFontSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                           LineHeight="{Binding DataContext.AnswerFontSize, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource LineH}}"
+                                                           LineStackingStrategy="BlockLineHeight"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <!-- bullet currently being written (faded, appended below stable bullets) -->
+                                <TextBlock Text="{Binding Pending}" Margin="22,0,0,14" TextWrapping="Wrap" Foreground="{StaticResource B.TextFaint}"
+                                           FontSize="{Binding AnswerFontSize}" Visibility="{Binding Pending, Converter={StaticResource StrVis}}"/>
+                                <StackPanel Orientation="Horizontal" Margin="22,2,0,0" Visibility="{Binding IsThinking, Converter={StaticResource BoolVis}}">
+                                    <TextBlock Text="●  ●  ●" Foreground="{StaticResource B.Accent}" FontSize="12">
+                                        <TextBlock.Triggers>
+                                            <EventTrigger RoutedEvent="Loaded">
+                                                <BeginStoryboard Storyboard="{StaticResource Pulse}"/>
+                                            </EventTrigger>
+                                        </TextBlock.Triggers>
+                                    </TextBlock>
+                                </StackPanel>
+                                <TextBlock Text="{Binding Note}" Margin="22,4,0,0" FontSize="12" Foreground="{StaticResource B.Thinking}" TextWrapping="Wrap"
+                                           Visibility="{Binding Note, Converter={StaticResource StrVis}}"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ===== Answer actions ===== -->
+            <DockPanel x:Name="ActionBar" Grid.Row="2" Margin="14,0,14,8" LastChildFill="False">
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
+                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding ShorterCommand}" Content="Shorter" ToolTip="2–3 very short bullets"/>
+                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding TechnicalCommand}" Content="Technical"/>
+                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding ExampleCommand}" Content="Example"/>
+                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding FullCommand}" Content="Full answer"/>
+                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding RegenerateCommand}" ToolTip="Regenerate with AI">
+                        <TextBlock Style="{StaticResource T.Icon}" Text="&#xE72C;" FontSize="12"/>
+                    </Button>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                    <Button Style="{StaticResource Btn.Ghost}" Command="{Binding PreviousCommand}" ToolTip="Previous answer"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE76B;" FontSize="11"/></Button>
+                    <TextBlock Text="{Binding HistoryLabel}" Foreground="{StaticResource B.TextFaint}" FontSize="11" VerticalAlignment="Center" Margin="2,0"/>
+                    <Button Style="{StaticResource Btn.Ghost}" Command="{Binding NextCommand}" ToolTip="Next answer"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE76C;" FontSize="11"/></Button>
+                </StackPanel>
+            </DockPanel>
+
+            <!-- ===== Manual question (always-available fallback) ===== -->
+            <Grid x:Name="ManualBar" Grid.Row="3" Margin="14,0,14,12">
+                <TextBox x:Name="ManualInput" Style="{StaticResource Input}" KeyDown="ManualInput_KeyDown" Padding="10,7,40,7"/>
+                <TextBlock Text="Type or paste a question and press Enter   (Ctrl+Alt+Q)" Foreground="{StaticResource B.TextFaint}" FontSize="13" Margin="12,0,0,0"
+                           VerticalAlignment="Center" IsHitTestVisible="False">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Text, ElementName=ManualInput}" Value="">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <Button Style="{StaticResource Btn.Ghost}" HorizontalAlignment="Right" Margin="0,0,4,0" Click="ManualSend_Click" ToolTip="Answer this question">
+                    <TextBlock Style="{StaticResource T.Icon}" Text="&#xE724;" Foreground="{StaticResource B.Accent}"/>
+                </Button>
+            </Grid>
+
+            <!-- ===== Diagnostics ===== -->
+            <Border x:Name="DiagPanel" Grid.Row="4" Margin="14,0,14,12" Padding="12,8" CornerRadius="8" Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" Visibility="Collapsed">
+                <TextBlock Text="{Binding Diagnostics}" FontFamily="Cascadia Mono, Consolas" FontSize="10.5" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap"/>
+            </Border>
+
+            <!-- transient toast -->
+            <Border x:Name="Toast" Grid.Row="1" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,18" Padding="14,8" CornerRadius="10"
+                    Background="{StaticResource B.Surface3}" BorderBrush="{StaticResource B.Error}" BorderThickness="1" Visibility="Collapsed">
+                <TextBlock x:Name="ToastText" Foreground="{StaticResource B.Text}" FontSize="12.5" TextWrapping="Wrap" MaxWidth="460"/>
+            </Border>
+        </Grid>
+    </Border>
+    </Grid>
+</Window>

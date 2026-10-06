@@ -1,0 +1,646 @@
+{
+ "tests": [
+  {
+   "utterance": "So, um, walk me through your background?",
+   "expected_question_id": "Q001",
+   "expected_category": "INTRODUCTION",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, why product ownership?",
+   "expected_question_id": "Q002",
+   "expected_category": "MOTIVATION",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, why teroxx?",
+   "expected_question_id": "Q003",
+   "expected_category": "MOTIVATION",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, what makes you the right candidate?",
+   "expected_question_id": "Q004",
+   "expected_category": "MOTIVATION",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, you have no product owner experience?",
+   "expected_question_id": "Q005",
+   "expected_category": "GAP_EXPERIENCE",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, have you built a ledger before?",
+   "expected_question_id": "Q006",
+   "expected_category": "GAP_EXPERIENCE",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, have you built a reward system?",
+   "expected_question_id": "Q007",
+   "expected_category": "GAP_EXPERIENCE",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, do you have mica experience?",
+   "expected_question_id": "Q008",
+   "expected_category": "GAP_EXPERIENCE",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, what's your background in crypto?",
+   "expected_question_id": "Q009",
+   "expected_category": "RESUME_EXPERIENCE",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how did you grow the user base?",
+   "expected_question_id": "Q010",
+   "expected_category": "BEHAVIOURAL",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, give an example of improving retention?",
+   "expected_question_id": "Q011",
+   "expected_category": "BEHAVIOURAL",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, example of working with developers?",
+   "expected_question_id": "Q012",
+   "expected_category": "BEHAVIOURAL",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, tell me about the binance partnership?",
+   "expected_question_id": "Q013",
+   "expected_category": "BEHAVIOURAL",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, tell me about a go-to-market?",
+   "expected_question_id": "Q014",
+   "expected_category": "BEHAVIOURAL",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, example of data-driven decision?",
+   "expected_question_id": "Q015",
+   "expected_category": "BEHAVIOURAL",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how do you lead teams?",
+   "expected_question_id": "Q016",
+   "expected_category": "LEADERSHIP",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, tell me about gabrielyte?",
+   "expected_question_id": "Q017",
+   "expected_category": "LEADERSHIP",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, example of cost optimization?",
+   "expected_question_id": "Q018",
+   "expected_category": "BEHAVIOURAL",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, have you used salesforce or hubspot?",
+   "expected_question_id": "Q019",
+   "expected_category": "BEHAVIOURAL",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, tell me about a failure?",
+   "expected_question_id": "Q020",
+   "expected_category": "BEHAVIOURAL",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, example of stakeholder conflict?",
+   "expected_question_id": "Q021",
+   "expected_category": "BEHAVIOURAL",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, what are you most proud of?",
+   "expected_question_id": "Q022",
+   "expected_category": "BEHAVIOURAL",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, are you technical?",
+   "expected_question_id": "Q023",
+   "expected_category": "RESUME_EXPERIENCE",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, do you speak lithuanian?",
+   "expected_question_id": "Q024",
+   "expected_category": "RESUME_EXPERIENCE",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, remote work experience?",
+   "expected_question_id": "Q025",
+   "expected_category": "RESUME_EXPERIENCE",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, have you used jira?",
+   "expected_question_id": "Q026",
+   "expected_category": "AGILE_JIRA",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how would you drive xab adoption?",
+   "expected_question_id": "Q027",
+   "expected_category": "XAB",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how would you make xab more useful?",
+   "expected_question_id": "Q028",
+   "expected_category": "XAB",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, what would you do first?",
+   "expected_question_id": "Q029",
+   "expected_category": "XAB",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, what's your 30 60 90 day plan?",
+   "expected_question_id": "Q030",
+   "expected_category": "XAB",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how would you prioritise reward improvements?",
+   "expected_question_id": "Q031",
+   "expected_category": "REWARDS",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how would reward boosters work?",
+   "expected_question_id": "Q032",
+   "expected_category": "REWARDS",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how do you control reward costs?",
+   "expected_question_id": "Q033",
+   "expected_category": "REWARDS",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how should vip tiers work?",
+   "expected_question_id": "Q034",
+   "expected_category": "VIP",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how do you keep high value clients engaged?",
+   "expected_question_id": "Q035",
+   "expected_category": "VIP",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, explain tokenomics?",
+   "expected_question_id": "Q036",
+   "expected_category": "TOKENOMICS",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, what could go wrong with token rewards?",
+   "expected_question_id": "Q037",
+   "expected_category": "TOKENOMICS",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, which kpis would you track?",
+   "expected_question_id": "Q038",
+   "expected_category": "XAB",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, what's your product vision?",
+   "expected_question_id": "Q039",
+   "expected_category": "PRODUCT_STRATEGY",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how do you create a roadmap?",
+   "expected_question_id": "Q040",
+   "expected_category": "PRODUCT_STRATEGY",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, product owner versus product manager?",
+   "expected_question_id": "Q041",
+   "expected_category": "PRODUCT_STRATEGY",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how does xab compare to bnb or other exchange tokens?",
+   "expected_question_id": "Q042",
+   "expected_category": "PRODUCT_STRATEGY",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how would you design the internal ledger?",
+   "expected_question_id": "Q043",
+   "expected_category": "LEDGER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how do you avoid double spending?",
+   "expected_question_id": "Q044",
+   "expected_category": "LEDGER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how would you reconcile the ledger?",
+   "expected_question_id": "Q045",
+   "expected_category": "RECONCILIATION",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how do you make sure supply is correct?",
+   "expected_question_id": "Q046",
+   "expected_category": "LEDGER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, on-chain to off-chain migration?",
+   "expected_question_id": "Q047",
+   "expected_category": "LEDGER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, explain double entry?",
+   "expected_question_id": "Q048",
+   "expected_category": "LEDGER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how do you handle refunds?",
+   "expected_question_id": "Q049",
+   "expected_category": "LEDGER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, ledger edge cases?",
+   "expected_question_id": "Q050",
+   "expected_category": "LEDGER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, transaction lifecycle?",
+   "expected_question_id": "Q051",
+   "expected_category": "LEDGER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, give an example of acceptance criteria?",
+   "expected_question_id": "Q052",
+   "expected_category": "LEDGER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, explain closed loop economy?",
+   "expected_question_id": "Q053",
+   "expected_category": "TECHNICAL_CONCEPT",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, custodial vs non custodial?",
+   "expected_question_id": "Q054",
+   "expected_category": "TECHNICAL_CONCEPT",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, explain erc20?",
+   "expected_question_id": "Q055",
+   "expected_category": "TECHNICAL_CONCEPT",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, api security?",
+   "expected_question_id": "Q056",
+   "expected_category": "TECHNICAL_CONCEPT",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, explain staking?",
+   "expected_question_id": "Q057",
+   "expected_category": "TECHNICAL_CONCEPT",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how do you write specs?",
+   "expected_question_id": "Q058",
+   "expected_category": "TECHNICAL_CONCEPT",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, what is micar?",
+   "expected_question_id": "Q059",
+   "expected_category": "MICAR",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how do you collaborate with compliance?",
+   "expected_question_id": "Q060",
+   "expected_category": "COMPLIANCE",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, compliance says no?",
+   "expected_question_id": "Q061",
+   "expected_category": "COMPLIANCE",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, explain kyc aml?",
+   "expected_question_id": "Q062",
+   "expected_category": "COMPLIANCE",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, compliant marketing of tokens?",
+   "expected_question_id": "Q063",
+   "expected_category": "COMPLIANCE",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how do you prioritise features?",
+   "expected_question_id": "Q064",
+   "expected_category": "PRIORITIZATION",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, tech debt versus features?",
+   "expected_question_id": "Q065",
+   "expected_category": "PRIORITIZATION",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, what makes a good user story?",
+   "expected_question_id": "Q066",
+   "expected_category": "PRODUCT_EXECUTION",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, definition of ready?",
+   "expected_question_id": "Q067",
+   "expected_category": "AGILE_JIRA",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, backlog refinement?",
+   "expected_question_id": "Q068",
+   "expected_category": "AGILE_JIRA",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, uat process?",
+   "expected_question_id": "Q069",
+   "expected_category": "PRODUCT_EXECUTION",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how do you understand user needs?",
+   "expected_question_id": "Q070",
+   "expected_category": "PRODUCT_DISCOVERY",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, a/b testing?",
+   "expected_question_id": "Q071",
+   "expected_category": "METRICS",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, what are okrs?",
+   "expected_question_id": "Q072",
+   "expected_category": "METRICS",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, how do you improve retention?",
+   "expected_question_id": "Q073",
+   "expected_category": "METRICS",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, feature failed after launch?",
+   "expected_question_id": "Q074",
+   "expected_category": "PRODUCT_EXECUTION",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, conflict with developers?",
+   "expected_question_id": "Q075",
+   "expected_category": "STAKEHOLDER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, ceo wants a feature now?",
+   "expected_question_id": "Q076",
+   "expected_category": "STAKEHOLDER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, conflicting stakeholder priorities?",
+   "expected_question_id": "Q077",
+   "expected_category": "STAKEHOLDER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, pressure to launch early?",
+   "expected_question_id": "Q078",
+   "expected_category": "STAKEHOLDER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, mid sprint scope change?",
+   "expected_question_id": "Q079",
+   "expected_category": "STAKEHOLDER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, deadline is too tight?",
+   "expected_question_id": "Q080",
+   "expected_category": "STAKEHOLDER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, data disagrees with the ceo?",
+   "expected_question_id": "Q081",
+   "expected_category": "STAKEHOLDER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, collaboration with crm?",
+   "expected_question_id": "Q082",
+   "expected_category": "STAKEHOLDER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, stakeholder management?",
+   "expected_question_id": "Q083",
+   "expected_category": "STAKEHOLDER",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, fee discount with tokens?",
+   "expected_question_id": "Q084",
+   "expected_category": "CASE_STUDY",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, exclusive user experiences?",
+   "expected_question_id": "Q085",
+   "expected_category": "CASE_STUDY",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, reconciliation break?",
+   "expected_question_id": "Q086",
+   "expected_category": "CASE_STUDY",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, improve activation?",
+   "expected_question_id": "Q087",
+   "expected_category": "CASE_STUDY",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, token price falls?",
+   "expected_question_id": "Q088",
+   "expected_category": "CASE_STUDY",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, walk me through launching a feature?",
+   "expected_question_id": "Q089",
+   "expected_category": "CASE_STUDY",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, your main strengths?",
+   "expected_question_id": "Q090",
+   "expected_category": "GENERAL_BUSINESS",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, your weaknesses?",
+   "expected_question_id": "Q091",
+   "expected_category": "GENERAL_BUSINESS",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, five year plan?",
+   "expected_question_id": "Q092",
+   "expected_category": "GENERAL_BUSINESS",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, salary expectation?",
+   "expected_question_id": "Q093",
+   "expected_category": "GENERAL_BUSINESS",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, any questions for me?",
+   "expected_question_id": "Q094",
+   "expected_category": "GENERAL_BUSINESS",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, crypto market trends?",
+   "expected_question_id": "Q095",
+   "expected_category": "CRYPTO",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, trust in crypto?",
+   "expected_question_id": "Q096",
+   "expected_category": "CRYPTO",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "So, um, give me an example?",
+   "expected_question_id": "Q097",
+   "expected_category": "FOLLOW_UP",
+   "kind": "paraphrase"
+  },
+  {
+   "utterance": "How would you price a premium subscription bundled with XAB benefits?",
+   "expected_question_id": null,
+   "expected_category": null,
+   "kind": "unexpected"
+  },
+  {
+   "utterance": "What do you think about stablecoins under MiCA?",
+   "expected_question_id": null,
+   "expected_category": null,
+   "kind": "unexpected"
+  },
+  {
+   "utterance": "If you had to cut half the roadmap tomorrow, what would you keep?",
+   "expected_question_id": null,
+   "expected_category": null,
+   "kind": "unexpected"
+  },
+  {
+   "utterance": "How would you explain the ledger to a non-technical CEO in one minute?",
+   "expected_question_id": null,
+   "expected_category": null,
+   "kind": "unexpected"
+  },
+  {
+   "utterance": "What would you do if a whale tries to game the VIP tier rules?",
+   "expected_question_id": null,
+   "expected_category": null,
+   "kind": "unexpected"
+  },
+  {
+   "utterance": "How would you handle a data breach affecting reward balances?",
+   "expected_question_id": null,
+   "expected_category": null,
+   "kind": "unexpected"
+  },
+  {
+   "utterance": "What's your opinion on gamification in financial products?",
+   "expected_question_id": null,
+   "expected_category": null,
+   "kind": "unexpected"
+  },
+  {
+   "utterance": "How would you integrate a new blockchain network for XAB?",
+   "expected_question_id": null,
+   "expected_category": null,
+   "kind": "unexpected"
+  },
+  {
+   "utterance": "What makes a product team high-performing?",
+   "expected_question_id": null,
+   "expected_category": null,
+   "kind": "unexpected"
+  },
+  {
+   "utterance": "How would you measure whether cashback in XAB is worth its cost?",
+   "expected_question_id": null,
+   "expected_category": null,
+   "kind": "unexpected"
+  }
+ ]
+}

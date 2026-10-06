@@ -1,0 +1,70 @@
+using System.Text;
+using InterviewAssistant.Core.Knowledge;
+
+namespace InterviewAssistant.Core.Intelligence;
+
+public sealed record ChatMessage(string Role, string Content);
+
+public sealed record ConversationTurn(string Question, string AnswerSummary);
+
+/// <summary>Builds the compact LLM request: static system prompt (cache-friendly prefix) + small per-question context.</summary>
+public sealed class PromptBuilder
+{
+    private readonly KnowledgeBase _kb;
+    private readonly string _profileDigest;
+
+    public PromptBuilder(KnowledgeBase kb)
+    {
+        _kb = kb;
+        var p = kb.Profile;
+        var sb = new StringBuilder();
+        sb.AppendLine($"CANDIDATE: {p.Name} — {p.Headline}. {p.Summary}");
+        foreach (var e in p.Experience) sb.AppendLine($"- {e.Title}, {e.Company} ({e.Location}, {e.Period})");
+        sb.AppendLine("Education: MBA Marketing Strategy; BSc Computer Software Engineering (University of Tehran). Languages: Persian native, English advanced, Lithuanian A1.");
+        sb.AppendLine("Competencies: " + string.Join("; ", p.CoreCompetencies));
+        sb.AppendLine("KNOWN GAPS (never claim these as past work): " + string.Join(" ", p.KnownGaps));
+        _profileDigest = sb.ToString();
+    }
+
+    public IReadOnlyList<ChatMessage> Build(string question, Classification cls, RetrievedContext ctx, AnswerStyle style, IReadOnlyList<ConversationTurn> history)
+    {
+        var spec = AnswerStyleSpec.For(style);
+        var system = _kb.SystemPromptTemplate
+            .Replace("{BULLET_COUNT}", spec.BulletCount)
+            .Replace("{WORDS_PER_BULLET}", spec.WordsPerBullet)
+            .Replace("{TOTAL_WORDS}", spec.TotalWords)
+            .Replace("{FORMAT_OVERRIDE}", spec.Override)
+            + "\n\n" + _profileDigest;
+
+        var user = new StringBuilder();
+        if (history.Count > 0)
+        {
+            user.AppendLine("RECENT INTERVIEW CONTEXT (oldest first):");
+            foreach (var t in history) user.AppendLine($"Q: {t.Question}\nA (summary): {t.AnswerSummary}");
+            user.AppendLine();
+        }
+        if (ctx.Stories.Count > 0)
+        {
+            user.AppendLine("CANDIDATE EVIDENCE (verified résumé facts; the only allowed source for past claims and numbers):");
+            foreach (var s in ctx.Stories) user.AppendLine("- " + s.ToEvidenceLine());
+            user.AppendLine();
+        }
+        if (ctx.Snippets.Count > 0)
+        {
+            user.AppendLine("DOMAIN / COMPANY NOTES:");
+            foreach (var s in ctx.Snippets) user.AppendLine($"- ({s.Source} › {s.Heading}) {s.Text}");
+            user.AppendLine();
+        }
+        if (ctx.Reference != null)
+        {
+            user.AppendLine("PREPARED REFERENCE ANSWER for a similar question (reuse if it fits; adapt to the exact question):");
+            foreach (var b in ctx.Reference.ShortBullets) user.AppendLine("• " + b);
+            if (!string.IsNullOrEmpty(ctx.Reference.GapWarning)) user.AppendLine("Gap note: " + ctx.Reference.GapWarning);
+            user.AppendLine();
+        }
+        user.AppendLine($"SUGGESTED MODE: {cls.Mode.ToString().ToUpperInvariant()} (override only if clearly wrong). Category: {cls.Category}." + (cls.IsFollowUp ? " This is a FOLLOW-UP to the most recent question above." : ""));
+        user.AppendLine($"INTERVIEWER QUESTION: \"{question}\"");
+
+        return new[] { new ChatMessage("system", system), new ChatMessage("user", user.ToString()) };
+    }
+}

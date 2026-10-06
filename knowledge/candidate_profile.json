@@ -1,0 +1,124 @@
+{
+  "source": "Résumé image supplied by the user (single source of truth for history). Reconciled against the prompt transcription: no discrepancies found.",
+  "name": "Shervin Fallahdoust",
+  "headline": "Business Management | Marketing & Operations Leader",
+  "location": "Vilnius, Lithuania",
+  "availability": "Open to remote opportunities across Europe",
+  "contact_public": {
+    "linkedin": "linkedin.com/in/shervin-fallahdoust-a261096b"
+  },
+  "summary": "Business management leader with 15+ years of experience in marketing, sales, and operations across IT, blockchain, and consumer electronics. Proven track record of driving revenue growth, optimizing operations, and leading cross-functional teams in international environments. Experienced in remote collaboration, digital marketing strategy, CRM systems, and navigating complex regulatory landscapes.",
+  "core_competencies": [
+    "Strategic Planning & Business Development",
+    "Sales Forecasting & Revenue Optimization",
+    "Blockchain & Crypto Operations",
+    "Team Leadership & Cross-functional Collaboration",
+    "Project Management (JIRA, MS Project)",
+    "Digital Marketing & Growth Strategy",
+    "CRM Systems (Salesforce, HubSpot)",
+    "Budget Management & Cost Optimization",
+    "Market Analysis & Competitive Intelligence",
+    "Data Analysis (SPSS, Excel, Google Analytics)"
+  ],
+  "experience": [
+    {
+      "id": "gabrielyte",
+      "title": "Executive Director",
+      "company": "Gabrielyte UAB",
+      "location": "Vilnius, Lithuania",
+      "period": "2023 – Present",
+      "achievements": [
+        "Strengthened client relationships and increased client retention by 15% through strategic networking.",
+        "Developed and executed growth plans that boosted revenue by 20% via targeted market expansion.",
+        "Recruited and onboarded the initial team, reducing onboarding time by 30%.",
+        "Implemented employee engagement initiatives that lowered turnover by 25%.",
+        "Negotiated contracts resulting in 10% cost reduction and improved operational efficiency.",
+        "Managed end-to-end operations (purchasing, sales, marketing, customer service), improving service delivery scores by 18%."
+      ]
+    },
+    {
+      "id": "arzif",
+      "title": "Business Management Lead",
+      "company": "Arzif Crypto Exchange",
+      "location": "Tehran / Vilnius",
+      "period": "2019 – 2023",
+      "achievements": [
+        "Led blockchain operations and strategic planning, growing the platform to 60,000 active traders in 2 years.",
+        "Increased sales revenue by 60% over 3 years through digital marketing optimization and user retention strategies.",
+        "Established co-branding partnerships with Binance, CoinEx, and KuCoin, enhancing platform credibility.",
+        "Improved user satisfaction by 25% via UX enhancements and streamlined customer support processes.",
+        "Reduced platform downtime by 20% through technical infrastructure upgrades and scalability improvements.",
+        "Ensured compliance with international cryptocurrency regulations, mitigating financial and operational risks."
+      ]
+    },
+    {
+      "id": "lg",
+      "title": "Senior Product Marketing Manager",
+      "company": "LG Electronics",
+      "location": "Dubai / Tehran",
+      "period": "2012 – 2019",
+      "achievements": [
+        "Achieved 100% of sales targets for 5 consecutive years and earned Top Performer recognition.",
+        "Grew annual sales revenue by 20% over 4 years through strategic channel management.",
+        "Expanded retailer network by 25%, adding 50 new partners within 3 years.",
+        "Conducted market analysis using SPSS and advanced Excel, contributing to a 10% market share increase.",
+        "Trained and mentored 10 sales representatives, improving overall team performance by 15%.",
+        "Led Go-to-Market (GTM) strategies for new product launches across multiple markets."
+      ]
+    },
+    {
+      "id": "philips",
+      "title": "Director of Sales and Marketing",
+      "company": "Philips",
+      "location": "Tehran, Iran",
+      "period": "2010 – 2012",
+      "achievements": [
+        "Developed pricing models aligned with market conditions, increasing profit margins by 12%.",
+        "Implemented CRM software to track sales activities, improving lead conversion rates by 18%.",
+        "Led product launches and marketing campaigns that achieved corporate sales objectives.",
+        "Analyzed customer data to identify trends, driving a 10% increase in customer retention.",
+        "Managed budgets for sales and marketing initiatives, reducing costs by 8% through vendor negotiations."
+      ]
+    },
+    {
+      "id": "epson",
+      "title": "Sales Manager",
+      "company": "Epson",
+      "location": "Tehran, Iran",
+      "period": "2005 – 2010",
+      "achievements": [
+        "Consistently met sales targets for 6 years and recognized as Top Performer in the MEA region.",
+        "Increased annual sales revenue by 22% over 5 years through effective channel management.",
+        "Expanded retailer network by 30%, adding 60 partners within 4 years.",
+        "Grew sales channels from 128 to 254, significantly expanding market coverage.",
+        "Trained 12 sales representatives and implemented CRM systems that improved pipeline efficiency by 15%."
+      ]
+    }
+  ],
+  "education": [
+    { "degree": "Master of Business Administration (MBA) – Marketing Strategy", "school": "University of Tehran" },
+    { "degree": "Bachelor of Science – Computer Software Engineering", "school": "University of Tehran", "usage_note": "Supports technical fluency with engineers. NOT professional software-engineering experience." }
+  ],
+  "languages": [
+    { "language": "Persian (Farsi)", "level": "Native" },
+    { "language": "English", "level": "Advanced (professional working proficiency)" },
+    { "language": "Lithuanian", "level": "A1 (basic)" }
+  ],
+  "verified_numbers": [
+    "15+", "15%", "20%", "30%", "25%", "10%", "18%",
+    "60,000", "60%", "2 years", "3 years", "4 years", "5 years", "6 years",
+    "100%", "50", "12%", "8%", "22%", "60", "128", "254", "12", "10"
+  ],
+  "verified_entities": [
+    "Gabrielyte", "Arzif", "Binance", "CoinEx", "KuCoin", "LG", "LG Electronics", "Philips", "Epson",
+    "University of Tehran", "Salesforce", "HubSpot", "JIRA", "Jira", "MS Project", "SPSS", "Excel", "Google Analytics",
+    "Vilnius", "Tehran", "Dubai", "Lithuania", "MEA"
+  ],
+  "known_gaps": [
+    "No formal 'Product Owner' or 'Product Manager' title on the résumé.",
+    "No résumé evidence of personally building or owning a financial ledger, wallet architecture or closed-loop reward system (the job lists these as requirements).",
+    "No résumé evidence of hands-on MiCA/MiCAR work specifically; résumé says 'international cryptocurrency regulations'.",
+    "No professional software-engineering role (degree only)."
+  ],
+  "positioning": "Business leadership + crypto exchange operations (Arzif) + product marketing/GTM (LG) + growth and customer experience + cross-functional leadership + software-engineering education => credible transition into Product Ownership of the XAB token product."
+}
