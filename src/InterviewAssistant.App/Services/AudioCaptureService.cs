@@ -112,7 +112,7 @@ public sealed class AudioCaptureService : IDisposable, IMMNotificationClient
         }
         catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or ArgumentException or InvalidOperationException or NotSupportedException)
         {
-            AppLog.Error("Could not start loopback capture", ex);
+            if (_restartAttempts == 0 || _restartAttempts % 10 == 0) AppLog.Error($"Could not start loopback capture (attempt {_restartAttempts + 1})", ex);
             SetStatus(ex is System.Runtime.InteropServices.COMException c && (uint)c.HResult == 0x80070490 ? "NO PLAYBACK DEVICE" : "DEVICE ERROR");
             ScheduleRestart();
         }

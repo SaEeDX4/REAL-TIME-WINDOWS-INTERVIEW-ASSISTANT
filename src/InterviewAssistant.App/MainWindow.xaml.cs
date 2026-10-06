@@ -196,11 +196,19 @@ public partial class MainWindow : Window
         if (resume) await _vm.ToggleListeningAsync();
     }
 
+    private ReadinessWindow? _readiness;
+
+    /// <summary>Non-modal: the main window (manual questions, close button) stays usable while checks run.</summary>
     public void OpenReadiness(bool firstRun)
     {
-        var dlg = new ReadinessWindow(_vm, this) { Owner = this };
-        dlg.ShowDialog();
-        if (firstRun) { _vm.Settings.FirstRunCompleted = true; _vm.Settings.Save(); }
+        if (_readiness is { IsLoaded: true }) { _readiness.Activate(); return; }
+        _readiness = new ReadinessWindow(_vm, this) { Owner = this };
+        _readiness.Closed += (_, _) =>
+        {
+            _readiness = null;
+            if (firstRun) { _vm.Settings.FirstRunCompleted = true; _vm.Settings.Save(); }
+        };
+        _readiness.Show();
     }
 
     public void ShowTransientError(string message)
@@ -215,9 +223,16 @@ public partial class MainWindow : Window
         if (_closingHandled) return;
         e.Cancel = true; // finish async cleanup (stop audio, close WebSocket) then close for real
         _closingHandled = true;
+        AppLog.Info("Close requested");
+        foreach (var w in OwnedWindows.Cast<Window>().ToList()) w.Close();
         SavePlacement();
         _hotkeys?.Dispose();
-        try { await _vm.DisposeAsync(); }
+        try
+        {
+            var cleanup = _vm.DisposeAsync().AsTask();
+            if (await Task.WhenAny(cleanup, Task.Delay(5000)) != cleanup) AppLog.Warn("Cleanup exceeded 5 s; exiting anyway");
+            else await cleanup;
+        }
         catch (Exception ex) { AppLog.Error("Shutdown cleanup", ex); }
         AppLog.Info("Clean shutdown");
         Application.Current.Shutdown(App.RequestedExitCode);

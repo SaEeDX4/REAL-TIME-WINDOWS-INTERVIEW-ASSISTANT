@@ -1,14 +1,14 @@
 # Build
 
 ## Option A — download (no tools needed)
-GitHub → **Actions** → latest **windows-release** run → artifact `InterviewAssistant-win-x64` (or push a tag `v1.0.0` to get a GitHub Release). Unzip, run `InterviewAssistant.exe`.
+GitHub → **Actions** → latest **windows-release** run → artifact `InterviewAssistant-Windows-x64` (or push a tag `v1.0.0` to get a GitHub Release). Unzip, run `InterviewAssistant.exe`.
 
 ## Option B — build on Windows
 Requirements: Windows 10/11 x64, [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
 ```powershell
 git clone <this repo>; cd <repo>
 powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1
-# → artifacts\InterviewAssistant-win-x64.zip  and  artifacts\InterviewAssistant\InterviewAssistant.exe
+# → artifacts\InterviewAssistant-Windows-x64.zip  and  artifacts\InterviewAssistant\InterviewAssistant.exe
 powershell -ExecutionPolicy Bypass -File scripts\smoke-test.ps1   # optional launch check
 ```
 `-FolderLayout` publishes EXE + DLLs instead of a single file (fallback if antivirus dislikes single-file extraction). `-SkipTests` skips tests.

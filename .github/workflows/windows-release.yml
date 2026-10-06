@@ -60,7 +60,7 @@ jobs:
           path: |
             artifacts/selftest-result.json
             artifacts/test-results/
-            ~/AppData/Local/InterviewAssistant/logs/
+            artifacts/evidence/
           if-no-files-found: warn
 
       - name: GitHub Release (tags only)

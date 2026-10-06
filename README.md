@@ -16,15 +16,33 @@ Interviewer speaks in Meet
 ```
 
 ## Quick start (Windows 10/11 x64)
-1. Download `InterviewAssistant-win-x64.zip` (GitHub → Actions → latest **windows-release** run → Artifacts, or Releases), unzip anywhere.
+1. Download **`InterviewAssistant-Windows-x64`** from GitHub → *Actions* → latest green **windows-release** run → *Artifacts* (GitHub wraps it in a zip; inside is `InterviewAssistant-Windows-x64.zip` → unzip again). Contents: `InterviewAssistant.exe` (self-contained, no .NET install) + `knowledge\` + docs.
 2. Run `InterviewAssistant.exe`. Windows SmartScreen may warn because the EXE is unsigned → **More info → Run anyway**.
 3. The **Pre-interview check** opens on first run:
    - **Settings** → paste your OpenAI API key → *Test* → choose the **headset** as the playback device → Save.
    - Play any video in Chrome: the green level bar must move.
-   - **Run checks** → all green → **Start interview**.
+   - **Test audio / Test transcription / Test AI**, then **Run all checks** → **READY FOR INTERVIEW** → **Start interview**.
 4. During the call, keep the window beside the camera. Status shows `● LISTENING`.
 
-See **docs/PRE_INTERVIEW_CHECKLIST.md** for the 5-minute routine before the call.
+See **docs/PRE_INTERVIEW_CHECKLIST.md** for the 10–15 minute hardware test and the 2-minute interview-day routine.
+
+### Build locally on Windows
+```powershell
+git clone https://github.com/SaEeDX4/REAL-TIME-WINDOWS-INTERVIEW-ASSISTANT.git
+cd REAL-TIME-WINDOWS-INTERVIEW-ASSISTANT
+git checkout claude/clever-hopper-m8kdai
+powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1      # needs .NET 8 SDK
+powershell -ExecutionPolicy Bypass -File scripts\smoke-test.ps1         # launch/close check
+powershell -ExecutionPolicy Bypass -File scripts\selftest.ps1           # in-app self-test (no API key)
+# -> artifacts\InterviewAssistant-Windows-x64.zip, artifacts\InterviewAssistant\InterviewAssistant.exe
+```
+
+### Models (verified against OpenAI announcements, Oct 2026)
+| Use | Default | Why | Automatic fallback |
+|---|---|---|---|
+| Transcription | `gpt-live-transcribe` | streaming model: words appear *while* the interviewer speaks (~$0.017/min) | `gpt-4o-transcribe` → `gpt-4o-mini-transcribe` |
+| Answers | `gpt-5.4-mini`, reasoning `none` | ~0.7 s first token, ~175 tok/s, better quality than 4.1-mini | `gpt-4.1-mini` |
+All changeable in Settings. Rough cost for a 60-min interview: ≈ $1 transcription + a few cents for answers.
 
 ## Using it live
 | Action | How |
@@ -36,6 +54,8 @@ See **docs/PRE_INTERVIEW_CHECKLIST.md** for the 5-minute routine before the call
 | Previous / next answer | ◀ ▶ |
 | Compact mode (question + bullets only) | ⧉ icon in header |
 | Diagnostics: latency, CPU, memory, reconnects, est. cost | pulse icon in header |
+| Pre-interview check + Test audio / transcription / AI | ✓ icon in header |
+| Offline self-test (no API key) | `InterviewAssistant.exe --selftest result.json` |
 
 Answers never rewrite under your eyes: bullets are **appended** once complete; prepared answers stay stable.
 
@@ -52,7 +72,7 @@ src/InterviewAssistant.Core     cross-platform engine: audio conversion, turn de
 src/InterviewAssistant.App      WPF UI, WASAPI loopback (NAudio), DPAPI key store, hotkeys, settings
 knowledge/                      candidate profile, stories, role/company/product/whitepaper research,
                                 PO + crypto playbooks, answer policy, runtime prompt, 97-question bank, tests
-tests/InterviewAssistant.Tests  82 automated tests incl. 60-min simulated soak and answer-quality evaluation
+tests/InterviewAssistant.Tests  88 automated tests incl. 60-min simulated soak and answer-quality evaluation
 scripts/                        build-release.ps1, run-tests.ps1, smoke-test.ps1, question bank generator
 .github/workflows/              windows-latest: build → test → publish → launch smoke test → ZIP artifact
 ```
@@ -61,8 +81,5 @@ Docs: [BUILD.md](BUILD.md) · [TESTING.md](TESTING.md) · [SECURITY.md](SECURITY
 ## Editing answers
 Prepared answers live in `scripts/question_bank_source.py`. Edit, then run `python scripts/question_bank_source.py` to regenerate `knowledge/question_bank.json` and run the tests (they enforce bullet count, length and factuality). The published app reads `knowledge/` next to the EXE, so you can also edit those files directly after unzipping.
 
-## Known limitations (honest)
-- **Not yet run on real Windows + Google Meet by the developer.** Everything was compiled for win-x64 and tested headlessly on Linux; the CI workflow builds, tests and launch-smoke-tests on `windows-latest`. Run the Pre-interview check yourself before relying on it.
-- Live latency depends on the OpenAI realtime service; partial words appear per speech segment (≈ each pause), not word-by-word, because the server transcribes each VAD segment after it ends.
-- Research pages (abloxx.com, teroxx.com, job boards, the whitepaper PDF) were blocked by the build environment's network policy; facts come from search-engine extracts and are labelled by source. Re-read the whitepaper and live job posting before the interview.
-- Model names (`gpt-4.1-mini`, `gpt-4o-transcribe`) are configurable in Settings in case your account uses different ones.
+## Known limitations
+See [TESTING.md](TESTING.md#known-limitations). In short: Windows startup, XAML, UI flows and error paths are validated automatically on a real Windows runner; physical audio devices, Google Meet and live OpenAI calls must be checked once on your PC (docs/PRE_INTERVIEW_CHECKLIST.md). Company facts that could not be read from official pages are labelled in `knowledge/`.

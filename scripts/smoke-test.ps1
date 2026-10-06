@@ -6,6 +6,8 @@
 #>
 param([string]$Exe = "artifacts\InterviewAssistant\InterviewAssistant.exe", [int]$AliveSeconds = 15)
 $ErrorActionPreference = "Stop"
+$evidence = Join-Path (Get-Location) "artifacts\evidence"; New-Item -ItemType Directory -Force $evidence | Out-Null
+trap { Get-ChildItem (Join-Path $env:LOCALAPPDATA "InterviewAssistant\logs") -Filter *.log -ErrorAction SilentlyContinue | Copy-Item -Destination $evidence -Force; break }
 $Exe = Resolve-Path $Exe
 $logDir = Join-Path $env:LOCALAPPDATA "InterviewAssistant\logs"
 if (Test-Path $logDir) { Remove-Item "$logDir\*" -Force -ErrorAction SilentlyContinue }
@@ -55,7 +57,9 @@ if ($p.ExitCode -ne 0) { Fail "non-zero exit code $($p.ExitCode)" }
 $log = (Get-ChildItem $logDir -Filter *.log -ErrorAction SilentlyContinue | Get-Content) -join "`n"
 if ($log -notmatch "Knowledge loaded") { Fail "knowledge pack did not load" }
 if ($log -notmatch "Main window loaded") { Fail "main window Loaded event not reached" }
+if ($log -notmatch "Close requested") { Fail "WM_CLOSE not handled" }
 if ($log -notmatch "Clean shutdown") { Fail "clean shutdown not logged" }
 if ($log -match "UI exception|Fatal exception|XamlParse") { Fail "UI/fatal exception logged" }
 Show-Diagnostics
+Get-ChildItem $logDir -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object { Copy-Item $_.FullName (Join-Path $evidence "smoke-$($_.Name)") -Force }
 Write-Host "SMOKE TEST PASSED (startup $startupMs ms, clean exit 0)" -ForegroundColor Green
