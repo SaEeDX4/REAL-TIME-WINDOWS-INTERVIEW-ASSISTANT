@@ -19,8 +19,9 @@ Format per spec §46. "Validated" means an automated test or CI step exercised i
 | Core/engine/ingestion/preparation/languages/reports/client auth/update policy | `dotnet test tests/InterviewAssistant.Tests` — Linux + windows-latest | 201/201 |
 | Backend + desktop client end-to-end | `dotnet test tests/InterviewAssistant.Backend.Tests` against PostgreSQL 16 (local + CI service) | 44/44 |
 | Migration drift, vulnerable packages, secret scan, backend container image | pr-validation on ubuntu-latest | green |
-| Real EXE launch/close, in-app self-test (XAML, Coach, auto-fit, RTL, Home, local prepare, report) | windows-latest smoke + `--selftest` | see CI run for this commit |
-| Installer + N→N+1 self-update + uninstall | `scripts/update-test.ps1` on windows-latest | see CI run for this commit |
+| Real EXE launch/close | `smoke-test.ps1`, windows-latest (run 16) | PASSED — startup 1.3 s, clean exit 0 |
+| In-app self-test inside the real EXE | `--selftest`, windows-latest (run 16) | 28/28 PASSED — incl. Coach `[3 keywords] [a → b → c]`, auto-fit (0 px overflow at 620×560; 3rd bullet visible at 480 px), Persian RTL, Home pages, local profile → prepare (64 questions, 52 library items) in an isolated DPAPI workspace, report saved on Stop |
+| Installer + N→N+1 self-update + uninstall | `update-test.ps1`, windows-latest (run 16) | PASSED — Setup.exe 65.8 MB silent install of 2.0.900 → update scheduled → 2.0.901 installed → N+1 reports itself current → uninstalled |
 | Velopack packaging config and delta | local cross-pack | Setup 68.6 MB; delta 0.31 MB |
 
 ## NOT YET TESTED (external accounts / hardware / human)
@@ -31,6 +32,7 @@ Format per spec §46. "Validated" means an automated test or CI step exercised i
 - Native-speaker review of UI strings and report labels.
 
 ## KNOWN LIMITATIONS
+- Auto-fit keeps every bullet visible, but a long 4-bullet answer at the default 620×560 window reaches the 15 px text minimum; a taller window or Compact mode gives larger text.
 - Company research from URLs is not fetched automatically (pasted text/documents only).
 - Synced cloud documents are opaque JSON; desktop sync of profiles/targets to the server is available via the API client but the UI keeps data local by default.
 - Deleting the Supabase identity itself needs the service-role admin call (not implemented); `DELETE /me` deletes all app data and tombstones the account.

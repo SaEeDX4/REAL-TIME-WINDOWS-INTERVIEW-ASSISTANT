@@ -27,7 +27,7 @@ The installer contains only the app and the generic `knowledge/` assets — no s
 |---|---|---|
 | `vpk pack` config (x64, icon, channel, Setup + portable + full) | local Linux cross-pack | PASSED |
 | Delta N→N+1 generation | local Linux cross-pack | PASSED (0.31 MB) |
-| Silent install of N with Setup.exe, installed-version check | `scripts/update-test.ps1` on windows-latest | see Windows CI run |
-| Installed N updates itself from the N+1 feed, N+1 runs and reports current, uninstall | `scripts/update-test.ps1` | see Windows CI run |
+| Silent install of N with Setup.exe, installed-version check | `scripts/update-test.ps1` on windows-latest | PASSED (2.0.900 installed, Setup 65.8 MB) |
+| Installed N updates itself from the N+1 feed, N+1 runs and reports current, uninstall | `scripts/update-test.ps1` | PASSED (2.0.900 → 2.0.901) |
 | Azure Artifact Signing | `production-release.yml` | NOT YET VALIDATED (needs Azure account + identity validation) |
 | GitHub Releases as public feed | `production-release.yml` | NOT YET VALIDATED (repository is private; clients need a public feed — public releases repo or static hosting) |

@@ -40,6 +40,6 @@ Prepared answers are not gated offline because they are the user's own locally s
 |---|---|
 | Client ↔ real backend + PostgreSQL (session, heartbeats, renewal, SSE answers, errors, token refresh, sync) | TESTED (`ClientEndToEndTests`) |
 | PKCE, loopback, token store, refresh/revocation, magic-link flow (stubbed Supabase) | TESTED (`CloudAuthTests`) |
-| WPF windows, Coach toggle, auto-fit, RTL switch, local preparation, report on Stop | Self-test inside the real EXE on Windows CI |
+| WPF windows, Coach toggle, auto-fit, RTL switch, local preparation, report on Stop | PASSED — self-test inside the real EXE on windows-latest (28/28) |
 | Real Supabase sign-in, real OpenAI ephemeral transcription via the server | NOT YET VALIDATED — needs Supabase project + server OpenAI key |
 | Visual quality of new screens | NOT YET VALIDATED by a human on Windows |
