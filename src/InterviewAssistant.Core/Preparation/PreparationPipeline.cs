@@ -33,6 +33,11 @@ public sealed class PreparationAssets
 {
     public List<KnowledgeSnippet> Playbooks { get; init; } = new();
     public List<GenericLibraryItem> Library { get; init; } = new();
+    public const string LibraryFileName = "generic_question_library.json";
+
+    /// <summary>Finds the shipped generic assets next to (or above) <paramref name="baseDirectory"/>; empty assets if absent.</summary>
+    public static PreparationAssets LoadShipped(string baseDirectory) =>
+        KnowledgeBase.FindDirectory(baseDirectory, "knowledge", LibraryFileName) is { } dir ? Load(dir) : new PreparationAssets();
 
     public static PreparationAssets Load(string knowledgeDir)
     {
@@ -40,7 +45,7 @@ public sealed class PreparationAssets
         var pbDir = Path.Combine(knowledgeDir, "playbooks");
         if (Directory.Exists(pbDir))
             foreach (var f in Directory.GetFiles(pbDir, "*.md")) playbooks.AddRange(KnowledgeBase.SplitMarkdown(Path.GetFileName(f), File.ReadAllText(f)));
-        var libPath = Path.Combine(knowledgeDir, "generic_question_library.json");
+        var libPath = Path.Combine(knowledgeDir, LibraryFileName);
         var lib = File.Exists(libPath) ? JsonSerializer.Deserialize<LibFile>(File.ReadAllText(libPath))?.Questions ?? new() : new();
         return new PreparationAssets { Playbooks = playbooks, Library = lib };
     }

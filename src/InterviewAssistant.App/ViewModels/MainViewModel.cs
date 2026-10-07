@@ -176,13 +176,19 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public double CoachFontSize => Math.Round(AnswerFontSize * 1.18);
     public double BaseAnswerFontSize => Settings.AnswerFontSize;
     public double MinAnswerFontSize => Math.Max(13, Math.Round(Settings.AnswerFontSize * 0.7));
+    private bool _compactSpacing;
+    /// <summary>First auto-fit step: tighter bullet spacing and line height (still readable) before any font reduction.</summary>
+    public bool CompactSpacing { get => _compactSpacing; set { if (Set(ref _compactSpacing, value)) { Raise(nameof(BulletMargin)); Raise(nameof(AnswerLineHeight)); } } }
+    public Thickness BulletMargin => new(0, 0, 0, CompactSpacing ? 6 : 14);
+    public double AnswerLineHeight => Math.Round(AnswerFontSize * (CompactSpacing ? 1.24 : 1.42), 1);
+
     public void SetFitFontSize(double? size)
     {
         var v = size is double d ? Math.Clamp(Math.Round(d * 2) / 2, MinAnswerFontSize, BaseAnswerFontSize) : (double?)null;
         if (v == BaseAnswerFontSize) v = null;
         if (v == _fitFontSize) return;
         _fitFontSize = v;
-        Raise(nameof(AnswerFontSize)); Raise(nameof(CoachFontSize));
+        Raise(nameof(AnswerFontSize)); Raise(nameof(CoachFontSize)); Raise(nameof(AnswerLineHeight));
     }
     public double QuestionFontSize => Settings.QuestionFontSize;
     public bool IsThinking => _engine?.Current is { IsComplete: false } && Bullets.Count == 0;
@@ -577,7 +583,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         Diagnostics = sb.ToString().TrimEnd();
     }
 
-    public void RefreshFonts() { _fitFontSize = null; Raise(nameof(AnswerFontSize)); Raise(nameof(CoachFontSize)); Raise(nameof(QuestionFontSize)); BulletsChanged?.Invoke(); }
+    public void RefreshFonts() { _fitFontSize = null; Raise(nameof(AnswerFontSize)); Raise(nameof(CoachFontSize)); Raise(nameof(AnswerLineHeight)); Raise(nameof(QuestionFontSize)); BulletsChanged?.Invoke(); }
 
     private void SaveSession()
     {

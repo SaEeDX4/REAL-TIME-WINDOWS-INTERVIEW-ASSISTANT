@@ -90,24 +90,30 @@ public static class SelfTest
             var ok = await WaitFor(() => vm.IsCoachView && vm.CoachStructure.Contains('→'), 3000);
             await Idle();
             var kw = vm.CoachKeywords.Split('·', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var shown = $"[{vm.CoachKeywords}] [{vm.CoachStructure}]";
             vm.ToggleCoach();
             await vm.SubmitManualAsync("How would you increase XAB adoption?");
             var back = await WaitFor(() => !vm.IsCoachView && vm.Bullets.Count == 3, 3000);
-            return (ok && kw.Length == 3 && back, $"keywords [{vm.CoachKeywords}] structure [{vm.CoachStructure}] → bullets {vm.Bullets.Count}");
+            return (ok && kw.Length == 3 && back, $"coach {shown} → back to {vm.Bullets.Count} bullets");
         });
-        await Check("Auto-fit: all 3 bullets visible without scrolling (default and reduced height)", async () =>
+        await Check("Auto-fit: every bullet visible without scrolling at the default size; 3rd bullet visible when smaller", async () =>
         {
             await vm.SubmitManualAsync("Tell me about yourself.");
             await WaitFor(() => vm.Bullets.Count >= 3, 3000);
-            await Task.Delay(200); await Idle(); await Idle();
+            await Task.Delay(300); await Idle(); await Idle();
+            var n = vm.Bullets.Count;
             var atDefault = w.AnswerScroll.ScrollableHeight;
+            var fontDefault = vm.AnswerFontSize;
             var h = w.Height;
-            w.Height = Math.Max(w.MinHeight, 430);
-            await Task.Delay(200); await Idle(); await Idle();
-            var reduced = w.AnswerScroll.ScrollableHeight;
-            var font = vm.AnswerFontSize;
-            w.Height = h; await Idle();
-            return (atDefault <= 1 && (reduced <= 1 || font <= vm.MinAnswerFontSize), $"overflow {atDefault:0}px at {h:0}px tall, {reduced:0}px at 430px (font {font}, min {vm.MinAnswerFontSize})");
+            w.Height = 480;
+            await Task.Delay(300); await Idle(); await Idle();
+            var third = w.BulletBottom(2);
+            var viewport = w.AnswerScroll.ViewportHeight;
+            var fontSmall = vm.AnswerFontSize;
+            w.Height = h; await Task.Delay(200); await Idle();
+            var restored = vm.AnswerFontSize;
+            var ok = atDefault <= 1 && third <= viewport + 1 && restored >= fontDefault;
+            return (ok, $"{n} bullets; default {h:0}px: overflow {atDefault:0}px, font {fontDefault}; 480px: 3rd bullet bottom {third:0}/{viewport:0}px, font {fontSmall} (min {vm.MinAnswerFontSize}); restored font {restored}");
         });
         await Check("UI localisation: Persian switches to right-to-left with translated labels", async () =>
         {

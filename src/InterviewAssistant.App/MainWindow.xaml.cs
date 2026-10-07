@@ -30,6 +30,7 @@ public partial class MainWindow : Window
         };
         _vm.BulletsChanged += ScheduleFit;
         AnswerScroll.SizeChanged += (_, _) => ScheduleFit();
+        AnswerContent.SizeChanged += (_, _) => { if (!_fitting) ScheduleFit(); };   // note/pending/thinking rows too
         RestorePlacement();
         ApplyAppearance();
         Loaded += OnLoaded;
@@ -199,7 +200,8 @@ public partial class MainWindow : Window
 
     // ---------------- auto-fit: all bullets visible without scrolling ----------------
 
-    private bool _fitScheduled;
+    private bool _fitScheduled, _fitting;
+    private const double FitSafetyPx = 4;
     private void ScheduleFit()
     {
         if (_fitScheduled || !_vm.Settings.AutoFitAnswer) return;
@@ -208,29 +210,36 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Text height of wrapped content scales ≈ with font size², so one proportional step plus a short verification loop
-    /// converges without layout thrash. Never shrinks below the readable minimum; grows back when space returns.
+    /// Recomputed from the preferred layout every time (no drift): 1) preferred size and spacing, 2) tighter spacing,
+    /// 3) smaller text — wrapped text height scales ≈ with font size², so one proportional step plus a short loop converges.
+    /// Never below the readable minimum. All passes run inside one dispatcher operation, so nothing flickers.
     /// </summary>
     private void FitAnswer()
     {
         _fitScheduled = false;
-        var viewport = AnswerScroll.ViewportHeight;
+        var viewport = AnswerScroll.ViewportHeight - FitSafetyPx;
         if (viewport <= 0 || !IsVisible) return;
-        var current = _vm.AnswerFontSize;
-        AnswerContent.UpdateLayout();
-        var needed = AnswerContent.ActualHeight;
-        if (needed <= 0) return;
-        if (needed > viewport || (current < _vm.BaseAnswerFontSize && needed < viewport * 0.85))
+        _fitting = true;
+        try
         {
-            var target = current * Math.Sqrt(viewport / needed) * 0.97;
-            _vm.SetFitFontSize(target);
-            AnswerContent.UpdateLayout();
-            for (int i = 0; i < 6 && AnswerContent.ActualHeight > viewport && _vm.AnswerFontSize > _vm.MinAnswerFontSize; i++)
-            {
-                _vm.SetFitFontSize(_vm.AnswerFontSize - 1);
-                AnswerContent.UpdateLayout();
-            }
+            bool Fits() { AnswerContent.UpdateLayout(); return AnswerContent.ActualHeight <= viewport; }
+            _vm.CompactSpacing = false;
+            _vm.SetFitFontSize(null);
+            if (Fits()) return;
+            _vm.CompactSpacing = true;
+            if (Fits()) return;
+            _vm.SetFitFontSize(_vm.AnswerFontSize * Math.Sqrt(viewport / AnswerContent.ActualHeight) * 0.98);
+            for (int i = 0; i < 10 && !Fits() && _vm.AnswerFontSize > _vm.MinAnswerFontSize; i++)
+                _vm.SetFitFontSize(_vm.AnswerFontSize - 0.5);
         }
+        finally { _fitting = false; }
+    }
+
+    /// <summary>Bottom of the n-th bullet relative to the answer viewport (self-test: the critical third bullet must be visible).</summary>
+    internal double BulletBottom(int index)
+    {
+        if (BulletList.ItemContainerGenerator.ContainerFromIndex(index) is not FrameworkElement c) return double.NaN;
+        return c.TransformToAncestor(AnswerScroll).Transform(new Point(0, c.ActualHeight)).Y;
     }
     private void Readiness_Click(object sender, RoutedEventArgs e) => OpenReadiness(firstRun: false);
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;

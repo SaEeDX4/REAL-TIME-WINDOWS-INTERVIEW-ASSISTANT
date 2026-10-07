@@ -16,7 +16,10 @@ src/InterviewAssistant.Core        engine (audio, turn detection, matching, memo
 src/InterviewAssistant.Contracts   DTOs shared by desktop and backend (/api/v1)
 src/InterviewAssistant.Backend     ASP.NET Core API: auth (Supabase JWT), Postgres (EF Core), entitlements,
                                    session leases, usage ledger, OpenAI proxy + realtime client secrets, Paddle
-src/InterviewAssistant.App         WPF desktop (WASAPI loopback, overlay, onboarding, dashboard, billing)
+src/InterviewAssistant.Client      desktop cloud client (cross-platform, tested on Linux): Supabase PKCE + loopback,
+                                   token store, typed API client, session leases, cloud answer provider, update policy
+src/InterviewAssistant.App         WPF desktop (WASAPI loopback, overlay, Home dashboard, onboarding, billing links,
+                                   Velopack entry point + updates)
 tests/*                            unit, engine, backend integration, security, soak
 ```
 

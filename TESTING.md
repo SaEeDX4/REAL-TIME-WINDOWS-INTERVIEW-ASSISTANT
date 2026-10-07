@@ -38,6 +38,7 @@ Knowledge integrity & answer-quality evaluation (all 97 answers: 3–4 bullets, 
 ## Known limitations
 - Physical audio + live API paths need the 10–15 min check on your PC.
 - Unsigned EXE → SmartScreen "More info → Run anyway".
-- Size ~64 MB EXE / ~58 MB ZIP. Measured alternatives: uncompressed single-file 140 MB; folder layout 146 MB; ReadyToRun +4 MB; framework-dependent 2 MB but requires installing the .NET 8 Desktop Runtime (extra failure point). Trimming not used (WPF/reflection unsafe). Current choice = smallest reliable.
+- Size ~64 MB EXE / ~58 MB ZIP. Measured alternatives: uncompressed single-file 140 MB; folder layout 146 MB; ReadyToRun +4 MB; framework-dependent 2 MB but requires installing the .NET Desktop Runtime (extra failure point). Trimming not used (WPF/reflection unsafe). Current choice = smallest reliable.
 - Model availability depends on your OpenAI account; fallbacks are automatic (`gpt-live-transcribe`→`gpt-4o-transcribe`→`gpt-4o-mini-transcribe`; `gpt-5.4-mini`→`gpt-4.1-mini`) and Settings can override.
-- Company facts (Teroxx/Abloxx/whitepaper/job posting) came from search extracts because those sites were blocked for the build environment; they are labelled by source in `knowledge/` and should be re-read before the interview. Résumé facts are verbatim from the CV.
+- Company facts come only from documents the user provides (job description, company material); nothing is fetched automatically. Résumé facts are used only after the user confirms them.
+- V2 commercial test matrix: see docs/v2/TESTING_V2.md.

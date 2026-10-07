@@ -1,4 +1,4 @@
-# Crypto / FinTech Playbook (for "how would you" answers — never presented as Shervin's past work)
+# Crypto / FinTech Playbook (for "how would you" answers — never presented as the candidate's past work)
 
 ## Ledgers
 - Ledger = source of truth; every balance change is a business event with a unique transaction ID.
@@ -20,11 +20,11 @@ Map balances/states/events → define mapping & cut-over → dual-run and reconc
 - Rewards must change behaviour, not just cost money: measure incremental impact and ROI.
 - VIP tiers: clear eligibility (balance, volume, tenure), anti-gaming rules, grace periods, downgrade rules, transparency.
 - Boosters: time-limited multipliers tied to target behaviour; caps and budget.
-- Fee discounts paid in/with XAB: utility that creates demand.
+- Fee discounts paid in/with the platform token: utility that creates demand.
 - Sustainability: emission vs utility sinks; avoid inflation-driven sell pressure.
 
 ## Compliance
-MiCA/MiCAR: CASP authorisation (Teroxx: CySEC CASP004/25), white-paper rules for crypto-assets other than ART/EMT, marketing communications must be fair, clear, not misleading and consistent with the white paper, conflicts of interest, complaints handling, custody/segregation. KYC/AML, Travel Rule (TFR) for transfers. Compliance is part of discovery: requirement → business rule → allowed/prohibited flows → data/audit needs → acceptance criteria → validate → monitor.
+MiCA/MiCAR: CASP authorisation by the national competent authority, white-paper rules for crypto-assets other than ART/EMT, marketing communications must be fair, clear, not misleading and consistent with the white paper, conflicts of interest, complaints handling, custody/segregation. KYC/AML, Travel Rule (TFR) for transfers. Compliance is part of discovery: requirement → business rule → allowed/prohibited flows → data/audit needs → acceptance criteria → validate → monitor.
 
 ## API security concepts
 Auth (OAuth2/keys), least privilege, rate limiting, signing/HMAC, idempotency keys, input validation, audit logs, secrets management, monitoring.

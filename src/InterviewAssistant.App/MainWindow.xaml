@@ -146,10 +146,10 @@
                                     <TextBlock Text="{Binding CoachReminder}" TextWrapping="Wrap" Margin="0,10,0,0" Foreground="{StaticResource B.TextDim}" FontSize="13"
                                                Visibility="{Binding CoachReminder, Converter={StaticResource StrVis}}"/>
                                 </StackPanel>
-                                <ItemsControl ItemsSource="{Binding Bullets}" Focusable="False" Visibility="{Binding IsCoachView, Converter={StaticResource BoolVisInv}}">
+                                <ItemsControl x:Name="BulletList" ItemsSource="{Binding Bullets}" Focusable="False" Visibility="{Binding IsCoachView, Converter={StaticResource BoolVisInv}}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Grid Margin="0,0,0,14" Opacity="0">
+                                            <Grid Margin="{Binding DataContext.BulletMargin, RelativeSource={RelativeSource AncestorType=Window}}" Opacity="0">
                                                 <Grid.RenderTransform><TranslateTransform Y="6"/></Grid.RenderTransform>
                                                 <Grid.Triggers>
                                                     <EventTrigger RoutedEvent="Loaded">
@@ -171,7 +171,7 @@
                                                          Margin="2,13,0,0" Visibility="{Binding IsParagraph, Converter={StaticResource BoolVisInv}}"/>
                                                 <TextBlock Grid.Column="1" Text="{Binding Text}" TextWrapping="Wrap" Foreground="{StaticResource B.Text}"
                                                            FontSize="{Binding DataContext.AnswerFontSize, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                           LineHeight="{Binding DataContext.AnswerFontSize, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource LineH}}"
+                                                           LineHeight="{Binding DataContext.AnswerLineHeight, RelativeSource={RelativeSource AncestorType=Window}}"
                                                            LineStackingStrategy="BlockLineHeight"/>
                                             </Grid>
                                         </DataTemplate>

@@ -24,6 +24,17 @@
 - **Live overlay**: Coach card (3 keywords + structure, Ctrl+Alt+C), adaptive badge (Concise/Rapid, Ctrl+Alt+R resets), minutes left, auto-fit (font shrinks to ≥70 % so all bullets are visible without scrolling), answer text right-to-left for Arabic/Persian answers, UI right-to-left for ar/fa UI language, report button after Stop.
 - **Localisation**: `UiStrings` (40 keys × 10 languages; machine drafts pending native review).
 
+## Offline / degraded policy (intentional)
+| Situation | Behaviour |
+|---|---|
+| Service or internet down | App launches normally. Prepared answers for the active interview (local, user-owned data) and the manual question box keep working. Live transcription and AI answers are unavailable and the overlay/Account page say so — nothing pretends cloud AI is running. |
+| Lease ends mid-session (minutes used up, max duration, device removed, account disabled) | Listening pauses with a specific note; prepared answers stay available. |
+| Maintenance switch on | New sessions refused with the maintenance message; account/billing still reachable. |
+| Client below minimum version | Every API call returns 426 → "please update" message; local features keep working. |
+| Signed out / token revoked | Local sign-out; prompted to sign in for live features. |
+
+Prepared answers are not gated offline because they are the user's own locally stored preparation; the costly parts (transcription, generation) are always server-metered.
+
 ## Validation status
 | Item | Status |
 |---|---|

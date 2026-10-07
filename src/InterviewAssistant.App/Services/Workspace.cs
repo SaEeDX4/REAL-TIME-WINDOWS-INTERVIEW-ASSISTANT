@@ -24,8 +24,10 @@ public sealed class Workspace
     public Workspace(string root, IDataProtector protector)
     {
         Store = new WorkspaceStore(root, protector);
-        KnowledgeDir = KnowledgeBase.FindDirectory(AppContext.BaseDirectory, "knowledge");
-        Assets = KnowledgeDir != null && File.Exists(Path.Combine(KnowledgeDir, "generic_question_library.json")) ? PreparationAssets.Load(KnowledgeDir) : new PreparationAssets();
+        // Shipped generic assets: knowledge\generic_question_library.json + playbooks (no candidate data).
+        KnowledgeDir = KnowledgeBase.FindDirectory(AppContext.BaseDirectory, "knowledge", PreparationAssets.LibraryFileName);
+        Assets = KnowledgeDir != null ? PreparationAssets.Load(KnowledgeDir) : new PreparationAssets();
+        if (Assets.Library.Count == 0) AppLog.Warn("Generic preparation library not found next to the app — preparation will produce fewer questions.");
     }
 
     /// <summary>Knowledge for the selected profile/target. Falls back to generic (no candidate claims) when nothing is prepared.</summary>

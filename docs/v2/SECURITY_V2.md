@@ -20,5 +20,12 @@ Trust boundaries: desktop (untrusted, user-controlled) ↔ backend (trusted) ↔
 | Secret leakage | No provider key on desktop; log redaction (`sk-`, `ek_`, bearer tokens, emails); secret-scan test; CI secret scanning | BUILT + tests |
 | PII in logs | Résumé/JD content never logged; structured logs carry ids only | BUILT |
 | Raw audio retention | Never written to disk; in-memory bounded queue only | DONE (prototype, unchanged) |
+| Sign-in code interception | PKCE S256 (RFC 7636 vector tested); loopback bound to 127.0.0.1 only, random port, state check, one-shot, request size/time bounds, `no-store` + CSP on the page | BUILT + tests |
+| Phishing via external links | Desktop only opens `https` URLs (checkout/portal/OAuth) in the system browser; card data entered only on Paddle pages | BUILT |
+| Ephemeral secret misuse | Realtime client secrets ≤10 min, issued only for an active lease, renewal rate-limited per session | BUILT + tests |
+| Malicious update | Velopack feed over https; signed installers when Azure Artifact Signing is configured (release fails if signing configured but signature invalid); no updates applied during sessions | BUILT / signing NOT YET VALIDATED |
+| Outdated vulnerable clients | `minimum_client_version` remote config → 426 with update guidance | BUILT + tests |
+| Admin misuse | Admin allow-list by user id, every call audited, no document contents in admin views, secrets not settable via config API | BUILT + tests |
+| Vulnerable dependencies | `dotnet list package --vulnerable --include-transitive` gate in pr-validation | BUILT (CI) |
 
 Release gate: all rows BUILT+tests, plus external validation of Supabase/Paddle/OpenAI configuration in staging.

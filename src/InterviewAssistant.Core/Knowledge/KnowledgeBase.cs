@@ -92,13 +92,14 @@ public sealed class KnowledgeBase
     }
 
     /// <summary>Searches upward from a starting directory for a "knowledge" folder (works for dev runs and published builds).</summary>
-    public static string? FindDirectory(string start, string relative = "knowledge")
+    /// <summary>Walks up from <paramref name="start"/> to find <paramref name="relative"/> containing <paramref name="marker"/>.</summary>
+    public static string? FindDirectory(string start, string relative = "knowledge", string marker = "question_bank.json")
     {
         var dir = new DirectoryInfo(start);
         while (dir != null)
         {
             var candidate = Path.Combine(dir.FullName, relative);
-            if (File.Exists(Path.Combine(candidate, "question_bank.json"))) return candidate;
+            if (File.Exists(Path.Combine(candidate, marker))) return candidate;
             dir = dir.Parent;
         }
         return null;

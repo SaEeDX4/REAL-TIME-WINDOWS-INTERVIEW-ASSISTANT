@@ -19,7 +19,7 @@ Value (revenue, retention), customer impact, risk & regulatory urgency, cost of 
 Problem interviews, funnel + cohort data, support tickets, CRM feedback, experiments (A/B, staged rollout), smallest test of the riskiest assumption.
 
 ## Metrics
-North Star (e.g. monthly active XAB utility users), input metrics (activation, frequency, tier progression), guardrails (reward cost, reconciliation breaks, complaints). OKRs: outcome-based. LTV, churn, conversion, retention by cohort.
+North Star (e.g. monthly active users of the core value action), input metrics (activation, frequency, tier progression), guardrails (reward cost, reconciliation breaks, complaints). OKRs: outcome-based. LTV, churn, conversion, retention by cohort.
 
 ## Stakeholder playbook
 - Engineering disagrees → understand the constraint, return to the user outcome and data, explore options/trade-offs, decide transparently, document.
@@ -34,6 +34,6 @@ North Star (e.g. monthly active XAB utility users), input metrics (activation, f
 - Data contradicts exec → present data neutrally, propose a test.
 
 ## First 90 days
-30: learn XAB lifecycle, ledger/reward logic, architecture, customers, metrics, backlog; meet Engineering, Compliance, CRM, leadership.
+30: learn the product lifecycle, core business logic, architecture, customers, metrics, backlog; meet Engineering, Compliance, CRM, leadership.
 60: map friction and opportunities, improve backlog quality, define KPIs, validate hypotheses, align roadmap.
 90: ship measurable improvements, set operating cadence (refinement, reviews, metric reviews), refine roadmap.

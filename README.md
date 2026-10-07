@@ -1,85 +1,76 @@
-# Interview Assistant — Shervin Fallahdoust × Teroxx Product Owner
+# Interview Assistant
 
-A Windows desktop assistant that listens to the **interviewer's audio** from your headset (Chrome / Google Meet stays completely normal), detects when a question is finished, and shows **3 short, speakable bullets** you can read and say in your own voice.
+An interview **preparation and practice coach** for Windows, with a live assist mode for interviews where assistance is permitted. It listens to the **interviewer's audio** from your headset (your meeting app stays completely normal), detects when a question is finished, and shows **3 short, speakable bullets** — or, in Coach Mode, **3 keywords and a one-line structure** — built only from facts you confirmed in your own profile.
 
-> The interview allows AI assistance. This app is a normal, visible, always-on-top window. It does not hide, record the meeting, or touch your microphone.
+> Use it only where you are allowed to. The app is a normal, visible window. It does not hide itself, evade screen capture, record your microphone, or store audio.
 
 ```
-Interviewer speaks in Meet
+Interviewer speaks
  → WASAPI loopback capture of your headset (no browser extension, no tab sharing)
- → 24 kHz mono PCM16 → OpenAI Realtime transcription (server VAD segments)
- → Adaptive end-of-question detector (merges multi-part questions, cancels if interviewer resumes)
- → Duplicate guard → classify (Verified / Hypothetical / Bridge) → local semantic match (97 prepared answers)
- → HIGH match: prepared answer instantly (≈5 ms, no API call)
-   otherwise: compact context retrieval → streaming LLM → fact validation → bullets appear one at a time
- → back to LISTENING
+ → streaming transcription → end-of-question detection (multi-part questions merged)
+ → classify (Verified / Hypothetical / Bridge) → match against your prepared question bank
+ → prepared answer instantly, or a streamed AI answer → fact validation → bullets appear one at a time
 ```
 
-## Quick start (Windows 10/11 x64)
-1. Download **`InterviewAssistant-Windows-x64`** from GitHub → *Actions* → latest green **windows-release** run → *Artifacts* (GitHub wraps it in a zip; inside is `InterviewAssistant-Windows-x64.zip` → unzip again). Contents: `InterviewAssistant.exe` (self-contained, no .NET install) + `knowledge\` + docs.
-2. Run `InterviewAssistant.exe`. Windows SmartScreen may warn because the EXE is unsigned → **More info → Run anyway**.
-3. The **Pre-interview check** opens on first run:
-   - **Settings** → paste your OpenAI API key → *Test* → choose the **headset** as the playback device → Save.
-   - Play any video in Chrome: the green level bar must move.
-   - **Test audio / Test transcription / Test AI**, then **Run all checks** → **READY FOR INTERVIEW** → **Start interview**.
-4. During the call, keep the window beside the camera. Status shows `● LISTENING`.
+## How it works
+1. **Profile** — import your résumé (PDF/DOCX/TXT). Review the extracted facts; only facts you confirm are ever presented as your experience.
+2. **Interview** — add the job title, company and job description, choose the interview and answer language, press **Prepare**. A 50–150 question bank with answers, stories and honest gap handling is built for that interview.
+3. **Live** — start listening. Answers adapt when the interviewer interrupts (Concise/Rapid), avoid repeating the same story, and follow the interviewer's language (10 languages, right-to-left for Arabic and Persian).
+4. **Report** — after Stop, an honest report of the questions asked and the suggestions shown (no scores, no hiring predictions).
 
-See **docs/PRE_INTERVIEW_CHECKLIST.md** for the 10–15 minute hardware test and the 2-minute interview-day routine.
+## Install (Windows 10/11 x64)
+- **Release build**: run `InterviewAssistant.Desktop-stable-Setup.exe` (per-user, no admin). Updates are delta-based and never install during an interview.
+- **CI build**: GitHub → Actions → latest green **windows-release** run → artifact `InterviewAssistant-Setup-unsigned` or the portable `InterviewAssistant-Windows-x64` ZIP. Unsigned builds trigger SmartScreen → *More info → Run anyway*.
 
-### Build locally on Windows
-```powershell
-git clone https://github.com/SaEeDX4/REAL-TIME-WINDOWS-INTERVIEW-ASSISTANT.git
-cd REAL-TIME-WINDOWS-INTERVIEW-ASSISTANT
-git checkout claude/clever-hopper-m8kdai
-powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1      # needs .NET 8 SDK
-powershell -ExecutionPolicy Bypass -File scripts\smoke-test.ps1         # launch/close check
-powershell -ExecutionPolicy Bypass -File scripts\selftest.ps1           # in-app self-test (no API key)
-# -> artifacts\InterviewAssistant-Windows-x64.zip, artifacts\InterviewAssistant\InterviewAssistant.exe
-```
-
-### Models (verified against OpenAI announcements, Oct 2026)
-| Use | Default | Why | Automatic fallback |
-|---|---|---|---|
-| Transcription | `gpt-live-transcribe` | streaming model: words appear *while* the interviewer speaks (~$0.017/min) | `gpt-4o-transcribe` → `gpt-4o-mini-transcribe` |
-| Answers | `gpt-5.4-mini`, reasoning `none` | ~0.7 s first token, ~175 tok/s, better quality than 4.1-mini | `gpt-4.1-mini` |
-All changeable in Settings. Rough cost for a 60-min interview: ≈ $1 transcription + a few cents for answers.
+### Account vs developer mode
+| | Account (default in release builds) | Developer mode |
+|---|---|---|
+| Sign-in | Browser sign-in (Google/Microsoft or e-mail link) | none |
+| AI provider key | **Not needed** — held by the service | your own OpenAI key (DPAPI-encrypted) |
+| Usage | Plan minutes, metered by the service | billed to your OpenAI account |
 
 ## Using it live
 | Action | How |
 |---|---|
-| Start / pause listening | **Start** button or `Ctrl+Alt+L` |
+| Start / pause listening | **Start** or `Ctrl+Alt+L` |
+| Answer ↔ Coach Mode | `Ctrl+Alt+C` (or the mode pill) |
+| Reset adaptive length | `Ctrl+Alt+R` |
 | Show / hide window | `Ctrl+Alt+Space` |
-| Type or paste a question (works even if audio fails) | box at the bottom, or `Ctrl+Alt+Q`, then Enter |
-| Shorter / Technical / Example / Full answer / Regenerate | chips under the answer (AI) |
-| Previous / next answer | ◀ ▶ |
-| Compact mode (question + bullets only) | ⧉ icon in header |
-| Diagnostics: latency, CPU, memory, reconnects, est. cost | pulse icon in header |
-| Pre-interview check + Test audio / transcription / AI | ✓ icon in header |
-| Offline self-test (no API key) | `InterviewAssistant.exe --selftest result.json` |
+| Type or paste a question | bottom box or `Ctrl+Alt+Q`, then Enter |
+| Shorter / Technical / Example / Full answer | chips under the answer |
+| Home (profiles, interviews, reports, account) | ⌂ icon |
+| Pre-interview check | ✓ icon |
 
-Answers never rewrite under your eyes: bullets are **appended** once complete; prepared answers stay stable.
-
-## Answer rules (built into prompt + validator)
-- **Verified** (your history): only résumé facts and numbers (Arzif 60,000 traders, +60% revenue, Binance/CoinEx/KuCoin, −20% downtime, +25% satisfaction, LG GTM, …).
-- **Hypothetical** ("how would you…"): the strongest Product Owner approach, phrased "I'd…", no unnecessary disclaimers.
-- **Bridge** ("have you personally built a ledger?"): one honest sentence, then the approach. Never invents past work.
-- A validator flags unverified numbers and softens unsupported "I built / I led" claims in AI output before display.
+All bullets fit without scrolling (text scales down to a readable minimum when space is tight). Answers never rewrite under your eyes.
 
 ## Repository
 ```
-src/InterviewAssistant.Core     cross-platform engine: audio conversion, turn detection, matching, retrieval,
-                                prompts, validation, OpenAI realtime + streaming clients, orchestration, metrics
-src/InterviewAssistant.App      WPF UI, WASAPI loopback (NAudio), DPAPI key store, hotkeys, settings
-knowledge/                      candidate profile, stories, role/company/product/whitepaper research,
-                                PO + crypto playbooks, answer policy, runtime prompt, 97-question bank, tests
-tests/InterviewAssistant.Tests  88 automated tests incl. 60-min simulated soak and answer-quality evaluation
-scripts/                        build-release.ps1, run-tests.ps1, smoke-test.ps1, question bank generator
-.github/workflows/              windows-latest: build → test → publish → launch smoke test → ZIP artifact
+src/InterviewAssistant.Core        engine: audio, turn detection, matching, memory, coach, languages, ingestion,
+                                   preparation, reports (cross-platform)
+src/InterviewAssistant.Client      desktop cloud client: PKCE sign-in, API client, session leases, update policy
+src/InterviewAssistant.Contracts   /api/v1 DTOs
+src/InterviewAssistant.Backend     ASP.NET Core + PostgreSQL: auth, entitlements, metering, Paddle billing, AI proxy
+src/InterviewAssistant.App         WPF desktop app
+knowledge/                         generic playbooks + company-neutral question library (no personal data)
+samples/                           test fixtures only — never shipped
+tests/                             core + backend integration tests
+scripts/                           build, smoke test, self-test, installer, N→N+1 update test
 ```
-Docs: [BUILD.md](BUILD.md) · [TESTING.md](TESTING.md) · [SECURITY.md](SECURITY.md) · [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
-## Editing answers
-Prepared answers live in `scripts/question_bank_source.py`. Edit, then run `python scripts/question_bank_source.py` to regenerate `knowledge/question_bank.json` and run the tests (they enforce bullet count, length and factuality). The published app reads `knowledge/` next to the EXE, so you can also edit those files directly after unzipping.
+## Build and test
+```powershell
+dotnet test tests/InterviewAssistant.Tests                                   # any OS
+$env:IA_TEST_PG="Host=localhost;Username=ia_test;Password=ia_test"; dotnet test tests/InterviewAssistant.Backend.Tests   # needs PostgreSQL
+powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1            # Windows, .NET 10 SDK
+powershell -ExecutionPolicy Bypass -File scripts\smoke-test.ps1
+powershell -ExecutionPolicy Bypass -File scripts\selftest.ps1
+powershell -ExecutionPolicy Bypass -File scripts\update-test.ps1             # install N, update to N+1
+```
 
-## Known limitations
-See [TESTING.md](TESTING.md#known-limitations). In short: Windows startup, XAML, UI flows and error paths are validated automatically on a real Windows runner; physical audio devices, Google Meet and live OpenAI calls must be checked once on your PC (docs/PRE_INTERVIEW_CHECKLIST.md). Company facts that could not be read from official pages are labelled in `knowledge/`.
+## Documentation
+Architecture and status: [docs/v2/ARCHITECTURE_V2.md](docs/v2/ARCHITECTURE_V2.md) · [docs/v2/STATUS_REPORT_V2.md](docs/v2/STATUS_REPORT_V2.md) · [docs/v2/TESTING_V2.md](docs/v2/TESTING_V2.md)
+Security and privacy: [docs/v2/SECURITY_V2.md](docs/v2/SECURITY_V2.md) · [docs/v2/PRIVACY_IMPLEMENTATION.md](docs/v2/PRIVACY_IMPLEMENTATION.md)
+Commercial: [docs/v2/BILLING.md](docs/v2/BILLING.md) · [docs/v2/ENTITLEMENTS.md](docs/v2/ENTITLEMENTS.md) · [docs/v2/COMMERCIALIZATION.md](docs/v2/COMMERCIALIZATION.md)
+Operations: [docs/v2/DEPLOYMENT.md](docs/v2/DEPLOYMENT.md) · [docs/v2/OPERATIONS.md](docs/v2/OPERATIONS.md) · [docs/v2/INSTALLER_AND_UPDATES.md](docs/v2/INSTALLER_AND_UPDATES.md)
+Product: [docs/v2/UX_SPEC_V2.md](docs/v2/UX_SPEC_V2.md) · [docs/v2/COACH_MODE.md](docs/v2/COACH_MODE.md) · [docs/v2/LIVE_MEMORY.md](docs/v2/LIVE_MEMORY.md) · [docs/v2/REPORTS.md](docs/v2/REPORTS.md) · [docs/v2/PREPARATION_PIPELINE.md](docs/v2/PREPARATION_PIPELINE.md)
+Licences: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
