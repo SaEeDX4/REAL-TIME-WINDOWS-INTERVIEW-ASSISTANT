@@ -25,7 +25,7 @@ jobs:
           POSTGRES_DB: postgres
         ports: [ "5432:5432" ]
         options: >-
-          --health-cmd "pg_isready -U ia_test" --health-interval 5s --health-timeout 5s --health-retries 20
+          --health-cmd "pg_isready -U ia_test -d postgres" --health-interval 5s --health-timeout 5s --health-retries 20
     env:
       IA_TEST_PG: Host=localhost;Username=ia_test;Password=ia_test
       DOTNET_CLI_TELEMETRY_OPTOUT: 1
@@ -48,7 +48,7 @@ jobs:
         run: dotnet test tests/InterviewAssistant.Backend.Tests -c Release --no-build --logger "console;verbosity=normal" --logger "trx;LogFileName=backend.trx" --results-directory artifacts/test-results
 
       - name: Migration drift check (model must match committed migrations)
-        run: dotnet ef migrations has-pending-model-changes -p src/InterviewAssistant.Backend --no-build -c Release
+        run: dotnet ef migrations has-pending-model-changes -p src/InterviewAssistant.Backend --no-build --configuration Release
 
       - name: Security scan — vulnerable NuGet packages (fails on any finding)
         shell: bash

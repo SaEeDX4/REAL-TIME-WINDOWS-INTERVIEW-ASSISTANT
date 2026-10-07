@@ -26,7 +26,7 @@ jobs:
         image: postgres:16
         env: { POSTGRES_USER: ia_test, POSTGRES_PASSWORD: ia_test, POSTGRES_DB: postgres }
         ports: [ "5432:5432" ]
-        options: --health-cmd "pg_isready -U ia_test" --health-interval 5s --health-timeout 5s --health-retries 20
+        options: --health-cmd "pg_isready -U ia_test -d postgres" --health-interval 5s --health-timeout 5s --health-retries 20
     env:
       IA_TEST_PG: Host=localhost;Username=ia_test;Password=ia_test
     outputs:
