@@ -142,7 +142,7 @@ public class EngineTests
         await r.Engine.RequestVariantAsync(AnswerStyle.Technical);
         Assert.Equal(1, r.P.Requests);
         Assert.Contains("more technical", r.P.Calls[0][0].Content);
-        Assert.Contains("RECENT INTERVIEW CONTEXT", r.P.Calls[0][1].Content);
+        Assert.Contains("INTERVIEW MEMORY", r.P.Calls[0][1].Content);
         Assert.Contains("Arzif", r.P.Calls[0][1].Content);
     }
 

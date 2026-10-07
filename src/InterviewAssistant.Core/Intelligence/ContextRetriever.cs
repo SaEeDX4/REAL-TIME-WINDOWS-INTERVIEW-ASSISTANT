@@ -18,7 +18,7 @@ public sealed class ContextRetriever
         _storyById = kb.Stories.ToDictionary(s => s.Id);
     }
 
-    public RetrievedContext Retrieve(string question, Classification cls, MatchResult match, int maxStories = 3, int maxSnippets = 6)
+    public RetrievedContext Retrieve(string question, Classification cls, MatchResult match, int maxStories = 3, int maxSnippets = 6, Func<string, double>? storyPenalty = null)
     {
         var qTokens = new HashSet<string>(TextNormalizer.Tokenize(question));
 
@@ -26,17 +26,18 @@ public sealed class ContextRetriever
         var stories = new List<CandidateStory>();
         if (match.Question != null && match.Confidence >= MatchConfidence.Medium)
             foreach (var id in match.Question.CandidateEvidence)
-                if (_storyById.TryGetValue(id, out var s) && !stories.Contains(s)) stories.Add(s);
+                if (_storyById.TryGetValue(id, out var s) && !stories.Contains(s) && (storyPenalty?.Invoke(id) ?? 0) < 2) stories.Add(s);
 
         var ranked = _kb.Stories
             .Select(s => (Story: s, Score:
                 (s.QuestionTypes.Contains(cls.Category) ? 2.0 : 0) +
-                qTokens.Count(t => TextNormalizer.Tokenize(s.Company + " " + s.Action + " " + s.Result + " " + string.Join(' ', s.Skills)).Contains(t))))
+                qTokens.Count(t => TextNormalizer.Tokenize(s.Company + " " + s.Action + " " + s.Result + " " + string.Join(' ', s.Skills)).Contains(t))
+                - (storyPenalty?.Invoke(s.Id) ?? 0) * 0.8))
             .Where(x => x.Score > 0)
             .OrderByDescending(x => x.Score)
             .Select(x => x.Story);
         foreach (var s in ranked) { if (stories.Count >= maxStories) break; if (!stories.Contains(s)) stories.Add(s); }
-        if (stories.Count == 0 && cls.Mode != AnswerMode.Hypothetical) stories.AddRange(_kb.Stories.Take(2)); // pack stories are ordered by role relevance
+        if (stories.Count == 0 && cls.Mode != AnswerMode.Hypothetical) stories.AddRange(_kb.Stories.OrderBy(s => storyPenalty?.Invoke(s.Id) ?? 0).Take(2)); // relevance order, least-used first
 
         var snippets = _snippetIndex
             .Select(x => (x.Snippet, Score: TextNormalizer.Jaccard(qTokens, x.Tokens) + qTokens.Count(x.Tokens.Contains) * 0.05))

@@ -25,6 +25,13 @@ public sealed class AnswerView
     public bool IsComplete { get; set; }
     public string? Note { get; set; }
     public List<string> ValidationFlags { get; } = new();
+    public int QuestionIndex { get; set; }
+    public string DetectedLanguage { get; set; } = "und";
+    public string AnswerLanguage { get; set; } = "en";
+    public Live.Presentation Presentation { get; set; }
+    public Live.CoachOutput? Coach { get; set; }
+    public Live.AdaptiveLevel Adaptive { get; set; }
+    public List<string> StoryIds { get; } = new();
 }
 
 public sealed class EngineOptions

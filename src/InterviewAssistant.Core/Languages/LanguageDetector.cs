@@ -13,12 +13,24 @@ public static class LanguageDetector
 {
     private static readonly Dictionary<string, string[]> StopWords = new()
     {
-        ["en"] = new[] { "the", "and", "you", "your", "what", "how", "with", "for", "would", "about", "have", "this", "that", "are", "is", "of", "to", "in", "me", "tell", "why", "can" },
-        ["es"] = new[] { "el", "la", "los", "las", "de", "que", "y", "en", "por", "para", "con", "cómo", "qué", "usted", "tu", "su", "una", "es", "experiencia", "sobre", "nos", "puede" },
-        ["fr"] = new[] { "le", "la", "les", "des", "de", "et", "vous", "votre", "que", "qui", "pour", "avec", "est", "une", "dans", "comment", "pourquoi", "sur", "nous", "pouvez", "quelle" },
-        ["de"] = new[] { "der", "die", "das", "und", "sie", "ihre", "ihr", "wie", "was", "mit", "für", "ist", "ein", "eine", "nicht", "auf", "warum", "würden", "über", "uns", "können" },
-        ["pt"] = new[] { "o", "a", "os", "as", "de", "que", "e", "em", "para", "com", "você", "sua", "seu", "uma", "como", "por", "não", "sobre", "nos", "pode", "experiência" },
-        ["it"] = new[] { "il", "lo", "la", "gli", "le", "di", "che", "e", "per", "con", "lei", "sua", "suo", "una", "come", "perché", "non", "sulla", "ci", "può", "esperienza" },
+        ["en"] = "the and you your what how with for would about have this that are is of to in me tell why can did do does was were has been an a it on at by from which who".Split(' '),
+        ["es"] = "el la los las de del que y en por para con cómo qué usted tu su sus una un es son experiencia sobre nos puede ha han hay lo le se fue cuál cuénteme hábleme nunca también muy este esta alguna vez ya".Split(' '),
+        ["fr"] = "le la les des de du et vous votre vos que qui pour avec est une un dans comment pourquoi sur nous pouvez quelle quel avez êtes été ce cette au aux parlez jamais déjà aussi très".Split(' '),
+        ["de"] = "der die das und sie ihre ihr wie was mit für ist ein eine einen nicht auf warum würden über uns können haben hat von zu im den dem des bei erzählen nie schon auch sehr".Split(' '),
+        ["pt"] = "o a os as de do da que e em para com você sua seu uma um como por não sobre nos pode já foi são está na no dos das conte fale nunca também este esta alguma vez".Split(' '),
+        ["it"] = "il lo la gli le di del della che e per con lei sua suo una un come perché non sulla ci può ha ho sono è nel nella dei degli mi parli mai già anche questo questa cosa quale".Split(' '),
+    };
+
+
+    // Morphology: frequent derivational suffixes, weighted lower than function words.
+    private static readonly Dictionary<string, string[]> Suffixes = new()
+    {
+        ["en"] = new[] { "tion", "ing", "ness", "ship", "ly" },
+        ["es"] = new[] { "ción", "dad", "ado", "ido", "ías" },
+        ["fr"] = new[] { "tion", "ment", "eux", "aire", "ais", "ez" },
+        ["de"] = new[] { "ung", "keit", "heit", "lich", "isch", "chen" },
+        ["pt"] = new[] { "ção", "ções", "dade", "ões", "ado" },
+        ["it"] = new[] { "zione", "ario", "ito", "ato", "ale", "ità", "ebbe" },
     };
 
     private static readonly Dictionary<string, string> Diacritics = new()
@@ -59,13 +71,14 @@ public static class LanguageDetector
         }
         if (share(latin) < 0.5) return new("und", 0.2);
 
-        var words = text.ToLowerInvariant().Split(new[] { ' ', '\n', '\r', '\t', ',', '.', '?', '!', ';', ':', '(', ')', '"', '\'', '¿', '¡' }, StringSplitOptions.RemoveEmptyEntries);
+        var words = text.ToLowerInvariant().Split(new[] { ' ', '\n', '\r', '\t', ',', '.', '?', '!', ';', ':', '(', ')', '"', '\'', '’', '-', '¿', '¡' }, StringSplitOptions.RemoveEmptyEntries);
         var scores = new Dictionary<string, double>();
         foreach (var (lang, list) in StopWords)
         {
             var set = list.ToHashSet();
             double s = words.Count(w => set.Contains(w));
             s += text.ToLowerInvariant().Count(c => Diacritics.TryGetValue(lang, out var d) && d.Contains(c)) * 0.6;
+            s += words.Count(w => w.Length > 4 && Suffixes[lang].Any(x => w.EndsWith(x, StringComparison.Ordinal))) * 0.3;
             scores[lang] = s;
         }
         var ordered = scores.OrderByDescending(kv => kv.Value).ToList();

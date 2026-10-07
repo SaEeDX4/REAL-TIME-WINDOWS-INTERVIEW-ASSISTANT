@@ -25,6 +25,8 @@ public sealed class BankQuestion
     /// <summary>One short answer structure, e.g. "Situation → what I did → result".</summary>
     [JsonPropertyName("answer_structure")] public string AnswerStructure { get; init; } = "";
     [JsonPropertyName("story_ids")] public List<string> StoryIds { get; init; } = new();
+    /// <summary>Story ids used by this answer (falls back to candidate_evidence for older banks).</summary>
+    [JsonIgnore] public IReadOnlyList<string> EffectiveStoryIds => StoryIds.Count > 0 ? StoryIds : CandidateEvidence;
     [JsonPropertyName("language")] public string Language { get; init; } = "en";
     /// <summary>Quality confidence of the prepared answer. Below 0.7 it is used as LLM reference, not shown instantly.</summary>
     [JsonPropertyName("confidence")] public double Confidence { get; init; } = 1.0;

@@ -47,7 +47,20 @@
    "follow_up_questions": [
     "Why Product Owner?",
     "Why Teroxx?"
-   ]
+   ],
+   "coach_keywords": [
+    "IT",
+    "ARZIF CRYPTO EXCHANGE",
+    "LG"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "arzif_growth",
+    "arzif_revenue_retention",
+    "lg_gtm"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q002",
@@ -87,7 +100,20 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ARZIF",
+    "UX",
+    "INFRASTRUCTURE"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "arzif_ux",
+    "arzif_infra",
+    "lg_gtm"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q003",
@@ -125,7 +151,18 @@
    "product_notes": "",
    "follow_up_questions": [
     "What would you change in XAB first?"
-   ]
+   ],
+   "coach_keywords": [
+    "MICA-REGULATED",
+    "CLIENT",
+    "CONNECTING"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [
+    "arzif_growth"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q004",
@@ -164,7 +201,21 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ARZIF",
+    "BINANCE",
+    "ENGINEERING"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "arzif_growth",
+    "arzif_revenue_retention",
+    "arzif_partnerships",
+    "arzif_compliance"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q005",
@@ -209,7 +260,20 @@
    "gap_warning": "No formal PO title on résumé.",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "PRODUCT OWNER",
+    "ARZIF",
+    "UX"
+   ],
+   "answer_structure": "Honest bridge → approach → closest proof",
+   "story_ids": [
+    "arzif_ux",
+    "arzif_infra",
+    "arzif_compliance"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q006",
@@ -247,7 +311,18 @@
    "gap_warning": "Job requires proven ledger/wallet/closed-loop ownership; résumé does not show it.",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "PRODUCT OWNER",
+    "ENGINEERING",
+    "COMPLIANCE"
+   ],
+   "answer_structure": "Honest bridge → approach → closest proof",
+   "story_ids": [
+    "arzif_infra"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q007",
@@ -289,7 +364,18 @@
    "gap_warning": "No résumé evidence of owning a rewards/wallet build.",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ARZIF",
+    "XAB",
+    "RETENTION"
+   ],
+   "answer_structure": "Honest bridge → approach → closest proof",
+   "story_ids": [
+    "arzif_revenue_retention"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q008",
@@ -324,7 +410,18 @@
    "gap_warning": "Résumé: 'international cryptocurrency regulations', not MiCA specifically.",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "MICA",
+    "ARZIF",
+    "LEGAL"
+   ],
+   "answer_structure": "Honest bridge → approach → closest proof",
+   "story_ids": [
+    "arzif_compliance"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q009",
@@ -366,7 +463,22 @@
    "product_notes": "",
    "follow_up_questions": [
     "How did you grow to 60,000 traders?"
-   ]
+   ],
+   "coach_keywords": [
+    "ARZIF CRYPTO EXCHANGE",
+    "BUSINESS MANAGEMENT LEAD",
+    "BINANCE COINEX"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "arzif_growth",
+    "arzif_revenue_retention",
+    "arzif_partnerships",
+    "arzif_ux",
+    "arzif_compliance"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q010",
@@ -404,7 +516,21 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "UX",
+    "BINANCE COINEX",
+    "KUCOIN"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "arzif_growth",
+    "arzif_revenue_retention",
+    "arzif_ux",
+    "arzif_partnerships"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q011",
@@ -443,7 +569,20 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ARZIF",
+    "UX",
+    "PHILIPS"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "arzif_revenue_retention",
+    "arzif_ux",
+    "philips_pricing_crm"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q012",
@@ -484,7 +623,18 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ARZIF",
+    "PLATFORM",
+    "INFRASTRUCTURE"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "arzif_infra"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q013",
@@ -520,7 +670,19 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ARZIF",
+    "BINANCE COINEX",
+    "KUCOIN"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "arzif_partnerships",
+    "arzif_growth"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q014",
@@ -556,7 +718,18 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "LG ELECTRONICS",
+    "SPSS",
+    "EXCEL"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "lg_gtm"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q015",
@@ -595,7 +768,19 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "LG",
+    "SPSS",
+    "EXCEL"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "lg_gtm",
+    "philips_pricing_crm"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q016",
@@ -632,7 +817,19 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "GABRIELYTE",
+    "LG",
+    "PERCENT"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "gabrielyte_ops",
+    "lg_mentoring"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q017",
@@ -666,7 +863,19 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "EXECUTIVE DIRECTOR",
+    "GABRIELYTE",
+    "VILNIUS"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "gabrielyte_ops",
+    "gabrielyte_growth"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q018",
@@ -706,7 +915,19 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "GABRIELYTE",
+    "PHILIPS",
+    "PERCENT"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "gabrielyte_growth",
+    "philips_pricing_crm"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q019",
@@ -742,7 +963,19 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "SALESFORCE",
+    "HUBSPOT",
+    "CRM"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "philips_pricing_crm",
+    "epson_channels"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q020",
@@ -781,7 +1014,19 @@
    "gap_warning": "Framed as a lesson; résumé doesn't describe a specific failure — Shervin should adapt with his own real memory.",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ARZIF",
+    "RELIABILITY",
+    "SUPPORT"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "arzif_infra",
+    "arzif_ux"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q021",
@@ -817,7 +1062,18 @@
    "gap_warning": "Specific conflict details not in résumé — speak at principle level.",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "BINANCE COINEX",
+    "KUCOIN",
+    "PARTNERSHIPS"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "arzif_partnerships"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q022",
@@ -851,7 +1107,20 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ARZIF",
+    "UX",
+    "INFRASTRUCTURE"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "arzif_growth",
+    "arzif_revenue_retention",
+    "arzif_compliance"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q023",
@@ -886,7 +1155,18 @@
    "gap_warning": "Degree only — never claim professional developer work.",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "COMPUTER SOFTWARE ENGINEERING",
+    "ARZIF",
+    "INFRASTRUCTURE"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "arzif_infra"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q024",
@@ -915,7 +1195,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ENGLISH",
+    "LITHUANIAN",
+    "A1"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q025",
@@ -951,7 +1240,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "TEHRAN DUBAI",
+    "VILNIUS",
+    "ARZIF"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q026",
@@ -985,7 +1283,16 @@
    "gap_warning": "Résumé lists JIRA and MS Project under competencies.",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "JIRA",
+    "MS PROJECT",
+    "STRATEGY"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q027",
@@ -1028,7 +1335,18 @@
    "product_notes": "",
    "follow_up_questions": [
     "Which metric would you look at first?"
-   ]
+   ],
+   "coach_keywords": [
+    "XAB",
+    "REWARD",
+    "INCREMENTAL"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [
+    "arzif_revenue_retention"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q028",
@@ -1062,7 +1380,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "XAB",
+    "UTILITY",
+    "EXPERIENCES"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q029",
@@ -1095,7 +1422,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "XAB",
+    "ENGINEERING COMPLIANCE CRM",
+    "ENGINEERING"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q030",
@@ -1129,7 +1465,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "XAB",
+    "KPIS",
+    "METRIC"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q031",
@@ -1166,7 +1511,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "BUSINESS",
+    "OPPORTUNITIES",
+    "HIGHEST-VALUE"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q032",
@@ -1200,7 +1554,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "XAB",
+    "COMPLIANCE",
+    "BEHAVIOUR"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q033",
@@ -1239,7 +1602,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ROI",
+    "REWARD",
+    "PARTICIPATION"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q034",
@@ -1279,7 +1651,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ANTI-GAMING",
+    "PROGRESSION",
+    "ELIGIBILITY"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q035",
@@ -1316,7 +1697,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "CRM",
+    "VIP",
+    "CLIENT"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q036",
@@ -1352,7 +1742,16 @@
    "gap_warning": "Supply cap is a whitepaper fact.",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "XAB",
+    "DISTRIBUTION",
+    "SUSTAINABLE"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q037",
@@ -1386,7 +1785,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "COMPLIANCE",
+    "REWARDS",
+    "RECONCILIATION"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q038",
@@ -1425,7 +1833,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "NORTH STAR",
+    "XAB",
+    "ROI"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q039",
@@ -1458,7 +1875,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "XAB",
+    "TEROXX",
+    "CLIENT"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q040",
@@ -1489,7 +1915,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "STAKEHOLDERS",
+    "DEPENDENCIES",
+    "LONGER-TERM"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q041",
@@ -1520,7 +1955,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "PRODUCT MANAGER",
+    "PRODUCT OWNER",
+    "ENGINEERING"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q042",
@@ -1558,7 +2002,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "TEROXX",
+    "CLIENT",
+    "COMPETITORS"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q043",
@@ -1592,7 +2045,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "XAB",
+    "ENGINEERING",
+    "COMPLIANCE"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q044",
@@ -1628,7 +2090,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "PRODUCTION-READY",
+    "RECONCILIATION",
+    "IDEMPOTENCY"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q045",
@@ -1665,7 +2136,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "SLA",
+    "KPIS",
+    "IMMEDIATELY"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q046",
@@ -1703,7 +2183,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "COMPLIANCE",
+    "AUTOMATICALLY",
+    "AUDITABLE"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q047",
@@ -1742,7 +2231,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ENGINEERING FINANCE LEGAL",
+    "COMPLIANCE",
+    "MIGRATION"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q048",
@@ -1777,7 +2275,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "XAB",
+    "BALANCE",
+    "CREDIT"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q049",
@@ -1812,7 +2319,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ENTRIES",
+    "RECONCILIATION",
+    "MAKER-CHECKER"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q050",
@@ -1846,7 +2362,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "CALCULATIONS",
+    "TRANSACTIONS",
+    "CONCURRENT"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q051",
@@ -1880,7 +2405,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "RECONCILIATION",
+    "TRANSITIONS",
+    "INITIATED"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q052",
@@ -1916,7 +2450,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "XAB",
+    "PAYOUT",
+    "CREDIT"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q053",
@@ -1948,7 +2491,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "PLATFORM",
+    "TRANSPARENCY",
+    "CLOSED-LOOP"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q054",
@@ -1981,7 +2533,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "TEROXX",
+    "CUSTODIAL",
+    "CLIENT"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q055",
@@ -2011,7 +2572,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ETHEREUM",
+    "XAB",
+    "BALANCES"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q056",
@@ -2046,7 +2616,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "SECURITY",
+    "BALANCE-CHANGING",
+    "LEAST-PRIVILEGE"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q057",
@@ -2080,7 +2659,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "XAB",
+    "REWARDS",
+    "PLATFORM"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q058",
@@ -2115,7 +2703,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ENGINEERING",
+    "NON-FUNCTIONAL",
+    "PERFORMANCE"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q059",
@@ -2155,7 +2752,18 @@
    "gap_warning": "CySEC CASP004/25 is a public register fact.",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "EU",
+    "CASP",
+    "CYSEC"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [
+    "arzif_compliance"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q060",
@@ -2191,7 +2799,18 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "LEGAL",
+    "COMPLIANCE",
+    "REQUIREMENTS"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [
+    "arzif_compliance"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q061",
@@ -2225,7 +2844,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "COMPLIANCE",
+    "DESIGN",
+    "CONSTRAINTS"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q062",
@@ -2262,7 +2890,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "AML",
+    "REQUIREMENTS",
+    "ELIGIBILITY"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q063",
@@ -2297,7 +2934,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "MICA",
+    "COMPLIANCE",
+    "MARKETING"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q064",
@@ -2334,7 +2980,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "RICE",
+    "DEPENDENCIES",
+    "TRANSPARENT"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q065",
@@ -2372,7 +3027,18 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ARZIF",
+    "INFRASTRUCTURE",
+    "PRIORITISING"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [
+    "arzif_infra"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q066",
@@ -2404,7 +3070,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ENGINEERING",
+    "QA",
+    "ACCEPTANCE"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q067",
@@ -2433,7 +3108,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ACCEPTANCE",
+    "CRITERIA",
+    "RECONCILIATION"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q068",
@@ -2466,7 +3150,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "PLANNING",
+    "PRIORITISED",
+    "ACCEPTANCE"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q069",
@@ -2502,7 +3195,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "UAT",
+    "FEATURE",
+    "ACCEPTANCE"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q070",
@@ -2540,7 +3242,19 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "CRM",
+    "CONVERSATIONS",
+    "ASSUMPTION"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [
+    "lg_gtm",
+    "arzif_ux"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q071",
@@ -2573,7 +3287,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "INCREMENTAL",
+    "GUARDRAILS",
+    "HYPOTHESIS"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q072",
@@ -2605,7 +3328,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "NORTH STAR",
+    "XAB",
+    "OUTCOMES"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q073",
@@ -2640,7 +3372,18 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ARZIF",
+    "MEANINGFUL",
+    "STRENGTHEN"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [
+    "arzif_revenue_retention"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q074",
@@ -2677,7 +3420,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "INSTRUMENTATION",
+    "UNDERPERFORMING",
+    "AWARENESS"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q075",
@@ -2713,7 +3465,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "TRANSPARENTLY",
+    "REVISITING",
+    "TRADE-OFFS"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q076",
@@ -2752,7 +3513,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "COMMITMENTS",
+    "PRIORITIES",
+    "LEADERSHIP"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q077",
@@ -2791,7 +3561,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "RECOMMENDATION",
+    "UNRESOLVED",
+    "TRADE-OFF"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q078",
@@ -2829,7 +3608,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "MARKETING",
+    "COMPLIANCE",
+    "INTEGRITY"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q079",
@@ -2864,7 +3652,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "SPRINT",
+    "TRANSPARENTLY",
+    "REFINEMENT"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q080",
@@ -2898,7 +3695,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "MVP",
+    "DEPENDENCIES",
+    "SURPRISED"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q081",
@@ -2931,7 +3737,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "LEADERSHIP",
+    "ASSUMPTION",
+    "EXPERIMENT"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q082",
@@ -2967,7 +3782,18 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "XAB",
+    "BENEFITS",
+    "RE-ENGAGEMENT"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [
+    "philips_pricing_crm"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q083",
@@ -2999,7 +3825,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "IT COMPLIANCE CRM",
+    "LEADERSHIP",
+    "TRADE-OFFS"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q084",
@@ -3038,7 +3873,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "XAB",
+    "TRADING",
+    "CALCULATED"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q085",
@@ -3074,7 +3918,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "CRM",
+    "CLIENT",
+    "HIGH-QUALITY"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q086",
@@ -3109,7 +3962,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ENGINEERING FINANCE",
+    "COMPLIANCE",
+    "AFFECTED"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q087",
@@ -3147,7 +4009,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "REWARD",
+    "ACTIVATION",
+    "SIMPLIFY"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q088",
@@ -3186,7 +4057,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "XAB",
+    "COMPLIANCE",
+    "COMMUNICATION"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q089",
@@ -3225,7 +4105,18 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "COMPLIANCE",
+    "ENGINEERING",
+    "CRM"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [
+    "lg_gtm"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q090",
@@ -3256,7 +4147,20 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ARZIF LG PHILIPS",
+    "EPSON",
+    "BINANCE"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [
+    "arzif_growth",
+    "lg_channel",
+    "arzif_partnerships"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q091",
@@ -3285,7 +4189,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "OWNER",
+    "STRENGTH",
+    "FORMAL"
+   ],
+   "answer_structure": "Situation → what I did → result",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q092",
@@ -3318,7 +4231,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "XAB",
+    "TEROXX",
+    "PRODUCT"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q093",
@@ -3347,7 +4269,16 @@
    "gap_warning": "Shervin should replace with his own number.",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "PRODUCT OWNER",
+    "EUROPEAN FINTECH",
+    "INTERESTED"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q094",
@@ -3381,7 +4312,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "XAB",
+    "PRODUCT ENGINEERING",
+    "COMPLIANCE"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q095",
@@ -3419,7 +4359,16 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "MICA",
+    "EUROPE",
+    "INCREASINGLY"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q096",
@@ -3456,7 +4405,19 @@
    "gap_warning": "",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ARZIF",
+    "PERCENT",
+    "TWENTY"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [
+    "arzif_infra",
+    "arzif_ux"
+   ],
+   "language": "en",
+   "confidence": 1.0
   },
   {
    "question_id": "Q097",
@@ -3492,7 +4453,19 @@
    "gap_warning": "Generic fallback — the LLM should contextualise using the previous question.",
    "technical_notes": "",
    "product_notes": "",
-   "follow_up_questions": []
+   "follow_up_questions": [],
+   "coach_keywords": [
+    "ARZIF",
+    "UX",
+    "XAB"
+   ],
+   "answer_structure": "Direct answer → approach → measure",
+   "story_ids": [
+    "arzif_ux",
+    "arzif_revenue_retention"
+   ],
+   "language": "en",
+   "confidence": 1.0
   }
  ]
 }

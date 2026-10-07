@@ -664,6 +664,32 @@ def keywords(text):
             out.append(w)
     return out[:14]
 
+GENERIC = set("i'd i i'm my we our then and the a an to of in for with that this it's by on as at from would be is are was have has will so more than into each every one two three first finally also before after over clear clearly real really right understand understanding start using based exactly make makes making things thing what which where while their there these those other through".split())
+def coach_keywords(e):
+    """3 high-value keywords: proper nouns/metrics (not sentence-initial), then distinctive concepts from the bullets."""
+    picks = []
+    def add(w):
+        w = w.strip().upper()
+        if w and w not in picks and len(picks) < 3: picks.append(w)
+    for b in e["bullets"]:
+        words = [w.strip(",.;:()\"").replace("'s", "").replace("’s", "") for w in b.split()]
+        idx = 1
+        while idx < len(words):
+            t = words[idx]
+            if not t or t.startswith("I'") or t == "I": idx += 1; continue
+            if re.fullmatch(r"\d[\d,]*%?", t): add(t); idx += 1; continue
+            if t[0].isupper() and t.lower() not in GENERIC:
+                phrase = [t]
+                while idx + 1 < len(words) and words[idx + 1][:1].isupper() and words[idx + 1].lower() not in GENERIC and not words[idx + 1].startswith("I'"):
+                    idx += 1; phrase.append(words[idx])
+                add(" ".join(phrase))
+            idx += 1
+    concepts = sorted({w for w in re.findall(r"[a-z][a-z\-]{5,}", " ".join(e["bullets"]).lower()) if w not in GENERIC},
+                      key=lambda w: (-" ".join(e["bullets"]).lower().count(w), -len(w)))
+    for w in concepts: add(w)
+    for d in ["GOAL", "APPROACH", "RESULT"]: add(d)
+    return picks[:3]
+
 root = os.path.join(os.path.dirname(__file__), "..", "samples", "shervin-teroxx")
 bank = []
 for i, e in enumerate(Q, 1):
@@ -683,6 +709,11 @@ for i, e in enumerate(Q, 1):
         "technical_notes": e["tech"],
         "product_notes": "",
         "follow_up_questions": e["follow"],
+        "coach_keywords": coach_keywords(e),
+        "answer_structure": {"VERIFIED": "Situation → what I did → result", "BRIDGE": "Honest bridge → approach → closest proof"}.get(e["mode"], "Direct answer → approach → measure"),
+        "story_ids": e["evidence"],
+        "language": "en",
+        "confidence": 1.0,
     })
 with open(os.path.join(root, "question_bank.json"), "w", encoding="utf-8") as f:
     json.dump({"version": 1, "questions": bank}, f, ensure_ascii=False, indent=1)

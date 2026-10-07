@@ -28,6 +28,10 @@ public sealed class PromptBuilder
 
     /// <summary>Set per request by the engine (answer-language instruction).</summary>
     public string? LanguageRule { get; set; }
+    /// <summary>Set per request by the engine: bounded rolling interview memory.</summary>
+    public string? MemoryContext { get; set; }
+    /// <summary>Set per request: extra instruction (e.g. avoid a story the interviewer already heard).</summary>
+    public string? ExtraInstruction { get; set; }
 
     public IReadOnlyList<ChatMessage> Build(string question, Classification cls, RetrievedContext ctx, AnswerStyle style, IReadOnlyList<ConversationTurn> history)
     {
@@ -46,7 +50,13 @@ public sealed class PromptBuilder
             + "\n\n" + _profileDigest;
 
         var user = new StringBuilder();
-        if (history.Count > 0)
+        if (!string.IsNullOrWhiteSpace(MemoryContext))
+        {
+            user.AppendLine("INTERVIEW MEMORY (whole conversation so far, may span several languages):");
+            user.AppendLine(MemoryContext);
+            user.AppendLine();
+        }
+        else if (history.Count > 0)
         {
             user.AppendLine("RECENT INTERVIEW CONTEXT (oldest first):");
             foreach (var t in history) user.AppendLine($"Q: {t.Question}\nA (summary): {t.AnswerSummary}");
@@ -72,6 +82,7 @@ public sealed class PromptBuilder
             user.AppendLine();
         }
         user.AppendLine($"SUGGESTED MODE: {cls.Mode.ToString().ToUpperInvariant()} (override only if clearly wrong). Category: {cls.Category}." + (cls.IsFollowUp ? " This is a FOLLOW-UP to the most recent question above." : ""));
+        if (!string.IsNullOrWhiteSpace(ExtraInstruction)) user.AppendLine(ExtraInstruction);
         user.AppendLine($"INTERVIEWER QUESTION: \"{question}\"");
 
         return new[] { new ChatMessage("system", system), new ChatMessage("user", user.ToString()) };
