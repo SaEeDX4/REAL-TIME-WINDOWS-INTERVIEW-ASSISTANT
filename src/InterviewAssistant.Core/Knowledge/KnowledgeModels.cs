@@ -20,6 +20,14 @@ public sealed class BankQuestion
     [JsonPropertyName("technical_notes")] public string TechnicalNotes { get; init; } = "";
     [JsonPropertyName("product_notes")] public string ProductNotes { get; init; } = "";
     [JsonPropertyName("follow_up_questions")] public List<string> FollowUpQuestions { get; init; } = new();
+    /// <summary>Exactly 3 Coach Mode keywords (generated if absent).</summary>
+    [JsonPropertyName("coach_keywords")] public List<string> CoachKeywords { get; init; } = new();
+    /// <summary>One short answer structure, e.g. "Situation → what I did → result".</summary>
+    [JsonPropertyName("answer_structure")] public string AnswerStructure { get; init; } = "";
+    [JsonPropertyName("story_ids")] public List<string> StoryIds { get; init; } = new();
+    [JsonPropertyName("language")] public string Language { get; init; } = "en";
+    /// <summary>Quality confidence of the prepared answer. Below 0.7 it is used as LLM reference, not shown instantly.</summary>
+    [JsonPropertyName("confidence")] public double Confidence { get; init; } = 1.0;
 
     [JsonIgnore]
     public AnswerMode Mode => AnswerModeRaw.ToUpperInvariant() switch

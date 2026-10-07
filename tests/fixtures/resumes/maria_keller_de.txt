@@ -1,0 +1,26 @@
+MARIA KELLER
+Senior Software Engineer
+München, Deutschland
+
+ZUSAMMENFASSUNG
+Softwareentwicklerin mit Schwerpunkt auf verteilten Systemen und Zahlungsplattformen.
+
+BERUFSERFAHRUNG
+Senior Software Engineer
+PayFlow GmbH | München | 2020 – heute
+• Entwickelte eine Zahlungs-API mit 99,95% Verfügbarkeit für 2 Millionen Transaktionen pro Monat.
+• Reduzierte die Latenz der Abrechnung um 40% durch Caching und asynchrone Verarbeitung.
+
+Software Engineer
+DataWerk AG | Berlin | 2016 – 2020
+• Baute eine Datenpipeline für 300 Kunden mit Kafka und PostgreSQL.
+
+AUSBILDUNG
+M.Sc. Informatik
+Technische Universität München
+
+KENNTNISSE
+C#, .NET, Kafka, PostgreSQL, Kubernetes
+
+SPRACHEN
+Deutsch: Muttersprache | Englisch: fließend

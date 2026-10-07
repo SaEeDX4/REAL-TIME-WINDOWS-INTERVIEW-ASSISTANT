@@ -23,7 +23,7 @@ public sealed class BulletVm
 /// <summary>
 /// Composition root + presentation state for the live window. Engine/capture events arrive on background
 /// threads and are marshalled with BeginInvoke (never blocking audio or network threads). Answer bullets are
-/// append-only so text never shifts while Shervin is reading.
+/// append-only so text never shifts while the candidate is reading.
 /// </summary>
 public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 {
@@ -101,19 +101,42 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
     // ---------------- composition ----------------
 
+    public Workspace? Workspace { get; private set; }
+    private string _activeLabel = ""; public string ActiveLabel { get => _activeLabel; set => Set(ref _activeLabel, value); }
+
     public string? Initialize()
     {
-        var dir = KnowledgeBase.FindDirectory(AppContext.BaseDirectory);
-        if (dir == null) return "Knowledge folder not found next to the application.";
-        try { Knowledge = KnowledgeBase.Load(dir); }
-        catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException or UnauthorizedAccessException)
+        try
         {
-            AppLog.Error("Knowledge load failed", ex);
-            return "Knowledge pack could not be loaded: " + ex.Message;
+            Workspace = new Workspace(Path.Combine(AppPaths.Roaming, "workspace"), new DpapiProtector());
+            var (kb, label) = Workspace.LoadActive(Settings.ActiveProfileId, Settings.ActiveTargetId);
+            UseKnowledge(kb, label);
         }
-        BuildEngine();
-        AppLog.Info($"Knowledge loaded: {Knowledge.Questions.Count} prepared questions, {Knowledge.Stories.Count} stories, {Knowledge.Snippets.Count} snippets");
+        catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+        {
+            AppLog.Error("Workspace load failed", ex);
+            UseKnowledge(KnowledgeBase.Empty(), "No interview prepared");
+            return "Your local workspace could not be opened: " + ex.Message;
+        }
         return null;
+    }
+
+    /// <summary>Switches the live engine to a profile/target pack (only while not listening).</summary>
+    public void UseKnowledge(KnowledgeBase kb, string label)
+    {
+        Knowledge = kb;
+        ActiveLabel = label;
+        BuildEngine();
+        AppLog.Info($"Knowledge loaded: {kb.Questions.Count} prepared questions, {kb.Stories.Count} stories, {kb.Snippets.Count} snippets ({(kb.Questions.Count == 0 ? "generic" : "target pack")})");
+    }
+
+    /// <summary>Loads the built-in sample profile (fixture) — explicit user action or self-test only.</summary>
+    public bool LoadSample()
+    {
+        var s = Workspace?.LoadSample();
+        if (s == null) return false;
+        UseKnowledge(s.Value.Kb, s.Value.Label);
+        return true;
     }
 
     /// <summary>(Re)creates providers + engine from current settings. Safe to call after Settings change while stopped.</summary>
@@ -163,7 +186,12 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public string CurrentDeviceName => _capture.CurrentDeviceName;
     public AudioCaptureService Capture => _capture;
 
-    public RealtimeTranscriberOptions TranscriberOptions() => new() { Model = Settings.TranscriptionModel, Protocol = Settings.RealtimeProtocol };
+    public RealtimeTranscriberOptions TranscriberOptions() => new()
+    {
+        Model = Settings.TranscriptionModel, Protocol = Settings.RealtimeProtocol,
+        Prompt = Knowledge?.Context.BuildTranscriptionPrompt() ?? "Job interview.",
+        Language = Knowledge?.Context.InterviewLanguage is { } l && l != "auto" ? l : "",
+    };
     public ChatProviderOptions ChatOptions() => new() { Model = Settings.AnswerModel };
 
     /// <summary>

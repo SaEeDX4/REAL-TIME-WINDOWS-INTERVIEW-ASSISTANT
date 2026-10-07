@@ -30,7 +30,7 @@ public sealed class CheckItem : ObservableObject
 /// <summary>Pre-interview check + test tools. All tests use the production classes (capture, transcriber, engine).</summary>
 public partial class ReadinessWindow : Window
 {
-    public const string TestQuestion = "How would you improve XAB adoption?";
+    public const string TestQuestion = "How would you prioritise competing requests from two important stakeholders?";
     private readonly MainViewModel _vm;
     private readonly MainWindow _main;
     private readonly bool _autoRun;
@@ -40,8 +40,8 @@ public partial class ReadinessWindow : Window
         _auth = new() { Title = "OPENAI AUTH", FixHint = "Settings → paste a valid OpenAI API key (check billing)." },
         _stt = new() { Title = "TRANSCRIPTION", FixHint = "Check internet; Settings → try another transcription model or protocol." },
         _answer = new() { Title = "ANSWER ENGINE", FixHint = "Settings → try answer model gpt-4.1-mini; check internet." },
-        _kb = new() { Title = "KNOWLEDGE PACK", FixHint = "Re-extract the ZIP so the knowledge folder sits next to the EXE." },
-        _bank = new() { Title = "QUESTION BANK", FixHint = "Re-extract the ZIP (knowledge/question_bank.json missing or damaged)." },
+        _kb = new() { Title = "INTERVIEW PREPARED", FixHint = "Create a profile, add a job and press Prepare interview." },
+        _bank = new() { Title = "QUESTION BANK", FixHint = "Prepare the interview (or re-run preparation)." },
         _topmost = new() { Title = "WINDOW TOPMOST", FixHint = "Settings → enable Always on top." };
 
     public ReadinessWindow(MainViewModel vm, MainWindow main, bool autoRun = true)
@@ -97,8 +97,10 @@ public partial class ReadinessWindow : Window
 
         if (_vm.Knowledge is { } k)
         {
-            _kb.Pass("LOADED", $"Shervin profile ({k.Profile.Experience.Count} roles) · {k.Stories.Count} verified stories · {k.Snippets.Count} research notes");
-            if (k.Questions.Count >= 80) _bank.Pass("LOADED", $"{k.Questions.Count} prepared answers");
+            if (k.Questions.Count > 0) _kb.Pass("LOADED", $"{_vm.ActiveLabel} · {k.Profile.Experience.Count} roles · {k.Stories.Count} verified stories");
+            else _kb.Warn("NOT PREPARED", "No interview prepared yet — AI answers still work, but prepared answers and your verified facts need a prepared interview.");
+            if (k.Questions.Count >= 50) _bank.Pass("LOADED", $"{k.Questions.Count} prepared answers");
+            else if (k.Questions.Count == 0) _bank.Warn("NONE", "Prepare an interview to get instant answers");
             else _bank.Fail("INCOMPLETE", $"Only {k.Questions.Count} prepared answers");
         }
         else { _kb.Fail("MISSING", "Knowledge folder not found"); _bank.Fail("MISSING", "question_bank.json not loaded"); }

@@ -28,6 +28,8 @@ public sealed class AppSettings
     public double Width { get; set; } = 620;
     public double Height { get; set; } = 560;
     public bool FirstRunCompleted { get; set; }
+    public string? ActiveProfileId { get; set; }
+    public string? ActiveTargetId { get; set; }
     // Approximate unit prices for the cost estimate shown in diagnostics (editable; estimates only).
     public double PriceTranscribePerMinute { get; set; } = 0.017;
     public double PriceInputPerMTok { get; set; } = 0.75;

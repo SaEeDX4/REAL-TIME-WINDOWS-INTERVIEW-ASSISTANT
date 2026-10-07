@@ -51,7 +51,7 @@ public class HeldOutMatcherTests
         int ok = 0, okHigh = 0, wrongHigh = 0;
         foreach (var (spoken, exp) in Cases)
         {
-            var r = m.Match(TextNormalizer.CleanTranscript(spoken));
+            var r = m.Match(TextNormalizer.CleanTranscript(spoken, TestKnowledge.Load().Context.Aliases));
             bool hit = r.Question?.CanonicalQuestion == exp;
             if (hit) { ok++; if (r.Confidence == MatchConfidence.High) okHigh++; }
             else if (r.Confidence == MatchConfidence.High) wrongHigh++;

@@ -33,6 +33,8 @@ public sealed class EngineOptions
     public int TickMs { get; set; } = 40;
     /// <summary>Use the prepared answer instantly when the match is High confidence.</summary>
     public bool UseFastCache { get; set; } = true;
+    /// <summary>Prepared answers below this confidence are used as AI reference context, not shown instantly.</summary>
+    public double MinCacheConfidence { get; set; } = 0.7;
     public AnswerStyle DefaultStyle { get; set; } = AnswerStyle.Balanced;
     /// <summary>Seconds without audio level above the floor while listening before "NO AUDIO" is shown.</summary>
     public int NoAudioWarningSeconds { get; set; } = 20;

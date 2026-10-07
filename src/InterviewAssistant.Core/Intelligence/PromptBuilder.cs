@@ -26,6 +26,9 @@ public sealed class PromptBuilder
         _profileDigest = sb.ToString();
     }
 
+    /// <summary>Set per request by the engine (answer-language instruction).</summary>
+    public string? LanguageRule { get; set; }
+
     public IReadOnlyList<ChatMessage> Build(string question, Classification cls, RetrievedContext ctx, AnswerStyle style, IReadOnlyList<ConversationTurn> history)
     {
         var spec = AnswerStyleSpec.For(style);
@@ -34,6 +37,12 @@ public sealed class PromptBuilder
             .Replace("{WORDS_PER_BULLET}", spec.WordsPerBullet)
             .Replace("{TOTAL_WORDS}", spec.TotalWords)
             .Replace("{FORMAT_OVERRIDE}", spec.Override)
+            .Replace("{CANDIDATE}", _kb.Context.CandidateName)
+            .Replace("{ROLE}", _kb.Context.RoleTitle)
+            .Replace("{AT_COMPANY}", string.IsNullOrWhiteSpace(_kb.Context.CompanyName) ? "" : " at " + _kb.Context.CompanyName)
+            .Replace("{POSITIONING}", _kb.Context.Positioning.Length > 0 ? _kb.Context.Positioning : "Use the candidate's verified experience where it genuinely strengthens the answer.")
+            .Replace("{DOMAIN_GUIDANCE}", _kb.Context.DomainGuidance.Length > 0 ? _kb.Context.DomainGuidance : "Give the strongest professional answer for this role.")
+            .Replace("{LANGUAGE_RULE}", LanguageRule ?? "")
             + "\n\n" + _profileDigest;
 
         var user = new StringBuilder();

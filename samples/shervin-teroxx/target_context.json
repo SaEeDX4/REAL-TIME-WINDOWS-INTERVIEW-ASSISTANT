@@ -1,0 +1,21 @@
+{
+  "candidate_name": "Shervin Fallahdoust",
+  "role_title": "Product Owner (Abloxx / XAB token product)",
+  "company_name": "Teroxx",
+  "products": ["Abloxx", "XAB", "Crypto Grow"],
+  "vocabulary": ["Arzif", "Binance", "CoinEx", "KuCoin", "MiCA", "MiCAR", "CySEC", "Jira", "Agile", "Scrum", "Product Owner", "tokenomics", "ledger", "reconciliation", "idempotency", "wallet", "VIP", "cashback", "reward booster", "ERC-20", "blockchain", "FinTech", "staking", "yield", "retention", "acceptance criteria", "KYC", "AML", "Lite", "Silver", "Gold", "Platinum"],
+  "aliases": [
+    { "canonical": "Teroxx", "variants": ["terox", "teroks", "terrox", "teraxx", "ter ox", "terroxx"] },
+    { "canonical": "Abloxx", "variants": ["ab locks", "ablocks", "a blocks", "ablox", "abloks"] },
+    { "canonical": "XAB", "variants": ["x a b", "ex ay bee", "zab"] },
+    { "canonical": "Arzif", "variants": ["arziff", "ar zif", "arsif"] },
+    { "canonical": "CoinEx", "variants": ["coin ex"] },
+    { "canonical": "KuCoin", "variants": ["ku coin", "cu coin", "coo coin"] }
+  ],
+  "domain_numbers": ["250", "250000000", "2024", "004"],
+  "extra_entities": ["Ethereum", "Platinum", "Gold", "Silver", "Lite", "CySEC", "MiCAR"],
+  "positioning": "Business leadership + crypto exchange operations (Arzif: 60,000 active traders, +60% revenue, Binance/CoinEx/KuCoin partnerships, compliance, -20% downtime, +25% satisfaction) + product marketing/GTM (LG) + growth & CRM + cross-functional leadership + BSc Computer Software Engineering => strong transition into Product Ownership. Mention evidence only when it genuinely strengthens the answer.",
+  "domain_guidance": "Teroxx is a MiCA-authorised crypto-asset service provider (CySEC licence CASP004/25). XAB product thinking: utility -> engagement -> benefits/tier -> reward -> retention -> business value. Don't just distribute more tokens; create reasons to earn, hold, use and return. Ledger = source of truth, idempotency, reversals, reconciliation, audit trail, supply compliance. Compliance is part of discovery, not a final gate.",
+  "interview_language": "en",
+  "answer_language": "same"
+}

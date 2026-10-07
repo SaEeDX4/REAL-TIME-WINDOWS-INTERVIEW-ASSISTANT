@@ -61,8 +61,8 @@ public sealed class InterviewEngine : IAsyncDisposable
         _matcher = new QuestionMatcher(kb.Questions);
         _retriever = new ContextRetriever(kb);
         _prompts = new PromptBuilder(kb);
-        _validator = new FactValidator(kb.Profile);
-        _turn = new TurnDetector(_clock);
+        _validator = new FactValidator(kb.Profile, kb.Context);
+        _turn = new TurnDetector(_clock) { Aliases = kb.Context.Aliases };
         _turn.LiveTextChanged += t => LiveTranscriptChanged?.Invoke(t);
         _turn.StateChanged += OnTurnState;
         _turn.TurnFinalized += t => _ = HandleFinalizedAsync(t);
@@ -190,7 +190,7 @@ public sealed class InterviewEngine : IAsyncDisposable
     /// <summary>Manual fallback: typed/pasted question. Works without audio or transcription.</summary>
     public Task SubmitManualQuestionAsync(string text)
     {
-        var q = TextNormalizer.CleanTranscript(text);
+        var q = TextNormalizer.CleanTranscript(text, _kb.Context.Aliases);
         if (q.Length == 0) return Task.CompletedTask;
         _dupes.Register(q, _clock.NowMs);
         Metrics.IncQuestions();
@@ -222,7 +222,7 @@ public sealed class InterviewEngine : IAsyncDisposable
         var ct = cts.Token;
 
         var t0 = _clock.NowMs;
-        var cls = QuestionClassifier.Classify(question);
+        var cls = QuestionClassifier.Classify(question, _kb.Context);
         var match = _matcher.Match(question);
         var matchMs = _clock.NowMs - t0;
 
@@ -237,7 +237,7 @@ public sealed class InterviewEngine : IAsyncDisposable
         SetStatus(EngineStatus.Answering);
 
         long firstToken = -1, firstBullet = -1;
-        bool useCache = allowCache && Options.UseFastCache && match.Question != null &&
+        bool useCache = allowCache && Options.UseFastCache && match.Question != null && match.Question.Confidence >= Options.MinCacheConfidence &&
                         (match.Confidence == MatchConfidence.High && (!cls.IsFollowUp || match.Score >= 0.75));
         // Without any LLM available, a Medium match is still far better than nothing.
         if (!useCache && allowCache && _provider == null && match.Question != null && match.Confidence >= MatchConfidence.Low) useCache = true;

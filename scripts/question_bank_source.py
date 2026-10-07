@@ -664,7 +664,7 @@ def keywords(text):
             out.append(w)
     return out[:14]
 
-root = os.path.join(os.path.dirname(__file__), "..", "knowledge")
+root = os.path.join(os.path.dirname(__file__), "..", "samples", "shervin-teroxx")
 bank = []
 for i, e in enumerate(Q, 1):
     full = e["full"] or " ".join(e["bullets"])

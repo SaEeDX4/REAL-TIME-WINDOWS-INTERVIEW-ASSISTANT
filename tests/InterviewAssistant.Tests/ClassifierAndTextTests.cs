@@ -33,7 +33,11 @@ public class ClassifierAndTextTests
     [InlineData("um so how would you, uh, improve terox's ab locks token", "How would you, improve Teroxx's Abloxx token")]
     [InlineData("what about mica r and cy sec", "What about MiCA and CySEC")]
     [InlineData("explain item potency", "Explain idempotency")]
-    public void TranscriptCleanupFixesDomainTerms(string raw, string expected) => Assert.Equal(expected, TextNormalizer.CleanTranscript(raw));
+    public void TranscriptCleanupFixesDomainTerms(string raw, string expected) => Assert.Equal(expected, TextNormalizer.CleanTranscript(raw, TestKnowledge.Load().Context.Aliases));
+
+    [Fact]
+    public void WithoutTargetAliasesNoCompanyNamesAreInjected() =>
+        Assert.Equal("Improve terox's ab locks token", TextNormalizer.CleanTranscript("improve terox's ab locks token"));
 
     [Fact]
     public void FingerprintIgnoresPunctuationAndCase()

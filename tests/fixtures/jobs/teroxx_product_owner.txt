@@ -1,0 +1,23 @@
+Product Owner - Abloxx (XAB) at Teroxx
+
+About us
+Teroxx is a digital asset boutique. Abloxx Ltd provides the Abloxx Token (XAB) and ecosystem products such as Rewards, Crypto Grow and Cashback.
+
+Responsibilities
+- Drive the complete lifecycle of the XAB token, including its strategic evolution and core infrastructure upgrades.
+- Implement and manage complex business logic that governs token utility, VIP eligibility and reward mechanics across user portfolios.
+- Build and scale utility features such as trading fee management, reward boosters and VIP tier governance.
+- Oversee internal ledger systems, closed-loop token economy mechanics and automated reconciliation processes.
+- Translate tokenomic strategies and regulatory constraints (MiCAR) into technical product specifications for Engineering and Design.
+- Drive stakeholder alignment across IT, Legal/Compliance, CRM and C-Level leadership.
+
+Requirements
+- 3-5 years of Product experience with clear ownership responsibility, ideally within FinTech, digital assets or tokenized ecosystems.
+- Proven experience building or owning financial ledgers, digital wallet architectures, or closed-loop reward systems.
+- Highly technical, systems-oriented mindset with strong abstract thinking.
+- Experience working with Jira and Agile delivery.
+- Strong stakeholder management and communication skills.
+
+Nice to have
+- Knowledge of MiCA regulation and KYC/AML processes.
+- Experience with user retention and growth strategies.

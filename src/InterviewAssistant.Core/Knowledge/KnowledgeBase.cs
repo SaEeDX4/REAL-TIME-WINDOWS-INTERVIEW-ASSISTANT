@@ -14,6 +14,7 @@ public sealed class KnowledgeBase
     public required IReadOnlyList<BankQuestion> Questions { get; init; }
     public required IReadOnlyList<KnowledgeSnippet> Snippets { get; init; }
     public required string SystemPromptTemplate { get; init; }
+    public TargetContext Context { get; init; } = new();
     public string Directory { get; init; } = "";
 
     private static readonly JsonSerializerOptions JsonOptions = new() { ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
@@ -42,6 +43,8 @@ public sealed class KnowledgeBase
             var path = Path.Combine(directory, file);
             if (File.Exists(path)) snippets.AddRange(SplitMarkdown(file, File.ReadAllText(path)));
         }
+        foreach (var path in System.IO.Directory.Exists(Path.Combine(directory, "notes")) ? System.IO.Directory.GetFiles(Path.Combine(directory, "notes"), "*.md") : Array.Empty<string>())
+            snippets.AddRange(SplitMarkdown(Path.GetFileName(path), File.ReadAllText(path)));
 
         return new KnowledgeBase
         {
@@ -49,9 +52,26 @@ public sealed class KnowledgeBase
             Stories = Read<StoriesFile>("candidate_stories.json").Stories,
             Questions = Read<QuestionBankFile>("question_bank.json").Questions,
             Snippets = snippets,
-            SystemPromptTemplate = File.ReadAllText(Path.Combine(directory, "runtime_system_prompt.txt")),
+            SystemPromptTemplate = PromptTemplates.LiveAnswer,
+            Context = LoadContext(directory, Read<CandidateProfile>("candidate_profile.json")),
             Directory = directory,
         };
+    }
+
+    /// <summary>Generic knowledge with no candidate data: live AI answers still work; nothing is claimed as history.</summary>
+    public static KnowledgeBase Empty(IReadOnlyList<KnowledgeSnippet>? playbooks = null) => new()
+    {
+        Profile = new CandidateProfile(), Stories = Array.Empty<CandidateStory>(), Questions = Array.Empty<BankQuestion>(),
+        Snippets = playbooks ?? Array.Empty<KnowledgeSnippet>(), SystemPromptTemplate = PromptTemplates.LiveAnswer, Context = new TargetContext(),
+    };
+
+    private static TargetContext LoadContext(string directory, CandidateProfile profile)
+    {
+        var path = Path.Combine(directory, "target_context.json");
+        var ctx = File.Exists(path) ? JsonSerializer.Deserialize<TargetContext>(File.ReadAllText(path), JsonOptions) ?? new() : new TargetContext();
+        if (ctx.CandidateName == "the candidate" && profile.Name.Length > 0) ctx.CandidateName = profile.Name;
+        ctx.Employers = profile.Experience.Select(e => e.Company).ToList();
+        return ctx;
     }
 
     /// <summary>Splits markdown into small retrievable snippets: one per bullet / table row / paragraph, tagged with its heading.</summary>
@@ -72,12 +92,12 @@ public sealed class KnowledgeBase
     }
 
     /// <summary>Searches upward from a starting directory for a "knowledge" folder (works for dev runs and published builds).</summary>
-    public static string? FindDirectory(string start)
+    public static string? FindDirectory(string start, string relative = "knowledge")
     {
         var dir = new DirectoryInfo(start);
         while (dir != null)
         {
-            var candidate = Path.Combine(dir.FullName, "knowledge");
+            var candidate = Path.Combine(dir.FullName, relative);
             if (File.Exists(Path.Combine(candidate, "question_bank.json"))) return candidate;
             dir = dir.Parent;
         }

@@ -10,28 +10,23 @@ public static class TextNormalizer
         @"\b(um+|uh+|erm+|hmm+|ah+|you know|i mean|kind of|sort of|basically|actually|like,|okay so|ok so|so,|well,|right,)\s*",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    // Common ASR confusions for domain terms. Keys are lower-case regex patterns.
+    // Generic ASR confusions for widely used business/tech terms. Target-specific names come from TargetContext.Aliases.
     private static readonly (Regex Pattern, string Replacement)[] TermFixes =
     {
-        (new Regex(@"\b(terox|teroks|terrox|teraxx|ter ox|terroxx)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "Teroxx"),
-        (new Regex(@"\b(ab ?locks|a ?blocks|ablox|ablocks|abloks)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "Abloxx"),
-        (new Regex(@"\b(x a b|x\.a\.b\.?|ex ay bee|zab)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "XAB"),
         (new Regex(@"\b(micar|mica r|mika|mica regulation|mi ca)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "MiCA"),
         (new Regex(@"\b(cysec|cy sec|sci sec|psy sec)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "CySEC"),
-        (new Regex(@"\b(arziff?|ar zif|arsif)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "Arzif"),
         (new Regex(@"\b(jira|gira|jeera)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "Jira"),
-        (new Regex(@"\b(coin ex)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "CoinEx"),
-        (new Regex(@"\b(ku coin|cu coin|coo coin)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "KuCoin"),
         (new Regex(@"\b(item potency|idem potency|ident potency)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "idempotency"),
         (new Regex(@"\b(token omics|tokonomics)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "tokenomics"),
         (new Regex(@"\b(v i p)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "VIP"),
     };
 
-    public static string CleanTranscript(string text)
+    public static string CleanTranscript(string text, IReadOnlyList<Knowledge.TermAlias>? aliases = null)
     {
         if (string.IsNullOrWhiteSpace(text)) return "";
         var t = FillerRegex.Replace(text, " ");
         foreach (var (pattern, replacement) in TermFixes) t = pattern.Replace(t, replacement);
+        if (aliases != null) foreach (var a in aliases) if (a.Variants.Count > 0) t = a.Regex.Replace(t, a.Canonical);
         t = Regex.Replace(t, @"^\s*(so|and so|okay|ok|well|right|alright)\b[\s,]*", "", RegexOptions.IgnoreCase);
         t = Regex.Replace(t, @"\s+", " ").Trim();
         t = Regex.Replace(t, @"\s+([,.?!])", "$1");

@@ -16,12 +16,10 @@ public sealed class RealtimeTranscriberOptions
     /// </summary>
     public string Model { get; set; } = "gpt-live-transcribe";
     public string[] FallbackModels { get; set; } = { "gpt-4o-transcribe", "gpt-4o-mini-transcribe" };
-    public string Language { get; set; } = "en";
+    /// <summary>ISO-639-1 code, or empty/"auto" to let the model detect the spoken language.</summary>
+    public string Language { get; set; } = "";
     /// <summary>Vocabulary prompt that biases recognition toward domain terms.</summary>
-    public string Prompt { get; set; } =
-        "Job interview for a Product Owner role at Teroxx. Terms: Shervin Fallahdoust, Teroxx, Abloxx, XAB, Arzif, Binance, CoinEx, KuCoin, " +
-        "MiCA, MiCAR, CySEC, Jira, Agile, Scrum, Product Owner, tokenomics, ledger, reconciliation, idempotency, wallet, VIP, cashback, " +
-        "reward booster, Crypto Grow, ERC-20, blockchain, FinTech, staking, yield, retention, acceptance criteria, KYC, AML, Lite, Silver, Gold, Platinum.";
+    public string Prompt { get; set; } = "Job interview. Professional business and technology vocabulary.";
     public double VadThreshold { get; set; } = 0.5;
     public int VadPrefixPaddingMs { get; set; } = 300;
     /// <summary>Server VAD segment silence. Short so segments arrive quickly; TurnDetector merges segments into a turn.</summary>
@@ -261,7 +259,8 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
             ["prefix_padding_ms"] = _opt.VadPrefixPaddingMs,
             ["silence_duration_ms"] = _opt.VadSilenceMs,
         };
-        var transcription = new JsonObject { ["model"] = ActiveModel, ["language"] = _opt.Language, ["prompt"] = _opt.Prompt };
+        var transcription = new JsonObject { ["model"] = ActiveModel, ["prompt"] = _opt.Prompt };
+        if (!string.IsNullOrWhiteSpace(_opt.Language) && _opt.Language != "auto") transcription["language"] = _opt.Language;
         JsonObject msg = _useBeta
             ? new JsonObject
             {

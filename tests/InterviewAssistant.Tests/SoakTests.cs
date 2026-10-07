@@ -9,6 +9,11 @@ namespace InterviewAssistant.Tests;
 /// multi-part pauses, small talk, transcript revisions, a mid-session reconnect. Verifies bounded memory,
 /// one answer per question, no duplicates, bounded LLM requests and bounded history/metrics.
 /// </summary>
+[CollectionDefinition("Soak", DisableParallelization = true)]
+public sealed class SoakCollection { }
+
+/// <remarks>Runs alone: GC.GetTotalMemory is process-wide, so parallel tests would pollute the measurement.</remarks>
+[Collection("Soak")]
 public class SoakTests
 {
     private readonly ITestOutputHelper _out;

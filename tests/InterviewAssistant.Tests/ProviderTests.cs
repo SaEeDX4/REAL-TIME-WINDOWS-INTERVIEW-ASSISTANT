@@ -136,8 +136,10 @@ public class ProviderTests
     [Fact]
     public void RealtimeSessionUpdateMatchesDocumentedShape()
     {
-        var t = new OpenAiRealtimeTranscriber(() => "k");
+        var t = new OpenAiRealtimeTranscriber(() => "k", new RealtimeTranscriberOptions { Prompt = TestKnowledge.Load().Context.BuildTranscriptionPrompt() });
         var ga = JsonNode.Parse(t.BuildSessionUpdate())!;
+        Assert.DoesNotContain("Teroxx", new OpenAiRealtimeTranscriber(() => "k").BuildSessionUpdate()); // generic default
+        Assert.Null(ga["session"]!["audio"]!["input"]!["transcription"]!["language"]); // auto-detect by default
         Assert.Equal("session.update", ga["type"]!.GetValue<string>());
         Assert.Equal("transcription", ga["session"]!["type"]!.GetValue<string>());
         Assert.Equal("audio/pcm", ga["session"]!["audio"]!["input"]!["format"]!["type"]!.GetValue<string>());

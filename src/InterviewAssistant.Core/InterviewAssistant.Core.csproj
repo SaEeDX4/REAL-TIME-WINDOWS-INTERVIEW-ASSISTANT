@@ -9,4 +9,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="InterviewAssistant.Tests" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="PdfPig" Version="0.1.16" />
+  </ItemGroup>
 </Project>

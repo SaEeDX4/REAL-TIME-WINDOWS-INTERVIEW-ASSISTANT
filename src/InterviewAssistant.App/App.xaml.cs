@@ -31,7 +31,8 @@ public partial class App : Application
             // Isolate from the user's real settings so the self-test never changes them.
             AppSettings.OverridePath = Path.Combine(Path.GetTempPath(), $"ia-selftest-{Environment.ProcessId}.json");
         }
-        AppLog.Info($"Interview Assistant {typeof(App).Assembly.GetName().Version} starting on {Environment.OSVersion}");
+        Branding.Load(AppContext.BaseDirectory);
+        AppLog.Info($"{Branding.ProductName} {typeof(App).Assembly.GetName().Version} starting on {Environment.OSVersion}");
         var window = new MainWindow();
         MainWindow = window;
         window.Show();

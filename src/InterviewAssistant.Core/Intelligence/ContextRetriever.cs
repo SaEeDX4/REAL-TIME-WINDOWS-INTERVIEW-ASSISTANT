@@ -36,7 +36,7 @@ public sealed class ContextRetriever
             .OrderByDescending(x => x.Score)
             .Select(x => x.Story);
         foreach (var s in ranked) { if (stories.Count >= maxStories) break; if (!stories.Contains(s)) stories.Add(s); }
-        if (stories.Count == 0 && cls.Mode != AnswerMode.Hypothetical) stories.AddRange(_kb.Stories.Where(s => s.Company.StartsWith("Arzif")).Take(2));
+        if (stories.Count == 0 && cls.Mode != AnswerMode.Hypothetical) stories.AddRange(_kb.Stories.Take(2)); // pack stories are ordered by role relevance
 
         var snippets = _snippetIndex
             .Select(x => (x.Snippet, Score: TextNormalizer.Jaccard(qTokens, x.Tokens) + qTokens.Count(x.Tokens.Contains) * 0.05))

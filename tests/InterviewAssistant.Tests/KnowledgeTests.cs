@@ -16,7 +16,7 @@ public class KnowledgeTests
     {
         foreach (var f in new[] { "candidate_profile.json", "candidate_stories.json", "role_brief.md", "company_brief.md", "product_brief.md",
                                   "whitepaper_notes.md", "product_owner_playbook.md", "crypto_fintech_playbook.md", "question_bank.json",
-                                  "answer_policy.md", "runtime_system_prompt.txt", "test_questions.json" })
+                                  "answer_policy.md", "target_context.json", "test_questions.json" })
             Assert.True(File.Exists(Path.Combine(TestKnowledge.Dir, f)), f);
     }
 

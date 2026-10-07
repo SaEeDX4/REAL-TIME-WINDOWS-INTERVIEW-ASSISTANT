@@ -1,0 +1,10 @@
+Backend Engineer (m/w/d) bei FinCore
+
+Ihre Aufgaben
+- Entwicklung und Betrieb skalierbarer Zahlungs-APIs in C# und .NET.
+- Verbesserung der Zuverlässigkeit und Beobachtbarkeit unserer Plattform.
+
+Ihr Profil
+- Mehrjährige Erfahrung mit verteilten Systemen und PostgreSQL.
+- Erfahrung mit Kubernetes und Kafka.
+- Kenntnisse in PCI-DSS sind von Vorteil.

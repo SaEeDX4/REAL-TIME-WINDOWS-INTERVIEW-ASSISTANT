@@ -30,18 +30,25 @@ public sealed class FactValidator
         ["twenty"] = "20", ["twenty-two"] = "22", ["twenty-five"] = "25", ["thirty"] = "30", ["fifty"] = "50", ["sixty"] = "60", ["hundred"] = "100",
     };
 
-    // Numbers that are domain knowledge rather than résumé claims (e.g. XAB supply, 30/60/90 plan, white paper facts).
-    private static readonly HashSet<string> DomainNumbers = new() { "250", "250000000", "30", "60", "90", "1", "2", "3", "4", "5", "6", "20", "2024", "2025", "2026", "004", "100" };
+    // Generic numbers that are not candidate claims (30/60/90-day plans, small counts, recent years).
+    private static readonly string[] GenericNumbers = { "30", "60", "90", "1", "2", "3", "4", "5", "6", "20", "100" };
+    private static readonly string[] GenericEntities = { "Engineering", "Compliance", "Legal", "Finance", "Marketing", "CRM", "Design", "Product", "Security", "Sales", "Operations", "Support", "Data", "Jira", "Scrum", "Agile", "QA", "MiCA" };
+    private readonly HashSet<string> DomainNumbers;
 
-    public FactValidator(CandidateProfile profile)
+    public FactValidator(CandidateProfile profile, TargetContext? context = null)
     {
         _numbers = new HashSet<string>(profile.VerifiedNumbers.Select(NormalizeNumber));
-        _entities = profile.VerifiedEntities.Concat(new[] { "Teroxx", "Abloxx", "XAB", "Engineering", "Compliance", "Legal", "Finance", "Marketing", "CRM", "Design", "Product", "Security", "Ethereum", "Platinum", "Gold", "Silver", "Lite", "MiCA", "CySEC", "Jira", "Scrum", "QA" }).ToList();
+        var year = DateTime.UtcNow.Year;
+        DomainNumbers = new HashSet<string>(GenericNumbers.Concat(new[] { (year - 2).ToString(), (year - 1).ToString(), year.ToString() })
+            .Concat((context?.DomainNumbers ?? new()).Select(NormalizeNumber)));
+        _entities = profile.VerifiedEntities
+            .Concat(context == null ? Array.Empty<string>() : new[] { context.CompanyName }.Concat(context.Products).Concat(context.ExtraEntities))
+            .Concat(GenericEntities).Where(e => !string.IsNullOrWhiteSpace(e)).ToList();
     }
 
     public static string NormalizeNumber(string raw)
     {
-        var s = raw.Trim().ToLowerInvariant().Replace("percent", "").Replace("%", "").Replace("+", "").Trim();
+        var s = raw.Trim().Trim('-').ToLowerInvariant().Replace("percent", "").Replace("%", "").Replace("+", "").Trim();
         var parts = s.Split(new[] { ' ', '-' }, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length > 0 && WordNumbers.TryGetValue(s, out var direct)) return direct;
         if (parts.Length == 2 && WordNumbers.TryGetValue(parts[0], out var n) && parts[1] == "thousand") return n + "000";

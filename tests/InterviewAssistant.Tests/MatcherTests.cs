@@ -41,7 +41,7 @@ public class MatcherTests
         int ok = 0, high = 0, wrongHigh = 0;
         foreach (var (u, exp, _) in tests)
         {
-            var r = m.Match(TextNormalizer.CleanTranscript(u));
+            var r = m.Match(TextNormalizer.CleanTranscript(u, TestKnowledge.Load().Context.Aliases));
             if (r.Question?.QuestionId == exp) { ok++; if (r.Confidence == MatchConfidence.High) high++; }
             else
             {
@@ -80,7 +80,7 @@ public class MatcherTests
     public void KeyQuestionsMatch(string spoken, string expected)
     {
         var kb = TestKnowledge.Load();
-        var r = new QuestionMatcher(kb.Questions).Match(TextNormalizer.CleanTranscript(spoken));
+        var r = new QuestionMatcher(kb.Questions).Match(TextNormalizer.CleanTranscript(spoken, TestKnowledge.Load().Context.Aliases));
         Assert.Equal(expected, r.Question?.CanonicalQuestion);
     }
 

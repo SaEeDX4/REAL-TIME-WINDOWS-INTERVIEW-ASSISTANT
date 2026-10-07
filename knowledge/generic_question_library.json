@@ -1,0 +1,1034 @@
+{
+ "version": 1,
+ "description": "Company-neutral expert answers (hypothetical/approach) reused by the preparation pipeline. Never contains candidate history.",
+ "questions": [
+  {
+   "canonical_question": "How do you make sure rewards are sustainable and not just a cost?",
+   "category": "REWARDS",
+   "semantic_variants": [
+    "How do you control reward costs",
+    "How do you measure reward ROI",
+    "Rewards are expensive, how would you manage that"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd treat every reward as an investment that must change behaviour, not just a giveaway.",
+    "So I'd measure incremental retention, trading and usage against a control group, not raw participation.",
+    "Rewards with weak ROI get redesigned or retired, and budget moves to mechanics that create real value."
+   ],
+   "optional_full_answer": "I'd treat every reward as an investment that must change behaviour, not just a giveaway. So I'd measure incremental retention, trading and usage against a control group, not raw participation. Rewards with weak ROI get redesigned or retired, and budget moves to mechanics that create real value.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "How would you design VIP tier governance?",
+   "category": "VIP",
+   "semantic_variants": [
+    "How should VIP tiers work",
+    "How would you manage status levels",
+    "How do you design VIP eligibility",
+    "Lite Silver Gold Platinum how would you improve them"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd define clear, transparent eligibility rules, for example balance, activity and tenure, with explicit upgrade and downgrade logic.",
+    "I'd add anti-gaming rules, grace periods and an audit trail so every tier change is explainable.",
+    "Then I'd check that each tier's benefits actually drive progression, retention and value, not just cost."
+   ],
+   "optional_full_answer": "I'd define clear, transparent eligibility rules, for example balance, activity and tenure, with explicit upgrade and downgrade logic. I'd add anti-gaming rules, grace periods and an audit trail so every tier change is explainable. Then I'd check that each tier's benefits actually drive progression, retention and value, not just cost.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "How would you increase engagement of VIP clients?",
+   "category": "VIP",
+   "semantic_variants": [
+    "How do you keep high value clients engaged",
+    "Premium client engagement",
+    "How to retain VIP users"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd start by understanding what high-value clients actually value, through data and direct conversations.",
+    "Then I'd design exclusive benefits and experiences that feel personal, working closely with CRM and client support.",
+    "I'd track VIP retention, activity, tier progression and satisfaction to see what really works."
+   ],
+   "optional_full_answer": "I'd start by understanding what high-value clients actually value, through data and direct conversations. Then I'd design exclusive benefits and experiences that feel personal, working closely with CRM and client support. I'd track VIP retention, activity, tier progression and satisfaction to see what really works.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "How would you build a product roadmap?",
+   "category": "PRODUCT_STRATEGY",
+   "semantic_variants": [
+    "How do you create a roadmap",
+    "Roadmap planning",
+    "How do you plan a product roadmap"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd start from business objectives and user problems, and express the roadmap as outcomes rather than a feature list.",
+    "Then I'd sequence work by value, risk, regulatory needs, dependencies and effort, with near-term detail and longer-term themes.",
+    "I'd review it regularly with stakeholders and adjust based on results and learning."
+   ],
+   "optional_full_answer": "I'd start from business objectives and user problems, and express the roadmap as outcomes rather than a feature list. Then I'd sequence work by value, risk, regulatory needs, dependencies and effort, with near-term detail and longer-term themes. I'd review it regularly with stakeholders and adjust based on results and learning.",
+   "follow_up_questions": [],
+   "domains": [
+    "product"
+   ]
+  },
+  {
+   "canonical_question": "How would you prevent duplicate financial transactions?",
+   "category": "LEDGER",
+   "semantic_variants": [
+    "How do you avoid double spending",
+    "How do you prevent duplicate payouts",
+    "What is idempotency",
+    "Explain idempotency"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd require every transaction to carry a unique idempotency key, so repeated requests can't create a second posting.",
+    "The ledger should return the original result for duplicates and keep a complete audit trail.",
+    "I'd test retries, timeouts and partial failures, and reconciliation, before treating the flow as production-ready."
+   ],
+   "optional_full_answer": "I'd require every transaction to carry a unique idempotency key, so repeated requests can't create a second posting. The ledger should return the original result for duplicates and keep a complete audit trail. I'd test retries, timeouts and partial failures, and reconciliation, before treating the flow as production-ready.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "How would you design an automated reconciliation process?",
+   "category": "RECONCILIATION",
+   "semantic_variants": [
+    "How would you reconcile the ledger",
+    "Explain reconciliation",
+    "How do you ensure balances match",
+    "Automated reconciliation rules"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd define which sources must agree, for example the ledger, the rewards engine, custody or on-chain balances, and finance.",
+    "Then I'd set automated matching rules, tolerances and frequency, with every break becoming an exception with an owner and SLA.",
+    "I'd track the break rate and resolution time as critical KPIs, and alert immediately on supply mismatches."
+   ],
+   "optional_full_answer": "I'd define which sources must agree, for example the ledger, the rewards engine, custody or on-chain balances, and finance. Then I'd set automated matching rules, tolerances and frequency, with every break becoming an exception with an owner and SLA. I'd track the break rate and resolution time as critical KPIs, and alert immediately on supply mismatches.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "How would you ensure token supply compliance?",
+   "category": "LEDGER",
+   "semantic_variants": [
+    "How do you make sure supply is correct",
+    "Supply integrity",
+    "How do you guarantee total supply never exceeds the cap"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd make it an invariant: total balances plus reserves must always equal the issued supply, and never exceed the cap.",
+    "That check should run automatically, with immediate alerts and a frozen issuance path if it ever fails.",
+    "Every mint, burn and transfer would be logged and auditable, so Compliance can verify it at any time."
+   ],
+   "optional_full_answer": "I'd make it an invariant: total balances plus reserves must always equal the issued supply, and never exceed the cap. That check should run automatically, with immediate alerts and a frozen issuance path if it ever fails. Every mint, burn and transfer would be logged and auditable, so Compliance can verify it at any time.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "How would you handle a reversal or correction in the ledger?",
+   "category": "LEDGER",
+   "semantic_variants": [
+    "How do you handle refunds",
+    "What happens when a transaction is wrong",
+    "How do you correct ledger errors"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd never edit or delete entries; corrections should be new reversing entries linked to the original.",
+    "Each reversal needs a reason, an authorised approver and a full audit trail, ideally with maker-checker for manual cases.",
+    "Then reconciliation confirms the corrected balances, and we track root causes to prevent repeats."
+   ],
+   "optional_full_answer": "I'd never edit or delete entries; corrections should be new reversing entries linked to the original. Each reversal needs a reason, an authorised approver and a full audit trail, ideally with maker-checker for manual cases. Then reconciliation confirms the corrected balances, and we track root causes to prevent repeats.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "What edge cases would you consider for ledger transactions?",
+   "category": "LEDGER",
+   "semantic_variants": [
+    "Ledger edge cases",
+    "What can go wrong in a transaction",
+    "Failure scenarios for transactions"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd consider retries and timeouts, duplicate requests, partial failures and concurrent updates on the same balance.",
+    "Also pending transactions that never settle, reversals after tier changes, and rounding on reward calculations.",
+    "Each one becomes an explicit rule and acceptance criterion, tested before release and monitored afterward."
+   ],
+   "optional_full_answer": "I'd consider retries and timeouts, duplicate requests, partial failures and concurrent updates on the same balance. Also pending transactions that never settle, reversals after tier changes, and rounding on reward calculations. Each one becomes an explicit rule and acceptance criterion, tested before release and monitored afterward.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "What are the transaction states you would define?",
+   "category": "LEDGER",
+   "semantic_variants": [
+    "Transaction lifecycle",
+    "Pending settled reversed",
+    "Transaction state machine"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd keep it simple and explicit: initiated, pending, settled, failed and reversed.",
+    "Each state needs allowed transitions, who or what can trigger them, and how balances are affected.",
+    "That clarity makes reconciliation, customer support and audit much easier."
+   ],
+   "optional_full_answer": "I'd keep it simple and explicit: initiated, pending, settled, failed and reversed. Each state needs allowed transitions, who or what can trigger them, and how balances are affected. That clarity makes reconciliation, customer support and audit much easier.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "What is a closed-loop token economy?",
+   "category": "TECHNICAL_CONCEPT",
+   "semantic_variants": [
+    "Explain closed loop economy",
+    "What does closed-loop mean for tokens"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "A closed-loop economy means tokens circulate inside the platform: users earn, hold, use and redeem them within the ecosystem.",
+    "It's often run on an internal ledger, which gives speed, low cost and control over rules.",
+    "The trade-off is that the platform must guarantee integrity, transparency and compliance itself."
+   ],
+   "optional_full_answer": "A closed-loop economy means tokens circulate inside the platform: users earn, hold, use and redeem them within the ecosystem. It's often run on an internal ledger, which gives speed, low cost and control over rules. The trade-off is that the platform must guarantee integrity, transparency and compliance itself.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "How do you think about API security for a financial product?",
+   "category": "TECHNICAL_CONCEPT",
+   "semantic_variants": [
+    "API security",
+    "How do you secure APIs",
+    "Security requirements for the token platform"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd define security as product requirements: strong authentication, least-privilege access and signed requests.",
+    "I'd add rate limiting, idempotency keys, input validation and full audit logs on every balance-changing call.",
+    "And I'd make monitoring and alerting part of the definition of done, with Security reviewing before release."
+   ],
+   "optional_full_answer": "I'd define security as product requirements: strong authentication, least-privilege access and signed requests. I'd add rate limiting, idempotency keys, input validation and full audit logs on every balance-changing call. And I'd make monitoring and alerting part of the definition of done, with Security reviewing before release.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "How would you write a technical specification for engineering?",
+   "category": "TECHNICAL_CONCEPT",
+   "semantic_variants": [
+    "How do you write specs",
+    "How do you translate business into technical requirements",
+    "Requirements for developers"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd start with the goal and the user problem, so engineers understand why, not just what.",
+    "Then business rules, data and state changes, edge cases, non-functional needs like audit and performance, and acceptance criteria.",
+    "I'd review it with Engineering early, so they shape the solution and we agree what done means."
+   ],
+   "optional_full_answer": "I'd start with the goal and the user problem, so engineers understand why, not just what. Then business rules, data and state changes, edge cases, non-functional needs like audit and performance, and acceptance criteria. I'd review it with Engineering early, so they shape the solution and we agree what done means.",
+   "follow_up_questions": [],
+   "domains": [
+    "product"
+   ]
+  },
+  {
+   "canonical_question": "How do you work with Legal and Compliance as a Product Owner?",
+   "category": "COMPLIANCE",
+   "semantic_variants": [
+    "How do you collaborate with compliance",
+    "Working with legal",
+    "How do you include compliance in product development"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I treat compliance as part of product discovery, not a final approval step.",
+    "I bring Legal and Compliance in early, translate requirements into business rules, allowed flows and audit needs.",
+    "Then we turn them into testable acceptance criteria, validate before release and monitor after launch."
+   ],
+   "optional_full_answer": "I treat compliance as part of product discovery, not a final approval step. I bring Legal and Compliance in early, translate requirements into business rules, allowed flows and audit needs. Then we turn them into testable acceptance criteria, validate before release and monitor after launch.",
+   "follow_up_questions": [],
+   "domains": [
+    "product"
+   ]
+  },
+  {
+   "canonical_question": "What would you do if Compliance blocks a feature?",
+   "category": "COMPLIANCE",
+   "semantic_variants": [
+    "Compliance says no",
+    "Legal rejected your feature",
+    "Regulatory blocker on the roadmap"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd first understand exactly which risk or rule is the issue, rather than treating it as a no.",
+    "Then I'd work with Compliance to redesign the flow so we reach the business goal in a compliant way.",
+    "And I'd bring them in earlier next time, so constraints shape the design from the start."
+   ],
+   "optional_full_answer": "I'd first understand exactly which risk or rule is the issue, rather than treating it as a no. Then I'd work with Compliance to redesign the flow so we reach the business goal in a compliant way. And I'd bring them in earlier next time, so constraints shape the design from the start.",
+   "follow_up_questions": [],
+   "domains": [
+    "product"
+   ]
+  },
+  {
+   "canonical_question": "How do KYC and AML affect product design?",
+   "category": "COMPLIANCE",
+   "semantic_variants": [
+    "Explain KYC AML",
+    "Know your customer requirements",
+    "Anti money laundering in product"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "KYC and AML define who can access which features and when, so they shape onboarding and eligibility flows.",
+    "I'd design them to be as smooth as possible while meeting requirements, with clear states like pending or restricted.",
+    "Rewards and tiers must respect those rules, and every decision should be auditable."
+   ],
+   "optional_full_answer": "KYC and AML define who can access which features and when, so they shape onboarding and eligibility flows. I'd design them to be as smooth as possible while meeting requirements, with clear states like pending or restricted. Rewards and tiers must respect those rules, and every decision should be auditable.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "How do you prioritize the backlog?",
+   "category": "PRIORITIZATION",
+   "semantic_variants": [
+    "How do you prioritise features",
+    "Prioritization approach",
+    "How do you decide what to build next",
+    "What prioritization framework do you use"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I prioritise by outcome: customer impact, business value, risk and regulatory urgency, weighed against effort and dependencies.",
+    "Integrity and compliance issues come first, because trust is the foundation of a financial product.",
+    "I use frameworks like RICE or cost of delay when helpful, but I always make the trade-off transparent."
+   ],
+   "optional_full_answer": "I prioritise by outcome: customer impact, business value, risk and regulatory urgency, weighed against effort and dependencies. Integrity and compliance issues come first, because trust is the foundation of a financial product. I use frameworks like RICE or cost of delay when helpful, but I always make the trade-off transparent.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "How do you write a good user story?",
+   "category": "PRODUCT_EXECUTION",
+   "semantic_variants": [
+    "What makes a good user story",
+    "User story format",
+    "How do you write stories"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "A good story states who the user is, what they need and why, in a slice small enough to deliver in a sprint.",
+    "It includes business rules, edge cases and clear acceptance criteria, often written as given, when, then.",
+    "And it's refined with Engineering and QA, so everyone agrees on what done means."
+   ],
+   "optional_full_answer": "A good story states who the user is, what they need and why, in a slice small enough to deliver in a sprint. It includes business rules, edge cases and clear acceptance criteria, often written as given, when, then. And it's refined with Engineering and QA, so everyone agrees on what done means.",
+   "follow_up_questions": [],
+   "domains": [
+    "product"
+   ]
+  },
+  {
+   "canonical_question": "What is your Definition of Ready and Definition of Done?",
+   "category": "AGILE_JIRA",
+   "semantic_variants": [
+    "Definition of ready",
+    "Definition of done",
+    "When is a story ready"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "Ready means the value is clear, acceptance criteria are testable, dependencies and legal input are known, and it's sized.",
+    "Done means acceptance criteria are met, edge cases tested, documentation and monitoring in place, and it's released.",
+    "For financial features, I'd also include audit logging and reconciliation checks in done."
+   ],
+   "optional_full_answer": "Ready means the value is clear, acceptance criteria are testable, dependencies and legal input are known, and it's sized. Done means acceptance criteria are met, edge cases tested, documentation and monitoring in place, and it's released. For financial features, I'd also include audit logging and reconciliation checks in done.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "How do you run sprint planning and refinement?",
+   "category": "AGILE_JIRA",
+   "semantic_variants": [
+    "Backlog refinement",
+    "Sprint planning process",
+    "Scrum ceremonies"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "Before planning, I make sure top stories are refined, prioritised and ready with clear acceptance criteria.",
+    "In planning, we agree a sprint goal tied to an outcome, and the team commits to what they can deliver.",
+    "Then reviews and retros close the loop on results and how we work."
+   ],
+   "optional_full_answer": "Before planning, I make sure top stories are refined, prioritised and ready with clear acceptance criteria. In planning, we agree a sprint goal tied to an outcome, and the team commits to what they can deliver. Then reviews and retros close the loop on results and how we work.",
+   "follow_up_questions": [],
+   "domains": [
+    "product"
+   ]
+  },
+  {
+   "canonical_question": "How do you run user acceptance testing and releases?",
+   "category": "PRODUCT_EXECUTION",
+   "semantic_variants": [
+    "UAT process",
+    "How do you validate before release",
+    "Release planning"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I define UAT scenarios from the acceptance criteria, including negative and edge cases.",
+    "For sensitive financial features, I prefer staged rollouts with feature flags and a clear rollback plan.",
+    "After release, I monitor the key metrics and errors closely before scaling to everyone."
+   ],
+   "optional_full_answer": "I define UAT scenarios from the acceptance criteria, including negative and edge cases. For sensitive financial features, I prefer staged rollouts with feature flags and a clear rollback plan. After release, I monitor the key metrics and errors closely before scaling to everyone.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "How do you do product discovery?",
+   "category": "PRODUCT_DISCOVERY",
+   "semantic_variants": [
+    "How do you understand user needs",
+    "Customer research approach",
+    "How do you validate an idea"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I combine data, like funnels and cohorts, with direct conversations, support tickets and CRM feedback.",
+    "Then I identify the riskiest assumption and test it as cheaply as possible, with a prototype, survey or small experiment.",
+    "Only validated problems move into the delivery backlog."
+   ],
+   "optional_full_answer": "I combine data, like funnels and cohorts, with direct conversations, support tickets and CRM feedback. Then I identify the riskiest assumption and test it as cheaply as possible, with a prototype, survey or small experiment. Only validated problems move into the delivery backlog.",
+   "follow_up_questions": [],
+   "domains": [
+    "product"
+   ]
+  },
+  {
+   "canonical_question": "How would you run an experiment to test a new reward?",
+   "category": "METRICS",
+   "semantic_variants": [
+    "A/B testing",
+    "How do you run experiments",
+    "Test a hypothesis"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd write a clear hypothesis: this reward will increase a specific behaviour by a target amount.",
+    "Then I'd run it on a randomised segment against a control group, with guardrails on cost and complaints.",
+    "If it delivers incremental value, we scale it; if not, we learn and iterate."
+   ],
+   "optional_full_answer": "I'd write a clear hypothesis: this reward will increase a specific behaviour by a target amount. Then I'd run it on a randomised segment against a control group, with guardrails on cost and complaints. If it delivers incremental value, we scale it; if not, we learn and iterate.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "A feature you launched is underperforming. What do you do?",
+   "category": "PRODUCT_EXECUTION",
+   "semantic_variants": [
+    "Feature failed after launch",
+    "Low adoption after release",
+    "What if a release doesn't hit targets"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "First I'd check the data and instrumentation to confirm it's really underperforming.",
+    "Then I'd talk to users and look at the funnel to find whether it's awareness, usability or value.",
+    "Based on that, I'd iterate quickly, or retire it, and share the learning openly."
+   ],
+   "optional_full_answer": "First I'd check the data and instrumentation to confirm it's really underperforming. Then I'd talk to users and look at the funnel to find whether it's awareness, usability or value. Based on that, I'd iterate quickly, or retire it, and share the learning openly.",
+   "follow_up_questions": [],
+   "domains": [
+    "product"
+   ]
+  },
+  {
+   "canonical_question": "What do you do when Engineering disagrees with you?",
+   "category": "STAKEHOLDER",
+   "semantic_variants": [
+    "Conflict with developers",
+    "Engineers push back on your requirement",
+    "Disagreement with the tech team"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd first understand their concern, because engineers often see risks I don't.",
+    "Then we'd go back to the user outcome and data, and look at options with their trade-offs together.",
+    "I make the decision transparently, document why, and stay open to revisiting it if new facts appear."
+   ],
+   "optional_full_answer": "I'd first understand their concern, because engineers often see risks I don't. Then we'd go back to the user outcome and data, and look at options with their trade-offs together. I make the decision transparently, document why, and stay open to revisiting it if new facts appear.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "How do you handle an urgent request from the C-level?",
+   "category": "STAKEHOLDER",
+   "semantic_variants": [
+    "CEO wants a feature now",
+    "Executive asks for something urgently",
+    "Leadership changes priorities"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd clarify the outcome behind the request, because the real need is often different from the first ask.",
+    "Then I'd show the impact on current commitments and offer options, like reducing scope or swapping priorities.",
+    "That keeps leadership in control of the trade-off while protecting the team's focus."
+   ],
+   "optional_full_answer": "I'd clarify the outcome behind the request, because the real need is often different from the first ask. Then I'd show the impact on current commitments and offer options, like reducing scope or swapping priorities. That keeps leadership in control of the trade-off while protecting the team's focus.",
+   "follow_up_questions": [],
+   "domains": [
+    "product"
+   ]
+  },
+  {
+   "canonical_question": "Two stakeholders want opposite priorities. How do you decide?",
+   "category": "STAKEHOLDER",
+   "semantic_variants": [
+    "Conflicting stakeholder priorities",
+    "Marketing and engineering want different things",
+    "How do you resolve competing demands"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd bring them back to the shared goal and the data on customer and business impact.",
+    "Then I'd make the trade-off explicit and propose a recommendation, sometimes with a phased approach.",
+    "If we still can't agree, I'd escalate with that recommendation rather than leave it unresolved."
+   ],
+   "optional_full_answer": "I'd bring them back to the shared goal and the data on customer and business impact. Then I'd make the trade-off explicit and propose a recommendation, sometimes with a phased approach. If we still can't agree, I'd escalate with that recommendation rather than leave it unresolved.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "Marketing wants to launch before Engineering is ready. What do you do?",
+   "category": "STAKEHOLDER",
+   "semantic_variants": [
+    "Pressure to launch early",
+    "Launch date versus readiness",
+    "Marketing pushes the release"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd align everyone on clear readiness criteria, especially integrity, compliance and support.",
+    "Often a beta or staged rollout lets Marketing start while we limit risk.",
+    "But I wouldn't compromise ledger integrity or compliance for a date."
+   ],
+   "optional_full_answer": "I'd align everyone on clear readiness criteria, especially integrity, compliance and support. Often a beta or staged rollout lets Marketing start while we limit risk. But I wouldn't compromise ledger integrity or compliance for a date.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "Requirements change in the middle of a sprint. How do you handle it?",
+   "category": "STAKEHOLDER",
+   "semantic_variants": [
+    "Mid sprint scope change",
+    "New urgent requirement during the sprint"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd protect the sprint goal and assess whether the change is truly urgent.",
+    "If it's critical, like a compliance or integrity issue, we swap scope transparently with the team.",
+    "Otherwise it goes into refinement and the next sprint."
+   ],
+   "optional_full_answer": "I'd protect the sprint goal and assess whether the change is truly urgent. If it's critical, like a compliance or integrity issue, we swap scope transparently with the team. Otherwise it goes into refinement and the next sprint.",
+   "follow_up_questions": [],
+   "domains": [
+    "product"
+   ]
+  },
+  {
+   "canonical_question": "How do you handle an unrealistic deadline?",
+   "category": "STAKEHOLDER",
+   "semantic_variants": [
+    "Deadline is too tight",
+    "Impossible timeline",
+    "What if the date can't be met"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd make the risk visible early with a clear view of scope, capacity and dependencies.",
+    "Then I'd propose options: a smaller MVP, phased delivery, or moving the date.",
+    "I'd agree what done means for that date, so no one is surprised."
+   ],
+   "optional_full_answer": "I'd make the risk visible early with a clear view of scope, capacity and dependencies. Then I'd propose options: a smaller MVP, phased delivery, or moving the date. I'd agree what done means for that date, so no one is surprised.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "What if data contradicts what leadership believes?",
+   "category": "STAKEHOLDER",
+   "semantic_variants": [
+    "Data disagrees with the CEO",
+    "Challenging executive assumptions"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd present the data neutrally and focus on the shared goal, not on being right.",
+    "If there's still doubt, I'd propose a small experiment to test the assumption.",
+    "Leadership then decides with evidence, and we move forward together."
+   ],
+   "optional_full_answer": "I'd present the data neutrally and focus on the shared goal, not on being right. If there's still doubt, I'd propose a small experiment to test the assumption. Leadership then decides with evidence, and we move forward together.",
+   "follow_up_questions": [],
+   "domains": [
+    "product"
+   ]
+  },
+  {
+   "canonical_question": "How do you keep stakeholders aligned?",
+   "category": "STAKEHOLDER",
+   "semantic_variants": [
+    "Stakeholder management",
+    "How do you communicate with stakeholders",
+    "Stakeholder alignment"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I keep a visible roadmap and backlog linked to outcomes, so everyone sees what we're doing and why.",
+    "I run a steady cadence of reviews with IT, Compliance, CRM and leadership, and share metrics openly.",
+    "And I make trade-offs explicit early, so decisions don't surprise anyone."
+   ],
+   "optional_full_answer": "I keep a visible roadmap and backlog linked to outcomes, so everyone sees what we're doing and why. I run a steady cadence of reviews with IT, Compliance, CRM and leadership, and share metrics openly. And I make trade-offs explicit early, so decisions don't surprise anyone.",
+   "follow_up_questions": [],
+   "domains": [
+    "product"
+   ]
+  },
+  {
+   "canonical_question": "How would you design an exclusive experience for top-tier clients?",
+   "category": "CASE_STUDY",
+   "semantic_variants": [
+    "Exclusive user experiences",
+    "Premium benefits for Platinum",
+    "VIP experiences"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd start by learning what top clients value most, such as access, insight or personal service.",
+    "Then design a few high-quality experiences tied to tier status, delivered with CRM and client support.",
+    "I'd measure retention, activity and satisfaction of that segment against the cost."
+   ],
+   "optional_full_answer": "I'd start by learning what top clients value most, such as access, insight or personal service. Then design a few high-quality experiences tied to tier status, delivered with CRM and client support. I'd measure retention, activity and satisfaction of that segment against the cost.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "How would you redesign the rewards program onboarding to improve activation?",
+   "category": "CASE_STUDY",
+   "semantic_variants": [
+    "Improve activation",
+    "Get new users to their first reward",
+    "Onboarding funnel"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd map the funnel from sign-up to first reward and find the biggest drop-off.",
+    "Then simplify that step, explain the benefit clearly, and guide users to a first utility event quickly.",
+    "I'd measure activation rate and time to first reward, and test changes against a control."
+   ],
+   "optional_full_answer": "I'd map the funnel from sign-up to first reward and find the biggest drop-off. Then simplify that step, explain the benefit clearly, and guide users to a first utility event quickly. I'd measure activation rate and time to first reward, and test changes against a control.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "What are your salary expectations?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "Salary expectation",
+    "What compensation are you looking for"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'm flexible and most interested in the role and the impact I can have.",
+    "I'd expect a package in line with the market for a Product Owner in European FinTech.",
+    "I'm happy to discuss the details once we see the fit is right."
+   ],
+   "optional_full_answer": "I'm flexible and most interested in the role and the impact I can have. I'd expect a package in line with the market for a Product Owner in European FinTech. I'm happy to discuss the details once we see the fit is right.",
+   "follow_up_questions": [],
+   "domains": [
+    "product"
+   ]
+  },
+  {
+   "canonical_question": "What trends in crypto do you think matter most right now?",
+   "category": "CRYPTO",
+   "semantic_variants": [
+    "Crypto market trends",
+    "What's happening in the crypto industry",
+    "Future of digital assets"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "Regulation like MiCA is making trust and compliance a real competitive advantage in Europe.",
+    "Users increasingly expect simple, premium experiences, not just access to trading.",
+    "And token utility is shifting from speculation toward real benefits that drive loyalty."
+   ],
+   "optional_full_answer": "Regulation like MiCA is making trust and compliance a real competitive advantage in Europe. Users increasingly expect simple, premium experiences, not just access to trading. And token utility is shifting from speculation toward real benefits that drive loyalty.",
+   "follow_up_questions": [],
+   "domains": [
+    "fintech"
+   ]
+  },
+  {
+   "canonical_question": "How do you handle conflict within a team?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "How do you deal with disagreements between colleagues",
+    "Team conflict",
+    "How do you resolve conflict"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd address it early and privately, because unresolved tension quietly slows everyone down.",
+    "I'd listen to each side, separate facts from assumptions, and bring the discussion back to the shared goal.",
+    "Then we'd agree a clear decision and next steps, and I'd check in later to make sure it held."
+   ],
+   "optional_full_answer": "I'd address it early and privately, because unresolved tension quietly slows everyone down. I'd listen to each side, separate facts from assumptions, and bring the discussion back to the shared goal. Then we'd agree a clear decision and next steps, and I'd check in later to make sure it held.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "How do you prioritise when everything is urgent?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "Everything is a priority, what do you do",
+    "How do you manage competing priorities",
+    "Too many tasks at once"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd first clarify the real deadline and business impact behind each request.",
+    "Then I'd rank by value, risk and dependency, and make the trade-offs visible to the people affected.",
+    "I focus the team on the top items and explicitly park the rest, so nothing is silently dropped."
+   ],
+   "optional_full_answer": "I'd first clarify the real deadline and business impact behind each request. Then I'd rank by value, risk and dependency, and make the trade-offs visible to the people affected. I focus the team on the top items and explicitly park the rest, so nothing is silently dropped.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "How do you handle feedback or criticism?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "How do you react to negative feedback",
+    "Tell me how you take criticism"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I treat feedback as useful data, so I listen fully before responding.",
+    "I ask for specific examples, so I understand exactly what to change.",
+    "Then I act on it quickly and follow up, which usually builds more trust than the original mistake cost."
+   ],
+   "optional_full_answer": "I treat feedback as useful data, so I listen fully before responding. I ask for specific examples, so I understand exactly what to change. Then I act on it quickly and follow up, which usually builds more trust than the original mistake cost.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "How do you work under pressure?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "How do you handle stress",
+    "Tight deadlines and pressure",
+    "How do you cope with high pressure situations"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "Under pressure I simplify: what matters most, what is the deadline, and who needs to know.",
+    "I break the work into small steps and communicate status early, especially when something is at risk.",
+    "Staying calm and transparent keeps the team focused on solutions instead of blame."
+   ],
+   "optional_full_answer": "Under pressure I simplify: what matters most, what is the deadline, and who needs to know. I break the work into small steps and communicate status early, especially when something is at risk. Staying calm and transparent keeps the team focused on solutions instead of blame.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "How do you learn a new domain quickly?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "How fast can you get up to speed",
+    "Learning something new quickly",
+    "You don't know our industry, how will you learn"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd start with the customers and the core business model, because that explains most decisions.",
+    "Then I'd learn from the experts around me, read the key documents, and map the main terms and processes.",
+    "I like to test my understanding early by explaining it back and applying it to a small, real problem."
+   ],
+   "optional_full_answer": "I'd start with the customers and the core business model, because that explains most decisions. Then I'd learn from the experts around me, read the key documents, and map the main terms and processes. I like to test my understanding early by explaining it back and applying it to a small, real problem.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "How do you communicate with non-technical stakeholders?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "Explaining technical topics to business people",
+    "How do you talk to executives about technical issues"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I start with the outcome and the decision they need to make, not the technical detail.",
+    "I use plain language, concrete examples and one or two clear numbers.",
+    "And I check understanding, so the conversation ends with an agreed next step."
+   ],
+   "optional_full_answer": "I start with the outcome and the decision they need to make, not the technical detail. I use plain language, concrete examples and one or two clear numbers. And I check understanding, so the conversation ends with an agreed next step.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "How do you make decisions with incomplete information?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "Decision making under uncertainty",
+    "What if you don't have all the data"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd identify what we know, what we don't, and what the cost of waiting would be.",
+    "If the decision is reversible, I'd move with the best available evidence and set a checkpoint to review.",
+    "For irreversible decisions I'd invest more in data or a small test before committing."
+   ],
+   "optional_full_answer": "I'd identify what we know, what we don't, and what the cost of waiting would be. If the decision is reversible, I'd move with the best available evidence and set a checkpoint to review. For irreversible decisions I'd invest more in data or a small test before committing.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "How do you motivate a team?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "How do you keep a team engaged",
+    "What motivates your team"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I make the goal and its impact clear, so people see why their work matters.",
+    "I give real ownership, remove blockers quickly and recognise good work specifically and publicly.",
+    "And I adapt to individuals, because different people are motivated by growth, autonomy or recognition."
+   ],
+   "optional_full_answer": "I make the goal and its impact clear, so people see why their work matters. I give real ownership, remove blockers quickly and recognise good work specifically and publicly. And I adapt to individuals, because different people are motivated by growth, autonomy or recognition.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "How do you work effectively in remote or distributed teams?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "Remote collaboration",
+    "Working across time zones"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I rely on clear written goals, decisions and priorities that everyone can see.",
+    "I keep a steady rhythm of short check-ins while protecting focus time across time zones.",
+    "And I over-communicate status and risks, because remote teams can't pick them up informally."
+   ],
+   "optional_full_answer": "I rely on clear written goals, decisions and priorities that everyone can see. I keep a steady rhythm of short check-ins while protecting focus time across time zones. And I over-communicate status and risks, because remote teams can't pick them up informally.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "What does good leadership mean to you?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "Describe good leadership",
+    "What is your leadership philosophy"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "For me, good leadership means setting a clear direction and then enabling people to deliver it.",
+    "It means making decisions, being transparent about trade-offs, and taking responsibility when things go wrong.",
+    "And it means developing people, so the team becomes stronger than any individual."
+   ],
+   "optional_full_answer": "For me, good leadership means setting a clear direction and then enabling people to deliver it. It means making decisions, being transparent about trade-offs, and taking responsibility when things go wrong. And it means developing people, so the team becomes stronger than any individual.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "How do you handle ambiguity?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "Working with unclear requirements",
+    "What do you do when things are unclear"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd first turn ambiguity into a few concrete questions and assumptions.",
+    "Then I'd validate the riskiest assumption quickly with the right people or a small experiment.",
+    "I'm comfortable moving forward step by step, as long as we make our assumptions explicit."
+   ],
+   "optional_full_answer": "I'd first turn ambiguity into a few concrete questions and assumptions. Then I'd validate the riskiest assumption quickly with the right people or a small experiment. I'm comfortable moving forward step by step, as long as we make our assumptions explicit.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "How do you handle a disagreement with your manager?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "Disagreeing with your boss",
+    "What if you disagree with leadership"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd raise it privately and early, with the facts and the impact I'm concerned about.",
+    "I'd also propose an alternative, not just a problem, and listen to the context I might be missing.",
+    "Once a decision is made, I commit to it fully and measure the outcome together."
+   ],
+   "optional_full_answer": "I'd raise it privately and early, with the facts and the impact I'm concerned about. I'd also propose an alternative, not just a problem, and listen to the context I might be missing. Once a decision is made, I commit to it fully and measure the outcome together.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "How do you say no to a stakeholder?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "Rejecting a request",
+    "How do you push back on requests"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I start by understanding the goal behind the request, because there's often a better way to reach it.",
+    "Then I explain the trade-off clearly: what would be delayed or at risk if we said yes.",
+    "Where possible I offer an alternative, a smaller version or a later date, so it's not just a no."
+   ],
+   "optional_full_answer": "I start by understanding the goal behind the request, because there's often a better way to reach it. Then I explain the trade-off clearly: what would be delayed or at risk if we said yes. Where possible I offer an alternative, a smaller version or a later date, so it's not just a no.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "How do you build relationships in a new team?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "Joining a new company",
+    "How do you build trust with new colleagues"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'd start by listening: one-to-one conversations to understand people's goals and pain points.",
+    "I'd look for an early, useful contribution that helps the team rather than just my own work.",
+    "And I'd be reliable on small commitments, because trust is built through consistency."
+   ],
+   "optional_full_answer": "I'd start by listening: one-to-one conversations to understand people's goals and pain points. I'd look for an early, useful contribution that helps the team rather than just my own work. And I'd be reliable on small commitments, because trust is built through consistency.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "How do you measure success in your work?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "How do you know you're doing a good job",
+    "What does success look like for you"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I measure success by outcomes, not activity: did we improve the result the business cares about?",
+    "I agree a few clear metrics up front and review them regularly with the team.",
+    "And I also look at quality signals, like customer feedback and how well the team is working together."
+   ],
+   "optional_full_answer": "I measure success by outcomes, not activity: did we improve the result the business cares about? I agree a few clear metrics up front and review them regularly with the team. And I also look at quality signals, like customer feedback and how well the team is working together.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  },
+  {
+   "canonical_question": "Why are you looking for a new opportunity?",
+   "category": "GENERAL_BUSINESS",
+   "semantic_variants": [
+    "Why are you leaving your current job",
+    "Why do you want to change jobs"
+   ],
+   "answer_mode": "HYPOTHETICAL",
+   "short_bullets": [
+    "I'm looking for a role where I can have more direct impact on the product and the customer outcome.",
+    "This position matches the direction I want to grow in, and it builds on what I already do well.",
+    "It's a positive move toward something, rather than away from my current role."
+   ],
+   "optional_full_answer": "I'm looking for a role where I can have more direct impact on the product and the customer outcome. This position matches the direction I want to grow in, and it builds on what I already do well. It's a positive move toward something, rather than away from my current role.",
+   "follow_up_questions": [],
+   "domains": [
+    "general"
+   ]
+  }
+ ]
+}

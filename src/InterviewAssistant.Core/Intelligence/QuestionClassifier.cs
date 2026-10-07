@@ -17,8 +17,8 @@ public static class QuestionClassifier
         ("VIP", @"\bvip\b|tier|status level|platinum|gold|silver"),
         ("REWARDS", @"reward|booster|cashback|loyalty|payout"),
         ("TOKENOMICS", @"tokenomic|token supply|supply|emission|inflation|distribution"),
-        ("XAB", @"\bxab\b|abloxx|token utility|utility token"),
-        ("CRYPTO", @"crypto|blockchain|exchange|wallet|staking|on-?chain|erc-?20|defi|stablecoin|arzif|binance"),
+        ("TOKENOMICS", @"token utility|utility token"),
+        ("CRYPTO", @"crypto|blockchain|exchange|wallet|staking|on-?chain|erc-?20|defi|stablecoin"),
         ("AGILE_JIRA", @"\bjira\b|agile|scrum|sprint|kanban|definition of (done|ready)|refinement"),
         ("PRIORITIZATION", @"priorit|trade-?off|backlog|roadmap|technical debt|tech debt"),
         ("METRICS", @"metric|kpi|okr|north star|measure|a/b|experiment|retention|churn|activation|conversion|ltv"),
@@ -29,9 +29,9 @@ public static class QuestionClassifier
         ("PRODUCT_STRATEGY", @"strategy|vision|competitor|compet|market"),
         ("TECHNICAL_CONCEPT", @"\bapi\b|security|architecture|database|custod"),
         ("INTRODUCTION", @"about yourself|introduce|walk (me|us) through your|your background"),
-        ("MOTIVATION", @"why (do you want|teroxx|us|this|product owner|should we)|motivat"),
+        ("MOTIVATION", @"why (do you want|us|this|product owner|should we)|motivat"),
         ("BEHAVIOURAL", @"tell (me|us) about a time|give (me|us) an example|describe a situation|have you ever|biggest (achievement|failure)"),
-        ("COMPANY_SPECIFIC", @"teroxx|our company|our product"),
+        ("COMPANY_SPECIFIC", @"our company|our product"),
     };
 
     // Direct questions about personal history (Mode C candidates).
@@ -49,32 +49,42 @@ public static class QuestionClassifier
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex VerifiedCue = new(
-        @"\b(tell (me|us) about (yourself|your|a time)|your (background|career|cv|resume|role at|time at|current)|at (arzif|lg|philips|epson|gabrielyte)|give (me|us) an example from|why (do you want|should we hire)|your (strength|weakness|achievement))",
+        @"\b(tell (me|us) about (yourself|your|a time)|your (background|career|cv|resume|role at|time at|current)|give (me|us) an example from|why (do you want|should we hire)|your (strength|weakness|achievement))",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex FollowUpCue = new(
         @"^(and |but |so |why\??$|how so|what (do you mean|metric|kpi|exactly)|can you (elaborate|expand|give (me )?an example|be more specific)|for example|such as|what happened|how would that|tell me more|go deeper|which one)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    public static Classification Classify(string question)
+    public static Classification Classify(string question) => Classify(question, null);
+
+    /// <summary>Classify with target context: employer names count as personal-history cues, company/product names as company-specific.</summary>
+    public static Classification Classify(string question, TargetContext? ctx)
     {
         var q = question.Trim();
         var lower = q.ToLowerInvariant();
         var category = "GENERAL_BUSINESS";
+        bool mentionsEmployer = ctx != null && ctx.Employers.Any(e => e.Length > 1 && ContainsWord(lower, e.ToLowerInvariant().Split(' ')[0]));
+        bool mentionsCompany = ctx != null && new[] { ctx.CompanyName }.Concat(ctx.Products).Any(c => c.Length > 1 && ContainsWord(lower, c.ToLowerInvariant()));
         foreach (var (cat, pattern) in CategoryRules)
         {
             if (Regex.IsMatch(lower, pattern)) { category = cat; break; }
         }
 
+        if (category == "GENERAL_BUSINESS" && mentionsCompany) category = "COMPANY_SPECIFIC";
+        if (category == "GENERAL_BUSINESS" && mentionsEmployer) category = "RESUME_EXPERIENCE";
         bool isFollowUp = FollowUpCue.IsMatch(lower) || TextNormalizer.WordCount(q) <= 4 && !lower.Contains("yourself");
         if (isFollowUp && category == "GENERAL_BUSINESS") category = "FOLLOW_UP";
 
         AnswerMode mode;
         if (PersonalHistory.IsMatch(lower) && GapTopics.IsMatch(lower)) { mode = AnswerMode.Bridge; category = category == "GENERAL_BUSINESS" ? "GAP_EXPERIENCE" : category; }
-        else if (VerifiedCue.IsMatch(lower) || PersonalHistory.IsMatch(lower)) mode = AnswerMode.Verified;
+        else if (VerifiedCue.IsMatch(lower) || PersonalHistory.IsMatch(lower) || (mentionsEmployer && !Hypothetical.IsMatch(lower))) mode = AnswerMode.Verified;
         else if (Hypothetical.IsMatch(lower)) mode = AnswerMode.Hypothetical;
         else mode = AnswerMode.Hypothetical;
 
         return new Classification(category, mode, isFollowUp);
     }
+
+    private static bool ContainsWord(string haystack, string word) =>
+        word.Length > 0 && Regex.IsMatch(haystack, @"(^|[^\p{L}\p{N}])" + Regex.Escape(word) + @"($|[^\p{L}\p{N}])");
 }

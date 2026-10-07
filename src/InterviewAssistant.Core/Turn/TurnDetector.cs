@@ -29,6 +29,7 @@ public sealed class TurnDetector
     private int _awaitingSegments;
 
     public TurnState State { get; private set; } = TurnState.Idle;
+    public IReadOnlyList<Knowledge.TermAlias>? Aliases { get; set; }
     public double Sensitivity { get; set; } = 1.0; // >1 waits longer, <1 answers faster
     public int QuestionCompleteMs { get; set; } = 450;
     public int DefaultMs { get; set; } = 750;
@@ -144,7 +145,7 @@ public sealed class TurnDetector
 
     private void Finalize(long now)
     {
-        var text = TextNormalizer.CleanTranscript(CurrentText());
+        var text = TextNormalizer.CleanTranscript(CurrentText(), Aliases);
         var speechEnd = _speechStoppedAt;
         var count = _segments.Count;
         Reset();

@@ -18,6 +18,9 @@
     <ProjectReference Include="..\..\src\InterviewAssistant.Core\InterviewAssistant.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\knowledge\**\*" LinkBase="knowledge" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\samples\shervin-teroxx\**\*" LinkBase="knowledge" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\samples\**\*" LinkBase="samples" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\knowledge\**\*" LinkBase="generic-knowledge" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\fixtures\**\*" LinkBase="fixtures" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
