@@ -1,0 +1,72 @@
+name: pr-validation
+
+# Cross-platform validation: core engine tests, backend integration tests against a real PostgreSQL,
+# migration drift check, vulnerable-package scan and backend container build.
+# The Windows desktop build/launch/smoke tests run in windows-release.yml.
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core-and-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ia_test
+          POSTGRES_PASSWORD: ia_test
+          POSTGRES_DB: postgres
+        ports: [ "5432:5432" ]
+        options: >-
+          --health-cmd "pg_isready -U ia_test" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      IA_TEST_PG: Host=localhost;Username=ia_test;Password=ia_test
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore tools
+        run: dotnet tool restore
+
+      - name: Build (warnings are errors; WPF app compiled via Windows targeting pack)
+        run: dotnet build InterviewAssistant.sln -c Release -p:TreatWarningsAsErrors=true -p:EnableWindowsTargeting=true
+
+      - name: Core tests (engine, ingestion, preparation, multilingual, reports)
+        run: dotnet test tests/InterviewAssistant.Tests -c Release --no-build --logger "trx;LogFileName=core.trx" --results-directory artifacts/test-results
+
+      - name: Backend integration tests (real PostgreSQL, real migrations)
+        run: dotnet test tests/InterviewAssistant.Backend.Tests -c Release --no-build --logger "console;verbosity=normal" --logger "trx;LogFileName=backend.trx" --results-directory artifacts/test-results
+
+      - name: Migration drift check (model must match committed migrations)
+        run: dotnet ef migrations has-pending-model-changes -p src/InterviewAssistant.Backend --no-build -c Release
+
+      - name: Security scan — vulnerable NuGet packages (fails on any finding)
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          dotnet list InterviewAssistant.sln package --vulnerable --include-transitive 2>&1 | tee artifacts/vulnerable.txt
+          if grep -qiE "has the following vulnerable packages" artifacts/vulnerable.txt; then echo "::error::Vulnerable packages found"; exit 1; fi
+
+      - name: Secret hygiene — no provider keys committed
+        shell: bash
+        run: |
+          if git grep -nE "sk-(proj-)?[A-Za-z0-9_-]{32,}|pdl_(live|sdbx)_apikey_[A-Za-z0-9]{20,}" | grep -v "fake-credential: test fixture" ; then echo "::error::Possible secret committed"; exit 1; fi
+
+      - name: Backend container build
+        run: docker build -f src/InterviewAssistant.Backend/Dockerfile -t interview-assistant-backend:ci .
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr-validation-results
+          path: artifacts/

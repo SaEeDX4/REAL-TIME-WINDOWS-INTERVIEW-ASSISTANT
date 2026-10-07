@@ -6,6 +6,8 @@ namespace InterviewAssistant.Tests;
 /// <summary>Security review automation: fails if anything resembling an API key is committed.</summary>
 public class RepositoryHygieneTests
 {
+    private const string FakeMarker = "fake-credential: test fixture";
+
     [Fact]
     public void NoSecretsInRepository()
     {
@@ -16,7 +18,8 @@ public class RepositoryHygieneTests
         var offenders = Directory.EnumerateFiles(dir.FullName, "*", SearchOption.AllDirectories)
             .Where(f => !Regex.IsMatch(f, @"[\\/](bin|obj|\.git|artifacts)[\\/]"))
             .Where(f => new FileInfo(f).Length < 2_000_000)
-            .Where(f => secret.IsMatch(File.ReadAllText(f)))
+            // Deliberately fake values in tests are allowed only on lines explicitly marked as such.
+            .Where(f => File.ReadLines(f).Any(l => secret.IsMatch(l) && !l.Contains(FakeMarker)))
             .ToList();
         Assert.Empty(offenders);
     }

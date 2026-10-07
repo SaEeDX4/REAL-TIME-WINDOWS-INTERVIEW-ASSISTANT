@@ -1,0 +1,104 @@
+name: backend-deploy
+
+# Staging deploys on main (or manual dispatch); production requires the protected "production"
+# environment (configure required reviewers in GitHub → Settings → Environments). Never deploys
+# from arbitrary branches. Every deploy step is skipped with a notice until hosting secrets exist.
+on:
+  push:
+    branches: [ "main" ]
+    paths: [ "src/InterviewAssistant.Backend/**", "src/InterviewAssistant.Contracts/**", "src/InterviewAssistant.Core/**", ".github/workflows/backend-deploy.yml" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: backend-deploy
+  cancel-in-progress: false
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: ia_test, POSTGRES_PASSWORD: ia_test, POSTGRES_DB: postgres }
+        ports: [ "5432:5432" ]
+        options: --health-cmd "pg_isready -U ia_test" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      IA_TEST_PG: Host=localhost;Username=ia_test;Password=ia_test
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: 10.0.x }
+      - run: dotnet tool restore
+      - name: Integration tests
+        run: dotnet test tests/InterviewAssistant.Backend.Tests -c Release -p:TreatWarningsAsErrors=true
+      - name: Migration check
+        run: dotnet ef migrations has-pending-model-changes -p src/InterviewAssistant.Backend
+      - name: Migration bundle (applied to each environment before the new container starts)
+        run: dotnet ef migrations bundle -p src/InterviewAssistant.Backend -o artifacts/efbundle --self-contained -r linux-x64 --force
+      - uses: actions/upload-artifact@v4
+        with: { name: efbundle, path: artifacts/efbundle }
+      - id: meta
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}/backend:${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+      - name: Build and push container to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker build -f src/InterviewAssistant.Backend/Dockerfile -t "${{ steps.meta.outputs.image }}" .
+          docker push "${{ steps.meta.outputs.image }}"
+
+  staging:
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: efbundle }
+      - name: Apply migrations to staging
+        env: { DB: "${{ secrets.STAGING_DATABASE_URL }}" }
+        run: |
+          if [ -z "$DB" ]; then echo "::notice::STAGING_DATABASE_URL not configured — skipping (external account boundary)"; exit 0; fi
+          chmod +x efbundle && ./efbundle --connection "$DB"
+      - name: Deploy image to staging host
+        env: { HOOK: "${{ secrets.STAGING_DEPLOY_HOOK }}", IMAGE: "${{ needs.test-and-build.outputs.image }}" }
+        run: |
+          if [ -z "$HOOK" ]; then echo "::notice::STAGING_DEPLOY_HOOK not configured — skipping"; exit 0; fi
+          curl -fsS -X POST "$HOOK" -H "Content-Type: application/json" -d "{\"image\":\"$IMAGE\"}"
+      - name: Staging smoke tests
+        env: { BASE: "${{ vars.STAGING_BASE_URL }}" }
+        run: |
+          if [ -z "$BASE" ]; then echo "::notice::STAGING_BASE_URL not configured — skipping"; exit 0; fi
+          for i in $(seq 1 30); do curl -fsS "$BASE/health/ready" && break; sleep 10; done
+          curl -fsS "$BASE/health/ready" | grep -q ready
+          curl -fsS "$BASE/api/v1/config" | grep -q answerModel
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/v1/me")" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/v1/webhooks/paddle" -d '{}')" = "401"
+
+  production:
+    needs: [ test-and-build, staging ]
+    runs-on: ubuntu-latest
+    environment: production   # protected: required reviewers = the approval gate
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: efbundle }
+      - name: Apply migrations to production
+        env: { DB: "${{ secrets.PRODUCTION_DATABASE_URL }}" }
+        run: |
+          if [ -z "$DB" ]; then echo "::notice::PRODUCTION_DATABASE_URL not configured — skipping"; exit 0; fi
+          chmod +x efbundle && ./efbundle --connection "$DB"
+      - name: Deploy image to production host
+        env: { HOOK: "${{ secrets.PRODUCTION_DEPLOY_HOOK }}", IMAGE: "${{ needs.test-and-build.outputs.image }}" }
+        run: |
+          if [ -z "$HOOK" ]; then echo "::notice::PRODUCTION_DEPLOY_HOOK not configured — skipping"; exit 0; fi
+          curl -fsS -X POST "$HOOK" -H "Content-Type: application/json" -d "{\"image\":\"$IMAGE\"}"
+      - name: Production smoke
+        env: { BASE: "${{ vars.PRODUCTION_BASE_URL }}" }
+        run: |
+          if [ -z "$BASE" ]; then echo "::notice::PRODUCTION_BASE_URL not configured — skipping"; exit 0; fi
+          for i in $(seq 1 30); do curl -fsS "$BASE/health/ready" && break; sleep 10; done
+          curl -fsS "$BASE/health/ready" | grep -q ready
