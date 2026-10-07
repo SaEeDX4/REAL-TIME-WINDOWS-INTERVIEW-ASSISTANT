@@ -22,14 +22,12 @@
   <ItemGroup>
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
     <PackageReference Include="NAudio.Core" Version="2.2.1" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\InterviewAssistant.Core\InterviewAssistant.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\knowledge\**\*" LinkBase="knowledge" CopyToOutputDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
-    <None Include="..\..\samples\**\*" LinkBase="samples" CopyToOutputDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <Resource Include="Assets\app.ico" />
   </ItemGroup>
 </Project>

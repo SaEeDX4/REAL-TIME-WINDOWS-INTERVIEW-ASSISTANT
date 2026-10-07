@@ -2,14 +2,15 @@
 .SYNOPSIS
   Runs `InterviewAssistant.exe --selftest` (real WPF process, no API key, no credits) and fails on any failed check.
 #>
-param([string]$Exe = "artifacts\InterviewAssistant\InterviewAssistant.exe", [string]$Out = "artifacts\selftest-result.json")
+param([string]$Exe = "artifacts\InterviewAssistant\InterviewAssistant.exe", [string]$Out = "artifacts\selftest-result.json", [string]$Fixture = "samples\shervin-teroxx")
 $ErrorActionPreference = "Stop"
 $evidence = Join-Path (Get-Location) "artifacts\evidence"; New-Item -ItemType Directory -Force $evidence | Out-Null
 trap { Get-ChildItem (Join-Path $env:LOCALAPPDATA "InterviewAssistant\logs") -Filter *.log -ErrorAction SilentlyContinue | Copy-Item -Destination $evidence -Force; break }
 $Exe = Resolve-Path $Exe
 $Out = [System.IO.Path]::GetFullPath($Out)
 if (Test-Path $Out) { Remove-Item $Out -Force }
-$p = Start-Process -FilePath $Exe -ArgumentList "--selftest", "`"$Out`"" -PassThru
+$Fixture = (Resolve-Path $Fixture).Path
+$p = Start-Process -FilePath $Exe -ArgumentList "--selftest", "`"$Out`"", "--fixture", "`"$Fixture`"" -PassThru
 $null = $p.Handle
 if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "self-test timed out" }
 if (-not (Test-Path $Out)) { throw "self-test produced no result file (exit code $($p.ExitCode))" }

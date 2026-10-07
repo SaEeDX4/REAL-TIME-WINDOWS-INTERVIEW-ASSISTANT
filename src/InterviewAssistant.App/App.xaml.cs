@@ -10,6 +10,8 @@ public partial class App : Application
     /// <summary>Set by --selftest; used as the process exit code after clean shutdown.</summary>
     public static int RequestedExitCode { get; set; }
     public static string? SelfTestOutput { get; private set; }
+    /// <summary>--fixture &lt;dir&gt;: test pack used by the self-test (never shipped in the product).</summary>
+    public static string? FixtureDir { get; private set; }
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -28,6 +30,8 @@ public partial class App : Application
         if (idx >= 0)
         {
             SelfTestOutput = Path.GetFullPath(idx + 1 < e.Args.Length ? e.Args[idx + 1] : "selftest-result.json");
+            var f = Array.FindIndex(e.Args, a => a.Equals("--fixture", StringComparison.OrdinalIgnoreCase));
+            if (f >= 0 && f + 1 < e.Args.Length) FixtureDir = Path.GetFullPath(e.Args[f + 1]);
             // Isolate from the user's real settings so the self-test never changes them.
             AppSettings.OverridePath = Path.Combine(Path.GetTempPath(), $"ia-selftest-{Environment.ProcessId}.json");
         }

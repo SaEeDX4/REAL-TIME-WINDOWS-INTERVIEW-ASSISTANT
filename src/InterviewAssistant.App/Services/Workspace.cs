@@ -20,13 +20,11 @@ public sealed class Workspace
     public WorkspaceStore Store { get; }
     public PreparationAssets Assets { get; }
     public string? KnowledgeDir { get; }
-    public string? SamplesDir { get; }
 
     public Workspace(string root, IDataProtector protector)
     {
         Store = new WorkspaceStore(root, protector);
         KnowledgeDir = KnowledgeBase.FindDirectory(AppContext.BaseDirectory, "knowledge");
-        SamplesDir = KnowledgeBase.FindDirectory(AppContext.BaseDirectory, "samples");
         Assets = KnowledgeDir != null && File.Exists(Path.Combine(KnowledgeDir, "generic_question_library.json")) ? PreparationAssets.Load(KnowledgeDir) : new PreparationAssets();
     }
 
@@ -44,10 +42,9 @@ public sealed class Workspace
         return (KnowledgeBase.Empty(Assets.Playbooks), "No interview prepared");
     }
 
-    /// <summary>The built-in sample (test fixture) — loaded only on explicit request or for self-tests.</summary>
-    public (KnowledgeBase Kb, string Label)? LoadSample()
+    /// <summary>Loads a fixture pack directory (test/sample data is NOT shipped in the product; self-tests pass the path).</summary>
+    public (KnowledgeBase Kb, string Label)? LoadSample(string? dir)
     {
-        var dir = SamplesDir == null ? null : Path.Combine(SamplesDir, "shervin-teroxx");
         if (dir == null || !File.Exists(Path.Combine(dir, "question_bank.json"))) return null;
         var kb = KnowledgeBase.Load(dir);
         return (kb, $"Sample · {kb.Context.CandidateName} · {kb.Context.CompanyName}");

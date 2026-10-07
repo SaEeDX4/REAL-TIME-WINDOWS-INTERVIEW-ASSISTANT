@@ -131,9 +131,9 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     /// <summary>Loads the built-in sample profile (fixture) — explicit user action or self-test only.</summary>
-    public bool LoadSample()
+    public bool LoadSample(string? dir)
     {
-        var s = Workspace?.LoadSample();
+        var s = Workspace?.LoadSample(dir);
         if (s == null) return false;
         UseKnowledge(s.Value.Kb, s.Value.Label);
         return true;
