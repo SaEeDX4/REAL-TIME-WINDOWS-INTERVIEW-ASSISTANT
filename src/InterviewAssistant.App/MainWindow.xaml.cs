@@ -297,6 +297,7 @@ public partial class MainWindow : Window
             else await cleanup;
         }
         catch (Exception ex) { AppLog.Error("Shutdown cleanup", ex); }
+        _vm.Updates.ApplyOnExit();   // a downloaded update installs after this process exits — never mid-session
         AppLog.Info("Clean shutdown");
         Application.Current.Shutdown(App.RequestedExitCode);
     }

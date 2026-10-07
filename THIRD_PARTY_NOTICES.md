@@ -6,6 +6,7 @@
 | NAudio.Core / NAudio.Wasapi | 2.2.1 | MIT | Yes | WASAPI loopback capture |
 | DPAPI (`ProtectedData`, built into the .NET 10 Windows Desktop framework) | 10.0 | MIT | Yes | Local encryption at rest |
 | PdfPig (UglyToad.PdfPig) | 0.1.16 | Apache-2.0 | Yes (keep NOTICE/attribution) | PDF text extraction |
+| Velopack (library) + vpk (build tool) | 1.2.161 | MIT | Yes | Installer, delta updates, channels |
 | Microsoft.AspNetCore.Authentication.JwtBearer | 10.0.12 | MIT | Yes | Backend: Supabase JWT validation |
 | Microsoft.EntityFrameworkCore (+ Relational, Design) | 10.0.12 | MIT | Yes | Backend: data access, migrations |
 | Npgsql.EntityFrameworkCore.PostgreSQL (+ Npgsql) | 10.0.3 | PostgreSQL License (permissive, MIT-like) | Yes | Backend: PostgreSQL provider |

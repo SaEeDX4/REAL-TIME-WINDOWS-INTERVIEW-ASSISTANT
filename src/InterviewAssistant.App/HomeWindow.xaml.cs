@@ -57,11 +57,35 @@ public partial class HomeWindow : Window
         TargetLanguage.ItemsSource = new[] { new LangItem("Detect automatically", "auto") }.Concat(langs).ToList();
         TargetAnswerLanguage.ItemsSource = new[] { new LangItem("Same as the interviewer", "same") }.Concat(langs).ToList();
         AckBox.IsChecked = _vm.Settings.AuthorizedUseAcknowledged;
+        ChannelBox.SelectedIndex = _vm.Updates.Channel == "beta" ? 1 : 0;
+        _vm.Updates.Changed += OnUpdatesChanged;
         _vm.Cloud.Changed += OnCloudChanged;
-        Closed += (_, _) => { _vm.Cloud.Changed -= OnCloudChanged; _prepCts?.Cancel(); };
+        Closed += (_, _) => { _vm.Cloud.Changed -= OnCloudChanged; _vm.Updates.Changed -= OnUpdatesChanged; _prepCts?.Cancel(); };
         Localize();
         RefreshAll();
         ShowPage(_vm.Settings.AuthorizedUseAcknowledged && _vm.Settings.FirstRunCompleted ? "interviews" : "start");
+    }
+
+    private void OnUpdatesChanged() => Dispatcher.BeginInvoke(RefreshUpdates);
+
+    private void RefreshUpdates()
+    {
+        UpdateStatus.Text = _vm.Updates.Status.Length > 0 ? _vm.Updates.Status : $"Channel: {_vm.Updates.Channel}";
+        RestartUpdateBtn.Visibility = _vm.Updates.UpdateReady ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void Channel_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (ChannelBox.SelectedItem is not ComboBoxItem { Tag: string ch } || ch == _vm.Settings.UpdateChannel) return;
+        _vm.Settings.UpdateChannel = ch;
+        _vm.Settings.Save();
+        UpdateStatus.Text = "Channel changes apply after the app restarts.";
+    }
+
+    private void RestartUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_vm.Updates.TryApplyAndRestart(_vm.IsListening || _vm.IsPaused))
+            Warn("Stop the interview session first — updates never install during a session.");
     }
 
     private void OnCloudChanged() => Dispatcher.BeginInvoke(() => { RefreshAccount(); RefreshChecklist(); });
@@ -93,6 +117,7 @@ public partial class HomeWindow : Window
 
     private void RefreshAll()
     {
+        RefreshUpdates();
         RefreshProfiles();
         RefreshReports();
         RefreshAccount();

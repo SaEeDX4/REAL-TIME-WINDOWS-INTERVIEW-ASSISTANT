@@ -42,6 +42,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private CloudSession? _cloudSession;
     private DateTime _sessionStartedUtc;
     public CloudService Cloud { get; }
+    public UpdateService Updates { get; }
+    private readonly DispatcherTimer _updateTimer;
     private readonly AudioCaptureService _capture = new();
     private readonly DispatcherTimer _diagTimer;
     private int _displayedAnswerId = -1;
@@ -57,6 +59,10 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _ui = ui;
         Settings = AppSettings.Load();
         Cloud = new CloudService(Settings);
+        Updates = new UpdateService(Settings, Cloud.Options.UpdateUrl);
+        _updateTimer = new DispatcherTimer(DispatcherPriority.Background, ui) { Interval = TimeSpan.FromMinutes(1) };
+        _updateTimer.Tick += async (_, _) => await Updates.TickAsync(sessionActive: IsListening || IsPaused || _cloudSession != null);
+        _updateTimer.Start();
         Cloud.Changed += () => Post(() => { Raise(nameof(AccountLabel)); Raise(nameof(UsingCloud)); Raise(nameof(MinutesLeftLabel)); });
         _capture.FrameReady += OnAudioFrame;
         _capture.StatusChanged += s => Post(() => AudioStatus = s);
@@ -591,6 +597,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _diagTimer.Stop();
+        _updateTimer.Stop();
         _capture.Dispose();
         if (_engine != null) await _engine.DisposeAsync();
         await EndLeaseAsync();

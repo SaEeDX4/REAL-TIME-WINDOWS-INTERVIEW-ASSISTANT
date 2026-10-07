@@ -11,7 +11,9 @@
     <RootNamespace>InterviewAssistant.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>1.0.0</Version>
+    <Version>2.0.0</Version>
+    <!-- Velopack hooks must run before WPF starts: custom entry point. -->
+    <StartupObject>InterviewAssistant.App.Program</StartupObject>
     <Product>Interview Assistant</Product>
     <Company>Interview Assistant</Company>
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
@@ -22,6 +24,7 @@
   <ItemGroup>
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
     <PackageReference Include="NAudio.Core" Version="2.2.1" />
+    <PackageReference Include="Velopack" Version="1.2.161" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\InterviewAssistant.Core\InterviewAssistant.Core.csproj" />

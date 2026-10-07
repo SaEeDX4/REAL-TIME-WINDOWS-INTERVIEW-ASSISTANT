@@ -38,6 +38,8 @@ public sealed class AppSettings
     public bool AutoFitAnswer { get; set; } = true;
     public bool StartInCoachMode { get; set; }
     public Guid? CloudDeviceId { get; set; }
+    /// <summary>Update channel: "stable" (default) or "beta".</summary>
+    public string UpdateChannel { get; set; } = "stable";
     public double? Left { get; set; }
     public double? Top { get; set; }
     public double Width { get; set; } = 620;

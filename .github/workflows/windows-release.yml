@@ -1,14 +1,15 @@
 name: windows-release
 
+# Windows build + launch validation for every push/PR: unit tests, publish, real-EXE smoke + self-test,
+# Velopack installer, and an N -> N+1 install/update test. Tagged releases are produced by production-release.yml.
 on:
   push:
     branches: [ "**" ]
-    tags: [ "v*" ]
   pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -45,6 +46,21 @@ jobs:
         shell: pwsh
         run: ./scripts/selftest.ps1
 
+      - name: Installer (Velopack, unsigned CI build)
+        shell: pwsh
+        run: ./scripts/package-installer.ps1 -Version 2.0.0 -Channel stable
+
+      - name: Install N, self-update to N+1, verify, uninstall
+        shell: pwsh
+        run: ./scripts/update-test.ps1
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: InterviewAssistant-Setup-unsigned
+          path: artifacts/installer/
+          if-no-files-found: error
+
       - name: Upload release ZIP
         uses: actions/upload-artifact@v4
         with:
@@ -62,9 +78,3 @@ jobs:
             artifacts/test-results/
             artifacts/evidence/
           if-no-files-found: warn
-
-      - name: GitHub Release (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: artifacts/InterviewAssistant-Windows-x64.zip

@@ -110,6 +110,32 @@ public class CloudAuthTests
     }
 
     [Fact]
+    public async Task LoopbackRejectsMalformedAndOversizedRequestsAndKeepsWaiting()
+    {
+        using var loop = new LoopbackRedirect(Pkce.CreateState());
+        var wait = loop.WaitForCodeAsync(TimeSpan.FromSeconds(20), default);
+        using (var tcp = new System.Net.Sockets.TcpClient())
+        {
+            await tcp.ConnectAsync(System.Net.IPAddress.Loopback, loop.Port);
+            var s = tcp.GetStream();
+            await s.WriteAsync(Encoding.ASCII.GetBytes("POST /callback HTTP/1.1\r\nHost: x\r\n\r\n"));
+            var resp = await new StreamReader(s).ReadToEndAsync();
+            Assert.StartsWith("HTTP/1.1 400", resp);
+        }
+        using (var tcp = new System.Net.Sockets.TcpClient())
+        {
+            await tcp.ConnectAsync(System.Net.IPAddress.Loopback, loop.Port);
+            await tcp.GetStream().WriteAsync(new byte[20_000]);   // junk, no request line
+        }
+        Assert.False(wait.IsCompleted);
+        using var http = new HttpClient();
+        var err = await http.GetAsync(loop.RedirectUri + "&error=access_denied&error_description=User%20cancelled");
+        Assert.Equal(HttpStatusCode.BadRequest, err.StatusCode);
+        var ex = await Assert.ThrowsAsync<AuthException>(() => wait);
+        Assert.Equal("User cancelled", ex.Message);
+    }
+
+    [Fact]
     public async Task LoopbackTimesOutCleanly()
     {
         using var loop = new LoopbackRedirect(Pkce.CreateState());

@@ -1,0 +1,117 @@
+name: production-release
+
+# Tag-based release: v2.1.0 -> stable channel, v2.1.0-beta.1 -> beta channel.
+# Builds, tests, signs (only when Azure Artifact Signing secrets exist), packs with Velopack (delta from the previous
+# release), and publishes Setup.exe + update feed to a GitHub Release. Protected by the "release" environment.
+on:
+  push:
+    tags: [ "v*.*.*" ]
+  workflow_dispatch:
+    inputs:
+      version: { description: "Version (semver, e.g. 2.1.0 or 2.1.0-beta.1)", required: true }
+
+permissions:
+  contents: write
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    environment: release
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: 10.0.x }
+
+      - name: Resolve version and channel
+        id: v
+        shell: pwsh
+        run: |
+          $v = if ("${{ github.event.inputs.version }}") { "${{ github.event.inputs.version }}" } else { "${{ github.ref_name }}".TrimStart('v') }
+          if ($v -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$') { throw "Not a semantic version: $v" }
+          $channel = if ($v.Contains('-')) { "beta" } else { "stable" }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "channel=$channel" >> $env:GITHUB_OUTPUT
+          Write-Host "Releasing $v on $channel"
+
+      - name: Build + unit tests
+        shell: pwsh
+        run: ./scripts/build-release.ps1 -Version ${{ steps.v.outputs.version }}
+
+      - name: Smoke + self-test on the release build
+        shell: pwsh
+        run: |
+          ./scripts/smoke-test.ps1
+          ./scripts/selftest.ps1
+
+      - name: Release notes
+        shell: pwsh
+        run: |
+          $prev = git describe --tags --abbrev=0 HEAD^ 2>$null
+          $range = if ($prev) { "$prev..HEAD" } else { "HEAD" }
+          "## Interview Assistant ${{ steps.v.outputs.version }}`n" | Set-Content artifacts/RELEASE_NOTES.md
+          git log $range --pretty="- %s" --no-merges | Add-Content artifacts/RELEASE_NOTES.md
+
+      - name: Signing metadata (only when Azure Artifact Signing is configured)
+        id: sign
+        shell: pwsh
+        env:
+          ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          ACCOUNT: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+          PROFILE: ${{ secrets.AZURE_SIGNING_PROFILE }}
+        run: |
+          if (-not $env:ENDPOINT -or -not $env:ACCOUNT -or -not $env:PROFILE) {
+            Write-Host "::warning::Azure Artifact Signing secrets not configured — this release will be UNSIGNED."
+            "file=" >> $env:GITHUB_OUTPUT; exit 0
+          }
+          @{ Endpoint = $env:ENDPOINT; CodeSigningAccountName = $env:ACCOUNT; CertificateProfileName = $env:PROFILE } |
+            ConvertTo-Json | Set-Content artifacts/signing-metadata.json
+          "file=artifacts/signing-metadata.json" >> $env:GITHUB_OUTPUT
+
+      - name: Download previous release (for delta updates)
+        shell: pwsh
+        env: { DOTNET_ROLL_FORWARD: Major }
+        run: |
+          dotnet tool install -g vpk --version 1.2.161
+          $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
+          $extra = @(); if ("${{ steps.v.outputs.channel }}" -eq "beta") { $extra += "--pre" }
+          vpk download github --repoUrl "https://github.com/${{ github.repository }}" --channel ${{ steps.v.outputs.channel }} --outputDir artifacts/installer --token "${{ secrets.GITHUB_TOKEN }}" @extra
+          if ($LASTEXITCODE) { Write-Host "No previous release found (first release?) — full package only."; $global:LASTEXITCODE = 0 }
+
+      - name: Pack installer + update feed
+        shell: pwsh
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: ./scripts/package-installer.ps1 -Version ${{ steps.v.outputs.version }} -Channel ${{ steps.v.outputs.channel }} -SignMetadata "${{ steps.sign.outputs.file }}" -ReleaseNotes artifacts/RELEASE_NOTES.md
+
+      - name: Verify signature state
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem artifacts/installer -Filter *Setup.exe | Select-Object -First 1
+          $sig = Get-AuthenticodeSignature $setup.FullName
+          Write-Host "Setup signature: $($sig.Status) $($sig.SignerCertificate.Subject)"
+          if ("${{ steps.sign.outputs.file }}" -and $sig.Status -ne "Valid") { throw "Signing was configured but the installer is not validly signed" }
+
+      - name: Publish GitHub Release (Setup.exe + feed)
+        shell: pwsh
+        env: { DOTNET_ROLL_FORWARD: Major }
+        run: |
+          $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
+          $extra = @(); if ("${{ steps.v.outputs.channel }}" -eq "beta") { $extra += "--pre" }
+          vpk upload github --repoUrl "https://github.com/${{ github.repository }}" --outputDir artifacts/installer --channel ${{ steps.v.outputs.channel }} `
+            --tag "v${{ steps.v.outputs.version }}" --releaseName "Interview Assistant ${{ steps.v.outputs.version }}" --publish --merge @extra --token "${{ secrets.GITHUB_TOKEN }}"
+          if ($LASTEXITCODE) { throw "upload failed" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ steps.v.outputs.version }}
+          path: |
+            artifacts/installer/
+            artifacts/RELEASE_NOTES.md

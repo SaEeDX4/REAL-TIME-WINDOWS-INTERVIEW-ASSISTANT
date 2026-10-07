@@ -273,6 +273,18 @@
                         <StackPanel x:Name="NotConfiguredPanel" Margin="0,12,0,0">
                             <TextBlock Style="{StaticResource Hint}" FontSize="13" Text="This build is not connected to an Interview Assistant service. You can use developer mode with your own OpenAI API key (Settings), or install a release build."/>
                         </StackPanel>
+
+                        <TextBlock Text="UPDATES" Style="{StaticResource Section}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="160"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <ComboBox x:Name="ChannelBox" Style="{StaticResource Combo}" SelectionChanged="Channel_Changed">
+                                <ComboBoxItem Content="Stable" Tag="stable"/>
+                                <ComboBoxItem Content="Beta" Tag="beta"/>
+                            </ComboBox>
+                            <TextBlock x:Name="UpdateStatus" Grid.Column="1" Style="{StaticResource Hint}" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                            <Button x:Name="RestartUpdateBtn" Grid.Column="2" Style="{StaticResource Btn.Base}" Content="Restart to update" Click="RestartUpdate_Click" Visibility="Collapsed"/>
+                        </Grid>
+                        <TextBlock Style="{StaticResource Hint}" Text="Updates never download or install during an interview session. A ready update installs when you close the app."/>
                     </StackPanel>
                 </Grid>
             </ScrollViewer>
