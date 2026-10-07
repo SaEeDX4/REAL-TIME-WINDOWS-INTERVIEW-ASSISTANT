@@ -134,3 +134,16 @@ public static class ReportBuilder
 
     private static string Short(string s, int words) { var w = s.Split(' ', StringSplitOptions.RemoveEmptyEntries); return w.Length <= words ? s.TrimEnd('.') : string.Join(' ', w.Take(words)) + "…"; }
 }
+
+/// <summary>Stored report round-trip (workspace persistence). Unreadable/corrupt JSON yields null, never an exception.</summary>
+public static class ReportSerializer
+{
+    private static readonly JsonSerializerOptions Options = new() { WriteIndented = true, IncludeFields = true };
+    public static string ToJson(InterviewReport r) => JsonSerializer.Serialize(r, Options);
+    public static InterviewReport? FromJson(string json)
+    {
+        try { return string.IsNullOrWhiteSpace(json) ? null : JsonSerializer.Deserialize<InterviewReport>(json, Options); }
+        catch (JsonException) { return null; }
+        catch (NotSupportedException) { return null; }
+    }
+}

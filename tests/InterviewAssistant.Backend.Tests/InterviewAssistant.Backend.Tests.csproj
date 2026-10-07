@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\InterviewAssistant.Backend\InterviewAssistant.Backend.csproj" />
+    <ProjectReference Include="..\..\src\InterviewAssistant.Client\InterviewAssistant.Client.csproj" />
   </ItemGroup>
 
 </Project>

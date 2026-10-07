@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="InterviewAssistant.Tests" />
+    <InternalsVisibleTo Include="InterviewAssistant.Backend.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\InterviewAssistant.Core\InterviewAssistant.Core.csproj" />
+    <ProjectReference Include="..\InterviewAssistant.Contracts\InterviewAssistant.Contracts.csproj" />
+  </ItemGroup>
+</Project>

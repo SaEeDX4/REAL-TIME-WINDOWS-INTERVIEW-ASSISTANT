@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\InterviewAssistant.Core\InterviewAssistant.Core.csproj" />
+    <ProjectReference Include="..\..\src\InterviewAssistant.Client\InterviewAssistant.Client.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\samples\shervin-teroxx\**\*" LinkBase="knowledge" CopyToOutputDirectory="PreserveNewest" />

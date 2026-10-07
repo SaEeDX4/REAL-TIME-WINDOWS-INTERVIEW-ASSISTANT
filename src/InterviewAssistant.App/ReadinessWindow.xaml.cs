@@ -12,8 +12,8 @@ namespace InterviewAssistant.App;
 
 public sealed class CheckItem : ObservableObject
 {
-    public required string Title { get; init; }
-    public required string FixHint { get; init; }
+    public required string Title { get; set; }
+    public required string FixHint { get; set; }
     private string _detail = ""; public string Detail { get => _detail; set => Set(ref _detail, value); }
     private string _state = "—"; public string State { get => _state; set => Set(ref _state, value); }
     private string _icon = ""; public string Icon { get => _icon; set => Set(ref _icon, value); }
@@ -49,6 +49,13 @@ public partial class ReadinessWindow : Window
         InitializeComponent();
         _vm = vm; _main = main; _autoRun = autoRun;
         DataContext = vm;
+        if (vm.UsingCloud)
+        {
+            _auth.Title = "ACCOUNT";
+            _auth.FixHint = "Home → Account → sign in; upgrade if no live minutes are left.";
+            _answer.FixHint = "Check internet; if it persists, the service may be in maintenance (see Account).";
+            _stt.FixHint = "Check internet, then run Test transcription.";
+        }
         Checks.ItemsSource = new ObservableCollection<CheckItem> { _device, _signal, _auth, _stt, _answer, _kb, _bank, _topmost };
         Loaded += (_, _) => { if (_autoRun) _ = RunAllAsync(); };
         Closed += (_, _) => _toolCts?.Cancel();
@@ -62,6 +69,7 @@ public partial class ReadinessWindow : Window
         try
         {
             CheckLocal();
+            if (_vm.UsingCloud) { await RunCloudChecksAsync(); return; }
             var key = SecretStore.GetApiKey();
             var signalTask = CheckSignalAsync(TimeSpan.FromSeconds(10));
             _auth.Busy("Verifying key (no tokens used)…");
@@ -85,6 +93,43 @@ public partial class ReadinessWindow : Window
             await signalTask;
         }
         finally { RunBtn.IsEnabled = true; UpdateVerdict(); }
+    }
+
+    /// <summary>Account mode: entitlements from the server, answer test through the server proxy (a few seconds of a real lease).</summary>
+    private async Task RunCloudChecksAsync()
+    {
+        var signalTask = CheckSignalAsync(TimeSpan.FromSeconds(10));
+        _auth.Busy("Checking account…");
+        if (!_vm.Cloud.IsSignedIn) { _auth.Fail("SIGNED OUT", "Sign in from Home → Account."); _answer.Warn("SKIPPED", "Needs sign-in — prepared answers still work."); _stt.Warn("SKIPPED", "Needs sign-in."); }
+        else if (!await _vm.Cloud.RefreshAsync(CancellationToken.None) || _vm.Cloud.Account is not { } a) { _auth.Fail("ERROR", _vm.Cloud.LastError ?? "Service unreachable"); _answer.Warn("SKIPPED", "Service unreachable"); _stt.Warn("SKIPPED", "Service unreachable"); }
+        else
+        {
+            var mins = a.Usage.LiveSecondsRemaining / 60;
+            if (_vm.Cloud.Config?.Maintenance == true) _auth.Fail("MAINTENANCE", _vm.Cloud.Config.MaintenanceMessage ?? "The service is in maintenance.");
+            else if (mins <= 0) _auth.Fail("NO MINUTES", $"{a.Entitlements.PlanName}: no live minutes left — upgrade in Home → Account.");
+            else _auth.Pass("READY", $"{a.Email} · {a.Entitlements.PlanName} · {mins} min left");
+            if (mins > 0)
+            {
+                _answer.Busy("Generating a test answer through the service…");
+                try
+                {
+                    var (answer, sample, model) = await _vm.TestAiAsync(TestQuestion, _ => { });
+                    if (answer.Source == Core.Orchestration.AnswerSource.Llm && answer.Bullets.Count >= 2) _answer.Pass("READY", $"{model} · first bullet {sample?.FinalizedToFirstBulletMs} ms");
+                    else _answer.Fail("ERROR", answer.Note ?? "No AI answer");
+                }
+                catch (Exception ex) when (ex is ProviderException or InvalidOperationException or Client.BackendException) { _answer.Fail("ERROR", ex.Message); }
+                _stt.Warn("RUN TEST", "Press Test transcription while speech plays in Chrome.");
+            }
+        }
+        await signalTask;
+    }
+
+    private bool ToolReady(string tool)
+    {
+        if (_vm.UsingCloud ? _vm.Cloud.IsSignedIn : SecretStore.HasKey) return true;
+        BeginTool(tool);
+        ToolOutput.Text = _vm.UsingCloud ? "Sign in first (Home → Account)." : "Add your API key in Settings first.";
+        return false;
     }
 
     /// <summary>Checks that need no network or audio (also used by --selftest).</summary>
@@ -201,7 +246,7 @@ public partial class ReadinessWindow : Window
 
     private async void TestStt_Click(object sender, RoutedEventArgs e)
     {
-        if (!SecretStore.HasKey) { BeginTool("TRANSCRIPTION TEST"); ToolOutput.Text = "Add your API key in Settings first."; return; }
+        if (!ToolReady("TRANSCRIPTION TEST")) return;
         BeginTool("TRANSCRIPTION TEST — play spoken English in Chrome (25 s)");
         var ct = _toolCts!.Token;
         string status = "connecting…", transcript = "";
@@ -216,7 +261,7 @@ public partial class ReadinessWindow : Window
 
     private async void TestAi_Click(object sender, RoutedEventArgs e)
     {
-        if (!SecretStore.HasKey) { BeginTool("AI TEST"); ToolOutput.Text = "Add your API key in Settings first."; return; }
+        if (!ToolReady("AI TEST")) return;
         BeginTool($"AI TEST — \"{TestQuestion}\"");
         var sb = new StringBuilder();
         ToolOutput.Text = "Requesting…";
@@ -230,7 +275,7 @@ public partial class ReadinessWindow : Window
             sb.AppendLine(ok ? "✓ ANSWER ENGINE WORKS" : "✗ " + (answer.Note ?? "Unexpected answer"));
             if (ok) _answer.Pass("READY", $"{model} · first bullet {sample?.FinalizedToFirstBulletMs} ms"); else _answer.Fail("ERROR", answer.Note ?? "No AI answer");
         }
-        catch (Exception ex) when (ex is ProviderException or InvalidOperationException) { sb.AppendLine("✗ " + ex.Message); }
+        catch (Exception ex) when (ex is ProviderException or InvalidOperationException or Client.BackendException) { sb.AppendLine("✗ " + ex.Message); }
         ToolOutput.Text = sb.ToString();
         UpdateVerdict();
     }

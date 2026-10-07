@@ -6,7 +6,8 @@
         Width="620" Height="560" MinWidth="380" MinHeight="260"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="CanResize" Topmost="True" ShowInTaskbar="True"
-        FontFamily="{StaticResource F.Ui}" UseLayoutRounding="True" TextOptions.TextFormattingMode="Ideal">
+        FontFamily="{StaticResource F.Ui}" UseLayoutRounding="True" TextOptions.TextFormattingMode="Ideal"
+        FlowDirection="{Binding UiFlowDirection}">
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="7" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
@@ -70,6 +71,18 @@
                     </StackPanel>
                 </Border>
 
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                    <Border x:Name="AdaptiveBadge" CornerRadius="10" Padding="8,2" Background="{StaticResource B.AccentSoft}" Margin="0,0,6,0"
+                            Visibility="{Binding AdaptiveLabel, Converter={StaticResource StrVis}}" ToolTip="The interviewer is interrupting or moving fast: answers are shorter. Ctrl+Alt+R resets.">
+                        <TextBlock Text="{Binding AdaptiveLabel}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource B.Accent}"/>
+                    </Border>
+                    <Border CornerRadius="10" Padding="8,2" Background="{StaticResource B.Surface2}" Margin="0,0,6,0" ToolTip="Next answer format (Ctrl+Alt+C)" Cursor="Hand" MouseLeftButtonUp="Presentation_Click">
+                        <TextBlock x:Name="PresentationText" Text="{Binding PresentationLabel}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource B.TextDim}"/>
+                    </Border>
+                    <TextBlock Text="{Binding MinutesLeftLabel}" FontSize="10.5" Foreground="{StaticResource B.TextFaint}" VerticalAlignment="Center"
+                               Visibility="{Binding MinutesLeftLabel, Converter={StaticResource StrVis}}"/>
+                </StackPanel>
+
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button x:Name="StartBtn" Style="{StaticResource Btn.Primary}" Command="{Binding StartPauseCommand}" Padding="12,5" Margin="0,0,6,0" ToolTip="Start / pause listening (Ctrl+Alt+L)">
                         <StackPanel Orientation="Horizontal">
@@ -79,6 +92,9 @@
                     </Button>
                     <Button Style="{StaticResource Btn.Ghost}" Command="{Binding StopCommand}" ToolTip="Stop listening"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE71A;"/></Button>
                     <Button Style="{StaticResource Btn.Ghost}" Click="Compact_Click" ToolTip="Compact interview mode"><TextBlock x:Name="CompactIcon" Style="{StaticResource T.Icon}" Text="&#xE73F;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Home_Click" ToolTip="Home: profiles, interviews, reports, account"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE80F;"/></Button>
+                    <Button x:Name="ReportBtn" Style="{StaticResource Btn.Ghost}" Click="Report_Click" ToolTip="Open the last interview report"
+                            Visibility="{Binding LastReportPath, Converter={StaticResource StrVis}}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE9F9;"/></Button>
                     <Button Style="{StaticResource Btn.Ghost}" Click="Diagnostics_Click" ToolTip="Diagnostics / latency"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE9D9;"/></Button>
                     <Button Style="{StaticResource Btn.Ghost}" Click="Readiness_Click" ToolTip="Pre-interview check"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;"/></Button>
                     <Button Style="{StaticResource Btn.Ghost}" Click="Settings_Click" ToolTip="Settings"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE713;"/></Button>
@@ -97,10 +113,10 @@
                 <!-- Question -->
                 <Border x:Name="QuestionCard" Style="{StaticResource Card}" Margin="0,0,0,10">
                     <StackPanel>
-                        <TextBlock x:Name="QuestionLabel" Text="QUESTION" Style="{StaticResource T.Label}"/>
+                        <TextBlock x:Name="QuestionLabel" Text="{Binding LQuestion}" Style="{StaticResource T.Label}"/>
                         <TextBlock Text="{Binding Question}" FontSize="{Binding QuestionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"
                                    Visibility="{Binding Question, Converter={StaticResource StrVis}}"/>
-                        <TextBlock Text="Waiting for the interviewer…" FontSize="{Binding QuestionFontSize}" Foreground="{StaticResource B.TextFaint}"
+                        <TextBlock Text="{Binding LWaiting}" FontSize="{Binding QuestionFontSize}" Foreground="{StaticResource B.TextFaint}"
                                    Visibility="{Binding Question, Converter={StaticResource StrVisInv}}"/>
                         <TextBlock Text="{Binding LiveTranscript}" Margin="0,8,0,0" FontSize="13" FontStyle="Italic" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap"
                                    Visibility="{Binding LiveTranscript, Converter={StaticResource StrVis}}"/>
@@ -116,11 +132,21 @@
                         </Grid.RowDefinitions>
                         <DockPanel x:Name="AnswerHeader">
                             <TextBlock DockPanel.Dock="Right" Text="{Binding AnswerMeta}" FontSize="11" Foreground="{StaticResource B.TextFaint}"/>
-                            <TextBlock Text="ANSWER" Style="{StaticResource T.Label}"/>
+                            <TextBlock Text="{Binding LAnswer}" Style="{StaticResource T.Label}"/>
                         </DockPanel>
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
-                            <StackPanel MaxWidth="820" HorizontalAlignment="Left">
-                                <ItemsControl ItemsSource="{Binding Bullets}" Focusable="False">
+                        <ScrollViewer x:Name="AnswerScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                            <StackPanel x:Name="AnswerContent" MaxWidth="820" HorizontalAlignment="Stretch" FlowDirection="{Binding AnswerFlowDirection}">
+                                <!-- Coach Mode: 3 keywords + one structure line, large and glanceable -->
+                                <StackPanel Visibility="{Binding IsCoachView, Converter={StaticResource BoolVis}}" Margin="0,4,0,8">
+                                    <TextBlock Text="{Binding LKeywords}" Style="{StaticResource T.Label}" Margin="0,0,0,4"/>
+                                    <TextBlock Text="{Binding CoachKeywords}" TextWrapping="Wrap" FontWeight="SemiBold" Foreground="{StaticResource B.Accent}"
+                                               FontSize="{Binding CoachFontSize}"/>
+                                    <TextBlock Text="{Binding LStructure}" Style="{StaticResource T.Label}" Margin="0,14,0,4"/>
+                                    <TextBlock Text="{Binding CoachStructure}" TextWrapping="Wrap" Foreground="{StaticResource B.Text}" FontSize="{Binding AnswerFontSize}"/>
+                                    <TextBlock Text="{Binding CoachReminder}" TextWrapping="Wrap" Margin="0,10,0,0" Foreground="{StaticResource B.TextDim}" FontSize="13"
+                                               Visibility="{Binding CoachReminder, Converter={StaticResource StrVis}}"/>
+                                </StackPanel>
+                                <ItemsControl ItemsSource="{Binding Bullets}" Focusable="False" Visibility="{Binding IsCoachView, Converter={StaticResource BoolVisInv}}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Grid Margin="0,0,0,14" Opacity="0">
@@ -174,10 +200,10 @@
             <!-- ===== Answer actions ===== -->
             <DockPanel x:Name="ActionBar" Grid.Row="2" Margin="14,0,14,8" LastChildFill="False">
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding ShorterCommand}" Content="Shorter" ToolTip="2–3 very short bullets"/>
-                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding TechnicalCommand}" Content="Technical"/>
-                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding ExampleCommand}" Content="Example"/>
-                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding FullCommand}" Content="Full answer"/>
+                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding ShorterCommand}" Content="{Binding LShorter}" ToolTip="2–3 very short bullets"/>
+                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding TechnicalCommand}" Content="{Binding LTechnical}"/>
+                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding ExampleCommand}" Content="{Binding LExample}"/>
+                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding FullCommand}" Content="{Binding LFull}"/>
                     <Button Style="{StaticResource Btn.Chip}" Command="{Binding RegenerateCommand}" ToolTip="Regenerate with AI">
                         <TextBlock Style="{StaticResource T.Icon}" Text="&#xE72C;" FontSize="12"/>
                     </Button>
@@ -192,7 +218,7 @@
             <!-- ===== Manual question (always-available fallback) ===== -->
             <Grid x:Name="ManualBar" Grid.Row="3" Margin="14,0,14,12">
                 <TextBox x:Name="ManualInput" Style="{StaticResource Input}" KeyDown="ManualInput_KeyDown" Padding="10,7,40,7"/>
-                <TextBlock Text="Type or paste a question and press Enter   (Ctrl+Alt+Q)" Foreground="{StaticResource B.TextFaint}" FontSize="13" Margin="12,0,0,0"
+                <TextBlock Text="{Binding LTypeHint}" Foreground="{StaticResource B.TextFaint}" FontSize="13" Margin="12,0,0,0"
                            VerticalAlignment="Center" IsHitTestVisible="False">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">

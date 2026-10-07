@@ -53,3 +53,36 @@ public class LanguageTests
         Assert.Contains("Product Owner", rule);
     }
 }
+
+public class UiStringsTests
+{
+    [Fact]
+    public void AllTenLanguagesAreCompleteAndDistinct()
+    {
+        foreach (var l in InterviewAssistant.Core.Languages.LanguageRegistry.All)
+        {
+            Assert.True(InterviewAssistant.Core.Languages.UiStrings.IsComplete(l.Code), l.Code);
+            if (l.Code != "en") Assert.NotEqual(InterviewAssistant.Core.Languages.UiStrings.Get("en", "waiting"), InterviewAssistant.Core.Languages.UiStrings.Get(l.Code, "waiting"));
+        }
+    }
+
+    [Theory]
+    [InlineData("ar", "ar")] [InlineData("fa", "fa")] [InlineData("de-DE", "de")] [InlineData("xx", "en")] [InlineData(null, "en")]
+    public void LookupNormalisesAndFallsBack(string? code, string expected) =>
+        Assert.Equal(InterviewAssistant.Core.Languages.UiStrings.Get(expected, "start"), InterviewAssistant.Core.Languages.UiStrings.Get(code, "start"));
+
+    [Fact]
+    public void PlaceholdersSurviveTranslationAndUnknownKeysAreVisible()
+    {
+        foreach (var l in InterviewAssistant.Core.Languages.LanguageRegistry.All)
+            Assert.Contains("7", InterviewAssistant.Core.Languages.UiStrings.Format(l.Code, "minutes_left", 7));
+        Assert.Equal("no_such_key", InterviewAssistant.Core.Languages.UiStrings.Get("de", "no_such_key"));
+    }
+
+    [Fact]
+    public void RtlLanguagesContainArabicScript()
+    {
+        foreach (var code in new[] { "ar", "fa" })
+            Assert.Contains(InterviewAssistant.Core.Languages.UiStrings.Get(code, "question"), c => c >= '؀' && c <= 'ۿ');
+    }
+}

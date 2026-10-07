@@ -84,4 +84,16 @@ public class ReportTests
         Assert.Contains("\"Questions\"", json);
         Assert.Contains("CandidateMicrophoneEnabled", json);
     }
+
+    [Fact]
+    public async Task StoredReportRoundTripsToIdenticalHtml()
+    {
+        var (_, r) = await RunSessionAsync("fa");
+        var back = ReportSerializer.FromJson(r.ToJson());
+        Assert.NotNull(back);
+        Assert.Equal(r.Questions.Count, back!.Questions.Count);
+        Assert.Equal(HtmlReportRenderer.Render(r), HtmlReportRenderer.Render(back));
+        Assert.Null(ReportSerializer.FromJson("{not json"));
+        Assert.Null(ReportSerializer.FromJson(""));
+    }
 }

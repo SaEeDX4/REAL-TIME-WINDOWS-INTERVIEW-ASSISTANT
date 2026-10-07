@@ -83,6 +83,70 @@ public static class SelfTest
             vm.NextCommand.Execute(null); await Idle();
             return (moved && vm.Question == before, vm.HistoryLabel);
         });
+        await Check("Coach mode (Ctrl+Alt+C): 3 keywords + structure, then back to bullets", async () =>
+        {
+            vm.ToggleCoach();
+            await vm.SubmitManualAsync("How would you increase XAB adoption?");
+            var ok = await WaitFor(() => vm.IsCoachView && vm.CoachStructure.Contains('→'), 3000);
+            await Idle();
+            var kw = vm.CoachKeywords.Split('·', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            vm.ToggleCoach();
+            await vm.SubmitManualAsync("How would you increase XAB adoption?");
+            var back = await WaitFor(() => !vm.IsCoachView && vm.Bullets.Count == 3, 3000);
+            return (ok && kw.Length == 3 && back, $"keywords [{vm.CoachKeywords}] structure [{vm.CoachStructure}] → bullets {vm.Bullets.Count}");
+        });
+        await Check("Auto-fit: all 3 bullets visible without scrolling (default and reduced height)", async () =>
+        {
+            await vm.SubmitManualAsync("Tell me about yourself.");
+            await WaitFor(() => vm.Bullets.Count >= 3, 3000);
+            await Task.Delay(200); await Idle(); await Idle();
+            var atDefault = w.AnswerScroll.ScrollableHeight;
+            var h = w.Height;
+            w.Height = Math.Max(w.MinHeight, 430);
+            await Task.Delay(200); await Idle(); await Idle();
+            var reduced = w.AnswerScroll.ScrollableHeight;
+            var font = vm.AnswerFontSize;
+            w.Height = h; await Idle();
+            return (atDefault <= 1 && (reduced <= 1 || font <= vm.MinAnswerFontSize), $"overflow {atDefault:0}px at {h:0}px tall, {reduced:0}px at 430px (font {font}, min {vm.MinAnswerFontSize})");
+        });
+        await Check("UI localisation: Persian switches to right-to-left with translated labels", async () =>
+        {
+            vm.Settings.UiLanguage = "fa"; w.ApplyAppearance(); await Idle();
+            var rtl = w.FlowDirection == FlowDirection.RightToLeft && vm.LQuestion == Core.Languages.UiStrings.Get("fa", "question");
+            var label = vm.LQuestion;
+            vm.Settings.UiLanguage = "en"; w.ApplyAppearance(); await Idle();
+            return (rtl && w.FlowDirection == FlowDirection.LeftToRight, $"fa label '{label}', restored to LTR");
+        });
+        await Check("Home window: onboarding, profiles, interviews, reports, account pages load", async () =>
+        {
+            var home = new HomeWindow(vm, w) { Owner = w };
+            home.Show(); await Idle();
+            foreach (var page in new[] { "start", "profiles", "interviews", "reports", "account" }) { home.ShowPage(page); await Idle(); }
+            var ok = home.IsLoaded; home.Close();
+            return (ok, "5 pages rendered");
+        });
+        await Check("Profile → confirm facts → prepare → load (isolated DPAPI workspace)", async () =>
+        {
+            var root = Path.Combine(AppPaths.Local, "selftest-workspace");
+            var ws = new Workspace(root, new DpapiProtector());
+            var profile = new Core.Domain.CandidateProfileRecord();
+            var doc = Core.Domain.ProfileService.CreateDocument("cv.txt", Core.Domain.DocumentKind.Resume,
+                "Jane Example\nProduct Manager\nBerlin\n\nEXPERIENCE\nSenior Product Manager — Contoso Payments (2019 – 2024)\n- Launched instant payouts used by 40,000 merchants\n- Reduced checkout drop-off by 18% through A/B testing\n\nSKILLS\nRoadmapping, SQL, Stakeholder management");
+            Core.Domain.ProfileService.AddResume(profile, doc);
+            profile.ConfirmAll();
+            Core.Domain.ProfileService.RebuildStories(profile);
+            ws.Store.SaveProfile(profile);
+            var target = new Core.Domain.InterviewTarget { ProfileId = profile.Id, JobTitle = "Product Manager", Company = "Fabrikam", JobDescriptionText = "We need a product manager to own payments roadmap, run experiments, work with engineering and stakeholders. SQL a plus." };
+            ws.Store.SaveTarget(target);
+            var pack = await Task.Run(() => new Core.Preparation.PreparationPipeline(ws.Assets).RunAsync(profile, target));
+            ws.Store.SavePack(pack);
+            var (kb, label) = ws.LoadActive(profile.Id, target.Id);
+            var ok = pack.Questions.Count >= 50 && kb.Questions.Count == pack.Questions.Count && label.Contains("Fabrikam");
+            try { Directory.Delete(root, true); } catch (IOException) { }
+            return (ok, $"{pack.Questions.Count} questions, {pack.Stories.Count} stories, label '{label}', {ws.Assets.Library.Count} library items");
+        });
+        await Check("Account: unconfigured build stays in developer mode (no service, no crash)", () =>
+            Task.FromResult((vm.Cloud.IsConfigured || (!vm.UsingCloud && vm.AccountLabel == "Developer mode"), vm.AccountLabel)));
         await Check("Settings window XAML", async () =>
         {
             var s = new SettingsWindow(vm) { Owner = w };
@@ -124,7 +188,15 @@ public static class SelfTest
             var g = new DuplicateGuard(); g.Register(got ?? "", 0);
             return Task.FromResult((got != null && g.IsDuplicate("how would you prioritize the backlog", 100), got ?? "not finalized"));
         });
-        await Check("Stop returns to idle", async () => { await vm.StopAsync(); return (!vm.IsListening && !vm.IsPaused, vm.StatusText); });
+        await Check("Stop returns to idle + honesty-labelled report saved", async () =>
+        {
+            await vm.StopAsync();
+            var path = vm.LastReportPath;
+            var html = path != null && File.Exists(path) ? File.ReadAllText(path) : "";
+            var stored = vm.Workspace?.Store.Sessions().FirstOrDefault();
+            var ok = !vm.IsListening && !vm.IsPaused && html.Contains("microphone was OFF") && html.Contains("Content-Security-Policy") && stored?.ReportJson.Length > 0;
+            return (ok, $"{vm.StatusText}; report {(path == null ? "missing" : Path.GetFileName(path))} ({html.Length} chars)");
+        });
 
         var passed = results.All(r => r.Ok);
         var json = JsonSerializer.Serialize(new { passed, version = typeof(App).Assembly.GetName().Version?.ToString(), os = Environment.OSVersion.ToString(), checks = results }, new JsonSerializerOptions { WriteIndented = true });

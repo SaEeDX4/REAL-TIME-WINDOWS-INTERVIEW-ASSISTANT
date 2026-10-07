@@ -25,6 +25,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\InterviewAssistant.Core\InterviewAssistant.Core.csproj" />
+    <ProjectReference Include="..\InterviewAssistant.Client\InterviewAssistant.Client.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\knowledge\**\*" LinkBase="knowledge" CopyToOutputDirectory="PreserveNewest" ExcludeFromSingleFile="true" />

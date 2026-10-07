@@ -1,3 +1,4 @@
+using System.IO;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
@@ -27,6 +28,8 @@ public partial class MainWindow : Window
             if (e.PropertyName == nameof(MainViewModel.IsListening))
                 StartIcon.Text = _vm.IsListening ? "" : "";
         };
+        _vm.BulletsChanged += ScheduleFit;
+        AnswerScroll.SizeChanged += (_, _) => ScheduleFit();
         RestorePlacement();
         ApplyAppearance();
         Loaded += OnLoaded;
@@ -49,14 +52,16 @@ public partial class MainWindow : Window
             }, DispatcherPriority.ApplicationIdle);
             return;
         }
-        if (!_vm.Settings.FirstRunCompleted || !SecretStore.HasKey)
-            Dispatcher.BeginInvoke(() => OpenReadiness(firstRun: true), DispatcherPriority.ApplicationIdle);
+        // First run: onboarding (authorized-use acknowledgement, account/developer mode, profile, interview) in Home.
+        if (!_vm.Settings.AuthorizedUseAcknowledged || !_vm.Settings.FirstRunCompleted)
+            Dispatcher.BeginInvoke(() => OpenHome(), DispatcherPriority.ApplicationIdle);
     }
 
     // ---------------- appearance & placement ----------------
 
     public void ApplyAppearance()
     {
+        _vm.RefreshLanguage();
         Topmost = _vm.Settings.AlwaysOnTop;
         Root.Opacity = ShadowLayer.Opacity = Math.Clamp(_vm.Settings.WindowOpacity, 0.6, 1.0);
         DiagPanel.Visibility = _vm.Settings.ShowDiagnostics ? Visibility.Visible : Visibility.Collapsed;
@@ -113,6 +118,8 @@ public partial class MainWindow : Window
             _hotkeys.Register(s.HotkeyToggleWindow, ToggleVisibility),
             _hotkeys.Register(s.HotkeyStartPause, () => _ = _vm.ToggleListeningAsync()),
             _hotkeys.Register(s.HotkeyManualInput, FocusManualInput),
+            _hotkeys.Register(s.HotkeyCoachToggle, _vm.ToggleCoach),
+            _hotkeys.Register(s.HotkeyResetAdaptive, _vm.ResetAdaptive),
         }.Where(p => p != null).ToList();
         foreach (var p in problems) AppLog.Warn(p!);
         if (problems.Count > 0) ShowTransientError(string.Join("\n", problems));
@@ -170,6 +177,61 @@ public partial class MainWindow : Window
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e) => OpenSettings();
+    private void Home_Click(object sender, RoutedEventArgs e) => OpenHome();
+    private void Presentation_Click(object sender, MouseButtonEventArgs e) => _vm.ToggleCoach();
+
+    private void Report_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm.LastReportPath is { } p && File.Exists(p))
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(p) { UseShellExecute = true });
+    }
+
+    private HomeWindow? _home;
+
+    /// <summary>Dashboard: onboarding, profiles, interviews (targets + preparation), reports, account. Non-modal.</summary>
+    public void OpenHome()
+    {
+        if (_home is { IsLoaded: true }) { _home.Activate(); return; }
+        _home = new HomeWindow(_vm, this) { Owner = this };
+        _home.Closed += (_, _) => _home = null;
+        _home.Show();
+    }
+
+    // ---------------- auto-fit: all bullets visible without scrolling ----------------
+
+    private bool _fitScheduled;
+    private void ScheduleFit()
+    {
+        if (_fitScheduled || !_vm.Settings.AutoFitAnswer) return;
+        _fitScheduled = true;
+        Dispatcher.BeginInvoke(FitAnswer, DispatcherPriority.Loaded);
+    }
+
+    /// <summary>
+    /// Text height of wrapped content scales ≈ with font size², so one proportional step plus a short verification loop
+    /// converges without layout thrash. Never shrinks below the readable minimum; grows back when space returns.
+    /// </summary>
+    private void FitAnswer()
+    {
+        _fitScheduled = false;
+        var viewport = AnswerScroll.ViewportHeight;
+        if (viewport <= 0 || !IsVisible) return;
+        var current = _vm.AnswerFontSize;
+        AnswerContent.UpdateLayout();
+        var needed = AnswerContent.ActualHeight;
+        if (needed <= 0) return;
+        if (needed > viewport || (current < _vm.BaseAnswerFontSize && needed < viewport * 0.85))
+        {
+            var target = current * Math.Sqrt(viewport / needed) * 0.97;
+            _vm.SetFitFontSize(target);
+            AnswerContent.UpdateLayout();
+            for (int i = 0; i < 6 && AnswerContent.ActualHeight > viewport && _vm.AnswerFontSize > _vm.MinAnswerFontSize; i++)
+            {
+                _vm.SetFitFontSize(_vm.AnswerFontSize - 1);
+                AnswerContent.UpdateLayout();
+            }
+        }
+    }
     private void Readiness_Click(object sender, RoutedEventArgs e) => OpenReadiness(firstRun: false);
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Close_Click(object sender, RoutedEventArgs e) => Close();

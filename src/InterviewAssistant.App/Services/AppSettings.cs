@@ -23,6 +23,21 @@ public sealed class AppSettings
     public string HotkeyToggleWindow { get; set; } = "Ctrl+Alt+Space";
     public string HotkeyStartPause { get; set; } = "Ctrl+Alt+L";
     public string HotkeyManualInput { get; set; } = "Ctrl+Alt+Q";
+    public string HotkeyCoachToggle { get; set; } = "Ctrl+Alt+C";
+    public string HotkeyResetAdaptive { get; set; } = "Ctrl+Alt+R";
+    /// <summary>"cloud" = Interview Assistant account (server-side AI); "developer" = own OpenAI key (prototype path).</summary>
+    public string Mode { get; set; } = "cloud";
+    /// <summary>UI language (one of the 10 launch languages); null = follow Windows display language.</summary>
+    public string? UiLanguage { get; set; }
+    /// <summary>"same" = answer in the interviewer's detected language, or a fixed language code.</summary>
+    public string AnswerLanguage { get; set; } = "same";
+    /// <summary>Report language; null = UI language.</summary>
+    public string? ReportLanguage { get; set; }
+    public bool AuthorizedUseAcknowledged { get; set; }
+    /// <summary>Shrinks answer text (down to a readable minimum) so all bullets fit without scrolling.</summary>
+    public bool AutoFitAnswer { get; set; } = true;
+    public bool StartInCoachMode { get; set; }
+    public Guid? CloudDeviceId { get; set; }
     public double? Left { get; set; }
     public double? Top { get; set; }
     public double Width { get; set; } = 620;

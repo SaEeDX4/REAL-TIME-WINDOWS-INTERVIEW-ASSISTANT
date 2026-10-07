@@ -34,6 +34,7 @@ public partial class App : Application
             if (f >= 0 && f + 1 < e.Args.Length) FixtureDir = Path.GetFullPath(e.Args[f + 1]);
             // Isolate from the user's real settings so the self-test never changes them.
             AppSettings.OverridePath = Path.Combine(Path.GetTempPath(), $"ia-selftest-{Environment.ProcessId}.json");
+            AppPaths.IsolatedRoot = Path.Combine(Path.GetTempPath(), $"ia-selftest-{Environment.ProcessId}");
         }
         Branding.Load(AppContext.BaseDirectory);
         AppLog.Info($"{Branding.ProductName} {typeof(App).Assembly.GetName().Version} starting on {Environment.OSVersion}");
