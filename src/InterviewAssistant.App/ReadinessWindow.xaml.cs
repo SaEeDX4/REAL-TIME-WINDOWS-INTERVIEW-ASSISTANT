@@ -57,6 +57,7 @@ public partial class ReadinessWindow : Window
             _stt.FixHint = "Check internet, then run Test transcription.";
         }
         Checks.ItemsSource = new ObservableCollection<CheckItem> { _device, _signal, _auth, _stt, _answer, _kb, _bank, _topmost };
+        FlowDirection = vm.UiFlowDirection;
         Loaded += (_, _) => { if (_autoRun) _ = RunAllAsync(); };
         Closed += (_, _) => _toolCts?.Cancel();
     }
@@ -189,7 +190,7 @@ public partial class ReadinessWindow : Window
         var res = Application.Current.Resources;
         if (all.All(c => c.Passed == true))
         {
-            VerdictTitle.Text = "✓ READY FOR INTERVIEW";
+            VerdictTitle.Text = "✓ " + _vm.L("ready");
             VerdictTitle.Foreground = (Brush)res["B.Listening"];
             VerdictDetail.Text = "Press Start interview. Keep this window near your camera.";
         }
