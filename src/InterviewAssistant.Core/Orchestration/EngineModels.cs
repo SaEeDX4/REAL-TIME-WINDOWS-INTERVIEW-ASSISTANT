@@ -59,6 +59,12 @@ public sealed class EngineOptions
     public AnswerStyle DefaultStyle { get; set; } = AnswerStyle.Balanced;
     /// <summary>Seconds without audio level above the floor while listening before "NO AUDIO" is shown.</summary>
     public int NoAudioWarningSeconds { get; set; } = 20;
+    /// <summary>
+    /// After a live question is finalized, an AI request (not a prepared answer) waits this long for the interviewer
+    /// to continue the question; if they do, the request is never sent and the merged question is answered instead.
+    /// Hides most of the cost of multi-part questions with ~1 s pauses at a small latency cost.
+    /// </summary>
+    public int ContinuationHoldMs { get; set; } = 300;
     /// <summary>Seconds of silence before the neutral "Listening · quiet" state.</summary>
     public int QuietAfterSeconds { get; set; } = 6;
     public int HistoryCapacity { get; set; } = 30;

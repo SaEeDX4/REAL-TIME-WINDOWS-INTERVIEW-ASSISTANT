@@ -29,6 +29,9 @@ public sealed class InterviewEngine : IAsyncDisposable
     private readonly TurnDetector _turn;
     private readonly EvidenceIndex _evidence;
     private readonly Dictionary<int, AnswerView> _turnAnswers = new();
+    private TaskCompletionSource<bool>? _hold;
+    private long _holdUntil = -1;
+    private bool _holdExtended;
     private readonly DuplicateGuard _dupes = new();
     private readonly SessionMemory _session = new();
     private readonly InterruptionTracker _interrupt = new();
@@ -77,7 +80,12 @@ public sealed class InterviewEngine : IAsyncDisposable
     {
         bool continuation;
         lock (_gate) continuation = _turn.OnSpeechStarted();
-        if (continuation) return; // the interviewer is finishing the same question, not interrupting the answer
+        if (continuation)
+        {
+            // The interviewer is finishing the same question: keep a pending AI request on hold until the turn settles.
+            lock (_gate) if (_hold != null) _holdExtended = true;
+            return; // not an interruption of the answer
+        }
         var ev = _interrupt.InterviewerSpeechStarted(_clock.NowMs);
         if (ev != null) { _session.Interruptions.Add(ev); InterruptionDetected?.Invoke(ev); }
     }
@@ -139,6 +147,7 @@ public sealed class InterviewEngine : IAsyncDisposable
     /// <summary>Pause: stop sending audio and stop answering, keep the connection warm briefly.</summary>
     public void Pause()
     {
+        lock (_gate) ReleaseHold(true); // a typed or pending question still gets its answer while paused
         _paused = true;
         lock (_gate) _turn.Stop();
         SetStatus(EngineStatus.Paused);
@@ -146,6 +155,7 @@ public sealed class InterviewEngine : IAsyncDisposable
 
     public async Task StopAsync()
     {
+        lock (_gate) ReleaseHold(true);
         _listening = false; _paused = false;
         _runCts?.Cancel();
         CancelAnswer();
@@ -179,7 +189,11 @@ public sealed class InterviewEngine : IAsyncDisposable
     /// <summary>Advances time-based logic (turn settling, no-audio warning). Public for deterministic tests.</summary>
     public void Tick()
     {
-        lock (_gate) _turn.Tick();
+        lock (_gate)
+        {
+            _turn.Tick();
+            if (_hold != null && !_holdExtended && _clock.NowMs >= _holdUntil) ReleaseHold(true);
+        }
         var silentMs = _clock.NowMs - _lastAudioActivityMs;
         if (!IsListening) return;
         // Silence after the interviewer finishes is normal (the candidate is talking). Warn only when NOTHING has been
@@ -197,6 +211,8 @@ public sealed class InterviewEngine : IAsyncDisposable
 
     private void OnTurnState(TurnState s)
     {
+        // A continuation that turned out to be "okay"/"mm-hmm" (or never transcribed) releases the held request.
+        if (s == TurnState.Listening && _hold != null && _holdExtended) ReleaseHold(true);
         if (!IsListening || Status is EngineStatus.Reconnecting or EngineStatus.ApiError) return;
         if (Status == EngineStatus.Answering && s != TurnState.SpeechStarted) return;
         switch (s)
@@ -370,6 +386,8 @@ public sealed class InterviewEngine : IAsyncDisposable
             {
                 try
                 {
+                    if (turnId > 0 && replaces == null && Options.ContinuationHoldMs > 0 && IsListening && !await HoldForContinuationAsync(ct).ConfigureAwait(false))
+                        throw new OperationCanceledException(ct);
                     (firstToken, firstBullet) = await StreamLlmAsync(view, question, cls, match, effective, ct).ConfigureAwait(false);
                     Metrics.IncLlm();
                 }
@@ -437,6 +455,27 @@ public sealed class InterviewEngine : IAsyncDisposable
             LatencyMeasured?.Invoke(sample);
             }
         }
+    }
+
+    /// <summary>Waits <see cref="EngineOptions.ContinuationHoldMs"/> (engine time, released by Tick). False when superseded.</summary>
+    private Task<bool> HoldForContinuationAsync(CancellationToken ct)
+    {
+        TaskCompletionSource<bool> tcs;
+        lock (_gate)
+        {
+            ReleaseHold(false);
+            tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _hold = tcs; _holdUntil = _clock.NowMs + Options.ContinuationHoldMs; _holdExtended = false;
+        }
+        var reg = ct.Register(() => tcs.TrySetResult(false));
+        return tcs.Task.ContinueWith(t => { reg.Dispose(); return t.Result; }, TaskScheduler.Default);
+    }
+
+    private void ReleaseHold(bool proceed)
+    {
+        var h = _hold;
+        _hold = null; _holdExtended = false; _holdUntil = -1;
+        h?.TrySetResult(proceed);
     }
 
     private void EmitCached(AnswerView view, BankQuestion q, AnswerSource source)
@@ -526,6 +565,9 @@ public sealed class InterviewEngine : IAsyncDisposable
     private static readonly System.Text.RegularExpressions.Regex BridgeCue = new(
         @"\b(haven't|have not|hasn't|not (personally|directly|yet)|never (owned|built|done|implemented|led)|didn't|did not|no direct|closest|not .{0,30}end-to-end)\b",
         System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+    private static readonly System.Text.RegularExpressions.Regex PastResult = new(
+        @"\b(reduced|increased|grew|improved|saved|raised|boosted|achieved|generated|doubled|tripled|lowered|cut|delivered|drove)\b(?!.*\b(I'd|I would|would|could|aim|target|goal|expect)\b)",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
     public const string HonestBridge = "I haven't owned that exact work end-to-end, but here is how I'd approach it.";
 
     private void AcceptBullet(AnswerView view, BulletStreamParser parser, string bullet, AnswerStyle style)
@@ -541,6 +583,14 @@ public sealed class InterviewEngine : IAsyncDisposable
         {
             view.ValidationFlags.Add($"{issue.Kind}: {issue.Detail}");
             if (issue.Kind == "UNSUPPORTED_CLAIM") text = FactValidator.SoftenClaim(text);
+        }
+        // A number nobody confirmed, stated as a past result or inside an unsupported claim, is a fabricated metric:
+        // the bullet is dropped rather than shown (softening "I built X in 2021" would still be nonsense).
+        bool unverifiedNumber = report.Issues.Any(i => i.Kind == "UNVERIFIED_NUMBER");
+        if (unverifiedNumber && (report.Issues.Any(i => i.Kind == "UNSUPPORTED_CLAIM") || PastResult.IsMatch(bullet)))
+        {
+            view.ValidationFlags.Add("DROPPED_UNVERIFIED_METRIC: " + bullet);
+            return;
         }
         // Direct "have you personally…" without evidence: the first thing on screen is always an honest bridge.
         if (view.BridgePending)

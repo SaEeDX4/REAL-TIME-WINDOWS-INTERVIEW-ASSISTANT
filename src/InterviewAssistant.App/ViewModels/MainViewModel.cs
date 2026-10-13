@@ -634,23 +634,26 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private void ApplyStatus(EngineStatus s, string? detail)
     {
         var res = Application.Current.Resources;
-        (string text, string brush, bool pulse) = s switch
+        (string text, string brush, bool pulse, string? sub) = s switch
         {
-            EngineStatus.Listening => (L("status_listening"), "B.Listening", true),
-            EngineStatus.SpeechDetected => (L("status_speech"), "B.Listening", true),
-            EngineStatus.Finalizing => (L("status_finalizing"), "B.Thinking", true),
-            EngineStatus.Answering => (L("status_answering"), "B.Accent", true),
-            EngineStatus.Paused => (L("status_paused"), "B.TextFaint", false),
-            EngineStatus.Reconnecting => (L("status_reconnecting"), "B.Thinking", true),
-            EngineStatus.NoAudio => (L("status_no_audio"), "B.Thinking", false),
-            EngineStatus.ApiError => (L("status_api_error"), "B.Error", false),
-            EngineStatus.Stopped => (L("status_stopped"), "B.TextFaint", false),
-            _ => (L("status_ready"), "B.TextDim", false),
+            EngineStatus.Listening => (L("status_listening"), "B.Listening", true, L("detail_listening")),
+            EngineStatus.Quiet => (L("status_quiet"), "B.Listening", false, L("detail_listening")),
+            EngineStatus.SpeechDetected => (L("status_speech"), "B.Listening", true, null),
+            EngineStatus.Finalizing => (L("status_finalizing"), "B.Thinking", true, null),
+            EngineStatus.Answering => (L("status_answering"), "B.Accent", true, null),
+            EngineStatus.AnswerReady => (L("status_answer_ready"), "B.Listening", false, L("detail_listening")),
+            EngineStatus.Paused => (L("status_paused"), "B.TextFaint", false, L("detail_paused")),
+            EngineStatus.Reconnecting => (L("status_reconnecting"), "B.Thinking", true, null),
+            EngineStatus.NoAudio => (L("status_no_audio"), "B.Thinking", false, null),
+            EngineStatus.ApiError => (L("status_api_error"), "B.Error", false, null),
+            EngineStatus.Stopped => (L("status_stopped"), "B.TextFaint", false, null),
+            _ => (L("status_ready"), "B.TextDim", false, null),
         };
         StatusText = text;
         StatusBrush = (Brush)res[brush];
         StatusPulse = pulse;
-        StatusDetail = detail;
+        // Engine detail (e.g. which device to check) wins; otherwise a calm explanation of the state.
+        StatusDetail = detail ?? sub;
         if (s == EngineStatus.ApiError && _engine != null && _engine.IsListening == false) IsListening = false;
     }
 

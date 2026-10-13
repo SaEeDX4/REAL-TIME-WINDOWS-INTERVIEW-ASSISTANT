@@ -181,6 +181,19 @@ public sealed class TurnDetector
     private static readonly Regex Pleasantry = new(@"^(ok(ay)?|great|thanks?|thank you|perfect|nice|good|right|sure|yes|yeah|no|mm-?hmm|alright|cool|interesting|i see|got it|wonderful|excellent|very good)[\s,.!]*((thanks?|thank you|great|perfect|okay)[\s,.!]*)*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex RestartCue = new(@"^(sorry|let me (rephrase|put it|ask (it|that) (differently|another way))|i mean|rather|to rephrase|what i('m| am) asking is|actually,? let me)\b[\s,.:—-]*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    /// <summary>"Sorry, let me rephrase: how would…" → "how would…" (cues may be chained).</summary>
+    private static string StripRestartCues(string text)
+    {
+        var t = text.Trim();
+        for (int i = 0; i < 3; i++)
+        {
+            var m = RestartCue.Match(t);
+            if (!m.Success || m.Length == 0 || m.Length >= t.Length) break;
+            t = t[m.Length..].TrimStart();
+        }
+        return t;
+    }
+
     /// <summary>True for short acknowledgements that should never trigger an answer.</summary>
     public static bool IsNonQuestion(string text)
     {
@@ -202,9 +215,11 @@ public sealed class TurnDetector
         int? revises = null;
         if (reopened is { } prev)
         {
-            var restart = RestartCue.Match(text);
-            if (restart.Success && restart.Length < text.Length)
-                text = text[restart.Length..].Trim();               // restated: the new wording replaces the old
+            var restated = StripRestartCues(text);
+            if (restated.Length < text.Length && restated.Length > 0)
+            {
+                text = char.ToUpperInvariant(restated[0]) + restated[1..];   // restated: the new wording replaces the old
+            }
             else if (IsRestatement(prev.Text, text))
                 text = TextNormalizer.WordCount(text) >= TextNormalizer.WordCount(prev.Text) ? text : prev.Text;
             else

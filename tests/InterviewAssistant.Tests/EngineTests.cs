@@ -164,10 +164,15 @@ public class EngineTests
     public async Task FabricatedClaimFromLlmIsSoftenedAndFlagged()
     {
         var r = await CreateAsync();
-        r.P.Responder = _ => new[] { "MODE: HYPOTHETICAL\n", "• I built a reward ledger handling 43% more volume.\n", "• I'd measure it.\n" };
+        r.P.Responder = _ => new[] { "MODE: HYPOTHETICAL\n", "• I built a reward ledger handling 43% more volume.\n", "• I built a cashback partner program for card spending.\n", "• I'd measure activation and repeat spend.\n" };
         var a = await r.Ask("How would you design a cashback program in XAB for card spending?");
-        Assert.StartsWith("I'd build", a.Bullets[0]);
+        // Fabricated history + fabricated metric: never shown at all.
+        Assert.DoesNotContain(a.Bullets, b => b.Contains("43%"));
+        Assert.Contains(a.ValidationFlags, f => f.StartsWith("DROPPED_UNVERIFIED_METRIC"));
         Assert.Contains(a.ValidationFlags, f => f.StartsWith("UNVERIFIED_NUMBER"));
+        // Fabricated history without a number: rewritten as a plan.
+        Assert.StartsWith("I'd build a cashback partner program", a.Bullets[0]);
+        Assert.DoesNotContain(a.Bullets, b => b.StartsWith("I built"));
     }
 
     [Fact]

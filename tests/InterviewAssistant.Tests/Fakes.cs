@@ -23,6 +23,7 @@ public sealed class FakeTranscriber : ITranscriber
     public void Start() => SpeechStarted?.Invoke();
     public void Stop() => SpeechStopped?.Invoke();
     public string Complete(string text, string? id = null) { id ??= "item" + (++_id); PartialTranscript?.Invoke(id, text[..Math.Min(5, text.Length)]); SegmentCompleted?.Invoke(id, text); return id; }
+    public void Partial(string id, string delta) => PartialTranscript?.Invoke(id, delta);
     public void Raise(ConnectionStatus s, string? d) { Status = s; StatusChanged?.Invoke(s, d); }
 }
 

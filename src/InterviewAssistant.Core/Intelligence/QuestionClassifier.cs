@@ -48,7 +48,7 @@ public static class QuestionClassifier
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex FollowUpCue = new(
-        @"^(and |but |so |why\??$|how so|what (do you mean|metric|kpi|exactly)|can you (elaborate|expand|give (me )?an example|be more specific)|for example|such as|what happened|how would that|tell me more|go deeper|which one)",
+        @"^(and |but |so |why\??$|how so|what (do you mean|metric|kpi|exactly)|can you (elaborate|expand|give (me |us )?(a |an )?(concrete |specific |real |quick )?example|be more specific)|for example|such as|what happened|how would that|tell me more|go deeper|which one)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public static Classification Classify(string question) => Classify(question, null);
