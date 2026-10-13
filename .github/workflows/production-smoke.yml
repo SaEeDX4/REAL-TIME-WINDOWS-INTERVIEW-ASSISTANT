@@ -41,7 +41,13 @@ jobs:
       - name: Health and readiness
         run: |
           curl -fsS -m 10 "$BASE/health" | tee /dev/stderr | jq -e '.status == "ok"'
-          curl -fsS -m 20 "$BASE/health/ready" | tee /dev/stderr | jq -e '.status == "ready"'
+          ready=$(curl -sS -m 20 -w '\n%{http_code}' "$BASE/health/ready"); echo "readiness: $ready"
+          case "$ready" in
+            *auth_keys_unavailable*) echo "::error::Readiness: the Supabase JWKS (Auth__JwksUrl) returned no signing keys — enable asymmetric JWT signing keys in Supabase (Project Settings → JWT keys) or fix the URL";;
+            *migrations_pending*) echo "::error::Readiness: database migrations pending — set Database__MigrateOnStart=true in Railway";;
+            *database_unreachable*) echo "::error::Readiness: database unreachable — check ConnectionStrings__Db";;
+          esac
+          echo "$ready" | head -1 | jq -e '.status == "ready"'
 
       - name: Plans are production-named
         run: |
