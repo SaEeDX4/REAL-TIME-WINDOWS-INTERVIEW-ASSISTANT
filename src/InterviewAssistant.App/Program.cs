@@ -9,12 +9,14 @@ public static class Program
     {
         // Handles install/update/uninstall hooks (and exits for them) before any UI is created.
         VelopackApp.Build().Run();
+#if UPDATE_TEST
         var u = Array.FindIndex(args, a => a.Equals("--update-test", StringComparison.OrdinalIgnoreCase));
         if (u >= 0 && u + 2 < args.Length)
         {
             Environment.ExitCode = Services.UpdateService.RunUpdateTestAsync(args[u + 1], args[u + 2]).GetAwaiter().GetResult();
             return;
         }
+#endif
         var app = new App();
         app.InitializeComponent();
         app.Run();

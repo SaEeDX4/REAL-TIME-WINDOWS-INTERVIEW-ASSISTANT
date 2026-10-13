@@ -196,6 +196,12 @@ public static class SelfTest
             var back = AppSettings.Load();
             return Task.FromResult((back.AnswerModel == "selftest-model" && Math.Abs(back.WindowOpacity - 0.85) < 1e-9, path));
         });
+        await Check("Unsigned build never self-updates", () =>
+        {
+            var signed = Environment.ProcessPath is { } exe && Authenticode.TrustedSigner(exe) != null;
+            var u = new UpdateService(vm.Settings, "https://updates.example.invalid/feed");
+            return Task.FromResult((signed || (!u.IsInstalled && u.Status.Contains("not code-signed")), signed ? "signed build" : u.Status));
+        });
         await Check("Hotkey parsing", () => Task.FromResult((HotkeyService.TryParse("Ctrl+Alt+Space", out _, out _) && !HotkeyService.TryParse("Space", out _, out _), "Ctrl+Alt+Space ok, bare key rejected")));
         await Check("Audio endpoint enumeration (no crash without devices)", () =>
         {

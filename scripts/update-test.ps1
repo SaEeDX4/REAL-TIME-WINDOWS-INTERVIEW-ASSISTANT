@@ -13,9 +13,10 @@ New-Item -ItemType Directory -Force $work, $evidence | Out-Null
 function Fail($m) { Write-Host "UPDATE TEST FAILED: $m" -ForegroundColor Red; exit 1 }
 function Version-Of($exe) { (Get-Item $exe).VersionInfo.FileVersion }
 
-# 1) Build N and N+1 from the same source (only the version differs).
+# 1) Build N and N+1 from the same source (only the version differs). -UpdateTestBuild compiles the CI-only
+#    --update-test hook; the shipped build does not contain it and only self-updates when Authenticode-signed.
 foreach ($v in @($VersionA, $VersionB)) {
-    ./scripts/build-release.ps1 -SkipBuild -Version $v -OutDir "artifacts\update-test\pub-$v"
+    ./scripts/build-release.ps1 -SkipBuild -UpdateTestBuild -Version $v -OutDir "artifacts\update-test\pub-$v"
 }
 ./scripts/package-installer.ps1 -Version $VersionA -PublishDir "artifacts\update-test\pub-$VersionA" -OutDir "artifacts\update-test\feedA"
 Copy-Item "$work\feedA" "$work\feedB" -Recurse -Force

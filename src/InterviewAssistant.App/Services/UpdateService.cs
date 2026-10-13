@@ -6,7 +6,9 @@ using Velopack.Sources;
 namespace InterviewAssistant.App.Services;
 
 /// <summary>
-/// Velopack updates (stable/beta channel). Never checks, downloads or applies during a live session
+/// Velopack updates (stable/beta channel). Enabled only when the running exe carries a valid Authenticode signature
+/// and an https feed is configured; every downloaded package must be signed by the same publisher before it is
+/// scheduled, otherwise it is discarded. Unsigned builds never self-update. Never checks, downloads or applies during a live session
 /// (<see cref="UpdatePolicy"/>). A downloaded update installs when the app exits, or on "Restart to update" while idle.
 /// </summary>
 public sealed class UpdateService
@@ -24,12 +26,36 @@ public sealed class UpdateService
     public string Channel => UpdatePolicy.NormalizeChannel(_settings.UpdateChannel);
     public event Action? Changed;
 
+    private readonly string? _signer;
+
     public UpdateService(AppSettings settings, string feedUrl)
     {
         _settings = settings;
-        if (string.IsNullOrWhiteSpace(feedUrl)) { Status = "Updates are not configured for this build."; return; }
+        if (string.IsNullOrWhiteSpace(feedUrl)) { Status = "Automatic updates are not enabled for this build."; return; }
+        if (!feedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) { Status = "Automatic updates are disabled: the update feed must use https."; return; }
+        _signer = Environment.ProcessPath is { } exe ? Authenticode.TrustedSigner(exe) : null;
+        if (_signer == null)
+        {
+            Status = "Automatic updates are disabled: this build is not code-signed.";
+            AppLog.Info("Updates disabled: running executable has no valid Authenticode signature");
+            return;
+        }
         _mgr = Create(feedUrl, Channel);
         if (!_mgr.IsInstalled) Status = "Updates apply to installed copies only (this copy runs from a folder).";
+    }
+
+    /// <summary>The downloaded package must be signed by the same publisher as the running app.</summary>
+    private bool PackageTrusted(UpdateInfo info)
+    {
+        var installRoot = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory));
+        if (installRoot == null || _signer == null) return false;
+        var pkg = Path.Combine(installRoot, "packages", info.TargetFullRelease.FileName);
+        var exeName = Path.GetFileName(Environment.ProcessPath ?? "InterviewAssistant.exe");
+        var signer = Authenticode.TrustedSignerInPackage(pkg, exeName);
+        if (signer == _signer) return true;
+        AppLog.Warn("Update package rejected: " + (signer == null ? "missing or invalid signature" : "different publisher"));
+        try { File.Delete(pkg); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        return false;
     }
 
     private static UpdateManager Create(string feed, string channel)
@@ -38,7 +64,11 @@ public sealed class UpdateService
         IUpdateSource source = feed.StartsWith("https://github.com/", StringComparison.OrdinalIgnoreCase)
             ? new GithubSource(feed, null, prerelease: channel == "beta")
             : feed.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ? new SimpleWebSource(feed)
-            : new SimpleFileSource(new DirectoryInfo(feed));   // local folder: used by the CI update test only
+#if UPDATE_TEST
+            : new SimpleFileSource(new DirectoryInfo(feed));   // local folder: CI update-test builds only
+#else
+            : throw new InvalidOperationException("Update feed must use https.");
+#endif
         return new UpdateManager(source, options);
     }
 
@@ -53,6 +83,7 @@ public sealed class UpdateService
             var info = await _mgr.CheckForUpdatesAsync();
             if (info == null) { Status = $"Up to date ({_mgr.CurrentVersion}, {Channel})."; Changed?.Invoke(); return; }
             await _mgr.DownloadUpdatesAsync(info);
+            if (!PackageTrusted(info)) { Status = "An update was found but its signature could not be verified; it was not installed."; Changed?.Invoke(); return; }
             _pending = info;
             Status = $"Version {PendingVersion} is ready — it installs when you close the app.";
             AppLog.Info("Update downloaded: " + PendingVersion);
@@ -81,8 +112,9 @@ public sealed class UpdateService
         return true;
     }
 
+#if UPDATE_TEST
     /// <summary>
-    /// CI N→N+1 test: `InterviewAssistant.exe --update-test &lt;feedDir&gt; &lt;result.json&gt;` on an installed copy.
+    /// CI N→N+1 test (compiled only into update-test builds, which are unsigned and never shipped): `InterviewAssistant.exe --update-test &lt;feedDir&gt; &lt;result.json&gt;` on an installed copy.
     /// Checks the local feed, downloads, schedules the install for after exit, and records what happened.
     /// </summary>
     public static async Task<int> RunUpdateTestAsync(string feedDir, string resultPath)
@@ -111,4 +143,5 @@ public sealed class UpdateService
         AppLog.Info("UPDATE TEST " + result);
         return code;
     }
+#endif
 }

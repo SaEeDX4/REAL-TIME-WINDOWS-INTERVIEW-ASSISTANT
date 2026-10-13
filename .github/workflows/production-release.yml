@@ -73,6 +73,18 @@ jobs:
             ConvertTo-Json | Set-Content artifacts/signing-metadata.json
           "file=artifacts/signing-metadata.json" >> $env:GITHUB_OUTPUT
 
+      - name: Enable the update feed (signed releases only)
+        if: steps.sign.outputs.file != ''
+        shell: pwsh
+        run: |
+          # Unsigned builds keep updateUrl empty and never self-update; the app additionally refuses to update unless
+          # its own exe and every downloaded package carry a valid signature from the same publisher.
+          $cfg = "artifacts/InterviewAssistant/cloud.json"
+          $j = Get-Content $cfg -Raw | ConvertFrom-Json
+          $j.updateUrl = "https://github.com/${{ github.repository }}"
+          $j | ConvertTo-Json | Set-Content $cfg
+          Write-Host "updateUrl -> $($j.updateUrl)"
+
       - name: Download previous release (for delta updates)
         shell: pwsh
         env: { DOTNET_ROLL_FORWARD: Major }

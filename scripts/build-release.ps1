@@ -13,7 +13,8 @@ param(
     [switch]$FolderLayout,  # publish as EXE + DLLs instead of single-file (fallback if single-file causes issues)
     [string]$Version = "",  # e.g. 2.1.0 (default: the version in the .csproj)
     [string]$OutDir = "artifacts\InterviewAssistant",
-    [switch]$SkipBuild      # publish only (solution already built and tested in this run)
+    [switch]$SkipBuild,     # publish only (solution already built and tested in this run)
+    [switch]$UpdateTestBuild # CI only: compiles the --update-test hook; such builds are never shipped
 )
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -39,6 +40,7 @@ if (-not $SkipTests -and -not $SkipBuild) {
 $out = Join-Path $root $OutDir
 $versionArgs = @()
 if ($Version) { $versionArgs = @("-p:Version=$Version") }
+if ($UpdateTestBuild) { $versionArgs += "-p:UpdateTestBuild=true" }
 if (Test-Path $out) { Remove-Item $out -Recurse -Force }
 $single = if ($FolderLayout) { "false" } else { "true" }
 dotnet publish src/InterviewAssistant.App -c $Configuration -r win-x64 --self-contained true `
