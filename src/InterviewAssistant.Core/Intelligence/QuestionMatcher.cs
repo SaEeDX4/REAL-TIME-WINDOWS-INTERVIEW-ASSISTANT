@@ -51,6 +51,20 @@ public sealed class QuestionMatcher
         foreach (var (t, n) in df) _idf[t] = Math.Log(1 + (_docs.Count - n + 0.5) / (n + 0.5));
     }
 
+    // Categories that say little about the topic (any specific topic may legitimately match them).
+    private static readonly HashSet<string> BroadCategories = new() { "GENERAL_BUSINESS", "FOLLOW_UP", "RESUME_EXPERIENCE", "BEHAVIOURAL", "GAP_EXPERIENCE", "COMPANY_SPECIFIC" };
+
+    /// <summary>
+    /// Topic guard for instant cache answers: when the spoken question and the matched prepared question classify into
+    /// two different SPECIFIC topics (e.g. CRYPTO vs INTRODUCTION), the match is not trusted as High.
+    /// </summary>
+    public static bool TopicConsistent(string spoken, BankQuestion matched)
+    {
+        var a = QuestionClassifier.Classify(spoken).Category;
+        var b = QuestionClassifier.Classify(matched.CanonicalQuestion).Category;
+        return a == b || BroadCategories.Contains(a) || BroadCategories.Contains(b);
+    }
+
     public MatchResult Match(string question)
     {
         var qTokens = TextNormalizer.Tokenize(question);
@@ -91,6 +105,7 @@ public sealed class QuestionMatcher
                  : best.Score >= LowThreshold ? MatchConfidence.Low : MatchConfidence.None;
         // Ambiguity: two different intents score almost equally -> don't trust the cache blindly.
         if (conf == MatchConfidence.High && second.Item2 > 0 && best.Score - second.Item2 < 0.03) conf = MatchConfidence.Medium;
+        if (conf == MatchConfidence.High && !TopicConsistent(question, best.Doc.Question)) conf = MatchConfidence.Medium;
 
         return new MatchResult(best.Doc.Question, best.Score, conf, scored.Count > 1 ? second.Doc.Question : null, second.Item2);
     }
