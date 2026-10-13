@@ -19,8 +19,12 @@ public static class BillingStates
         PastDue = "past_due", Paused = "paused", Expired = "expired";
 }
 
+/// <summary>
+/// <see cref="LiveSecondsRemaining"/> is the plan allowance left in the billing period. <see cref="LiveSecondsAvailableToday"/>
+/// additionally applies the per-account daily safety cap (what can actually be used today); -1 when unknown.
+/// </summary>
 public sealed record UsageSummary(DateTime PeriodStartUtc, DateTime PeriodEndUtc, int LiveSecondsUsed, int LiveSecondsRemaining,
-    int PrepJobsUsed, int PrepJobsRemaining, int AnswerRequestsToday);
+    int PrepJobsUsed, int PrepJobsRemaining, int AnswerRequestsToday, int LiveSecondsAvailableToday = -1, int DailyLiveMinutesCap = 0);
 
 public sealed record AccountDto(Guid UserId, string Email, string Status, Entitlements Entitlements, UsageSummary Usage,
     SubscriptionDto? Subscription, DateTime CreatedUtc, string BillingState);
@@ -36,12 +40,26 @@ public sealed record UpsertDocumentRequest(Guid? ParentId, JsonElement Data, lon
 
 public sealed record StartSessionRequest(Guid DeviceId, Guid? TargetId, string IdempotencyKey, string? InterviewLanguage);
 public sealed record RealtimeCredential(string ClientSecret, DateTime ExpiresAtUtc, string Model, string WebSocketUrl, string TranscriptionPrompt);
-public sealed record StartSessionResponse(Guid SessionId, RealtimeCredential Realtime, int HeartbeatIntervalSeconds, int MaxDurationSeconds, int RemainingSeconds);
+/// <summary><see cref="RemainingSeconds"/> = what this session may still use (min of plan period, today's cap, operator cap).</summary>
+public sealed record StartSessionResponse(Guid SessionId, RealtimeCredential Realtime, int HeartbeatIntervalSeconds, int MaxDurationSeconds, int RemainingSeconds,
+    int PeriodRemainingSeconds = -1, int TodayRemainingSeconds = -1);
 public sealed record HeartbeatRequest(long Sequence);
-public sealed record HeartbeatResponse(int RemainingSeconds, bool Active, string? EndReason);
+public sealed record HeartbeatResponse(int RemainingSeconds, bool Active, string? EndReason, int PeriodRemainingSeconds = -1, int TodayRemainingSeconds = -1);
 
 public sealed record AnswerMessage(string Role, string Content);
-public sealed record AnswerStreamRequest(Guid? SessionId, Guid? PrepJobId, IReadOnlyList<AnswerMessage> Messages, int MaxTokens, string Purpose);
+/// <summary>
+/// Purpose: "live" (requires an active session lease), "prep" (requires a preparation job) or "manual" (typed question;
+/// no lease, never bills live minutes, entitlement- and rate-limited). DeviceId lets the server reject revoked devices.
+/// </summary>
+public sealed record AnswerStreamRequest(Guid? SessionId, Guid? PrepJobId, IReadOnlyList<AnswerMessage> Messages, int MaxTokens, string Purpose, Guid? DeviceId = null);
+
+public static class AnswerPurposes { public const string Live = "live", Prep = "prep", Manual = "manual"; }
+
+/// <summary>
+/// Minimal per-interview transcription context synced as the user's "target" document (no résumé or job-description
+/// text): it biases speech recognition toward the interview's names and terms.
+/// </summary>
+public sealed record TranscriptionContextDocument(string JobTitle, string Company, IReadOnlyList<string> Vocabulary, string Language);
 
 public sealed record PrepJobResponse(Guid JobId, int PrepJobsRemaining);
 

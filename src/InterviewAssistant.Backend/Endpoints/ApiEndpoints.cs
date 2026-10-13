@@ -86,31 +86,45 @@ public static class ApiEndpoints
         });
 
         // ---------------- live sessions ----------------
-        authed.MapPost("/sessions", async (HttpContext http, StartSessionRequest req, SessionService s, AppDbContext db, CancellationToken ct) =>
+        authed.MapPost("/sessions", async (HttpContext http, StartSessionRequest req, SessionService s, AppDbContext db, IOptions<SafetyOptions> safety, CancellationToken ct) =>
         {
             var c = await Resolve(http);
-            var prompt = await TranscriptionPromptAsync(db, c.User.Id, req.TargetId, ct);
+            var prompt = await TranscriptionPrompt.BuildAsync(db, c.User.Id, req.TargetId, safety.Value.MaxTranscriptionPromptChars, ct);
             return Results.Ok(await s.StartAsync(c.User, c.Plan, req, prompt, ct));
         });
         authed.MapPost("/sessions/{id:guid}/heartbeat", async (HttpContext http, Guid id, HeartbeatRequest req, SessionService s, CancellationToken ct) =>
         { var c = await Resolve(http); return Results.Ok(await s.HeartbeatAsync(c.User, c.Plan, id, req.Sequence, ct)); });
-        authed.MapPost("/sessions/{id:guid}/realtime-secret", async (HttpContext http, Guid id, string? language, SessionService s, AppDbContext db, CancellationToken ct) =>
+        authed.MapPost("/sessions/{id:guid}/realtime-secret", async (HttpContext http, Guid id, string? language, SessionService s, AppDbContext db, IOptions<SafetyOptions> safety, CancellationToken ct) =>
         {
             var c = await Resolve(http);
+            // Reconnects keep the session's own interview context (target stored on the lease, resolved for this user only).
             var target = await db.Sessions.Where(x => x.Id == id && x.UserId == c.User.Id).Select(x => x.TargetId).FirstOrDefaultAsync(ct);
-            return Results.Ok(await s.RenewSecretAsync(c.User, c.Plan, id, await TranscriptionPromptAsync(db, c.User.Id, target, ct), language, ct));
+            var lang = language is { Length: > 0 and <= 12 } l && l.All(ch => char.IsAsciiLetter(ch) || ch == '-') ? l : null;
+            return Results.Ok(await s.RenewSecretAsync(c.User, c.Plan, id, await TranscriptionPrompt.BuildAsync(db, c.User.Id, target, safety.Value.MaxTranscriptionPromptChars, ct), lang, ct));
         });
         authed.MapPost("/sessions/{id:guid}/stop", async (HttpContext http, Guid id, SessionService s, CancellationToken ct) =>
         { var c = await Resolve(http); await s.StopAsync(c.User, c.Plan, id, ct); return Results.NoContent(); });
 
         // ---------------- streamed answers (server key, server-chosen model) ----------------
         authed.MapPost("/answers/stream", async (HttpContext http, AnswerStreamRequest req, SessionService sessions, UsageService usage, ConfigService config,
-            IAnswerProviderFactory providers, AppDbContext db, IOptions<SafetyOptions> safety, CancellationToken ct) =>
+            IAnswerProviderFactory providers, AppDbContext db, DeviceService devices, TimeProvider time, IOptions<SafetyOptions> safety, ILoggerFactory lf, CancellationToken ct) =>
         {
             var c = await Resolve(http);
-            if (req.Purpose == "live")
+            if (req.DeviceId is Guid deviceId) await devices.RequireActiveAsync(c.User.Id, deviceId, ct);
+            if (req.Purpose == AnswerPurposes.Live)
             {
-                if (req.SessionId == null || !await sessions.IsActiveAsync(c.User.Id, req.SessionId.Value, ct)) throw ApiException.Forbidden("no_active_session", "Start an interview session first.");
+                if (req.SessionId == null || !await sessions.IsActiveAsync(c.User.Id, req.SessionId.Value, ct)) throw ApiException.Forbidden("no_active_session", "Your live session has ended. Press Resume.");
+            }
+            else if (req.Purpose == AnswerPurposes.Manual)
+            {
+                // Typed question: no live lease and no live-minute billing, but the account must be entitled to AI answers.
+                var summary = await usage.SummaryAsync(c.User.Id, c.Plan, ct);
+                var state = EntitlementService.BillingState(c.Plan, c.Sub, summary.LiveSecondsRemaining, time.GetUtcNow().UtcDateTime);
+                if (state is BillingStates.TrialExhausted or BillingStates.Expired or BillingStates.Paused)
+                    throw ApiException.Payment("plan_required", "AI answers need an active plan. Prepared answers still work.");
+                if (await usage.SumAsync(c.User.Id, UsageService.ManualAnswer, usage.TodayUtc, usage.TodayUtc.AddDays(1), ct) >= safety.Value.ManualAnswersPerDayPerAccount)
+                    throw ApiException.TooMany("manual_daily_cap", "Daily limit for typed AI answers reached. Prepared answers still work.");
+                usage.Record(c.User.Id, UsageService.ManualAnswer, 1);
             }
             else if (req.Purpose == "prep")
             {
@@ -118,7 +132,7 @@ public static class ApiEndpoints
                 if (job == null) throw ApiException.Forbidden("no_prep_job", "Start a preparation job first.");
                 if (++job.AiRequests > 80) throw ApiException.TooMany("prep_ai_limit", "This preparation used its AI allowance.");
             }
-            else throw ApiException.BadRequest("invalid_purpose", "Purpose must be 'live' or 'prep'.");
+            else throw ApiException.BadRequest("invalid_purpose", "Purpose must be 'live', 'manual' or 'prep'.");
 
             if (await usage.SumAsync(c.User.Id, UsageService.AnswerRequest, usage.TodayUtc, usage.TodayUtc.AddDays(1), ct) >= safety.Value.AnswersPerDayPerAccount)
                 throw ApiException.TooMany("daily_cap", "Daily answer limit reached for this account.");
@@ -128,6 +142,7 @@ public static class ApiEndpoints
             var rc = await config.GetAsync(ct);
             usage.Record(c.User.Id, UsageService.AnswerRequest, 1, req.SessionId);
             await db.SaveChangesAsync(ct);
+            lf.CreateLogger("answers").LogInformation("Answer request ({Purpose}) for user {UserId}", req.Purpose, c.User.Id);
 
             var provider = providers.Create(rc.AnswerModel, rc.AnswerFallbacks, rc.FirstTokenTimeoutMs);
             var maxTokens = Math.Clamp(req.MaxTokens, 16, safety.Value.MaxAnswerTokens);
@@ -186,23 +201,6 @@ public static class ApiEndpoints
         AdminEndpoints.Map(authed);
     }
 
-    /// <summary>Transcription bias prompt from the user's own target document (role/company/vocabulary), never from other users.</summary>
-    private static async Task<string> TranscriptionPromptAsync(AppDbContext db, Guid userId, Guid? targetId, CancellationToken ct)
-    {
-        if (targetId == null) return "Job interview. Professional business and technology vocabulary.";
-        var json = await db.Documents.Where(d => d.Id == targetId && d.UserId == userId && d.Kind == "target").Select(d => d.DataJson).FirstOrDefaultAsync(ct);
-        if (json == null) return "Job interview.";
-        try
-        {
-            using var doc = JsonDocument.Parse(json);
-            var r = doc.RootElement;
-            string S(string n) => r.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
-            var vocab = r.TryGetProperty("vocabulary", out var v) && v.ValueKind == JsonValueKind.Array ? v.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.String).Select(x => x.GetString()!).Take(60) : Enumerable.Empty<string>();
-            var p = $"Job interview for a {S("jobTitle")} role{(S("company").Length > 0 ? " at " + S("company") : "")}. Terms: {string.Join(", ", vocab)}.";
-            return p.Length > 1500 ? p[..1500] : p;
-        }
-        catch (JsonException) { return "Job interview."; }
-    }
 }
 
 public static class AdminEndpoints

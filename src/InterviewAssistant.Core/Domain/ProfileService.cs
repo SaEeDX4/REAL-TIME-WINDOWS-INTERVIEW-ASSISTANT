@@ -126,6 +126,8 @@ public static class ProfileService
             VerifiedNumbers = numbers.Where(n => n.Length > 0).ToList(),
             VerifiedEntities = entities,
             KnownGaps = knownGaps?.ToList() ?? new(),
+            Education = confirmed.Where(f => f.Kind == FactKind.Education).Select(f => new EducationEntry { Degree = f.Text, School = f.Company }).ToList(),
+            Languages = confirmed.Where(f => f.Kind == FactKind.Language).Select(f => new LanguageEntry { Language = f.Text }).ToList(),
         };
     }
 

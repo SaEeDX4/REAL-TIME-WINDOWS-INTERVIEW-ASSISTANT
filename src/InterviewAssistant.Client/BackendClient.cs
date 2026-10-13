@@ -61,7 +61,12 @@ public sealed class BackendClient
     public Task<PrepJobResponse> StartPreparationAsync(CancellationToken ct) => Send<PrepJobResponse>(HttpMethod.Post, "preparation/jobs", null, ct);
     public Task<StartSessionResponse> StartSessionAsync(StartSessionRequest r, CancellationToken ct) => Send<StartSessionResponse>(HttpMethod.Post, "sessions", r, ct);
     public Task<HeartbeatResponse> HeartbeatAsync(Guid id, long seq, CancellationToken ct) => Send<HeartbeatResponse>(HttpMethod.Post, $"sessions/{id}/heartbeat", new HeartbeatRequest(seq), ct);
-    public Task<RealtimeCredential> RenewRealtimeSecretAsync(Guid id, CancellationToken ct) => Send<RealtimeCredential>(HttpMethod.Post, $"sessions/{id}/realtime-secret", null, ct);
+    public Task<RealtimeCredential> RenewRealtimeSecretAsync(Guid id, CancellationToken ct, string? language = null) =>
+        Send<RealtimeCredential>(HttpMethod.Post, $"sessions/{id}/realtime-secret" + (string.IsNullOrWhiteSpace(language) ? "" : "?language=" + Uri.EscapeDataString(language)), null, ct);
+
+    /// <summary>Publishes the interview's transcription context (job title, company, vocabulary) as the user's own target document.</summary>
+    public Task<SyncDocument> PutTranscriptionContextAsync(Guid targetId, TranscriptionContextDocument doc, CancellationToken ct) =>
+        PutAsync("targets", targetId, new UpsertDocumentRequest(null, JsonSerializer.SerializeToElement(doc, Json), null), ct);
     public Task StopSessionAsync(Guid id, CancellationToken ct) => Send<JsonElement?>(HttpMethod.Post, $"sessions/{id}/stop", null, ct);
 
     /// <summary>Streams answer deltas from the server-side model (SSE).</summary>

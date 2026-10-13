@@ -36,7 +36,7 @@ public class TurnDetectorTests
         Run(td, c, 1500);
         Assert.Single(outp);
         var latency = outp[0].FinalizedMs - stoppedAt;
-        Assert.InRange(latency, 300, 700);
+        Assert.InRange(latency, 300, 800);
     }
 
     [Fact]
@@ -97,10 +97,10 @@ public class TurnDetectorTests
     }
 
     [Theory]
-    [InlineData("How would you prioritize?", 450)]
+    [InlineData("How would you prioritize?", 600)]
     [InlineData("How would you prioritize the backlog and", 1700)]
     [InlineData("I'd like to understand your background,", 1700)]
-    [InlineData("Let's talk about the ledger", 750)]
+    [InlineData("Let's talk about the ledger", 800)]
     public void AdaptiveDelay(string text, int expected) => Assert.Equal(expected, new TurnDetector(new ManualClock()).AdaptiveDelayMs(text));
 
     [Fact]

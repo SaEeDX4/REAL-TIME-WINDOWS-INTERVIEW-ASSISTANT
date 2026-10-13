@@ -64,6 +64,10 @@ public sealed class SafetyOptions
     public int AnswersPerMinute { get; set; } = 30;
     public int AnswersPerDayPerAccount { get; set; } = 2000;
     public int GlobalAnswersPerDay { get; set; } = 1_000_000;
+    /// <summary>Typed (manual) answers per account per UTC day — a subset of AnswersPerDayPerAccount, never billed as live minutes.</summary>
+    public int ManualAnswersPerDayPerAccount { get; set; } = 300;
+    /// <summary>Upper bound for the transcription bias prompt built from the user's target document.</summary>
+    public int MaxTranscriptionPromptChars { get; set; } = 1500;
     public int MaxAnswerTokens { get; set; } = 600;
     public int MaxDocumentBytes { get; set; } = 2 * 1024 * 1024;
     public int MaxRequestBodyBytes { get; set; } = 4 * 1024 * 1024;

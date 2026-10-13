@@ -20,9 +20,12 @@ public sealed class PromptBuilder
         var sb = new StringBuilder();
         sb.AppendLine($"CANDIDATE: {p.Name} — {p.Headline}. {p.Summary}");
         foreach (var e in p.Experience) sb.AppendLine($"- {e.Title}, {e.Company} ({e.Location}, {e.Period})");
-        sb.AppendLine("Education: MBA Marketing Strategy; BSc Computer Software Engineering (University of Tehran). Languages: Persian native, English advanced, Lithuanian A1.");
-        sb.AppendLine("Competencies: " + string.Join("; ", p.CoreCompetencies));
-        sb.AppendLine("KNOWN GAPS (never claim these as past work): " + string.Join(" ", p.KnownGaps));
+        // Only the user's CONFIRMED facts — nothing here may come from anywhere else.
+        if (p.Education.Count > 0) sb.AppendLine("Education: " + string.Join("; ", p.Education));
+        if (p.Languages.Count > 0) sb.AppendLine("Languages: " + string.Join("; ", p.Languages));
+        if (p.CoreCompetencies.Count > 0) sb.AppendLine("Competencies: " + string.Join("; ", p.CoreCompetencies));
+        if (p.KnownGaps.Count > 0) sb.AppendLine("KNOWN GAPS (never claim these as past work): " + string.Join(" ", p.KnownGaps));
+        if (p.Experience.Count == 0) sb.AppendLine("No confirmed work history is available: never state past roles, employers, projects or numbers — answer as what the candidate WOULD do.");
         _profileDigest = sb.ToString();
     }
 
@@ -81,7 +84,9 @@ public sealed class PromptBuilder
             if (!string.IsNullOrEmpty(ctx.Reference.GapWarning)) user.AppendLine("Gap note: " + ctx.Reference.GapWarning);
             user.AppendLine();
         }
-        user.AppendLine($"SUGGESTED MODE: {cls.Mode.ToString().ToUpperInvariant()} (override only if clearly wrong). Category: {cls.Category}." + (cls.IsFollowUp ? " This is a FOLLOW-UP to the most recent question above." : ""));
+        user.AppendLine(cls.Mode == AnswerMode.Bridge
+            ? $"REQUIRED MODE: BRIDGE. The interviewer asks whether the candidate personally did this and CANDIDATE EVIDENCE does not show it. Bullet 1 MUST be a short honest bridge (e.g. \"I haven't owned that exact work end-to-end, but…\"); then the approach in \"I'd…\" form. Never claim it was done. Category: {cls.Category}."
+            : $"SUGGESTED MODE: {cls.Mode.ToString().ToUpperInvariant()} (override only if clearly wrong). Category: {cls.Category}." + (cls.IsFollowUp ? " This is a FOLLOW-UP to the most recent question above." : ""));
         if (!string.IsNullOrWhiteSpace(ExtraInstruction)) user.AppendLine(ExtraInstruction);
         user.AppendLine($"INTERVIEWER QUESTION: \"{question}\"");
 

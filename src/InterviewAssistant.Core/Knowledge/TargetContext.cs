@@ -48,8 +48,15 @@ public sealed class TargetContext
     public string BuildTranscriptionPrompt()
     {
         var who = string.IsNullOrWhiteSpace(CompanyName) ? $"Job interview for a {RoleTitle} role." : $"Job interview for a {RoleTitle} role at {CompanyName}.";
-        var terms = new[] { CandidateName, CompanyName }.Concat(Products).Concat(Employers).Concat(Vocabulary)
-            .Where(t => !string.IsNullOrWhiteSpace(t) && t != "the candidate").Distinct(StringComparer.OrdinalIgnoreCase).Take(80);
-        return who + " Terms: " + string.Join(", ", terms) + ".";
+        return who + " Terms: " + string.Join(", ", TranscriptionTerms()) + ".";
     }
+
+    /// <summary>
+    /// Names and terms the interviewer is likely to say for THIS interview: company, products, domain vocabulary,
+    /// canonical forms of misrecognised terms, and the candidate's confirmed employers. No sentences, no résumé text.
+    /// </summary>
+    public IReadOnlyList<string> TranscriptionTerms() =>
+        new[] { CompanyName }.Concat(Products).Concat(Vocabulary).Concat(Aliases.Select(a => a.Canonical)).Concat(Employers)
+            .Select(t => t?.Trim() ?? "").Where(t => t.Length > 1 && t.Length <= 48 && t != "the candidate")
+            .Distinct(StringComparer.OrdinalIgnoreCase).Take(80).ToList();
 }

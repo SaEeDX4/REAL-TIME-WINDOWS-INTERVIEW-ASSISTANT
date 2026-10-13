@@ -3,7 +3,11 @@ using InterviewAssistant.Core.Knowledge;
 
 namespace InterviewAssistant.Core.Orchestration;
 
-public enum EngineStatus { Ready, Listening, SpeechDetected, Finalizing, Answering, Paused, Reconnecting, NoAudio, ApiError, Stopped }
+/// <summary>
+/// Live states. <see cref="Quiet"/> is normal silence (neutral); <see cref="NoAudio"/> is a one-time warning when nothing
+/// has been heard since listening started (likely the wrong playback device).
+/// </summary>
+public enum EngineStatus { Ready, Listening, SpeechDetected, Finalizing, Answering, Paused, Reconnecting, NoAudio, ApiError, Stopped, Quiet, AnswerReady }
 
 public enum AnswerSource { Cache, Llm, CacheFallback, Error }
 
@@ -32,6 +36,16 @@ public sealed class AnswerView
     public Live.CoachOutput? Coach { get; set; }
     public Live.AdaptiveLevel Adaptive { get; set; }
     public List<string> StoryIds { get; } = new();
+    /// <summary>Set when this answer replaces an earlier one for the same question (multi-part continuation/restatement).</summary>
+    public int? ReplacesAnswerId { get; init; }
+    /// <summary>Superseded by a continuation of the same question: its output is discarded.</summary>
+    public bool Superseded { get; internal set; }
+    /// <summary>Interviewer turn this answer belongs to (0 = typed question or variant).</summary>
+    public int TurnId { get; init; }
+    /// <summary>Error category when the answer failed (null on success).</summary>
+    public Providers.ProviderErrorKind? Error { get; set; }
+    internal Live.QuestionRecord? Record { get; set; }
+    internal bool BridgePending { get; set; }
 }
 
 public sealed class EngineOptions
@@ -45,7 +59,9 @@ public sealed class EngineOptions
     public AnswerStyle DefaultStyle { get; set; } = AnswerStyle.Balanced;
     /// <summary>Seconds without audio level above the floor while listening before "NO AUDIO" is shown.</summary>
     public int NoAudioWarningSeconds { get; set; } = 20;
+    /// <summary>Seconds of silence before the neutral "Listening · quiet" state.</summary>
+    public int QuietAfterSeconds { get; set; } = 6;
     public int HistoryCapacity { get; set; } = 30;
-    /// <summary>Note shown when the answer service rejects the credential (own key vs. signed-in service account).</summary>
-    public string CredentialRejectedNote { get; set; } = "API key rejected — open Settings";
+    /// <summary>Developer own-key mode: credential errors point to Settings instead of sign-in.</summary>
+    public bool DeveloperKeyMode { get; set; } = true;
 }

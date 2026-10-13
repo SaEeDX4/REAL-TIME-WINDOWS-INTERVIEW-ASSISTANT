@@ -85,4 +85,23 @@ public sealed class CandidateProfile
     [JsonPropertyName("verified_numbers")] public List<string> VerifiedNumbers { get; init; } = new();
     [JsonPropertyName("verified_entities")] public List<string> VerifiedEntities { get; init; } = new();
     [JsonPropertyName("known_gaps")] public List<string> KnownGaps { get; init; } = new();
+    /// <summary>Confirmed education facts (degree, institution) — empty unless the user confirmed them.</summary>
+    [JsonPropertyName("education")] public List<EducationEntry> Education { get; init; } = new();
+    /// <summary>Confirmed spoken languages with level.</summary>
+    [JsonPropertyName("languages")] public List<LanguageEntry> Languages { get; init; } = new();
+}
+
+public sealed class EducationEntry
+{
+    [JsonPropertyName("degree")] public string Degree { get; init; } = "";
+    [JsonPropertyName("school")] public string School { get; init; } = "";
+    [JsonPropertyName("usage_note")] public string UsageNote { get; init; } = "";
+    public override string ToString() => string.Join(", ", new[] { Degree, School }.Where(x => x.Length > 0)) + (UsageNote.Length > 0 ? $" ({UsageNote})" : "");
+}
+
+public sealed class LanguageEntry
+{
+    [JsonPropertyName("language")] public string Language { get; init; } = "";
+    [JsonPropertyName("level")] public string Level { get; init; } = "";
+    public override string ToString() => Level.Length > 0 ? $"{Language} {Level}" : Language;
 }

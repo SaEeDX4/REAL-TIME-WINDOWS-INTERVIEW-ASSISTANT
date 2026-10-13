@@ -126,10 +126,11 @@ public class EngineTests
     public async Task ServiceBuildShowsSignInNoteInsteadOfApiKeyAdvice()
     {
         var r = await CreateAsync();
-        r.Engine.Options.CredentialRejectedNote = "Sign in from Home → Account to get AI answers";
+        r.Engine.Options.DeveloperKeyMode = false;
         r.P.Throw = new ProviderException(ProviderErrorKind.InvalidApiKey, "401");
         var a = await r.Ask("Zebra quantum basketball orchestra?");
-        Assert.Equal("Sign in from Home → Account to get AI answers", a.Note);
+        Assert.Equal("Please sign in again (Home → Account).", a.Note);
+        Assert.DoesNotContain("API key", a.Note);
     }
 
     [Fact]
@@ -141,7 +142,10 @@ public class EngineTests
         await e.SubmitManualQuestionAsync("tell me about yourself");
         Assert.NotNull(done);
         Assert.Equal(AnswerSource.Cache, done!.Source);
-        Assert.Equal(4, done.Bullets.Count);
+        // Default view shows exactly three bullets (the prepared answer has four): it must fit without scrolling.
+        Assert.Equal(3, done.Bullets.Count);
+        var bank = TestKnowledge.Load().Questions.First(q => q.QuestionId == done.MatchedQuestionId);
+        Assert.Equal(bank.ShortBullets.Take(3), done.Bullets);
     }
 
     [Fact]

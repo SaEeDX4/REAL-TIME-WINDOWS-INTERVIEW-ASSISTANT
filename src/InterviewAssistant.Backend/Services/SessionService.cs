@@ -57,8 +57,11 @@ public sealed class SessionService
         var now = _time.GetUtcNow().UtcDateTime;
         if (existing != null && existing.Status != "active") throw ApiException.Conflict("session_ended", "This session already ended. Start a new one.");
 
-        var remaining = await _usage.RemainingLiveSecondsAsync(user.Id, plan, ct);
-        if (remaining <= 0) throw ApiException.Payment("allowance_exhausted", "No live interview minutes remain on your plan for this period.");
+        var live = await _usage.LiveRemainingAsync(user.Id, plan, ct);
+        var remaining = live.Effective;
+        if (live.Period <= 0) throw ApiException.Payment("allowance_exhausted", "No live interview minutes remain on your plan for this period.");
+        if (live.Today <= 0) throw ApiException.TooMany("daily_live_cap", "Today's live-minute limit for this account is reached. It resets at 00:00 UTC.");
+        if (remaining <= 0) throw new ApiException(503, "global_cap", "The live service is at capacity right now. Prepared answers still work.");
         if (existing == null)
         {
             // The same installation starting again (app crash/restart) replaces its own stale lease instead of being blocked.
@@ -77,7 +80,7 @@ public sealed class SessionService
         await _db.SaveChangesAsync(ct);
         _log.LogInformation("Session {SessionId} started for user {UserId} on device {DeviceId} ({Plan}, {Remaining}s left, model {Model})", existing.Id, user.Id, req.DeviceId, plan.Plan.Code, remaining, cred.Model);
         var maxDuration = Math.Min(_safety.MaxSessionMinutes * 60, remaining);
-        return new StartSessionResponse(existing.Id, cred, _safety.HeartbeatIntervalSeconds, maxDuration, remaining);
+        return new StartSessionResponse(existing.Id, cred, _safety.HeartbeatIntervalSeconds, maxDuration, remaining, live.Period, live.Today);
     }
 
     public Task<HeartbeatResponse> HeartbeatAsync(UserAccount user, EffectivePlan plan, Guid sessionId, long seq, CancellationToken ct) =>
@@ -90,16 +93,17 @@ public sealed class SessionService
         if (seq <= s.HeartbeatSequence) throw ApiException.Conflict("replayed_heartbeat", "Heartbeat sequence must increase.");
         var now = _time.GetUtcNow().UtcDateTime;
         var elapsed = (int)Math.Clamp((now - s.LastHeartbeatUtc).TotalSeconds, 0, _safety.HeartbeatIntervalSeconds * 2);
-        var remainingBefore = await _usage.RemainingLiveSecondsAsync(user.Id, plan, ct);
+        var before = await _usage.LiveRemainingAsync(user.Id, plan, ct);
+        var remainingBefore = before.Effective;
         var billable = Math.Min(elapsed, remainingBefore);
         if (billable > 0) _usage.Record(user.Id, UsageService.LiveSeconds, billable, s.Id);
         s.MeteredSeconds += billable; s.LastHeartbeatUtc = now; s.HeartbeatSequence = seq;
         var remaining = remainingBefore - billable;
-        if (remaining <= 0) End(s, "exhausted", "allowance_exhausted", now);
+        if (remaining <= 0) End(s, "exhausted", before.Period - billable <= 0 ? "allowance_exhausted" : before.Today - billable <= 0 ? "daily_cap" : "global_cap", now);
         else if ((now - s.StartedUtc).TotalMinutes >= _safety.MaxSessionMinutes) End(s, "stopped", "max_duration", now);
         await _db.SaveChangesAsync(ct);
         if (s.Status != "active") _log.LogInformation("Session {SessionId} ended: {Reason} ({Metered}s metered)", s.Id, s.EndReason, s.MeteredSeconds);
-        return new HeartbeatResponse(Math.Max(0, remaining), s.Status == "active", s.EndReason);
+        return new HeartbeatResponse(Math.Max(0, remaining), s.Status == "active", s.EndReason, Math.Max(0, before.Period - billable), Math.Max(0, before.Today - billable));
     }
 
     public Task<RealtimeCredential> RenewSecretAsync(UserAccount user, EffectivePlan plan, Guid sessionId, string prompt, string? language, CancellationToken ct) =>

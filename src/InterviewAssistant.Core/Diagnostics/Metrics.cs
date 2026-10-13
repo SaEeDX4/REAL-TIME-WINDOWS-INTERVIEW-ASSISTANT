@@ -12,7 +12,7 @@ public sealed class SessionMetrics
 {
     private readonly ConcurrentQueue<LatencySample> _samples = new();
     public int Capacity { get; init; } = 200;
-    private int _questions, _cacheAnswers, _llmAnswers, _fallbackAnswers, _apiErrors, _duplicates, _reconnects, _llmRequests;
+    private int _questions, _cacheAnswers, _llmAnswers, _fallbackAnswers, _apiErrors, _duplicates, _reconnects, _llmRequests, _merged;
     public long AudioMsSent;
 
     public int Questions => _questions;
@@ -23,6 +23,8 @@ public sealed class SessionMetrics
     public int DuplicatesSuppressed => _duplicates;
     public int Reconnects => _reconnects;
     public int LlmRequests => _llmRequests;
+    /// <summary>Multi-part questions joined after a pause (one answer instead of two).</summary>
+    public int TurnsMerged => _merged;
     public long ApproxLlmInputChars, ApproxLlmOutputChars;
 
     public void Add(LatencySample s)
@@ -39,6 +41,7 @@ public sealed class SessionMetrics
     public void IncDuplicate() => Interlocked.Increment(ref _duplicates);
     public void IncReconnect() => Interlocked.Increment(ref _reconnects);
     public void IncLlmRequest() => Interlocked.Increment(ref _llmRequests);
+    public void IncMerged() => Interlocked.Increment(ref _merged);
 
     /// <summary>Approximate session cost in USD from configurable unit prices (estimate only).</summary>
     public double EstimatedCostUsd(double transcribePerMinute, double inputPerMTok, double outputPerMTok) =>

@@ -39,11 +39,6 @@ public static class QuestionClassifier
         @"\b(have you (ever |personally |actually |previously )?(built|owned|worked|designed|implemented|managed|led|run|done|launched|created|used)|did you (ever |personally )?(build|own|work|design|implement|manage|lead)|do you have (any |direct |hands-on |practical )?experience|what('s| is) your experience|your experience (with|in)|in your (previous|past|last) (role|job))",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    // Topics in which the résumé has no direct evidence (known gaps).
-    private static readonly Regex GapTopics = new(
-        @"\b(ledger|reconcil|wallet architecture|wallet|closed[- ]loop|reward (system|program|engine)|loyalty|tokenomic|mica|micar|product owner|product manager|smart contract|double[- ]entry|idempoten|scrum master|token (launch|design|economy))",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
     private static readonly Regex Hypothetical = new(
         @"\b(how would you|what would you|how will you|how do you|how should|what is|what's|what are|explain|design|imagine|suppose|if you|walk me through how)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -58,8 +53,15 @@ public static class QuestionClassifier
 
     public static Classification Classify(string question) => Classify(question, null);
 
-    /// <summary>Classify with target context: employer names count as personal-history cues, company/product names as company-specific.</summary>
-    public static Classification Classify(string question, TargetContext? ctx)
+    /// <summary>"Have you personally…", "Did you implement…", "Do you have experience with…" — asks about the candidate's own history.</summary>
+    public static bool IsDirectExperienceQuestion(string question) => PersonalHistory.IsMatch(question.ToLowerInvariant());
+
+    /// <summary>
+    /// Classify with target context and the candidate's confirmed evidence. A direct experience question becomes
+    /// VERIFIED only when confirmed evidence covers its topic, otherwise BRIDGE (honest bridge, then the approach).
+    /// Without evidence (no profile), direct experience questions are always BRIDGE — never assume history.
+    /// </summary>
+    public static Classification Classify(string question, TargetContext? ctx, EvidenceIndex? evidence = null)
     {
         var q = question.Trim();
         var lower = q.ToLowerInvariant();
@@ -77,12 +79,20 @@ public static class QuestionClassifier
         if (isFollowUp && category == "GENERAL_BUSINESS") category = "FOLLOW_UP";
 
         AnswerMode mode;
-        if (PersonalHistory.IsMatch(lower) && GapTopics.IsMatch(lower)) { mode = AnswerMode.Bridge; category = category == "GENERAL_BUSINESS" ? "GAP_EXPERIENCE" : category; }
+        if (PersonalHistory.IsMatch(lower) && !HasEvidence(q, evidence)) { mode = AnswerMode.Bridge; category = category == "GENERAL_BUSINESS" ? "GAP_EXPERIENCE" : category; }
         else if (VerifiedCue.IsMatch(lower) || PersonalHistory.IsMatch(lower) || (mentionsEmployer && !Hypothetical.IsMatch(lower))) mode = AnswerMode.Verified;
         else if (Hypothetical.IsMatch(lower)) mode = AnswerMode.Hypothetical;
         else mode = AnswerMode.Hypothetical;
 
         return new Classification(category, mode, isFollowUp);
+    }
+
+    private static bool HasEvidence(string question, EvidenceIndex? evidence)
+    {
+        if (evidence == null || evidence.Count == 0) return false;
+        var topic = EvidenceIndex.Topic(PersonalHistory.Replace(question.ToLowerInvariant(), " "));
+        // "What did you do in your previous role?" has no specific topic: it is about the confirmed history itself.
+        return topic.Count == 0 || evidence.Supports(PersonalHistory.Replace(question.ToLowerInvariant(), " "));
     }
 
     private static bool ContainsWord(string haystack, string word) =>

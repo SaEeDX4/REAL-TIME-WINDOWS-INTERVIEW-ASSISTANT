@@ -21,6 +21,13 @@ public sealed class CloudSession : IAsyncDisposable
     public Guid Id { get; }
     public int HeartbeatIntervalSeconds { get; }
     public int RemainingSeconds { get; private set; }
+    /// <summary>Plan allowance left in the billing period (-1 if the server did not say).</summary>
+    public int PeriodRemainingSeconds { get; private set; } = -1;
+    /// <summary>Live time still available today under the daily safety cap (-1 if unknown).</summary>
+    public int TodayRemainingSeconds { get; private set; } = -1;
+    /// <summary>Interview language passed on every secret renewal so reconnects keep the same recognition settings.</summary>
+    public string? Language { get; }
+    public Guid? TargetId { get; }
     public bool Active { get; private set; } = true;
     public string? EndReason { get; private set; }
     public string CurrentSecret => _cred.ClientSecret;
@@ -31,11 +38,13 @@ public sealed class CloudSession : IAsyncDisposable
     public event Action<int>? RemainingChanged;
     public event Action<string>? Warning;
 
-    private CloudSession(BackendClient api, StartSessionResponse r, TimeProvider time)
+    private CloudSession(BackendClient api, StartSessionResponse r, TimeProvider time, string? language, Guid? targetId)
     {
-        _api = api; _time = time; Id = r.SessionId; _cred = r.Realtime;
+        _api = api; _time = time; Id = r.SessionId; _cred = r.Realtime; Language = language; TargetId = targetId;
         HeartbeatIntervalSeconds = Math.Clamp(r.HeartbeatIntervalSeconds, 5, 120);
         RemainingSeconds = r.RemainingSeconds;
+        PeriodRemainingSeconds = r.PeriodRemainingSeconds;
+        TodayRemainingSeconds = r.TodayRemainingSeconds;
     }
 
     public static async Task<CloudSession> StartAsync(BackendClient api, Guid deviceId, Guid? targetId, string? language, CancellationToken ct, TimeProvider? time = null, bool runLoop = true)
@@ -47,7 +56,7 @@ public sealed class CloudSession : IAsyncDisposable
             try { r = await api.StartSessionAsync(new StartSessionRequest(deviceId, targetId, key, language), ct); }
             catch (BackendException ex) when (ex.Status is 0 or 502 or 503 && ex.Code != "maintenance" && attempt < 2) { await Task.Delay(500 * (attempt + 1), ct); }
         }
-        var s = new CloudSession(api, r, time ?? TimeProvider.System);
+        var s = new CloudSession(api, r, time ?? TimeProvider.System, language, targetId);
         if (runLoop) s._loop = s.LoopAsync(s._cts.Token);
         return s;
     }
@@ -77,7 +86,7 @@ public sealed class CloudSession : IAsyncDisposable
         {
             if (!_startSecretUsed && _cred.ExpiresAtUtc - _time.GetUtcNow().UtcDateTime > TimeSpan.FromSeconds(30)) { _startSecretUsed = true; return _cred.ClientSecret; }
             _startSecretUsed = true;
-            try { _cred = await _api.RenewRealtimeSecretAsync(Id, ct); return _cred.ClientSecret; }
+            try { _cred = await _api.RenewRealtimeSecretAsync(Id, ct, Language); return _cred.ClientSecret; }
             catch (BackendException ex) when (ex.Status is 404 or 409 or 402 or 403) { End(ex.Code); return null; }
         }
         finally { _secretGate.Release(); }
@@ -92,6 +101,8 @@ public sealed class CloudSession : IAsyncDisposable
             var hb = await _api.HeartbeatAsync(Id, ++_seq, ct);
             _consecutiveFailures = 0;
             RemainingSeconds = hb.RemainingSeconds;
+            if (hb.PeriodRemainingSeconds >= 0) PeriodRemainingSeconds = hb.PeriodRemainingSeconds;
+            if (hb.TodayRemainingSeconds >= 0) TodayRemainingSeconds = hb.TodayRemainingSeconds;
             RemainingChanged?.Invoke(hb.RemainingSeconds);
             if (!hb.Active) { End(hb.EndReason ?? "ended"); return; }
             if (hb.RemainingSeconds is > 0 and <= 300) Warning?.Invoke($"{hb.RemainingSeconds / 60 + 1} live minutes left.");

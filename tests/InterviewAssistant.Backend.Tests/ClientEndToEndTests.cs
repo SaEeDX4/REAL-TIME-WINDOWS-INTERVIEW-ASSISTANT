@@ -84,9 +84,11 @@ public class ClientEndToEndTests : IClassFixture<ApiFactory>
         var upd = await Assert.ThrowsAsync<BackendException>(() => old.MeAsync(default));
         Assert.True(upd.IsUpdateRequired);
 
-        var provider = new CloudAnswerProvider(api, () => Guid.NewGuid());
+        // A live request without an active lease keeps the server's meaning (never "Unknown").
+        var provider = new CloudAnswerProvider(api, () => Guid.NewGuid()) { Purpose = AnswerPurposes.Live };
         var pe = await Assert.ThrowsAsync<ProviderException>(async () => { await foreach (var _ in provider.StreamAsync(new[] { new ChatMessage("user", "q") }, 50, default)) { } });
-        Assert.Equal(ProviderErrorKind.Unknown, pe.Kind);   // 403 no_active_session
+        Assert.Equal(ProviderErrorKind.SessionEnded, pe.Kind);
+        Assert.Equal("no_active_session", pe.Code);
     }
 
     [Fact]

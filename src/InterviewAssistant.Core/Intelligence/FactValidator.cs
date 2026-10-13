@@ -11,16 +11,21 @@ public sealed record ValidationReport(IReadOnlyList<ValidationIssue> Issues, int
 }
 
 /// <summary>
-/// Guards against fabricated history: flags numbers not on the résumé, past-tense achievement claims in
-/// hypothetical/bridge answers that aren't anchored to a verified employer, and unknown employers.
-/// Also checks format (bullet count/length) for automated quality evaluation.
+/// Guards against fabricated history: flags numbers not on the résumé, first-person past claims ("I built…",
+/// "I've implemented…", "I led…") that no confirmed evidence item supports — in every mode, including VERIFIED —
+/// and unknown employers. Also checks format (bullet count/length) for automated quality evaluation.
 /// </summary>
 public sealed class FactValidator
 {
     private readonly HashSet<string> _numbers;
     private readonly List<string> _entities;
     private static readonly Regex NumberRegex = new(@"\b\d[\d,\.]*\s*(%|percent)?|\b(twenty-two|twenty-five|one|two|three|four|five|six|seven|eight|nine|ten|twelve|fifteen|eighteen|twenty|thirty|fifty|sixty|hundred)(\s|-)?(thousand|percent)?\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex PastClaim = new(@"\bI\s+(built|implemented|led|managed|delivered|launched|designed|owned|created|developed|ran|was responsible for|have built|have owned|have implemented)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    // Past-tense ownership claims. Present habits ("I run a weekly review") are not history; "I've run…" is.
+    private static readonly Regex PastClaim = new(
+        @"\bI(?:(?:'ve|’ve|\s+have)\s+(built|implemented|led|managed|delivered|launched|designed|owned|created|developed|run|been responsible for|been in charge of|set up|introduced|driven|scaled|overseen|headed|spearheaded|architected|shipped|rolled out|established)" +
+        @"|\s+(built|implemented|led|managed|delivered|launched|designed|owned|created|developed|ran|was responsible for|was in charge of|set up|introduced|drove|scaled|oversaw|headed|spearheaded|architected|shipped|rolled out|established))\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex ClauseEnd = new(@"[.;!?]|,\s+(and|but|which|so)\b|\s+—\s+", RegexOptions.Compiled);
     private static readonly Regex EmployerClaim = new(@"\b(?:at|with|while at|when I was at)\s+([A-Z][A-Za-z]+(?:\s[A-Z][A-Za-z]+)?)", RegexOptions.Compiled);
 
     private static readonly Dictionary<string, string> WordNumbers = new(StringComparer.OrdinalIgnoreCase)
@@ -34,9 +39,13 @@ public sealed class FactValidator
     private static readonly string[] GenericNumbers = { "30", "60", "90", "1", "2", "3", "4", "5", "6", "20", "100" };
     private static readonly string[] GenericEntities = { "Engineering", "Compliance", "Legal", "Finance", "Marketing", "CRM", "Design", "Product", "Security", "Sales", "Operations", "Support", "Data", "Jira", "Scrum", "Agile", "QA", "MiCA" };
     private readonly HashSet<string> DomainNumbers;
+    private readonly EvidenceIndex _evidence;
+    private readonly List<string> _profileEntities;
 
-    public FactValidator(CandidateProfile profile, TargetContext? context = null)
+    public FactValidator(CandidateProfile profile, TargetContext? context = null, EvidenceIndex? evidence = null)
     {
+        _evidence = evidence ?? new EvidenceIndex(profile, Array.Empty<CandidateStory>());
+        _profileEntities = profile.VerifiedEntities.Concat(profile.Experience.Select(e => e.Company)).Where(e => e.Length > 1).Distinct().ToList();
         _numbers = new HashSet<string>(profile.VerifiedNumbers.Select(NormalizeNumber));
         var year = DateTime.UtcNow.Year;
         DomainNumbers = new HashSet<string>(GenericNumbers.Concat(new[] { (year - 2).ToString(), (year - 1).ToString(), year.ToString() })
@@ -87,10 +96,9 @@ public sealed class FactValidator
                     issues.Add(new("UNKNOWN_EMPLOYER", name, i));
             }
 
-            if (mode != AnswerMode.Verified && PastClaim.IsMatch(b))
+            foreach (Match claim in PastClaim.Matches(b))
             {
-                var anchored = _entities.Take(25).Any(e => b.Contains(e, StringComparison.OrdinalIgnoreCase));
-                if (!anchored) issues.Add(new("UNSUPPORTED_CLAIM", PastClaim.Match(b).Value, i));
+                if (!IsSupported(b, claim)) { issues.Add(new("UNSUPPORTED_CLAIM", claim.Value, i)); break; }
             }
         }
         if (style == AnswerStyle.Balanced && (bullets.Count < 2 || bullets.Count > 4)) issues.Add(new("BULLET_COUNT", bullets.Count.ToString(), -1));
@@ -98,18 +106,40 @@ public sealed class FactValidator
         return new ValidationReport(issues, words, bullets.Count);
     }
 
+    /// <summary>
+    /// A past claim is supported when a confirmed evidence item covers most of its clause ("I led the Arzif growth
+    /// team to 60,000 traders" vs. the confirmed Arzif achievement). Generic words like "Engineering" never count.
+    /// </summary>
+    private bool IsSupported(string bullet, Match claim)
+    {
+        var rest = bullet[(claim.Index + claim.Length)..];
+        var end = ClauseEnd.Match(rest);
+        var clause = end.Success ? rest[..end.Index] : rest;
+        // The sentence may name the employer before the verb ("At Arzif, I led…"): include the lead-in.
+        var lead = bullet[..claim.Index];
+        var text = lead + " " + clause;
+        if (EvidenceIndex.Topic(clause).Count == 0) return _profileEntities.Any(e => lead.Contains(e, StringComparison.OrdinalIgnoreCase));
+        return _evidence.Supports(text, 0.5);
+    }
+
+    /// <summary>True when the bullet contains a first-person past claim no confirmed evidence supports.</summary>
+    public bool HasUnsupportedClaim(string bullet) => PastClaim.Matches(bullet).Any(m => !IsSupported(bullet, m));
+
     /// <summary>Rewrites or drops bullets with factual issues (used on LLM output before it is shown as final).</summary>
     public static string SoftenClaim(string bullet)
     {
-        // "I built X" -> "I'd build X" style softening for hypothetical answers.
+        // "I built X" / "I've built X" -> "I'd build X": the same idea as a plan, never as history.
         return PastClaim.Replace(bullet, m =>
         {
-            var verb = m.Groups[1].Value.ToLowerInvariant().Replace("have ", "");
+            var verb = (m.Groups[1].Success ? m.Groups[1] : m.Groups[2]).Value.ToLowerInvariant();
             var baseVerb = verb switch
             {
                 "built" => "build", "implemented" => "implement", "led" => "lead", "managed" => "manage", "delivered" => "deliver",
                 "launched" => "launch", "designed" => "design", "owned" => "own", "created" => "create", "developed" => "develop",
-                "ran" => "run", "was responsible for" => "be responsible for", _ => verb,
+                "ran" or "run" => "run", "was responsible for" or "been responsible for" => "be responsible for", "was in charge of" or "been in charge of" => "be in charge of",
+                "set up" => "set up", "introduced" => "introduce", "drove" or "driven" => "drive", "scaled" => "scale", "oversaw" or "overseen" => "oversee", "headed" => "head",
+                "spearheaded" => "spearhead", "architected" => "architect", "shipped" => "ship", "rolled out" => "roll out", "established" => "establish",
+                _ => verb,
             };
             return "I'd " + baseVerb;
         });

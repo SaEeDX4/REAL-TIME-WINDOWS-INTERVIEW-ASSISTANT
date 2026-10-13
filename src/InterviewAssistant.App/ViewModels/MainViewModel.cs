@@ -286,7 +286,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         if (UsingCloud && Cloud.Api != null)
         {
             // Cloud: the server picks the models and holds the provider key; the transcriber only ever sees short-lived secrets.
-            _provider = new CloudAnswerProvider(Cloud.Api!, () => _cloudSession?.Id);
+            // Live lease while listening; the lease-free "manual" purpose for typed questions while paused or stopped.
+            _provider = new CloudAnswerProvider(Cloud.Api!, () => _cloudSession is { Active: true } s ? s.Id : null, deviceId: () => Settings.CloudDeviceId);
             _transcriberOptions.ServerConfiguredSession = true;   // the server mints the session config with each secret
             _transcriber = new OpenAiRealtimeTranscriber(ct => _cloudSession is { Active: true } s ? s.NextConnectionSecretAsync(ct) : Task.FromResult<string?>(null), _transcriberOptions);
         }
@@ -296,7 +297,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             _transcriber = new OpenAiRealtimeTranscriber(SecretStore.GetApiKey, _transcriberOptions);
         }
         _transcriber.Diagnostic += m => AppLog.Info(m);
-        _engine = new InterviewEngine(Knowledge, _transcriber, _provider, new EngineOptions { UseFastCache = Settings.UseFastCache, CredentialRejectedNote = UsingCloud ? "Sign in from Home → Account to get AI answers" : "API key rejected — open Settings" });
+        _engine = new InterviewEngine(Knowledge, _transcriber, _provider, new EngineOptions { UseFastCache = Settings.UseFastCache, DeveloperKeyMode = !UsingCloud });
         if (Settings.AnswerLanguage != "same" && LanguageRegistry.IsSupported(Settings.AnswerLanguage)) _engine.AnswerLanguageOverride = Settings.AnswerLanguage;
         if (Settings.StartInCoachMode) _engine.Presentation = Presentation.Coach;
         _engine.AdaptiveChanged += lvl => Post(() => Adaptive = lvl);
@@ -383,9 +384,9 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         if (Knowledge == null) throw new InvalidOperationException("Knowledge not loaded");
         if (UsingCloud)
         {
-            // A few-second lease so the test exercises the real server path (proxy, entitlements, server model).
-            await using var lease = await StartLeaseAsync(CancellationToken.None);
-            var cloudEngine = new InterviewEngine(Knowledge, null, new CloudAnswerProvider(Cloud.Api!, () => lease.Id), new EngineOptions { AutoTick = false, UseFastCache = false });
+            // The real server path (proxy, entitlements, server model) as a typed question: no live lease, no live minutes.
+            var cloudEngine = new InterviewEngine(Knowledge, null, new CloudAnswerProvider(Cloud.Api!, () => null, deviceId: () => Settings.CloudDeviceId) { Purpose = AnswerPurposes.Manual },
+                new EngineOptions { AutoTick = false, UseFastCache = false, DeveloperKeyMode = false });
             cloudEngine.BulletAdded += (_, b) => Post(() => onBullet(b));
             await cloudEngine.SubmitManualQuestionAsync(question);
             return (cloudEngine.Current!, cloudEngine.Metrics.Samples.LastOrDefault(), "cloud: " + (Cloud.Config?.AnswerModel ?? "server model"));
@@ -462,7 +463,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         {
             ShowLocalNote(ex.Code switch
             {
-                "allowance_exhausted" => "You have used all live minutes on your plan. Upgrade in Home → Account. Typed questions still work with prepared answers.",
+                "allowance_exhausted" => "You have used all live minutes on your plan for this period. Upgrade in Home → Account. Typed questions still work.",
+                "daily_live_cap" => "Today's live-minute limit is reached (it resets at 00:00 UTC). Typed questions still work.",
                 "concurrent_limit" => "An interview session is already running for your account on another PC. Stop it there first.",
                 "device_revoked" or "device_limit" => "This PC is not registered for your account (device limit). Manage devices in Home → Account.",
                 "maintenance" => ex.Message,
@@ -476,11 +478,31 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private async Task<CloudSession> StartLeaseAsync(CancellationToken ct)
     {
         var device = Settings.CloudDeviceId ?? await Cloud.EnsureDeviceAsync(ct);
-        try { return await CloudSession.StartAsync(Cloud.Api!, device, null, Knowledge?.Context.InterviewLanguage is { } l && l != "auto" ? l : null, ct); }
+        var language = Knowledge?.Context.InterviewLanguage is { } l && l != "auto" ? l : null;
+        var target = await PublishTranscriptionContextAsync(ct);
+        try { return await CloudSession.StartAsync(Cloud.Api!, device, target, language, ct); }
         catch (BackendException ex) when (ex.Code == "device_unknown")
         {
             device = await Cloud.EnsureDeviceAsync(ct);   // local id stale (e.g. reinstall) → re-register once
-            return await CloudSession.StartAsync(Cloud.Api!, device, null, null, ct);
+            return await CloudSession.StartAsync(Cloud.Api!, device, target, language, ct);
+        }
+    }
+
+    /// <summary>
+    /// Sends the active interview's transcription context (job title, company, names and terms — no résumé or job
+    /// description text) as the user's own target document, so the server can bias recognition toward e.g. product
+    /// names. Returns the target id for the lease, or null when no interview is prepared or the upload failed.
+    /// </summary>
+    private async Task<Guid?> PublishTranscriptionContextAsync(CancellationToken ct)
+    {
+        if (Knowledge == null || !Guid.TryParse(Settings.ActiveTargetId, out var targetId)) return null;
+        var c = Knowledge.Context;
+        var doc = new TranscriptionContextDocument(c.RoleTitle == "the role" ? "" : c.RoleTitle, c.CompanyName, c.TranscriptionTerms(), c.InterviewLanguage);
+        try { await Cloud.Api!.PutTranscriptionContextAsync(targetId, doc, ct); return targetId; }
+        catch (BackendException ex) when (ex.Status is not 0 and not 401)
+        {
+            AppLog.Warn("Interview vocabulary could not be sent (" + ex.Code + "); live transcription uses generic vocabulary.");
+            return null;
         }
     }
 

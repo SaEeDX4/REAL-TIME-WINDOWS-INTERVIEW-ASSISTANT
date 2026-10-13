@@ -9,7 +9,7 @@ namespace InterviewAssistant.Backend.Services;
 /// <summary>Append-only usage ledger + safety caps (per account and global operator caps).</summary>
 public sealed class UsageService
 {
-    public const string LiveSeconds = "live_seconds", AnswerRequest = "answer_request", PrepJob = "prep_job";
+    public const string LiveSeconds = "live_seconds", AnswerRequest = "answer_request", PrepJob = "prep_job", ManualAnswer = "manual_answer";
     private readonly AppDbContext _db;
     private readonly TimeProvider _time;
     private readonly SafetyOptions _safety;
@@ -34,18 +34,26 @@ public sealed class UsageService
         var prep = await SumAsync(userId, PrepJob, monthStart, monthStart.AddMonths(1), ct);
         var answers = await SumAsync(userId, AnswerRequest, now.Date, now.Date.AddDays(1), ct);
         var allowance = EntitlementService.LiveSecondsAllowance(plan);
-        return new UsageSummary(plan.PeriodStartUtc, plan.PeriodEndUtc, used, Math.Max(0, allowance - used), prep, Math.Max(0, plan.Plan.PrepJobsPerMonth - prep), answers);
+        var live = await LiveRemainingAsync(userId, plan, ct);
+        return new UsageSummary(plan.PeriodStartUtc, plan.PeriodEndUtc, used, Math.Max(0, allowance - used), prep, Math.Max(0, plan.Plan.PrepJobsPerMonth - prep), answers,
+            live.Effective, _safety.PerAccountDailyLiveMinutes);
     }
 
-    /// <summary>Remaining live seconds after plan allowance, per-account daily cap and global daily operator cap.</summary>
-    public async Task<int> RemainingLiveSecondsAsync(Guid userId, EffectivePlan plan, CancellationToken ct)
+    /// <summary>
+    /// Live seconds remaining: <c>Period</c> = plan allowance left this billing period; <c>Today</c> = per-account daily
+    /// safety cap left today; <c>Effective</c> = what can be used now (min of both and the operator's global cap).
+    /// </summary>
+    public async Task<(int Effective, int Period, int Today)> LiveRemainingAsync(Guid userId, EffectivePlan plan, CancellationToken ct)
     {
         var periodUsed = await SumAsync(userId, LiveSeconds, plan.PeriodStartUtc, plan.PeriodEndUtc, ct);
         var todayUsed = await SumAsync(userId, LiveSeconds, TodayUtc, TodayUtc.AddDays(1), ct);
         var globalToday = await GlobalSumAsync(LiveSeconds, TodayUtc, ct);
-        var byPlan = EntitlementService.LiveSecondsAllowance(plan) - periodUsed;
-        var byDaily = _safety.PerAccountDailyLiveMinutes * 60 - todayUsed;
-        var byGlobal = _safety.GlobalDailyLiveMinutes * 60 - globalToday;
-        return Math.Max(0, Math.Min(byPlan, Math.Min(byDaily, byGlobal)));
+        var byPlan = Math.Max(0, EntitlementService.LiveSecondsAllowance(plan) - periodUsed);
+        var byDaily = Math.Max(0, _safety.PerAccountDailyLiveMinutes * 60 - todayUsed);
+        var byGlobal = Math.Max(0, _safety.GlobalDailyLiveMinutes * 60 - globalToday);
+        return (Math.Min(byPlan, Math.Min(byDaily, byGlobal)), byPlan, byDaily);
     }
+
+    /// <summary>Remaining live seconds after plan allowance, per-account daily cap and global daily operator cap.</summary>
+    public async Task<int> RemainingLiveSecondsAsync(Guid userId, EffectivePlan plan, CancellationToken ct) => (await LiveRemainingAsync(userId, plan, ct)).Effective;
 }
