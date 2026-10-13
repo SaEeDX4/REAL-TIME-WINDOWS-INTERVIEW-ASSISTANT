@@ -199,6 +199,107 @@ public class CloudAuthTests
         Assert.DoesNotContain(Environment.MachineName.ToLowerInvariant(), InstallationIdentity.GetOrCreate(a));
     }
 
+    private static HttpResponseMessage Err(HttpStatusCode code, string errorCode, string msg) =>
+        new(code) { Content = JsonContent.Create(new { code = (int)code, error_code = errorCode, msg }) };
+
+    [Fact]
+    public async Task SignUpReportsConfirmationRequiredWithoutStoringTokens()
+    {
+        var o = new CloudOptions { ApiBaseUrl = Opt.ApiBaseUrl, SupabaseUrl = Opt.SupabaseUrl, SupabaseAnonKey = "anon", EmailConfirmedRedirectUrl = "https://api.example.test/auth/confirmed" };
+        var stub = new Stub((r, b) => new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(new { id = "u1", email = "a@b.test", confirmation_sent_at = "2026-10-13T00:00:00Z" }) });
+        var store = new MemoryStore();
+        var auth = new SupabaseAuth(new HttpClient(stub), o, store);
+        var r = await auth.SignUpAsync(" a@b.test ", "Secret123!", default);
+        Assert.True(r.ConfirmationRequired);
+        Assert.False(r.SignedIn);
+        Assert.Null(store.Saved);
+        var (req, body) = stub.Calls.Single();
+        Assert.Equal("/auth/v1/signup", req.RequestUri!.AbsolutePath);
+        Assert.Contains("redirect_to=https%3A%2F%2Fapi.example.test%2Fauth%2Fconfirmed", req.RequestUri.Query);
+        Assert.Contains("\"email\":\"a@b.test\"", body);                       // trimmed
+    }
+
+    [Fact]
+    public async Task SignUpWithoutConfirmationSignsInImmediately()
+    {
+        var auth = new SupabaseAuth(new HttpClient(new Stub((_, _) => Tokens("at", "rt"))), Opt, new MemoryStore());
+        var r = await auth.SignUpAsync("a@b.test", "Secret123!", default);
+        Assert.True(r.SignedIn);
+        Assert.True(auth.IsSignedIn);
+    }
+
+    [Theory]
+    [InlineData("invalid_credentials", "not correct")]
+    [InlineData("email_not_confirmed", "confirm your e-mail")]
+    [InlineData("user_already_exists", "already exists")]
+    [InlineData("weak_password", "stronger password")]
+    [InlineData("over_request_rate_limit", "wait a minute")]
+    public async Task AuthErrorsBecomePlainLanguage(string code, string expected)
+    {
+        var auth = new SupabaseAuth(new HttpClient(new Stub((_, _) => Err(HttpStatusCode.BadRequest, code, "raw provider text"))), Opt, new MemoryStore());
+        var ex = await Assert.ThrowsAsync<AuthException>(() => auth.SignInWithPasswordAsync("a@b.test", "x", default));
+        Assert.Equal(code, ex.Code);
+        Assert.Contains(expected, ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SignInWithoutServiceConfigIsAReadableError()
+    {
+        var auth = new SupabaseAuth(new HttpClient(new Stub((_, _) => Tokens("a", "b"))), new CloudOptions { ApiBaseUrl = Opt.ApiBaseUrl }, new MemoryStore());
+        var ex = await Assert.ThrowsAsync<AuthException>(() => auth.SignInWithPasswordAsync("a@b.test", "x", default));
+        Assert.Equal("auth_unavailable", ex.Code);
+    }
+
+    [Fact]
+    public async Task NetworkFailureIsAReadableError()
+    {
+        var auth = new SupabaseAuth(new HttpClient(new Stub((_, _) => throw new HttpRequestException("dns"))), Opt, new MemoryStore());
+        var ex = await Assert.ThrowsAsync<AuthException>(() => auth.SignInWithPasswordAsync("a@b.test", "x", default));
+        Assert.Equal("network", ex.Code);
+        Assert.Contains("internet", ex.Message);
+    }
+
+    [Fact]
+    public async Task PasswordResetRunsThroughLoopbackAndUpdatesPassword()
+    {
+        string? redirect = null;
+        var stub = new Stub((r, b) =>
+        {
+            if (r.RequestUri!.AbsolutePath.EndsWith("/recover"))
+            {
+                redirect = Uri.UnescapeDataString(r.RequestUri.Query.Split("redirect_to=")[1]);
+                Assert.Contains("code_challenge", b);
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}") };
+            }
+            if (r.Method == HttpMethod.Put && r.RequestUri.AbsolutePath.EndsWith("/user"))
+            {
+                Assert.Equal("Bearer at", r.Headers.Authorization!.ToString());
+                Assert.Contains("NewSecret123", b);
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}") };
+            }
+            return Tokens("at", "rt");
+        });
+        var auth = new SupabaseAuth(new HttpClient(stub), Opt, new MemoryStore());
+        var recover = auth.RecoverPasswordAsync("a@b.test", TimeSpan.FromSeconds(20), default);
+        for (int i = 0; i < 100 && redirect == null; i++) await Task.Delay(20);
+        using (var http = new HttpClient()) (await http.GetAsync(redirect + "&code=RESET")).EnsureSuccessStatusCode();
+        await recover;
+        await auth.UpdatePasswordAsync("NewSecret123", default);
+        Assert.Contains(stub.Calls, c => c.Body.Contains("\"auth_code\":\"RESET\""));
+    }
+
+    [Fact]
+    public async Task ExpiredRefreshMarksSessionExpired()
+    {
+        var time = new ManualTime(DateTimeOffset.Parse("2026-10-07T09:00:00Z"));
+        var store = new MemoryStore { Saved = new AuthSession("old", "gone", time.Now.AddSeconds(-1), "u", "e") };
+        var auth = new SupabaseAuth(new HttpClient(new Stub((_, _) => Err(HttpStatusCode.BadRequest, "refresh_token_not_found", "x"))), Opt, store, time);
+        Assert.Null(await auth.GetAccessTokenAsync(default));
+        Assert.Equal("expired", auth.SignedOutReason);
+        await auth.SignOutAsync(default);
+        Assert.Equal("user", auth.SignedOutReason);
+    }
+
     private sealed class XorProtector : IDataProtector
     {
         public byte[] Protect(byte[] p) => p.Select(b => (byte)(b ^ 0x5A)).ToArray();

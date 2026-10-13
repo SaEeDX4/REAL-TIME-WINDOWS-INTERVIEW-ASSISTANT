@@ -19,7 +19,8 @@
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <NoWarn>$(NoWarn);CA1416;CS0162</NoWarn>
+    <DefineConstants Condition="'$(Configuration)' == 'Debug' Or '$(DeveloperBuild)' == 'true'">$(DefineConstants);DEVELOPER_BUILD</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
@@ -33,5 +34,7 @@
   <ItemGroup>
     <None Include="..\..\knowledge\**\*" LinkBase="knowledge" CopyToOutputDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <Resource Include="Assets\app.ico" />
+    <!-- Public service endpoint only (no secrets). Sign-in configuration is fetched from the service. -->
+    <None Include="cloud.json" CopyToOutputDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
   </ItemGroup>
 </Project>

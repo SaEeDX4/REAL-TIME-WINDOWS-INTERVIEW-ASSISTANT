@@ -101,14 +101,16 @@ public partial class ReadinessWindow : Window
     {
         var signalTask = CheckSignalAsync(TimeSpan.FromSeconds(10));
         _auth.Busy("Checking account…");
-        if (!_vm.Cloud.IsSignedIn) { _auth.Fail("SIGNED OUT", "Sign in from Home → Account."); _answer.Warn("SKIPPED", "Needs sign-in — prepared answers still work."); _stt.Warn("SKIPPED", "Needs sign-in."); }
-        else if (!await _vm.Cloud.RefreshAsync(CancellationToken.None) || _vm.Cloud.Account is not { } a) { _auth.Fail("ERROR", _vm.Cloud.LastError ?? "Service unreachable"); _answer.Warn("SKIPPED", "Service unreachable"); _stt.Warn("SKIPPED", "Service unreachable"); }
+        var refreshed = _vm.Cloud.IsSignedIn && await _vm.Cloud.RefreshAsync(CancellationToken.None);
+        if (!_vm.Cloud.IsConfigured) { _auth.Fail("NOT CONFIGURED", "This build is not connected to the service."); _answer.Warn("SKIPPED", "Needs the service — prepared answers still work."); _stt.Warn("SKIPPED", "Needs the service."); }
+        else if (!_vm.Cloud.IsSignedIn) { _auth.Fail("SIGNED OUT", _vm.Cloud.Message ?? "Sign in from Home → Account."); _answer.Warn("SKIPPED", "Needs sign-in — prepared answers still work."); _stt.Warn("SKIPPED", "Needs sign-in."); }
+        else if (!refreshed || _vm.Cloud.Account is not { } a) { _auth.Fail(_vm.Cloud.State == CloudState.UpdateRequired ? "UPDATE" : "UNAVAILABLE", _vm.Cloud.Message ?? "Service unreachable"); _answer.Warn("SKIPPED", "Service unreachable"); _stt.Warn("SKIPPED", "Service unreachable"); }
         else
         {
             var mins = a.Usage.LiveSecondsRemaining / 60;
             if (_vm.Cloud.Config?.Maintenance == true) _auth.Fail("MAINTENANCE", _vm.Cloud.Config.MaintenanceMessage ?? "The service is in maintenance.");
-            else if (mins <= 0) _auth.Fail("NO MINUTES", $"{a.Entitlements.PlanName}: no live minutes left — upgrade in Home → Account.");
-            else _auth.Pass("READY", $"{a.Email} · {a.Entitlements.PlanName} · {mins} min left");
+            else if (mins <= 0) _auth.Fail("NO MINUTES", $"{MainViewModel.BillingLabel(a)} — upgrade in Home → Account.");
+            else _auth.Pass("READY", $"{a.Email} · {MainViewModel.BillingLabel(a)} · {mins} min left");
             if (mins > 0)
             {
                 _answer.Busy("Generating a test answer through the service…");
@@ -118,7 +120,7 @@ public partial class ReadinessWindow : Window
                     if (answer.Source == Core.Orchestration.AnswerSource.Llm && answer.Bullets.Count >= 2) _answer.Pass("READY", $"{model} · first bullet {sample?.FinalizedToFirstBulletMs} ms");
                     else _answer.Fail("ERROR", answer.Note ?? "No AI answer");
                 }
-                catch (Exception ex) when (ex is ProviderException or InvalidOperationException or Client.BackendException) { _answer.Fail("ERROR", ex.Message); }
+                catch (Exception ex) when (ex is ProviderException or InvalidOperationException or Client.BackendException) { _answer.Fail("ERROR", CloudService.Describe(ex)); }
                 _stt.Warn("RUN TEST", "Press Test transcription while speech plays in Chrome.");
             }
         }

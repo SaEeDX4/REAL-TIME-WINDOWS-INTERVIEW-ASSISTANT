@@ -22,10 +22,16 @@ public partial class SettingsWindow : Window
         _s = vm.Settings;
         DataContext = vm; // for the live level meter
         KeyStatus.Text = SecretStore.HasKey ? "Saved key: " + SecretStore.Mask(SecretStore.GetApiKey()) : "No key saved yet.";
+        if (!BuildFlavor.Developer)
+        {
+            // Customer builds: AI runs through the Interview Assistant service; models are chosen server-side.
+            DeveloperKeyPanel.Visibility = Visibility.Collapsed;
+            foreach (var el in new FrameworkElement[] { ModelLabel, ModelBox, SttLabel, SttBox, ProtocolLabel, ProtocolBox }) el.Visibility = Visibility.Collapsed;
+        }
         LoadDevices();
         foreach (var m in new[] { "gpt-5.4-mini", "gpt-4.1-mini", "gpt-5-mini", "gpt-4.1" }) ModelBox.Items.Add(m);
         ModelBox.Text = _s.AnswerModel;
-        foreach (var m in new[] { "gpt-live-transcribe", "gpt-4o-transcribe", "gpt-4o-mini-transcribe" }) SttBox.Items.Add(m);
+        foreach (var m in new[] { "gpt-4o-transcribe", "gpt-4o-mini-transcribe" }) SttBox.Items.Add(m);
         SttBox.Text = _s.TranscriptionModel;
         foreach (var p in new[] { "auto", "ga", "beta" }) ProtocolBox.Items.Add(p);
         ProtocolBox.SelectedItem = _s.RealtimeProtocol;
@@ -77,9 +83,9 @@ public partial class SettingsWindow : Window
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         foreach (var hk in new[] { HkToggle.Text, HkStart.Text, HkManual.Text })
-            if (!HotkeyService.TryParse(hk, out _, out _)) { KeyStatus.Text = $"Invalid hotkey: {hk} (example: Ctrl+Alt+Space)"; return; }
+            if (!HotkeyService.TryParse(hk, out _, out _)) { SaveStatus.Text = $"Invalid hotkey: {hk} (example: Ctrl+Alt+Space)"; return; }
 
-        if (!string.IsNullOrWhiteSpace(KeyBox.Password)) { SecretStore.SetApiKey(KeyBox.Password); EngineSettingsChanged = true; }
+        if (BuildFlavor.Developer && !string.IsNullOrWhiteSpace(KeyBox.Password)) { SecretStore.SetApiKey(KeyBox.Password); EngineSettingsChanged = true; }
         var model = ModelBox.Text.Trim(); var stt = SttBox.Text.Trim(); var proto = ProtocolBox.SelectedItem as string ?? "auto";
         if (model != _s.AnswerModel || stt != _s.TranscriptionModel || proto != _s.RealtimeProtocol ||
             Math.Abs(VadSlider.Value - _s.VadSensitivity) > 0.001 || FastCacheBox.IsChecked != _s.UseFastCache) EngineSettingsChanged = true;

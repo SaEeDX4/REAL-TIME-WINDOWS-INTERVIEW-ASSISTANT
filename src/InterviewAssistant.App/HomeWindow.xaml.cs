@@ -131,12 +131,14 @@ public partial class HomeWindow : Window
         var profiles = Store?.Profiles() ?? Array.Empty<CandidateProfileRecord>();
         var prepared = profiles.SelectMany(p => Store!.Targets(p.Id)).Count(t => t.Preparation == PreparationState.Prepared);
         Step1Title.Text = (_vm.Settings.AuthorizedUseAcknowledged ? "✓ " : "1 · ") + "Authorized use";
-        var accountOk = _vm.Cloud.IsSignedIn || (_vm.Settings.Mode == "developer" && SecretStore.HasKey);
+        var devMode = BuildFlavor.Developer && !_vm.UsingCloud;
+        var accountOk = _vm.Cloud.IsSignedIn || (devMode && SecretStore.HasKey);
         Step2Title.Text = (accountOk ? "✓ " : "2 · ") + L("account");
-        Step2Status.Text = !_vm.Cloud.IsConfigured ? "No service configured in this build — use developer mode with your own OpenAI key."
+        Step2Status.Text = devMode ? "Developer build: own OpenAI key" + (SecretStore.HasKey ? "" : " — add your key in Settings.")
+            : !_vm.Cloud.IsConfigured ? "This build is not connected to the Interview Assistant service."
             : _vm.Cloud.IsSignedIn ? "Signed in: " + _vm.AccountLabel
-            : _vm.Settings.Mode == "developer" ? "Developer mode (own OpenAI key)" + (SecretStore.HasKey ? "" : " — add your key in Settings.")
-            : "Sign in to use live transcription and AI answers. No API key needed.";
+            : _vm.Cloud.Message ?? "Create a free account or sign in — live transcription and AI answers are included. No API keys needed.";
+        DeveloperModeBtn.Visibility = BuildFlavor.Developer ? Visibility.Visible : Visibility.Collapsed;
         GoAccountBtn.Content = L("sign_in");
         GoAccountBtn.Visibility = _vm.Cloud.IsConfigured && !_vm.Cloud.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
         Step3Title.Text = (profiles.Any(p => p.ConfirmedFacts.Any()) ? "✓ " : "3 · ") + L("profiles");
@@ -157,6 +159,7 @@ public partial class HomeWindow : Window
 
     private void DeveloperMode_Click(object sender, RoutedEventArgs e)
     {
+        if (!BuildFlavor.Developer) return;
         _vm.Settings.Mode = "developer";
         _vm.Settings.Save();
         _vm.BuildEngine();
@@ -238,6 +241,11 @@ public partial class HomeWindow : Window
     private void ImportResume(bool newProfile)
     {
         if (Store == null) return;
+        if (newProfile && _vm.Cloud.Account?.Entitlements is { } ent && Store.Profiles().Count >= ent.MaxProfiles)
+        {
+            Warn($"Your plan includes {ent.MaxProfiles} profile(s). Add the document to an existing profile, delete one, or upgrade.");
+            return;
+        }
         var bytes = PickFile("Import résumé", out var name);
         if (bytes == null) return;
         var (doc, error) = ProfileService.Upload(name, bytes, DocumentKind.Resume);
@@ -365,6 +373,21 @@ public partial class HomeWindow : Window
         var t = SaveTargetFields();
         if (t == null || _profile == null || Store == null || _vm.Workspace == null) return;
         if (!_profile.ConfirmedFacts.Any() && !Confirm("No facts are confirmed in this profile yet, so answers will be generic (no personal claims). Continue?")) return;
+        if (_vm.UsingCloud)
+        {
+            // Preparations are a plan entitlement metered by the service (the work itself runs on this PC).
+            if (!_vm.Cloud.IsSignedIn) { Warn("Sign in (Account) to prepare an interview."); ShowPage("account"); return; }
+            try
+            {
+                var job = await _vm.Cloud.Api!.StartPreparationAsync(CancellationToken.None);
+                AppLog.Info($"Preparation job granted ({job.PrepJobsRemaining} left this month)");
+            }
+            catch (BackendException ex)
+            {
+                Warn(ex.Code == "prep_limit" ? "No interview preparations remain this month on your plan. Upgrade in Account, or re-use an existing preparation." : CloudService.Describe(ex));
+                return;
+            }
+        }
         _prepCts?.Cancel();
         _prepCts = new CancellationTokenSource();
         PrepareBtn.IsEnabled = false;
@@ -461,96 +484,247 @@ public partial class HomeWindow : Window
 
     // ================= account =================
 
+    private bool _createMode;
+
     private void RefreshAccount()
     {
         var c = _vm.Cloud;
         AccountBadge.Text = _vm.AccountLabel;
+        var signedIn = c.State == CloudState.SignedIn || (c.IsSignedIn && c.Account != null);
         NotConfiguredPanel.Visibility = c.IsConfigured ? Visibility.Collapsed : Visibility.Visible;
         SignedOutPanel.Visibility = c.IsConfigured && !c.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
         SignedInPanel.Visibility = c.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
-        AccountError.Text = c.LastError ?? "";
-        AccountStatus.Text = c.IsSignedIn ? _vm.AccountLabel : c.IsConfigured ? "Not signed in." : "";
-        if (ProviderButtons.Children.Count == 0 && c.IsConfigured)
-            foreach (var p in c.Options.OAuthProviders)
-            {
-                var b = new Button { Content = $"{L("sign_in")} · {ProviderName(p)}", Style = (Style)FindResource("Btn.Primary"), Margin = new Thickness(0, 0, 8, 8), Tag = p };
-                b.Click += async (_, _) => await SignInAsync(p, null);
-                ProviderButtons.Children.Add(b);
-            }
+        AccountStatus.Text = c.State switch
+        {
+            CloudState.SignedIn => "Signed in as " + c.Account?.Email,
+            CloudState.Connecting => "Connecting to the service…",
+            _ => c.Message ?? "",
+        };
+        AccountStatus.Foreground = (System.Windows.Media.Brush)FindResource(c.State is CloudState.ServiceUnavailable or CloudState.AccountDisabled or CloudState.UpdateRequired or CloudState.SessionExpired ? "B.Thinking" : "B.TextDim");
+
+        // Sign-in options come from the service (publishable configuration only).
+        ForgotBtn.Visibility = c.Options.EmailPassword ? Visibility.Visible : Visibility.Collapsed;
+        ProviderButtons.Children.Clear();
+        foreach (var p in c.Options.OAuthProviders)
+        {
+            var b = new Button { Content = $"Continue with {ProviderName(p)}", Style = (Style)FindResource("Btn.Base"), Margin = new Thickness(0, 0, 8, 8), Tag = p };
+            b.Click += async (_, _) => await RunAuth(() => _vm.Cloud.SignInWithProviderAsync(p), "Continue in your browser…");
+            ProviderButtons.Children.Add(b);
+        }
+        SignUpLegal.Text = LegalSentence();
+
         if (c.Account is { } a)
         {
+            PlanText.Text = MainViewModel.BillingLabel(a);
             var e = a.Entitlements;
-            PlanText.Text = $"{e.PlanName} — {a.Subscription?.Status ?? (e.PlanCode == "trial" ? "trial" : e.Status)}";
-            var renew = a.Subscription switch
+            UsageText.Text = $"{a.Usage.LiveSecondsUsed / 60} of {e.LiveMinutesPerPeriod} live minutes used · {a.Usage.PrepJobsRemaining} preparations left this month · up to {e.MaxDevices} device(s), {e.MaxProfiles} profile(s)";
+            BillingNotice.Text = a.BillingState switch
             {
-                { CancelAtPeriodEnd: true, CurrentPeriodEndUtc: { } end } => $" · ends {end.ToLocalTime():d}",
-                { GraceUntilUtc: { } g } => $" · payment issue — access until {g.ToLocalTime():d}",
-                { CurrentPeriodEndUtc: { } end } => $" · renews {end.ToLocalTime():d}",
+                BillingStates.PastDue => $"Your last payment failed. Update your payment method in Manage billing — Pro stays active until {a.Subscription?.GraceUntilUtc?.ToLocalTime():d}.",
+                BillingStates.Canceling => $"Your subscription is cancelled and ends on {a.Subscription?.CurrentPeriodEndUtc?.ToLocalTime():d}. You can resume it in Manage billing.",
+                BillingStates.Paused => "Your subscription is paused. Resume it in Manage billing.",
+                BillingStates.Expired => "Your subscription has ended. Upgrade to continue with Pro.",
+                BillingStates.TrialExhausted => "Your trial minutes are used up. Upgrade to Pro to continue live help.",
                 _ => "",
             };
-            UsageText.Text = $"{a.Usage.LiveSecondsUsed / 60} min used · {a.Usage.LiveSecondsRemaining / 60} min left · {a.Usage.PrepJobsRemaining} preparations left this month{renew}";
+            var pro = c.Plans.FirstOrDefault(x => x.Purchasable);
+            var paid = CloudService.IsPaidState(a.BillingState) || a.BillingState == BillingStates.Paused;
+            UpgradeBtn.Visibility = pro != null && !paid ? Visibility.Visible : Visibility.Collapsed;
+            UpgradeBtn.Content = pro?.PriceDisplay is { } price ? $"{L("upgrade")}: {pro.Name} — {price}" : $"{L("upgrade")}: {pro?.Name}";
+            UpgradeBtn.IsEnabled = !c.UpgradePending;
+            ManageBillingBtn.Visibility = a.Subscription != null ? Visibility.Visible : Visibility.Collapsed;
+            UpgradeStatus.Text = c.UpgradePending ? "Waiting for payment confirmation from Paddle… this updates automatically after checkout." : "";
+            BillingTerms.Text = pro == null ? "" :
+                $"{pro.Name} is a subscription{(pro.PriceDisplay != null ? $" ({pro.PriceDisplay})" : "")} that renews automatically until cancelled. Payments, taxes and invoices are handled by Paddle (merchant of record). Cancel any time in Manage billing; access continues until the end of the paid period.";
         }
+        RefreshLegal();
+    }
+
+    private string LegalSentence()
+    {
+        var l = _vm.Cloud.Config?.Links;
+        var parts = new List<string>();
+        if (l?.Terms != null) parts.Add("Terms of Service");
+        if (l?.PrivacyPolicy != null) parts.Add("Privacy Policy");
+        return parts.Count == 0 ? "" : $"By creating an account you agree to the {string.Join(" and ", parts)} (links below).";
+    }
+
+    private void RefreshLegal()
+    {
+        LegalLinks.Children.Clear();
+        var l = _vm.Cloud.Config?.Links;
+        foreach (var (label, url) in new[] { ("Privacy Policy", l?.PrivacyPolicy), ("Terms of Service", l?.Terms), ("Billing terms", l?.BillingTerms), ("Support", l?.Support) })
+        {
+            if (string.IsNullOrWhiteSpace(url)) continue;
+            var b = new Button { Content = label, Style = (Style)FindResource("Btn.Ghost"), Margin = new Thickness(0, 0, 8, 4), ToolTip = url };
+            b.Click += (_, _) => CloudService.OpenExternal(url);
+            LegalLinks.Children.Add(b);
+        }
+        SupportEmailText.Text = l?.SupportEmail is { Length: > 0 } mail ? "Support: " + mail : "";
+        LegalHeader.Visibility = LegalLinks.Children.Count > 0 || SupportEmailText.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private static string ProviderName(string p) => p switch { "google" => "Google", "azure" => "Microsoft", "github" => "GitHub", "apple" => "Apple", _ => p };
 
-    private async Task SignInAsync(string? provider, string? email)
+    private void ModeSignIn_Click(object sender, RoutedEventArgs e) => SetCreateMode(false);
+    private void ModeCreate_Click(object sender, RoutedEventArgs e) => SetCreateMode(true);
+
+    private void SetCreateMode(bool create)
     {
-        AccountError.Text = "";
-        AccountStatus.Text = email != null ? "Check your e-mail and open the sign-in link on this computer…" : "Continue in your browser…";
-        var ok = await _vm.Cloud.SignInAsync(provider, email, CancellationToken.None);
-        if (ok)
-        {
-            _vm.Settings.Mode = "cloud"; _vm.Settings.Save();
-            if (!_vm.IsListening && !_vm.IsPaused) _vm.BuildEngine();
-            await LoadAccountExtrasAsync();
-        }
-        RefreshAccount();
-        RefreshChecklist();
+        _createMode = create;
+        ConfirmPanel.Visibility = create ? Visibility.Visible : Visibility.Collapsed;
+        AuthSubmitBtn.Content = create ? "Create account" : L("sign_in");
+        ModeSignInBtn.FontWeight = create ? FontWeights.Normal : FontWeights.SemiBold;
+        ModeCreateBtn.FontWeight = create ? FontWeights.SemiBold : FontWeights.Normal;
+        AccountError.Text = ""; AccountInfo.Text = "";
     }
 
-    private async void MagicLink_Click(object sender, RoutedEventArgs e)
+    private async void Password_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        e.Handled = true;
+        await SubmitAuthAsync();
+    }
+
+    private async void AuthSubmit_Click(object sender, RoutedEventArgs e) => await SubmitAuthAsync();
+
+    private static bool ValidEmail(string email) => System.Text.RegularExpressions.Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+
+    private async Task SubmitAuthAsync()
     {
         var email = EmailBox.Text.Trim();
-        if (!System.Text.RegularExpressions.Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$")) { AccountError.Text = "Enter a valid e-mail address."; return; }
-        await SignInAsync(null, email);
+        var pw = PasswordBox.Password;
+        AccountError.Text = ""; AccountInfo.Text = "";
+        if (!ValidEmail(email)) { AccountError.Text = "Enter a valid e-mail address."; return; }
+        if (pw.Length == 0) { AccountError.Text = "Enter your password."; return; }
+        if (_createMode)
+        {
+            if (pw.Length < 8) { AccountError.Text = "Choose a password with at least 8 characters."; return; }
+            if (pw != ConfirmBox.Password) { AccountError.Text = "The passwords do not match."; return; }
+            await RunAuth(async () =>
+            {
+                var (ok, confirm, error) = await _vm.Cloud.SignUpAsync(email, pw);
+                if (ok && confirm) Dispatcher.Invoke(() => { AccountInfo.Text = $"Almost done — we sent a confirmation link to {email}. Open it, then sign in here."; SetCreateMode(false); AccountInfo.Text = $"Almost done — we sent a confirmation link to {email}. Open it, then sign in here."; });
+                return (ok, error);
+            }, "Creating your account…");
+        }
+        else await RunAuth(() => _vm.Cloud.SignInAsync(email, pw), "Signing in…");
+    }
+
+    private async Task RunAuth(Func<Task<(bool Ok, string? Error)>> action, string busyText)
+    {
+        AuthSubmitBtn.IsEnabled = false;
+        AccountStatus.Text = busyText;
+        try
+        {
+            var (ok, error) = await action();
+            if (!ok) AccountError.Text = error ?? "Sign-in failed.";
+            else
+            {
+                PasswordBox.Clear(); ConfirmBox.Clear();
+                if (_vm.Cloud.IsSignedIn)
+                {
+                    if (!_vm.IsListening && !_vm.IsPaused) _vm.BuildEngine();
+                    await LoadAccountExtrasAsync();
+                    ApplyAccountLimits();
+                }
+            }
+        }
+        finally { AuthSubmitBtn.IsEnabled = true; RefreshAccount(); RefreshChecklist(); }
+    }
+
+    private async void Forgot_Click(object sender, RoutedEventArgs e)
+    {
+        var email = EmailBox.Text.Trim();
+        AccountError.Text = ""; AccountInfo.Text = "";
+        if (!ValidEmail(email)) { AccountError.Text = "Enter your e-mail address first, then press Forgot password."; return; }
+        AccountInfo.Text = $"We sent a reset link to {email}. Open it on this PC — the app continues automatically (link valid for 15 minutes).";
+        var (ok, error) = await _vm.Cloud.ResetPasswordAsync(email, () => Task.FromResult(AskNewPassword()));
+        AccountInfo.Text = ok ? "Password changed. You are signed in." : "";
+        if (!ok) AccountError.Text = error ?? "Password reset failed.";
+        RefreshAccount(); RefreshChecklist();
+    }
+
+    /// <summary>Small modal prompt for the new password after a reset link (owned, cancellable, closes with the app).</summary>
+    private string? AskNewPassword()
+    {
+        var box = new PasswordBox { Style = (Style)FindResource("PasswordInput"), Margin = new Thickness(0, 8, 0, 8) };
+        var ok = new Button { Content = "Set password", Style = (Style)FindResource("Btn.Primary"), IsDefault = true, HorizontalAlignment = HorizontalAlignment.Right };
+        var err = new TextBlock { Foreground = (System.Windows.Media.Brush)FindResource("B.Error"), TextWrapping = TextWrapping.Wrap };
+        var panel = new StackPanel { Margin = new Thickness(20) };
+        panel.Children.Add(new TextBlock { Text = "Choose a new password (at least 8 characters)", Foreground = (System.Windows.Media.Brush)FindResource("B.Text") });
+        panel.Children.Add(box); panel.Children.Add(err); panel.Children.Add(ok);
+        var dlg = new Window { Owner = this, Title = Branding.ProductName, Content = panel, SizeToContent = SizeToContent.WidthAndHeight, MinWidth = 360, WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize, Background = (System.Windows.Media.Brush)FindResource("B.Bg") };
+        string? result = null;
+        ok.Click += (_, _) => { if (box.Password.Length < 8) { err.Text = "At least 8 characters."; return; } result = box.Password; dlg.DialogResult = true; };
+        dlg.Loaded += (_, _) => box.Focus();
+        return dlg.ShowDialog() == true ? result : null;
+    }
+
+    private async void ChangePassword_Click(object sender, RoutedEventArgs e)
+    {
+        AccountError.Text = ""; AccountInfo.Text = "";
+        if (NewPasswordBox.Password.Length < 8) { AccountError.Text = "Choose a password with at least 8 characters."; return; }
+        var (ok, error) = await _vm.Cloud.ChangePasswordAsync(NewPasswordBox.Password);
+        NewPasswordBox.Clear();
+        if (ok) AccountInfo.Text = "Password changed."; else AccountError.Text = error;
     }
 
     private async Task LoadAccountExtrasAsync()
     {
         var api = _vm.Cloud.Api;
-        if (api == null) return;
+        if (api == null || !_vm.Cloud.IsSignedIn) return;
         try
         {
-            var plans = await api.PlansAsync(CancellationToken.None);
-            PlanButtons.Children.Clear();
-            foreach (var p in plans.Where(p => p.Purchasable && p.Code != _vm.Cloud.Account?.Entitlements.PlanCode))
-            {
-                var b = new Button { Content = $"{L("upgrade")}: {p.Name} ({p.Entitlements.LiveMinutesPerPeriod} min)", Style = (Style)FindResource("Btn.Primary"), Margin = new Thickness(0, 0, 8, 8) };
-                b.Click += async (_, _) => await Guard(() => _vm.Cloud.OpenCheckoutAsync(p.Code, CancellationToken.None));
-                PlanButtons.Children.Add(b);
-            }
             var devices = await api.DevicesAsync(CancellationToken.None);
             DeviceList.ItemsSource = devices.Where(d => !d.Revoked)
-                .Select(d => new Item<DeviceDto>($"{d.Name} · {d.Platform} · v{d.ClientVersion} · last seen {d.LastSeenUtc.ToLocalTime():g}{(d.IsCurrent ? " · this device" : "")}", d)).ToList();
+                .Select(d => new Item<DeviceDto>($"{d.Name} · v{d.ClientVersion} · last seen {d.LastSeenUtc.ToLocalTime():g}{(d.Id == _vm.Settings.CloudDeviceId ? " · this PC" : "")}", d)).ToList();
         }
-        catch (BackendException ex) { AccountError.Text = ex.Message; }
+        catch (BackendException ex) { AccountError.Text = CloudService.Describe(ex); }
     }
 
-    private async Task Guard(Func<Task> action)
+    /// <summary>Plan limits for data that never leaves this PC: report retention (server value, applied locally).</summary>
+    private void ApplyAccountLimits()
     {
-        try { await action(); AccountError.Text = ""; }
-        catch (BackendException ex) { AccountError.Text = ex.Message + (ex.CorrelationId != null ? $" (ref {ex.CorrelationId[..8]})" : ""); }
+        if (_vm.Cloud.Account?.Entitlements is { } e && Store != null)
+        {
+            var removed = Store.ApplyRetention(TimeSpan.FromDays(e.ReportRetentionDays), DateTime.UtcNow);
+            if (removed > 0) { AppLog.Info($"Retention removed {removed} report(s)"); RefreshReports(); }
+        }
     }
 
-    private async void Portal_Click(object sender, RoutedEventArgs e) => await Guard(() => _vm.Cloud.OpenPortalAsync(CancellationToken.None));
-    private async void RefreshAccount_Click(object sender, RoutedEventArgs e) { await _vm.Cloud.RefreshAsync(CancellationToken.None); await LoadAccountExtrasAsync(); RefreshAccount(); }
+    private async Task Guard(Func<Task<(bool Ok, string? Error)>> action)
+    {
+        AccountError.Text = "";
+        var (ok, error) = await action();
+        if (!ok) AccountError.Text = error ?? "Something went wrong.";
+        RefreshAccount();
+    }
+
+    private async void Upgrade_Click(object sender, RoutedEventArgs e)
+    {
+        var pro = _vm.Cloud.Plans.FirstOrDefault(p => p.Purchasable);
+        if (pro == null) return;
+        UpgradeBtn.IsEnabled = false;
+        await Guard(() => _vm.Cloud.StartUpgradeAsync(pro.Code));
+    }
+
+    private async void Portal_Click(object sender, RoutedEventArgs e) => await Guard(() => _vm.Cloud.OpenPortalAsync());
+
+    private async void RefreshAccount_Click(object sender, RoutedEventArgs e)
+    {
+        await _vm.Cloud.RefreshAsync(CancellationToken.None);
+        await LoadAccountExtrasAsync();
+        ApplyAccountLimits();
+        RefreshAccount();
+    }
 
     private async void RevokeDevice_Click(object sender, RoutedEventArgs e)
     {
         if ((DeviceList.SelectedItem as Item<DeviceDto>)?.Value is not { } d || _vm.Cloud.Api == null) return;
         if (!Confirm($"Remove “{d.Name}” from your account? Any live session on it ends.")) return;
-        await Guard(() => _vm.Cloud.Api.RevokeDeviceAsync(d.Id, CancellationToken.None));
+        try { await _vm.Cloud.Api.RevokeDeviceAsync(d.Id, CancellationToken.None); }
+        catch (BackendException ex) { AccountError.Text = CloudService.Describe(ex); }
         await LoadAccountExtrasAsync();
     }
 
@@ -559,22 +733,35 @@ public partial class HomeWindow : Window
         if (_vm.Cloud.Api == null) return;
         var dlg = new SaveFileDialog { FileName = "interview-assistant-account-export.json", Filter = "JSON (*.json)|*.json" };
         if (dlg.ShowDialog(this) != true) return;
-        await Guard(async () =>
+        try
         {
             var json = await _vm.Cloud.Api.ExportAsync(CancellationToken.None);
             await File.WriteAllTextAsync(dlg.FileName, JsonSerializer.Serialize(json, new JsonSerializerOptions { WriteIndented = true }));
-        });
+            AccountInfo.Text = "Exported.";
+        }
+        catch (BackendException ex) { AccountError.Text = CloudService.Describe(ex); }
     }
 
     private async void DeleteAccount_Click(object sender, RoutedEventArgs e)
     {
         if (_vm.Cloud.Api == null) return;
         if (!Confirm("Permanently delete your account and all data stored on the service? Cancel an active subscription in “Manage billing” first. Local data on this computer is not affected.")) return;
-        await Guard(async () => { await _vm.Cloud.Api.DeleteAccountAsync(CancellationToken.None); await _vm.Cloud.SignOutAsync(); });
+        try
+        {
+            await _vm.Cloud.Api.DeleteAccountAsync(CancellationToken.None);
+            await _vm.Cloud.SignOutAsync();
+            AccountInfo.Text = "Your account was deleted.";
+        }
+        catch (BackendException ex) { AccountError.Text = CloudService.Describe(ex); }
         RefreshAccount();
     }
 
-    private async void SignOut_Click(object sender, RoutedEventArgs e) { await _vm.Cloud.SignOutAsync(); RefreshAccount(); RefreshChecklist(); }
+    private async void SignOut_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm.IsListening || _vm.IsPaused) await _vm.StopAsync();
+        await _vm.Cloud.SignOutAsync();
+        RefreshAccount(); RefreshChecklist();
+    }
 
     // ================= helpers =================
 

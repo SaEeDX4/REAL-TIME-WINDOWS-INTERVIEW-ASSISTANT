@@ -32,13 +32,13 @@ Knowledge integrity & answer-quality evaluation (all 97 answers: 3–4 bullets, 
 | DPAPI credential protection, settings persistence, hotkey parsing | **TESTED on Windows CI** |
 | Pipeline logic, turn detection, dedupe, matcher, validator, soak | **TESTED** (unit/sim) |
 | WASAPI loopback with a real headset, Chrome/Meet audio, Bluetooth reconnect | **NOT TESTED** — CI runners have no audio endpoint. Your test: docs/PRE_INTERVIEW_CHECKLIST.md tests 4, 10, 13 (Test audio button) |
-| Live OpenAI transcription (`gpt-live-transcribe`) and answers (`gpt-5.4-mini`), real latency | **NOT TESTED** — no API key in CI. Your test: tests 3, 5, 6, 9 (Test transcription / Test AI). Add repo secret `OPENAI_API_KEY` to also run the live evaluation in CI |
+| Live OpenAI transcription (`gpt-4o-transcribe`) and answers (`gpt-5.4-mini`), real latency | **NOT TESTED** — no API key in CI. Your test: tests 3, 5, 6, 9 (Test transcription / Test AI). Add repo secret `OPENAI_API_KEY` to also run the live evaluation in CI |
 | Global hotkey delivery, always-on-top over Chrome, multi-monitor/DPI | **NOT TESTED** interactively — tests 11, 12 |
 
 ## Known limitations
 - Physical audio + live API paths need the 10–15 min check on your PC.
 - Unsigned EXE → SmartScreen "More info → Run anyway".
 - Size ~64 MB EXE / ~58 MB ZIP. Measured alternatives: uncompressed single-file 140 MB; folder layout 146 MB; ReadyToRun +4 MB; framework-dependent 2 MB but requires installing the .NET Desktop Runtime (extra failure point). Trimming not used (WPF/reflection unsafe). Current choice = smallest reliable.
-- Model availability depends on your OpenAI account; fallbacks are automatic (`gpt-live-transcribe`→`gpt-4o-transcribe`→`gpt-4o-mini-transcribe`; `gpt-5.4-mini`→`gpt-4.1-mini`) and Settings can override.
+- Model availability depends on your OpenAI account; fallbacks are automatic (`gpt-4o-transcribe`→`gpt-4o-mini-transcribe`; `gpt-5.4-mini`→`gpt-4.1-mini`) and Settings can override.
 - Company facts come only from documents the user provides (job description, company material); nothing is fetched automatically. Résumé facts are used only after the user confirms them.
 - V2 commercial test matrix: see docs/v2/TESTING_V2.md.

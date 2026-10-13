@@ -107,12 +107,12 @@ public class AccountDeviceAdminTests : IClassFixture<ApiFactory>
     {
         var admin = _f.ClientFor(ApiFactory.AdminId);
         Assert.Equal(HttpStatusCode.BadRequest, (await admin.PutAsJsonAsync("/api/v1/admin/config/openai_api_key", "x")).StatusCode); // secrets never via config
-        (await admin.PutAsJsonAsync("/api/v1/admin/config/disabled_models", new[] { "gpt-5.4-mini", "gpt-live-transcribe" })).EnsureSuccessStatusCode();
+        (await admin.PutAsJsonAsync("/api/v1/admin/config/disabled_models", new[] { "gpt-5.4-mini", "gpt-4o-transcribe" })).EnsureSuccessStatusCode();
         try
         {
             var cfg = await (await _f.CreateClient().GetAsync("/api/v1/config")).Read<RuntimeConfig>();
             Assert.Equal("gpt-4.1-mini", cfg.AnswerModel);
-            Assert.Equal("gpt-4o-transcribe", cfg.TranscriptionModel);
+            Assert.Equal("gpt-4o-mini-transcribe", cfg.TranscriptionModel);
         }
         finally { (await admin.PutAsJsonAsync("/api/v1/admin/config/disabled_models", Array.Empty<string>())).EnsureSuccessStatusCode(); }
     }

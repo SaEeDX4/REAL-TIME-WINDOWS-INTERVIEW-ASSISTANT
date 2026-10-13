@@ -41,11 +41,12 @@ public class ClientEndToEndTests : IClassFixture<ApiFactory>
         await session.HeartbeatOnceAsync(default);
         Assert.Equal(30 * 60 - 30, session.RemainingSeconds);
 
-        // Credential renewal happens automatically when the ephemeral secret is about to expire.
-        var before = session.CurrentSecret;
-        _f.Time.Advance(TimeSpan.FromMinutes(9));
-        await session.HeartbeatOnceAsync(default);
-        Assert.NotEqual(before, session.CurrentSecret);
+        // First connection uses the start secret; every reconnect gets a freshly minted one.
+        var first = await session.NextConnectionSecretAsync(default);
+        Assert.Equal(session.Credential.ClientSecret, first);
+        var reconnect = await session.NextConnectionSecretAsync(default);
+        Assert.NotEqual(first, reconnect);
+        Assert.StartsWith("ek_test_", reconnect);
 
         var provider = new CloudAnswerProvider(api, () => session.Id);
         var text = string.Concat(await provider.StreamAsync(new[] { new ChatMessage("system", "s"), new ChatMessage("user", "q") }, 200, default).ToListAsync());

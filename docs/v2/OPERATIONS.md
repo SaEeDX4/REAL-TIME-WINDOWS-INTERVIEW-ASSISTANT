@@ -18,7 +18,7 @@
 ## Incident switches (no redeploy)
 | Situation | Action |
 |---|---|
-| A model is broken/deprecated | `PUT /admin/config/disabled_models ["gpt-live-transcribe"]` → clients get the next fallback via `/config` |
+| A model is broken/deprecated | `PUT /admin/config/disabled_models ["gpt-4o-transcribe"]` → clients get the next fallback via `/config` |
 | Change default models | `answer_model`, `transcription_model`, `*_fallbacks` |
 | Outage / maintenance | `maintenance=true` (+ `maintenance_message`) → new sessions 503, account/billing still work |
 | Vulnerable client build | raise `minimum_client_version` → older clients get 426 and are told to update |

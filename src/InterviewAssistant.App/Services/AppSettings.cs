@@ -8,9 +8,9 @@ public enum FontPreset { Compact, Normal, Large, ExtraLarge }
 public sealed class AppSettings
 {
     public string? PlaybackDeviceId { get; set; }           // null = follow Windows default playback device
-    public int SettingsVersion { get; set; } = 2;
+    public int SettingsVersion { get; set; } = 3;
     public string AnswerModel { get; set; } = "gpt-5.4-mini";
-    public string TranscriptionModel { get; set; } = "gpt-live-transcribe";
+    public string TranscriptionModel { get; set; } = "gpt-4o-transcribe";
     public string RealtimeProtocol { get; set; } = "auto";
     public FontPreset FontPreset { get; set; } = FontPreset.Large;
     public double WindowOpacity { get; set; } = 0.97;
@@ -67,8 +67,13 @@ public sealed class AppSettings
                 {
                     // v1 defaults -> current recommended models (only if the user never changed them)
                     if (s.AnswerModel == "gpt-4.1-mini") s.AnswerModel = "gpt-5.4-mini";
-                    if (s.TranscriptionModel == "gpt-4o-transcribe") s.TranscriptionModel = "gpt-live-transcribe";
                     s.SettingsVersion = 2;
+                }
+                if (s.SettingsVersion < 3)
+                {
+                    // v2 shipped a transcription model id that OpenAI does not offer.
+                    if (s.TranscriptionModel == "gpt-live-transcribe") s.TranscriptionModel = "gpt-4o-transcribe";
+                    s.SettingsVersion = 3;
                 }
                 return s;
             }

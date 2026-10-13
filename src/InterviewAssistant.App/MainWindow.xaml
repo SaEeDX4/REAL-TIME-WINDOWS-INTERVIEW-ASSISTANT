@@ -107,11 +107,19 @@
             <Grid Grid.Row="1" Margin="14,4,14,8">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
+                <!-- Service / plan banner: only when live help is blocked (signed out, offline, limit reached, expired) -->
+                <Border Grid.Row="0" Margin="0,0,0,8" Padding="10,5" CornerRadius="8" Background="{StaticResource B.Surface2}"
+                        BorderBrush="{StaticResource B.Thinking}" BorderThickness="1" Cursor="Hand" MouseLeftButtonUp="Banner_Click"
+                        Visibility="{Binding ServiceBanner, Converter={StaticResource StrVis}}" ToolTip="Open Account">
+                    <TextBlock Text="{Binding ServiceBanner}" FontSize="12" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
+                </Border>
+
                 <!-- Question -->
-                <Border x:Name="QuestionCard" Style="{StaticResource Card}" Margin="0,0,0,10">
+                <Border x:Name="QuestionCard" Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,10">
                     <StackPanel>
                         <TextBlock x:Name="QuestionLabel" Text="{Binding LQuestion}" Style="{StaticResource T.Label}"/>
                         <TextBlock Text="{Binding Question}" FontSize="{Binding QuestionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"
@@ -124,7 +132,7 @@
                 </Border>
 
                 <!-- Answer -->
-                <Border Grid.Row="1" Style="{StaticResource Card}" Background="{StaticResource B.Surface}" Padding="20,16">
+                <Border Grid.Row="2" Style="{StaticResource Card}" Background="{StaticResource B.Surface}" Padding="20,16">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>

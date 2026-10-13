@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using InterviewAssistant.App.Services;
 using InterviewAssistant.Client;
+using InterviewAssistant.Contracts;
 using InterviewAssistant.Core.Languages;
 using InterviewAssistant.Core.Live;
 using InterviewAssistant.Core.Persistence;
@@ -63,7 +64,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _updateTimer = new DispatcherTimer(DispatcherPriority.Background, ui) { Interval = TimeSpan.FromMinutes(1) };
         _updateTimer.Tick += async (_, _) => await Updates.TickAsync(sessionActive: IsListening || IsPaused || _cloudSession != null);
         _updateTimer.Start();
-        Cloud.Changed += () => Post(() => { Raise(nameof(AccountLabel)); Raise(nameof(UsingCloud)); Raise(nameof(MinutesLeftLabel)); });
+        Cloud.Changed += () => Post(() => { Raise(nameof(AccountLabel)); Raise(nameof(UsingCloud)); Raise(nameof(MinutesLeftLabel)); Raise(nameof(ServiceBanner)); });
         _capture.FrameReady += OnAudioFrame;
         _capture.StatusChanged += s => Post(() => AudioStatus = s);
         _diagTimer = new DispatcherTimer(DispatcherPriority.Background, ui) { Interval = TimeSpan.FromSeconds(1) };
@@ -135,8 +136,41 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
     // ---------------- account ----------------
 
-    public bool UsingCloud => Settings.Mode == "cloud" && Cloud.IsConfigured;
-    public string AccountLabel => !Cloud.IsConfigured ? "Developer mode" : Cloud.Account is { } a ? $"{a.Email} · {a.Entitlements.PlanName}" : Cloud.IsSignedIn ? "Signed in" : "Not signed in";
+    /// <summary>Customer builds always use the service; only developer builds can switch to the own-key prototype path.</summary>
+    public bool UsingCloud => !BuildFlavor.Developer || (Settings.Mode == "cloud" && Cloud.IsConfigured);
+    public string AccountLabel => Cloud.State switch
+    {
+        CloudState.SignedIn when Cloud.Account is { } a => $"{a.Email} · {BillingLabel(a)}",
+        CloudState.NotConfigured => BuildFlavor.Developer ? "Developer mode" : "Service not configured",
+        CloudState.Connecting => "Connecting…",
+        CloudState.ServiceUnavailable => "Service unavailable",
+        CloudState.UpdateRequired => "Update required",
+        CloudState.SessionExpired => "Session expired — sign in",
+        CloudState.AccountDisabled => "Account disabled",
+        _ => "Not signed in",
+    };
+
+    /// <summary>One-line plan text from the server's billing state (no entitlement logic here).</summary>
+    public static string BillingLabel(AccountDto a) => a.BillingState switch
+    {
+        Contracts.BillingStates.Trial => $"Trial · {a.Usage.LiveSecondsRemaining / 60} min left",
+        Contracts.BillingStates.TrialExhausted => "Trial used up",
+        Contracts.BillingStates.Active => a.Entitlements.PlanName,
+        Contracts.BillingStates.Canceling => $"{a.Entitlements.PlanName} · ends {a.Subscription?.CurrentPeriodEndUtc?.ToLocalTime():d}",
+        Contracts.BillingStates.PastDue => $"{a.Entitlements.PlanName} · payment problem",
+        Contracts.BillingStates.Paused => "Subscription paused",
+        Contracts.BillingStates.Expired => "Subscription ended",
+        _ => a.Entitlements.PlanName,
+    };
+
+    /// <summary>Overlay banner for states that block live help (empty when everything is fine).</summary>
+    public string ServiceBanner => !UsingCloud ? "" : Cloud.State switch
+    {
+        CloudState.ServiceUnavailable or CloudState.UpdateRequired or CloudState.AccountDisabled or CloudState.SessionExpired or CloudState.NotConfigured => Cloud.Message ?? AccountLabel,
+        CloudState.SignedIn when Cloud.Account?.BillingState is Contracts.BillingStates.TrialExhausted or Contracts.BillingStates.Expired or Contracts.BillingStates.Paused =>
+            BillingLabel(Cloud.Account!) + " — upgrade or manage billing in Home → Account.",
+        _ => "",
+    };
     private int? _remainingSeconds; public string MinutesLeftLabel => UsingCloud && (_remainingSeconds ?? Cloud.Account?.Usage.LiveSecondsRemaining) is int r ? UiStrings.Format(UiLanguage, "minutes_left", r / 60) : "";
 
     public ICommand StartPauseCommand { get; }
@@ -205,7 +239,15 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             Workspace = new Workspace(Path.Combine(AppPaths.Roaming, "workspace"), new DpapiProtector());
             var (kb, label) = Workspace.LoadActive(Settings.ActiveProfileId, Settings.ActiveTargetId);
             UseKnowledge(kb, label);
-            if (Cloud.IsConfigured) _ = Cloud.RefreshAsync(CancellationToken.None);
+            if (Cloud.IsConfigured)
+            {
+                _ = Cloud.RefreshAsync(CancellationToken.None);
+                // Keep plan/billing state current (e.g. after a renewal or a cancellation in the portal) and recover after network loss.
+                _accountTimer = new DispatcherTimer(DispatcherPriority.Background, _ui) { Interval = TimeSpan.FromMinutes(10) };
+                _accountTimer.Tick += (_, _) => { if (!_toggleBusy) _ = Cloud.RefreshAsync(CancellationToken.None); };
+                _accountTimer.Start();
+                System.Net.NetworkInformation.NetworkChange.NetworkAvailabilityChanged += (_, e) => { if (e.IsAvailable) Post(() => _ = Cloud.RefreshAsync(CancellationToken.None)); };
+            }
         }
         catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
         {
@@ -241,11 +283,12 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         if (_engine != null) _ = _engine.DisposeAsync().AsTask(); // releases the previous transcriber connection
         (_provider as IDisposable)?.Dispose();
         _transcriberOptions = TranscriberOptions();
-        if (UsingCloud)
+        if (UsingCloud && Cloud.Api != null)
         {
             // Cloud: the server picks the models and holds the provider key; the transcriber only ever sees short-lived secrets.
             _provider = new CloudAnswerProvider(Cloud.Api!, () => _cloudSession?.Id);
-            _transcriber = new OpenAiRealtimeTranscriber(() => _cloudSession is { Active: true } s ? s.CurrentSecret : null, _transcriberOptions);
+            _transcriberOptions.ServerConfiguredSession = true;   // the server mints the session config with each secret
+            _transcriber = new OpenAiRealtimeTranscriber(ct => _cloudSession is { Active: true } s ? s.NextConnectionSecretAsync(ct) : Task.FromResult<string?>(null), _transcriberOptions);
         }
         else
         {
@@ -312,8 +355,10 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         StartAudioPreview();
         await using var lease = UsingCloud ? await StartLeaseAsync(ct) : null;
         var opts = TranscriberOptions();
-        if (lease != null) { opts.Endpoint = lease.Credential.WebSocketUrl; opts.Model = lease.Credential.Model; opts.FallbackModels = Array.Empty<string>(); }
-        await using var t = new OpenAiRealtimeTranscriber(lease != null ? () => lease.CurrentSecret : SecretStore.GetApiKey, opts);
+        if (lease != null) { opts.Endpoint = lease.Credential.WebSocketUrl; opts.ServerConfiguredSession = true; }
+        await using var t = lease != null
+            ? new OpenAiRealtimeTranscriber(c => lease.NextConnectionSecretAsync(c), opts)
+            : new OpenAiRealtimeTranscriber(SecretStore.GetApiKey, opts);
         var text = new System.Text.StringBuilder();
         var partials = new Dictionary<string, string>();
         void Render() { var all = text + (partials.Count > 0 ? " " + string.Join(" ", partials.Values) : ""); Post(() => onTranscript(all.Trim())); }
@@ -354,7 +399,19 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
     // ---------------- controls ----------------
 
+    private bool _toggleBusy;
+    private DispatcherTimer? _accountTimer;
+
+    /// <summary>Start / pause. Re-entrancy guarded: a double click can never start two leases.</summary>
     public async Task ToggleListeningAsync()
+    {
+        if (_engine == null || _toggleBusy) return;
+        _toggleBusy = true;
+        try { await ToggleListeningCoreAsync(); }
+        finally { _toggleBusy = false; }
+    }
+
+    private async Task ToggleListeningCoreAsync()
     {
         if (_engine == null) return;
         if (IsListening)
@@ -365,33 +422,11 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         }
         if (UsingCloud)
         {
-            if (!Cloud.IsSignedIn) { ShowLocalNote("Sign in to your account (Home → Account) to start live listening. Manual questions still work with prepared answers."); return; }
-            try
-            {
-                _cloudSession = await StartLeaseAsync(CancellationToken.None);
-                _transcriberOptions!.Endpoint = _cloudSession.Credential.WebSocketUrl;
-                _transcriberOptions.Model = _cloudSession.Credential.Model;
-                _transcriberOptions.FallbackModels = Array.Empty<string>();   // server-side routing decides fallbacks
-                var session = _cloudSession;
-                session.RemainingChanged += r => Post(() => { _remainingSeconds = r; Raise(nameof(MinutesLeftLabel)); });
-                session.Warning += w => Post(() => Note = w);
-                session.Ended += reason => Post(async () => { if (session == _cloudSession) await OnLeaseEndedAsync(reason); });
-                _remainingSeconds = session.RemainingSeconds; Raise(nameof(MinutesLeftLabel));
-            }
-            catch (BackendException ex)
-            {
-                ShowLocalNote(ex.Code switch
-                {
-                    "allowance_exhausted" => "You have used all live minutes in your plan. Upgrade in Home → Account. Manual questions still work with prepared answers.",
-                    "concurrent_limit" => "Another interview session is active on your account. Stop it first.",
-                    "device_revoked" or "device_limit" => "This device is not registered for your account. Manage devices in Home → Account.",
-                    "maintenance" => ex.Message,
-                    _ => ex.Message + (ex.CorrelationId != null ? $" (ref {ex.CorrelationId[..8]})" : ""),
-                });
-                return;
-            }
+            if (!Cloud.IsConfigured) { ShowLocalNote("Live help needs the Interview Assistant service, which is not configured in this build. Typed questions still work with prepared answers."); return; }
+            if (!Cloud.IsSignedIn) { ShowLocalNote("Sign in (Home → Account) to start live listening. Typed questions still work with prepared answers."); return; }
+            if (!await BeginLeaseAsync()) return;
         }
-        else if (!SecretStore.HasKey) { ShowLocalNote("Developer mode: add your OpenAI API key in Settings to enable live listening. Manual questions still work with prepared answers."); return; }
+        else if (!SecretStore.HasKey) { ShowLocalNote("Developer build: add your OpenAI API key in Settings to enable live listening. Typed questions still work with prepared answers."); return; }
         StartAudioPreview();
         if (_sessionStartedUtc == default) _sessionStartedUtc = DateTime.UtcNow;
         await _engine.StartListeningAsync();
@@ -407,6 +442,35 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         LiveTranscript = "";
         if (Settings.SaveSessionTranscript) SaveSession();
         LastReportPath = SaveReport();
+    }
+
+    /// <summary>Starts the server lease for live listening and wires its events. False (with a readable note) when refused.</summary>
+    private async Task<bool> BeginLeaseAsync()
+    {
+        try
+        {
+            _cloudSession = await StartLeaseAsync(CancellationToken.None);
+            _transcriberOptions!.Endpoint = _cloudSession.Credential.WebSocketUrl;
+            var session = _cloudSession;
+            session.RemainingChanged += r => Post(() => { _remainingSeconds = r; Raise(nameof(MinutesLeftLabel)); });
+            session.Warning += w => Post(() => Note = w);
+            session.Ended += reason => Post(async () => { if (session == _cloudSession) await OnLeaseEndedAsync(reason); });
+            _remainingSeconds = session.RemainingSeconds; Raise(nameof(MinutesLeftLabel));
+            return true;
+        }
+        catch (BackendException ex)
+        {
+            ShowLocalNote(ex.Code switch
+            {
+                "allowance_exhausted" => "You have used all live minutes on your plan. Upgrade in Home → Account. Typed questions still work with prepared answers.",
+                "concurrent_limit" => "An interview session is already running for your account on another PC. Stop it there first.",
+                "device_revoked" or "device_limit" => "This PC is not registered for your account (device limit). Manage devices in Home → Account.",
+                "maintenance" => ex.Message,
+                _ => CloudService.Describe(ex) + " Typed questions still work with prepared answers.",
+            });
+            if (ex.Status is 0 or >= 500) _ = Cloud.RefreshAsync(CancellationToken.None);
+            return false;
+        }
     }
 
     private async Task<CloudSession> StartLeaseAsync(CancellationToken ct)
@@ -430,14 +494,22 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private async Task OnLeaseEndedAsync(string reason)
     {
         AppLog.Info("Lease ended: " + reason);
-        if (_engine != null && (IsListening || IsPaused)) { _engine.Pause(); IsListening = false; IsPaused = true; }
         _cloudSession = null;
+        // Network loss, sleep/wake or a crash-replaced lease: the user still wants help — start a new lease once, silently.
+        if (IsListening && reason is "heartbeat_timeout" or "session_ended" or "expired" or "not_found" && await BeginLeaseAsync())
+        {
+            AppLog.Info("Lease restarted automatically");
+            return;
+        }
+        if (_engine != null && (IsListening || IsPaused)) { _engine.Pause(); IsListening = false; IsPaused = true; }
         Note = reason switch
         {
             "allowance_exhausted" => "Live minutes used up — listening paused. Prepared answers and manual questions still work.",
             "max_duration" => "Maximum session length reached — press Resume to continue.",
             "daily_cap" => "Daily live limit reached — listening paused.",
-            _ => "Live session ended (" + reason + "). Press Resume to continue.",
+            "account_disabled" => "This account has been disabled — listening stopped.",
+            "device_revoked" => "This PC was removed from your account — listening stopped.",
+            _ => "The live session ended. Press Resume to continue.",
         };
         await Cloud.RefreshAsync(CancellationToken.None);
     }
@@ -604,6 +676,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     {
         _diagTimer.Stop();
         _updateTimer.Stop();
+        _accountTimer?.Stop();
         _capture.Dispose();
         if (_engine != null) await _engine.DisposeAsync();
         await EndLeaseAsync();

@@ -11,11 +11,11 @@ public sealed class RealtimeTranscriberOptions
 {
     public string Endpoint { get; set; } = "wss://api.openai.com/v1/realtime?intent=transcription";
     /// <summary>
-    /// gpt-live-transcribe (OpenAI, Jul 2026): streaming model that emits transcript deltas WHILE the interviewer speaks.
+    /// Realtime transcription model (OpenAI realtime transcription sessions accept gpt-4o-transcribe / gpt-4o-mini-transcribe).
     /// If the account/session rejects it, the transcriber falls back to FallbackModels in order.
     /// </summary>
-    public string Model { get; set; } = "gpt-live-transcribe";
-    public string[] FallbackModels { get; set; } = { "gpt-4o-transcribe", "gpt-4o-mini-transcribe" };
+    public string Model { get; set; } = "gpt-4o-transcribe";
+    public string[] FallbackModels { get; set; } = { "gpt-4o-mini-transcribe" };
     /// <summary>ISO-639-1 code, or empty/"auto" to let the model detect the spoken language.</summary>
     public string Language { get; set; } = "";
     /// <summary>Vocabulary prompt that biases recognition toward domain terms.</summary>
@@ -28,6 +28,12 @@ public sealed class RealtimeTranscriberOptions
     public string Protocol { get; set; } = "auto";
     /// <summary>Proactively renew the session when idle after this age (sessions have a maximum lifetime).</summary>
     public TimeSpan SessionRotateAfter { get; set; } = TimeSpan.FromMinutes(25);
+    /// <summary>
+    /// The credential is an ephemeral client secret minted by the server with the full session configuration (model,
+    /// prompt, VAD) baked in: the client sends no session.update, always uses the GA protocol, and treats a model
+    /// problem as fatal (the server's fallback routing decides the model, not the client).
+    /// </summary>
+    public bool ServerConfiguredSession { get; set; }
 }
 
 /// <summary>
@@ -37,7 +43,7 @@ public sealed class RealtimeTranscriberOptions
 /// </summary>
 public sealed class OpenAiRealtimeTranscriber : ITranscriber
 {
-    private readonly Func<string?> _apiKey;
+    private readonly Func<CancellationToken, Task<string?>> _credential;
     private readonly RealtimeTranscriberOptions _opt;
     private readonly Channel<byte[]> _audio = Channel.CreateBounded<byte[]>(new BoundedChannelOptions(30) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true });
     private CancellationTokenSource? _cts;
@@ -59,10 +65,14 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
     public long AudioBytesSent { get; private set; }
 
     public OpenAiRealtimeTranscriber(Func<string?> apiKeyProvider, RealtimeTranscriberOptions? options = null)
+        : this(_ => Task.FromResult(apiKeyProvider()), options) { }
+
+    /// <summary>Credential fetched asynchronously before every (re)connection — e.g. a fresh server-issued ephemeral secret.</summary>
+    public OpenAiRealtimeTranscriber(Func<CancellationToken, Task<string?>> credentialProvider, RealtimeTranscriberOptions? options = null)
     {
-        _apiKey = apiKeyProvider;
+        _credential = credentialProvider;
         _opt = options ?? new RealtimeTranscriberOptions();
-        _useBeta = _opt.Protocol.Equals("beta", StringComparison.OrdinalIgnoreCase);
+        _useBeta = !_opt.ServerConfiguredSession && _opt.Protocol.Equals("beta", StringComparison.OrdinalIgnoreCase);
     }
 
     public Task StartAsync(CancellationToken ct)
@@ -89,8 +99,19 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
         var backoff = new ExponentialBackoff();
         while (!ct.IsCancellationRequested)
         {
-            var key = _apiKey();
-            if (string.IsNullOrWhiteSpace(key)) { SetStatus(ConnectionStatus.Failed, "No API key configured"); return; }
+            string? key;
+            try { key = await _credential(ct).ConfigureAwait(false); }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
+            catch (Exception ex)
+            {
+                // Credential service temporarily unreachable: back off and retry (never spin).
+                ReconnectCount++;
+                var wait = backoff.Next();
+                SetStatus(ConnectionStatus.Reconnecting, $"{ex.Message} — retry in {wait.TotalSeconds:0}s");
+                try { await Task.Delay(wait, ct).ConfigureAwait(false); } catch (OperationCanceledException) { break; }
+                continue;
+            }
+            if (string.IsNullOrWhiteSpace(key)) { SetStatus(ConnectionStatus.Failed, _opt.ServerConfiguredSession ? "Live session not active" : "No API key configured"); return; }
             SetStatus(ReconnectCount == 0 && backoff.Attempt == 0 ? ConnectionStatus.Connecting : ConnectionStatus.Reconnecting, null);
             using var ws = new ClientWebSocket();
             ws.Options.SetRequestHeader("Authorization", "Bearer " + key);
@@ -103,7 +124,7 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
                 using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 connectCts.CancelAfter(TimeSpan.FromSeconds(10));
                 await ws.ConnectAsync(new Uri(_opt.Endpoint), connectCts.Token).ConfigureAwait(false);
-                await SendJsonAsync(ws, BuildSessionUpdate(), ct).ConfigureAwait(false);
+                if (!_opt.ServerConfiguredSession) await SendJsonAsync(ws, BuildSessionUpdate(), ct).ConfigureAwait(false);
                 SetStatus(ConnectionStatus.Connected, ActiveModel + (_useBeta ? " (beta protocol)" : ""));
                 backoff.Reset();
                 var started = DateTime.UtcNow;
@@ -233,14 +254,14 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
                 bool early = (DateTime.UtcNow - connectedAt).TotalSeconds < 5;
                 bool modelProblem = code == "model_not_found" || (early && message.Contains("model", StringComparison.OrdinalIgnoreCase));
                 if (code is "invalid_api_key" or "insufficient_quota") _fatal = true;
-                else if (modelProblem && _modelIndex < _opt.FallbackModels.Length)
+                else if (modelProblem && !_opt.ServerConfiguredSession && _modelIndex < _opt.FallbackModels.Length)
                 {
                     _modelIndex++; _switchProtocol = true; _rotateRequested = true;
                     Diagnostic?.Invoke($"Transcription model rejected; falling back to {ActiveModel}");
                 }
                 else if (modelProblem) _fatal = true;
                 // Session config rejected shortly after connect on GA protocol -> try legacy beta protocol once.
-                else if (!_useBeta && _opt.Protocol == "auto" && (DateTime.UtcNow - connectedAt).TotalSeconds < 5 &&
+                else if (!_useBeta && !_opt.ServerConfiguredSession && _opt.Protocol == "auto" && (DateTime.UtcNow - connectedAt).TotalSeconds < 5 &&
                          (message.Contains("session", StringComparison.OrdinalIgnoreCase) || code.Contains("param", StringComparison.OrdinalIgnoreCase) || code.Contains("unknown", StringComparison.OrdinalIgnoreCase)))
                 {
                     _useBeta = true; _switchProtocol = true; _rotateRequested = true;

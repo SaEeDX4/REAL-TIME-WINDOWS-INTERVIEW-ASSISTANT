@@ -59,21 +59,30 @@ public static class SelfTest
             await Task.Delay(300); await Idle();
             return (ok && vm.Bullets.Count == 4, $"{vm.Bullets.Count} bullets: {vm.Bullets.FirstOrDefault()?.Text}");
         });
-        if (!SecretStore.HasKey)
+        await Check("Customer build: service-only mode (no own-API-key path)", () =>
+            Task.FromResult((BuildFlavor.Developer || vm.UsingCloud, BuildFlavor.Developer ? "developer build" : "release build, cloud only")));
+        await Check("Offline service: account state and overlay banner explain it, no crash", async () =>
         {
-            await Check("Missing API key: Start shows guidance, does not listen", async () =>
-            {
-                await vm.ToggleListeningAsync();
-                return (!vm.IsListening && (vm.Note ?? "").Contains("API key"), vm.Note ?? "(no note)");
-            });
-            await Check("Missing API key: unknown question shows actionable message, no crash", async () =>
-            {
-                vm.Note = null;
-                await vm.SubmitManualAsync("Zebra quantum basketball orchestra symphony?");
-                var ok = await WaitFor(() => vm.Question.Contains("Zebra") && !string.IsNullOrEmpty(vm.Note), 5000);
-                return (ok && (vm.Note ?? "").Contains("Settings"), vm.Note ?? "");
-            });
-        }
+            await vm.Cloud.RefreshAsync(CancellationToken.None);
+            await Idle();
+            var ok = vm.Cloud.State is CloudState.ServiceUnavailable or CloudState.SignedOut && vm.Cloud.Message is { Length: > 0 };
+            return (ok, $"{vm.Cloud.State}: {vm.Cloud.Message} | banner '{vm.ServiceBanner}'");
+        });
+        await Check("Signed out: Start explains how to sign in and does not listen", async () =>
+        {
+            vm.Note = null;
+            await vm.ToggleListeningAsync();
+            var note = vm.Note ?? "";
+            return (!vm.IsListening && (BuildFlavor.Developer ? note.Contains("API key") : note.Contains("Sign in")), note);
+        });
+        await Check("Unknown question without the AI service: readable message, prepared answers still work, no crash", async () =>
+        {
+            vm.Note = null;
+            await vm.SubmitManualAsync("Zebra quantum basketball orchestra symphony?");
+            var ok = await WaitFor(() => vm.Question.Contains("Zebra") && !string.IsNullOrEmpty(vm.Note), 8000);
+            var note = vm.Note ?? "";
+            return (ok && !note.Contains("Exception") && !note.Contains(" at "), note);
+        });
         await Check("Previous / next answer navigation", async () =>
         {
             await Idle();
@@ -128,8 +137,11 @@ public static class SelfTest
             var home = new HomeWindow(vm, w) { Owner = w };
             home.Show(); await Idle();
             foreach (var page in new[] { "start", "profiles", "interviews", "reports", "account" }) { home.ShowPage(page); await Idle(); }
-            var ok = home.IsLoaded; home.Close();
-            return (ok, "5 pages rendered");
+            home.ShowPage("account"); await Idle();
+            var signInForm = home.SignedOutPanel.Visibility == Visibility.Visible || !vm.Cloud.IsConfigured;
+            var noDevButton = BuildFlavor.Developer || home.DeveloperModeBtn.Visibility != Visibility.Visible;
+            var ok = home.IsLoaded && signInForm && noDevButton; home.Close();
+            return (ok, $"5 pages rendered; sign-in form {(signInForm ? "shown" : "MISSING")}; developer button {(noDevButton ? "hidden" : "VISIBLE")}");
         });
         await Check("Profile → confirm facts → prepare → load (isolated DPAPI workspace)", async () =>
         {
@@ -151,8 +163,13 @@ public static class SelfTest
             try { Directory.Delete(root, true); } catch (IOException) { }
             return (ok, $"{pack.Questions.Count} questions, {pack.Stories.Count} stories, label '{label}', {ws.Assets.Library.Count} library items");
         });
-        await Check("Account: unconfigured build stays in developer mode (no service, no crash)", () =>
-            Task.FromResult((vm.Cloud.IsConfigured || (!vm.UsingCloud && vm.AccountLabel == "Developer mode"), vm.AccountLabel)));
+        await Check("Shipped cloud.json: public API endpoint only, no secrets", () =>
+        {
+            var path = Path.Combine(AppContext.BaseDirectory, "cloud.json");
+            var text = File.Exists(path) ? File.ReadAllText(path) : "";
+            var secretLike = System.Text.RegularExpressions.Regex.IsMatch(text, @"sk-|pdl_|secret|service_role|password", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            return Task.FromResult((text.Contains("https://") && !secretLike, text.Length == 0 ? "missing" : text.Replace("\n", " ").Trim()));
+        });
         await Check("Settings window XAML", async () =>
         {
             var s = new SettingsWindow(vm) { Owner = w };

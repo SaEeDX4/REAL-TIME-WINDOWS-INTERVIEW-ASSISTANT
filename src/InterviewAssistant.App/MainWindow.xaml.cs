@@ -179,6 +179,7 @@ public partial class MainWindow : Window
 
     private void Settings_Click(object sender, RoutedEventArgs e) => OpenSettings();
     private void Home_Click(object sender, RoutedEventArgs e) => OpenHome();
+    private void Banner_Click(object sender, MouseButtonEventArgs e) { OpenHome(); _home?.ShowPage("account"); }
     private void Presentation_Click(object sender, MouseButtonEventArgs e) => _vm.ToggleCoach();
 
     private void Report_Click(object sender, RoutedEventArgs e)

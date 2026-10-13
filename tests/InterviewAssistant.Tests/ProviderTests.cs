@@ -127,10 +127,10 @@ public class ProviderTests
     public void TranscriberFallsBackToNextModelWhenRejected()
     {
         var t = new OpenAiRealtimeTranscriber(() => "k");
-        Assert.Equal("gpt-live-transcribe", t.ActiveModel);
-        t.HandleEvent(Encoding.UTF8.GetBytes("{\"type\":\"error\",\"error\":{\"code\":\"model_not_found\",\"message\":\"unknown model\"}}"), DateTime.UtcNow);
         Assert.Equal("gpt-4o-transcribe", t.ActiveModel);
-        Assert.Contains("gpt-4o-transcribe", t.BuildSessionUpdate());
+        t.HandleEvent(Encoding.UTF8.GetBytes("{\"type\":\"error\",\"error\":{\"code\":\"model_not_found\",\"message\":\"unknown model\"}}"), DateTime.UtcNow);
+        Assert.Equal("gpt-4o-mini-transcribe", t.ActiveModel);
+        Assert.Contains("gpt-4o-mini-transcribe", t.BuildSessionUpdate());
     }
 
     [Fact]
@@ -168,5 +168,31 @@ public class ProviderTests
         Send("{\"type\":\"conversation.item.input_audio_transcription.completed\",\"item_id\":\"i1\",\"transcript\":\"How would you?\"}");
         Send("not json");
         Assert.Equal(new[] { "start", "stop", "delta:i1:How", "done:i1:How would you?" }, log);
+    }
+}
+
+public class ServerConfiguredTranscriptionTests
+{
+    [Fact]
+    public void ServerConfiguredSessionNeverFallsBackClientSideOrSwitchesProtocol()
+    {
+        var t = new OpenAiRealtimeTranscriber(_ => Task.FromResult<string?>("ek_x"), new RealtimeTranscriberOptions { ServerConfiguredSession = true, Protocol = "beta" });
+        t.HandleEvent(System.Text.Encoding.UTF8.GetBytes("{\"type\":\"error\",\"error\":{\"code\":\"model_not_found\",\"message\":\"unknown model\"}}"), DateTime.UtcNow);
+        Assert.Equal("gpt-4o-transcribe", t.ActiveModel);                     // the server's routing decides models
+        Assert.DoesNotContain("transcription_session.update", t.BuildSessionUpdate()); // never the beta protocol
+    }
+
+    [Fact]
+    public async Task CredentialIsFetchedPerConnectionAndMissingLeaseStopsCleanly()
+    {
+        var calls = 0;
+        var t = new OpenAiRealtimeTranscriber(_ => { calls++; return Task.FromResult<string?>(null); }, new RealtimeTranscriberOptions { ServerConfiguredSession = true });
+        var statuses = new List<string>();
+        t.StatusChanged += (s, d) => statuses.Add($"{s}:{d}");
+        await t.StartAsync(default);
+        for (int i = 0; i < 50 && !statuses.Any(s => s.StartsWith("Failed")); i++) await Task.Delay(20);
+        Assert.Equal(1, calls);
+        Assert.Contains(statuses, s => s.Contains("Live session not active"));
+        await t.DisposeAsync();
     }
 }

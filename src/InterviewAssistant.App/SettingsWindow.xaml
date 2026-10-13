@@ -23,12 +23,14 @@
                 <Button Style="{StaticResource Btn.Ghost}" HorizontalAlignment="Right" Click="Cancel_Click"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE8BB;" FontSize="11"/></Button>
             </Grid>
             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="20,8,20,16">
+                <TextBlock x:Name="SaveStatus" Foreground="{StaticResource B.Error}" FontSize="12" VerticalAlignment="Center" Margin="0,0,12,0" MaxWidth="300" TextWrapping="Wrap"/>
                 <Button Style="{StaticResource Btn.Base}" Content="Cancel" Click="Cancel_Click" Margin="0,0,8,0" Padding="16,7"/>
                 <Button Style="{StaticResource Btn.Primary}" Content="Save" Click="Save_Click" Padding="20,7"/>
             </StackPanel>
             <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="20,0,12,0">
                 <StackPanel Margin="0,0,8,8">
-                    <TextBlock Text="OPENAI API KEY" Style="{StaticResource Section}" Margin="0,8,0,8"/>
+                    <StackPanel x:Name="DeveloperKeyPanel">
+                    <TextBlock Text="DEVELOPER BUILD — OWN OPENAI API KEY" Style="{StaticResource Section}" Margin="0,8,0,8"/>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <PasswordBox x:Name="KeyBox" Style="{StaticResource PasswordInput}"/>
@@ -36,7 +38,8 @@
                         <Button Grid.Column="2" Style="{StaticResource Btn.Ghost}" Content="Remove" Click="RemoveKey_Click" Margin="4,0,0,0"/>
                     </Grid>
                     <TextBlock x:Name="KeyStatus" Style="{StaticResource Hint}"/>
-                    <TextBlock Style="{StaticResource Hint}" Text="Stored encrypted with Windows DPAPI for your Windows account only. Never written in plain text or logged."/>
+                    <TextBlock Style="{StaticResource Hint}" Text="Developer builds only. Stored encrypted with Windows DPAPI for your Windows account only. Never written in plain text or logged."/>
+                    </StackPanel>
 
                     <TextBlock Text="AUDIO — INTERVIEWER PLAYBACK DEVICE" Style="{StaticResource Section}"/>
                     <Grid>
@@ -56,11 +59,11 @@
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition/></Grid.ColumnDefinitions>
                         <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
-                        <TextBlock Text="Answer model" Style="{StaticResource T.Body}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ModelLabel" Text="Answer model" Style="{StaticResource T.Body}" VerticalAlignment="Center"/>
                         <ComboBox x:Name="ModelBox" Grid.Column="1" Style="{StaticResource Combo}" IsEditable="True" Margin="0,3"/>
-                        <TextBlock Grid.Row="1" Text="Transcription model" Style="{StaticResource T.Body}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="SttLabel" Grid.Row="1" Text="Transcription model" Style="{StaticResource T.Body}" VerticalAlignment="Center"/>
                         <ComboBox x:Name="SttBox" Grid.Row="1" Grid.Column="1" Style="{StaticResource Combo}" IsEditable="True" Margin="0,3"/>
-                        <TextBlock Grid.Row="2" Text="Realtime protocol" Style="{StaticResource T.Body}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ProtocolLabel" Grid.Row="2" Text="Realtime protocol" Style="{StaticResource T.Body}" VerticalAlignment="Center"/>
                         <ComboBox x:Name="ProtocolBox" Grid.Row="2" Grid.Column="1" Style="{StaticResource Combo}" Margin="0,3"/>
                         <TextBlock Grid.Row="3" Text="Font size" Style="{StaticResource T.Body}" VerticalAlignment="Center"/>
                         <ComboBox x:Name="FontBox" Grid.Row="3" Grid.Column="1" Style="{StaticResource Combo}" Margin="0,3"/>

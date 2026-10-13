@@ -15,6 +15,8 @@ public sealed class CloudSession : IAsyncDisposable
     private long _seq;
     private RealtimeCredential _cred;
     private int _consecutiveFailures;
+    private bool _startSecretUsed;
+    private readonly SemaphoreSlim _secretGate = new(1, 1);
 
     public Guid Id { get; }
     public int HeartbeatIntervalSeconds { get; }
@@ -63,7 +65,25 @@ public sealed class CloudSession : IAsyncDisposable
         catch (OperationCanceledException) { }
     }
 
-    /// <summary>One heartbeat + credential renewal if it expires within 2 minutes. Public for deterministic tests.</summary>
+    /// <summary>
+    /// Credential for the next transcription connection: the secret from session start once, then a freshly minted one
+    /// for every reconnect (ephemeral secrets are single-purpose and short-lived). Null when the lease has ended.
+    /// </summary>
+    public async Task<string?> NextConnectionSecretAsync(CancellationToken ct)
+    {
+        if (!Active) return null;
+        await _secretGate.WaitAsync(ct);
+        try
+        {
+            if (!_startSecretUsed && _cred.ExpiresAtUtc - _time.GetUtcNow().UtcDateTime > TimeSpan.FromSeconds(30)) { _startSecretUsed = true; return _cred.ClientSecret; }
+            _startSecretUsed = true;
+            try { _cred = await _api.RenewRealtimeSecretAsync(Id, ct); return _cred.ClientSecret; }
+            catch (BackendException ex) when (ex.Status is 404 or 409 or 402 or 403) { End(ex.Code); return null; }
+        }
+        finally { _secretGate.Release(); }
+    }
+
+    /// <summary>One heartbeat (metering + lease state). Public for deterministic tests.</summary>
     public async Task HeartbeatOnceAsync(CancellationToken ct)
     {
         if (!Active) return;
@@ -75,8 +95,6 @@ public sealed class CloudSession : IAsyncDisposable
             RemainingChanged?.Invoke(hb.RemainingSeconds);
             if (!hb.Active) { End(hb.EndReason ?? "ended"); return; }
             if (hb.RemainingSeconds is > 0 and <= 300) Warning?.Invoke($"{hb.RemainingSeconds / 60 + 1} live minutes left.");
-            if (_cred.ExpiresAtUtc - _time.GetUtcNow().UtcDateTime < TimeSpan.FromMinutes(2))
-                _cred = await _api.RenewRealtimeSecretAsync(Id, ct);
         }
         catch (BackendException ex) when (ex.Status is 404 or 409 or 403) { End(ex.Code); }
         catch (BackendException ex)

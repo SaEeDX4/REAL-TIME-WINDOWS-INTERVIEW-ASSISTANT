@@ -35,6 +35,8 @@ public partial class App : Application
             // Isolate from the user's real settings so the self-test never changes them.
             AppSettings.OverridePath = Path.Combine(Path.GetTempPath(), $"ia-selftest-{Environment.ProcessId}.json");
             AppPaths.IsolatedRoot = Path.Combine(Path.GetTempPath(), $"ia-selftest-{Environment.ProcessId}");
+            // Hermetic: never talk to the production service from a self-test; exercise the offline/signed-out UI instead.
+            CloudService.ForcedApiBaseUrl = "https://127.0.0.1:9";
         }
         Branding.Load(AppContext.BaseDirectory);
         AppLog.Info($"{Branding.ProductName} {typeof(App).Assembly.GetName().Version} starting on {Environment.OSVersion}");
