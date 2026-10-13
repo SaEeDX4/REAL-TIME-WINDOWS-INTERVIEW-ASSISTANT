@@ -17,7 +17,9 @@ The installer contains only the app and the generic `knowledge/` assets — no s
 - No check/download/apply while an interview session is running or paused, and not in the first 45 s after launch.
 - Checks at most every 6 h.
 - A downloaded update installs **after the app exits** (`WaitExitThenApplyUpdates`), or immediately on "Restart to update" — refused while a session is active.
-- Feed URL comes from `cloud.json` → `updateUrl` (a GitHub repo URL or an https static folder). Empty = updates disabled.
+- Feed URL comes from `cloud.json` → `updateUrl` (a GitHub repo URL or an https static folder). Empty = updates disabled. `production-release.yml` fills it **only for signed releases**.
+- **Signature gate (`Authenticode`, `UpdateService`):** the updater is enabled only when the running exe has a valid Authenticode signature (WinVerifyTrust, chain + revocation). After download, the exe inside the package must carry a valid signature from the **same publisher** (certificate subject); otherwise the package is deleted and not applied. Unsigned builds never self-update; the Account page says so.
+- The `--update-test` hook and local-folder feeds are compiled only with `-p:UpdateTestBuild=true` (set by `scripts/update-test.ps1` in CI). Shipped builds do not contain them.
 
 ## Signing
 `production-release.yml` signs through Azure Artifact Signing (Trusted Signing) **only** when `AZURE_SIGNING_ENDPOINT`, `AZURE_SIGNING_ACCOUNT`, `AZURE_SIGNING_PROFILE`, `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_CLIENT_SECRET` are configured; it then fails the release if `Setup.exe` is not validly signed. Without them the release is published **unsigned** with a workflow warning. No self-signed certificate is ever used.

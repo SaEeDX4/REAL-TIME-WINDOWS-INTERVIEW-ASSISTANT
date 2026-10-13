@@ -65,6 +65,9 @@ jobs:
           echo "$cfg" | jq '{transcriptionModel, answerModel, billingEnvironment, auth: (.auth | {available, supabaseUrl, emailPassword, oAuthProviders}), links}'
           if echo "$cfg" | grep -qE 'sk-[A-Za-z0-9_-]{16,}|pdl_(live|sdbx)_apikey|pdl_ntfset|service_role'; then echo "::error::secret-looking value in public config"; exit 1; fi
           if [ "$(echo "$cfg" | jq -r '.auth.available')" != "true" ]; then echo "::warning::Desktop sign-in not configured — set Auth__PublishableKey in Railway"; fi
+          if [ "$(echo "$cfg" | jq -r '.auth.emailConfirmedRedirectUrl')" = "null" ]; then echo "::warning::Sign-up confirmation page not configured — set Product__PublicBaseUrl in Railway"; fi
+          if [ "$(echo "$cfg" | jq -r '.links.privacyPolicy')" = "null" ] || [ "$(echo "$cfg" | jq -r '.links.terms')" = "null" ]; then echo "::warning::Privacy policy / terms links not configured — set Product__PrivacyPolicyUrl and Product__TermsUrl"; fi
+          if curl -fsS -m 20 "$BASE/pay" | grep -q "Checkout unavailable"; then echo "::warning::Paddle checkout page not configured — set Paddle__ClientToken in Railway"; else echo "checkout page: configured"; fi
 
       - name: Protected endpoints reject anonymous and forged requests
         run: |
@@ -72,4 +75,6 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' -m 20 -H 'Authorization: Bearer eyJhbGciOiJub25lIn0.eyJzdWIiOiJ4In0.' "$BASE/api/v1/me")" = "401"
           test "$(curl -s -o /dev/null -w '%{http_code}' -m 20 -X POST -H 'Content-Type: application/json' -d '{"event_id":"evt_smoke"}' "$BASE/api/v1/webhooks/paddle")" = "401"
           test "$(curl -s -o /dev/null -w '%{http_code}' -m 20 "$BASE/api/v1/admin/users")" = "401"
-          curl -fsS -m 20 -D - -o /dev/null "$BASE/health" | grep -i "x-content-type-options: nosniff"
+          hdr=$(curl -fsS -m 20 -D - -o /dev/null "$BASE/health")
+          echo "$hdr" | grep -i "x-content-type-options: nosniff"
+          echo "$hdr" | grep -i "strict-transport-security: max-age="
