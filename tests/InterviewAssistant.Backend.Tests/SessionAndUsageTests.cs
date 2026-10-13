@@ -48,18 +48,46 @@ public class SessionAndUsageTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task ConcurrentSessionsAreRejectedButIdempotentRetryIsAllowed()
+    public async Task IdempotentRetryReturnsSameLeaseAndSameDeviceRestartReplacesItsLease()
     {
         var c = _f.ClientFor(Guid.NewGuid());
         var dev = await c.RegisterDevice();
         var first = await (await c.StartSession(dev.Id, "key-1")).Read<StartSessionResponse>();
         var retry = await (await c.StartSession(dev.Id, "key-1")).Read<StartSessionResponse>();
         Assert.Equal(first.SessionId, retry.SessionId);                 // network retry → same lease
-        var second = await c.StartSession(dev.Id, "key-2");
-        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
-        Assert.Equal("concurrent_limit", (await second.Error()).Code);
-        (await c.PostAsync($"/api/v1/sessions/{first.SessionId}/stop", null)).EnsureSuccessStatusCode();
-        (await c.StartSession(dev.Id, "key-3")).EnsureSuccessStatusCode();
+        var restarted = await (await c.StartSession(dev.Id, "key-2")).Read<StartSessionResponse>();   // app crashed & restarted
+        Assert.NotEqual(first.SessionId, restarted.SessionId);
+        var old = await (await c.PostAsJsonAsync($"/api/v1/sessions/{first.SessionId}/heartbeat", new HeartbeatRequest(1))).Read<HeartbeatResponse>();
+        Assert.False(old.Active);
+        Assert.Equal("replaced_on_device", old.EndReason);
+    }
+
+    [Fact]
+    public async Task ConcurrentSessionsAcrossDevicesAreLimitedEvenWhenRequestsRace()
+    {
+        var id = Guid.NewGuid();
+        var c = _f.ClientFor(id);
+        (await c.GetAsync("/api/v1/me")).EnsureSuccessStatusCode();
+        (await _f.PaddleEvent("evt_" + Guid.NewGuid(), "subscription.activated", Helpers.SubscriptionData(id, "active", sub: "sub_cc" + id.ToString("n")))).EnsureSuccessStatusCode();
+        var a = await c.RegisterDevice();
+        var b = await c.RegisterDevice();                              // Pro: 2 devices, 1 concurrent session
+        var results = await Task.WhenAll(c.StartSession(a.Id, "race-a"), c.StartSession(b.Id, "race-b"));
+        Assert.Equal(1, results.Count(r => r.IsSuccessStatusCode));
+        var rejected = results.Single(r => !r.IsSuccessStatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, rejected.StatusCode);
+        Assert.Equal("concurrent_limit", (await rejected.Error()).Code);
+    }
+
+    [Fact]
+    public async Task RacingDuplicateHeartbeatsAreBilledOnce()
+    {
+        var c = _f.ClientFor(Guid.NewGuid());
+        var s = await (await c.StartSession((await c.RegisterDevice()).Id)).Read<StartSessionResponse>();
+        _f.Time.Advance(TimeSpan.FromSeconds(30));
+        var r = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => c.PostAsJsonAsync($"/api/v1/sessions/{s.SessionId}/heartbeat", new HeartbeatRequest(1))));
+        Assert.Equal(1, r.Count(x => x.IsSuccessStatusCode));
+        Assert.All(r.Where(x => !x.IsSuccessStatusCode), x => Assert.Equal(HttpStatusCode.Conflict, x.StatusCode));
+        Assert.Equal(30, (await (await c.GetAsync("/api/v1/me")).Read<AccountDto>()).Usage.LiveSecondsUsed);
     }
 
     [Fact]

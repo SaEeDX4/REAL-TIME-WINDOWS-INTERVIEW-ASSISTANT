@@ -229,13 +229,16 @@ namespace InterviewAssistant.Backend.Data.Migrations
 
                     b.Property<string>("Provider")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<string>("ProviderCustomerId")
-                        .HasColumnType("text");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("ProviderSubscriptionId")
-                        .HasColumnType("text");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -252,7 +255,9 @@ namespace InterviewAssistant.Backend.Data.Migrations
 
                     b.HasIndex("ProviderCustomerId");
 
-                    b.HasIndex("ProviderSubscriptionId");
+                    b.HasIndex("ProviderSubscriptionId")
+                        .IsUnique()
+                        .HasFilter("\"ProviderSubscriptionId\" IS NOT NULL");
 
                     b.HasIndex("UserId")
                         .IsUnique();
@@ -393,7 +398,8 @@ namespace InterviewAssistant.Backend.Data.Migrations
 
                     b.Property<string>("EventType")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<DateTime>("OccurredUtc")
                         .HasColumnType("timestamp with time zone");
@@ -407,7 +413,8 @@ namespace InterviewAssistant.Backend.Data.Migrations
 
                     b.Property<string>("Provider")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<DateTime>("ReceivedUtc")
                         .HasColumnType("timestamp with time zone");
@@ -417,6 +424,8 @@ namespace InterviewAssistant.Backend.Data.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("EventId");
+
+                    b.HasIndex("ReceivedUtc");
 
                     b.ToTable("webhook_events", (string)null);
                 });

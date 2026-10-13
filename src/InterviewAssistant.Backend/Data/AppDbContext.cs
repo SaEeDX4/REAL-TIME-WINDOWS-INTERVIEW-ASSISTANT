@@ -30,7 +30,8 @@ public sealed class AppDbContext : DbContext
         {
             e.ToTable("subscriptions"); e.HasKey(x => x.Id);
             e.HasIndex(x => x.UserId).IsUnique();
-            e.HasIndex(x => x.ProviderSubscriptionId); e.HasIndex(x => x.ProviderCustomerId);
+            e.HasIndex(x => x.ProviderSubscriptionId).IsUnique().HasFilter("\"ProviderSubscriptionId\" IS NOT NULL"); e.HasIndex(x => x.ProviderCustomerId);
+            e.Property(x => x.ProviderSubscriptionId).HasMaxLength(100); e.Property(x => x.ProviderCustomerId).HasMaxLength(100); e.Property(x => x.Provider).HasMaxLength(32);
             e.HasOne<UserAccount>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             e.Property(x => x.PlanCode).HasMaxLength(64); e.Property(x => x.Status).HasMaxLength(16);
         });
@@ -58,7 +59,11 @@ public sealed class AppDbContext : DbContext
             e.HasIndex(x => new { x.UserId, x.IdempotencyKey }).IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
             e.HasOne<UserAccount>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
-        b.Entity<WebhookEvent>(e => { e.ToTable("webhook_events"); e.HasKey(x => x.EventId); e.Property(x => x.EventId).HasMaxLength(100); });
+        b.Entity<WebhookEvent>(e =>
+        {
+            e.ToTable("webhook_events"); e.HasKey(x => x.EventId); e.Property(x => x.EventId).HasMaxLength(100);
+            e.Property(x => x.EventType).HasMaxLength(64); e.Property(x => x.Provider).HasMaxLength(32); e.HasIndex(x => x.ReceivedUtc);
+        });
         b.Entity<UserDocument>(e =>
         {
             e.ToTable("user_documents"); e.HasKey(x => x.Id);

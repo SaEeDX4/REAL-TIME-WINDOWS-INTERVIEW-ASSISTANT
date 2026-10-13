@@ -122,6 +122,6 @@ public class AccountDeviceAdminTests : IClassFixture<ApiFactory>
     {
         var plans = await (await _f.CreateClient().GetAsync("/api/v1/billing/plans")).Read<List<PlanDto>>();
         Assert.Contains(plans, p => p.Code == "trial" && !p.Purchasable);
-        Assert.Contains(plans, p => p.Code == "pro-dev" && p.Purchasable && p.Entitlements.CoachMode);
+        Assert.Contains(plans, p => p.Code == "pro" && p.Purchasable && p.Entitlements.CoachMode);
     }
 }

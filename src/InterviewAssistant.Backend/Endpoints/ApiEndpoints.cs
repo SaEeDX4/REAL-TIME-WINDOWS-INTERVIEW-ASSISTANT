@@ -29,15 +29,25 @@ public static class ApiEndpoints
 
         // ---------------- public ----------------
         api.MapGet("/config", async (ConfigService c, CancellationToken ct) => Results.Ok(await c.GetAsync(ct))).RequireRateLimiting("anon");
-        api.MapGet("/billing/plans", (IOptions<PlanCatalog> p) => Results.Ok(p.Value.Plans.Select(x =>
-            new PlanDto(x.Code, x.Name, EntitlementService.ToDto(new EffectivePlan(x, "catalog", DateTime.MinValue, DateTime.MaxValue, false)), x.Purchasable)))).RequireRateLimiting("anon");
+        api.MapGet("/billing/plans", async (IOptions<PlanCatalog> p, IBillingProvider billing, CancellationToken ct) =>
+        {
+            var list = new List<PlanDto>();
+            foreach (var x in p.Value.Plans)
+            {
+                var price = x.Purchasable && x.PaddlePriceIds.FirstOrDefault(i => !string.IsNullOrWhiteSpace(i)) is { } id ? await billing.GetPriceDisplayAsync(id, ct) : null;
+                list.Add(new PlanDto(x.Code, x.Name, EntitlementService.CatalogDto(x), x.Purchasable, price));
+            }
+            return Results.Ok(list);
+        }).RequireRateLimiting("anon");
 
         // ---------------- account ----------------
-        authed.MapGet("/me", async (HttpContext http, UsageService usage, CancellationToken ct) =>
+        authed.MapGet("/me", async (HttpContext http, UsageService usage, TimeProvider time, CancellationToken ct) =>
         {
             var c = await Resolve(http);
-            var subDto = c.Sub == null ? null : new SubscriptionDto(c.Sub.PlanCode, c.Sub.Status, c.Sub.CurrentPeriodEndUtc, c.Sub.CancelAtPeriodEnd, c.Sub.GraceUntilUtc);
-            return Results.Ok(new AccountDto(c.User.Id, c.User.Email, c.User.Status, EntitlementService.ToDto(c.Plan), await usage.SummaryAsync(c.User.Id, c.Plan, ct), subDto, c.User.CreatedUtc));
+            var subDto = c.Sub == null || c.Sub.Status == "none" ? null : new SubscriptionDto(c.Sub.PlanCode, c.Sub.Status, c.Sub.CurrentPeriodEndUtc, c.Sub.CancelAtPeriodEnd, c.Sub.GraceUntilUtc);
+            var summary = await usage.SummaryAsync(c.User.Id, c.Plan, ct);
+            var state = EntitlementService.BillingState(c.Plan, c.Sub, summary.LiveSecondsRemaining, time.GetUtcNow().UtcDateTime);
+            return Results.Ok(new AccountDto(c.User.Id, c.User.Email, c.User.Status, EntitlementService.ToDto(c.Plan), summary, subDto, c.User.CreatedUtc, state));
         });
         authed.MapGet("/me/export", async (HttpContext http, AccountService acc, CancellationToken ct) => Results.Json(await acc.ExportAsync((await Resolve(http)).User, ct)));
         authed.MapDelete("/me", async (HttpContext http, AccountService acc, CancellationToken ct) => { await acc.DeleteAsync((await Resolve(http)).User, ct); return Results.NoContent(); });
@@ -143,12 +153,15 @@ public static class ApiEndpoints
         {
             var c = await Resolve(http);
             var plan = plans.Value.Plans.FirstOrDefault(p => p.Code == req.PlanCode && p.Purchasable) ?? throw ApiException.BadRequest("unknown_plan", "Unknown plan.");
+            // One subscription per account: an existing (even paused/past-due) subscription is managed in the portal, never duplicated.
+            if (c.Sub is { Status: "active" or "trialing" or "past_due" or "paused" })
+                throw ApiException.Conflict("already_subscribed", "You already have a subscription. Use Manage billing to change it.");
             return Results.Ok(new UrlResponse(await billing.CreateCheckoutUrlAsync(c.User, plan, c.Sub?.ProviderCustomerId, ct)));
         });
         authed.MapPost("/billing/portal", async (HttpContext http, IBillingProvider billing, CancellationToken ct) =>
         {
             var c = await Resolve(http);
-            if (c.Sub?.ProviderCustomerId == null) throw ApiException.NotFound();
+            if (c.Sub?.ProviderCustomerId == null) throw new ApiException(404, "no_billing_account", "There is no billing account yet. Upgrade first.");
             return Results.Ok(new UrlResponse(await billing.CreatePortalUrlAsync(c.Sub.ProviderCustomerId, c.Sub.ProviderSubscriptionId, ct)));
         });
         api.MapPost("/webhooks/paddle", async (HttpContext http, BillingWebhookProcessor proc, IOptions<PaddleOptions> opt, TimeProvider time, ILoggerFactory lf, CancellationToken ct) =>
@@ -164,7 +177,11 @@ public static class ApiEndpoints
             }
             var outcome = await proc.ProcessAsync(raw, ct);
             return Results.Ok(new { outcome = outcome.ToString().ToLowerInvariant() });
-        }).RequireRateLimiting("anon");
+        }).RequireRateLimiting("webhooks");
+
+        // ---------------- public pages ----------------
+        app.MapGet("/pay", (HttpContext http, IOptions<PaddleOptions> paddle) => PublicPages.Checkout(http, paddle.Value)).RequireRateLimiting("anon");
+        app.MapGet("/auth/confirmed", (HttpContext http) => PublicPages.EmailConfirmed(http)).RequireRateLimiting("anon");
 
         AdminEndpoints.Map(authed);
     }

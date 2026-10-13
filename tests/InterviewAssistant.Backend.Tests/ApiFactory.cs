@@ -19,12 +19,13 @@ using Microsoft.IdentityModel.Tokens;
 namespace InterviewAssistant.Backend.Tests;
 
 /// <summary>Real ASP.NET pipeline + real PostgreSQL (fresh database per fixture, created by the real migrations).</summary>
-public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
+public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     public const string Issuer = "https://test-project.supabase.co/auth/v1";
     public const string JwtSecret = "test-jwt-secret-that-is-long-enough-for-hs256-0123456789"; // fake-credential: test fixture
     public const string ServerOpenAiKey = "sk-server-only-key-ABCDEFGHIJKLMNOP"; // fake-credential: test fixture
     public const string WebhookSecret = "pdl_ntfset_test_secret"; // fake-credential: test fixture
+    public const string PublishableKey = "sb_publishable_testkey";
     public static readonly Guid AdminId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001");
     public readonly string Database = "ia_test_" + Guid.NewGuid().ToString("n")[..12];
     public FakeTimeProvider Time { get; } = new(new DateTimeOffset(2026, 10, 7, 9, 0, 0, TimeSpan.Zero));
@@ -47,6 +48,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         b.UseSetting("PlanCatalog:Plans:1:PaddlePriceIds:0", "pri_test_pro");
         b.UseSetting("Safety:AnswersPerMinute", "5");
         b.UseSetting("Safety:PerAccountDailyLiveMinutes", "240");
+        b.UseSetting("Auth:PublishableKey", PublishableKey);
+        b.UseSetting("Paddle:ClientToken", "test_clienttoken123");
+        b.UseSetting("Product:PublicBaseUrl", "https://api.example.test");
+        b.UseSetting("Product:PrivacyPolicyUrl", "https://example.test/privacy");
         b.ConfigureTestServices(s =>
         {
             s.AddSingleton<TimeProvider>(Time);
@@ -55,7 +60,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             s.AddHttpClient<IRealtimeSecretIssuer, OpenAiRealtimeSecretIssuer>("openai-secrets").ConfigurePrimaryHttpMessageHandler(() => OpenAi);
             s.AddHttpClient<IBillingProvider, PaddleBillingProvider>("paddle").ConfigurePrimaryHttpMessageHandler(() => Paddle);
         });
+        Customize(b);
     }
+
+    /// <summary>Variants (e.g. JWKS/RS256 auth) adjust settings and services here.</summary>
+    protected virtual void Customize(IWebHostBuilder b) { }
 
     public async Task InitializeAsync()
     {
@@ -74,6 +83,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             var path = req.RequestUri!.AbsolutePath;
             if (path == "/transactions") return Json(new { data = new { id = "txn_1", checkout = new { url = "https://sandbox-checkout.paddle.test/txn_1" } } });
             if (path.EndsWith("/portal-sessions")) return Json(new { data = new { urls = new { general = new { overview = "https://sandbox-customer-portal.paddle.test/cpl_1" } } } });
+            if (path == "/prices/pri_test_pro") return Json(new { data = new { id = "pri_test_pro", unit_price = new { amount = "1999", currency_code = "USD" }, billing_cycle = new { interval = "month", frequency = 1 } } });
             return new HttpResponseMessage(HttpStatusCode.NotFound);
         };
     }

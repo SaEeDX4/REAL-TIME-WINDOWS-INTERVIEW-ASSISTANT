@@ -16,13 +16,33 @@ public sealed class ConfigService
 {
     private readonly AppDbContext _db;
     private readonly SafetyOptions _safety;
-    public ConfigService(AppDbContext db, IOptions<SafetyOptions> safety) { _db = db; _safety = safety.Value; }
+    private readonly AuthOptions _auth;
+    private readonly ProductOptions _product;
+    private readonly PaddleOptions _paddle;
+    public ConfigService(AppDbContext db, IOptions<SafetyOptions> safety, IOptions<AuthOptions> auth, IOptions<ProductOptions> product, IOptions<PaddleOptions> paddle)
+    { _db = db; _safety = safety.Value; _auth = auth.Value; _product = product.Value; _paddle = paddle.Value; }
 
+    /// <summary>
+    /// Defaults (operators override per key in runtime_config). Model ids verified against OpenAI's current model list:
+    /// realtime transcription accepts gpt-4o-transcribe / gpt-4o-mini-transcribe; answers use gpt-5.4-mini (reasoning
+    /// effort "none") with gpt-4.1-mini as fallback.
+    /// </summary>
     public static readonly RuntimeConfig Defaults = new(
-        "gpt-live-transcribe", new[] { "gpt-4o-transcribe", "gpt-4o-mini-transcribe" },
+        "gpt-4o-transcribe", new[] { "gpt-4o-mini-transcribe" },
         "gpt-5.4-mini", new[] { "gpt-4.1-mini" }, "gpt-5.4-mini", 260, 8000,
-        new Dictionary<string, bool> { ["coach_mode"] = true, ["adaptive_interruptions"] = true, ["report_export"] = true, ["prep_ai_enrichment"] = true },
+        new Dictionary<string, bool> { ["coach_mode"] = true, ["adaptive_interruptions"] = true, ["report_export"] = true },
         false, null, "2.0.0", 72);
+
+    private AuthClientConfig PublicAuth()
+    {
+        var url = _auth.EffectiveSupabaseUrl;
+        var available = url.StartsWith("https://", StringComparison.Ordinal) && _auth.PublishableKey.Length > 0;
+        var confirmed = _product.PublicBaseUrl.Length > 0 ? _product.PublicBaseUrl.TrimEnd('/') + "/auth/confirmed" : null;
+        return new AuthClientConfig(available, url, available ? _auth.PublishableKey : "", _auth.EmailPassword, _auth.OAuthProviders.Where(p => p.Length > 0).ToList(), confirmed);
+    }
+
+    private ProductLinks PublicLinks() => new(Opt(_product.PrivacyPolicyUrl), Opt(_product.TermsUrl), Opt(_product.BillingTermsUrl), Opt(_product.SupportUrl), Opt(_product.SupportEmail));
+    private static string? Opt(string s) => string.IsNullOrWhiteSpace(s) ? null : s;
 
     public async Task<RuntimeConfig> GetAsync(CancellationToken ct)
     {
@@ -38,7 +58,8 @@ public sealed class ConfigService
         foreach (var kv in Get("features", new Dictionary<string, bool>())) features[kv.Key] = kv.Value;
         return new RuntimeConfig(Pick(tModel, tFall), tFall.Where(m => !disabled.Contains(m)).ToList(), Pick(aModel, aFall), aFall.Where(m => !disabled.Contains(m)).ToList(),
             Get("preparation_model", Defaults.PreparationModel), Get("answer_max_tokens", Defaults.AnswerMaxTokens), Get("first_token_timeout_ms", Defaults.FirstTokenTimeoutMs),
-            features, Get("maintenance", false), Get<string?>("maintenance_message", null), Get("minimum_client_version", _safety.MinimumClientVersion), _safety.OfflineGraceHours);
+            features, Get("maintenance", false), Get<string?>("maintenance_message", null), Get("minimum_client_version", _safety.MinimumClientVersion), _safety.OfflineGraceHours,
+            PublicAuth(), PublicLinks(), _paddle.Environment);
     }
 
     public async Task SetAsync(string key, JsonElement value, string actor, TimeProvider time, CancellationToken ct)

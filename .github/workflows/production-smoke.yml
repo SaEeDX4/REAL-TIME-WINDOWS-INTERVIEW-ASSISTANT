@@ -1,0 +1,69 @@
+name: production-smoke
+
+# Railway deploys this branch on push. This workflow waits until Railway serves the pushed commit, then checks the
+# customer-facing surface: health, readiness, production plan naming, no secrets in public config, auth and webhook
+# rejection. It never uses credentials and never mutates production data.
+on:
+  push:
+    branches: [ "claude/clever-hopper-m8kdai" ]
+    paths: [ "src/InterviewAssistant.Backend/**", "src/InterviewAssistant.Contracts/**", "src/InterviewAssistant.Core/**", "railway.json", ".github/workflows/production-smoke.yml" ]
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-smoke
+  cancel-in-progress: true
+
+env:
+  BASE: ${{ vars.PRODUCTION_BASE_URL || 'https://real-time-windows-interview-assistant-production.up.railway.app' }}
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Wait for the pushed commit to be live
+        if: github.event_name == 'push'
+        run: |
+          want="${GITHUB_SHA::12}"
+          for i in $(seq 1 75); do
+            got=$(curl -fsS -m 10 "$BASE/health" | jq -r '.version // "unknown"' || echo "unreachable")
+            echo "attempt $i: serving $got (want $want)"
+            [ "$got" = "$want" ] && exit 0
+            sleep 20
+          done
+          echo "::error::Railway did not start serving $want within 25 minutes (deploy failed or healthcheck not passing — check the Railway deploy logs)"; exit 1
+
+      - name: Health and readiness
+        run: |
+          curl -fsS -m 10 "$BASE/health" | tee /dev/stderr | jq -e '.status == "ok"'
+          curl -fsS -m 20 "$BASE/health/ready" | tee /dev/stderr | jq -e '.status == "ready"'
+
+      - name: Plans are production-named
+        run: |
+          plans=$(curl -fsS -m 20 "$BASE/api/v1/billing/plans")
+          echo "$plans" | jq -c '.[] | {code, name, priceDisplay}'
+          echo "$plans" | jq -e '[.[].code] == ["trial","pro"]'
+          echo "$plans" | jq -e '[.[].name] == ["Trial","Pro"]'
+          if echo "$plans" | grep -qiE 'seed|pro-dev|development'; then echo "::error::development naming in /billing/plans"; exit 1; fi
+          echo "$plans" | jq -e '.[] | select(.code=="pro") | .purchasable == true'
+          if ! echo "$plans" | jq -e '.[] | select(.code=="pro") | .priceDisplay != null' > /dev/null; then echo "::warning::Pro price could not be read from Paddle"; fi
+
+      - name: Public config exposes no secrets
+        run: |
+          cfg=$(curl -fsS -m 20 "$BASE/api/v1/config")
+          echo "$cfg" | jq '{transcriptionModel, answerModel, billingEnvironment, auth: (.auth | {available, supabaseUrl, emailPassword, oAuthProviders}), links}'
+          if echo "$cfg" | grep -qE 'sk-[A-Za-z0-9_-]{16,}|pdl_(live|sdbx)_apikey|pdl_ntfset|service_role'; then echo "::error::secret-looking value in public config"; exit 1; fi
+          if [ "$(echo "$cfg" | jq -r '.auth.available')" != "true" ]; then echo "::warning::Desktop sign-in not configured — set Auth__PublishableKey in Railway"; fi
+
+      - name: Protected endpoints reject anonymous and forged requests
+        run: |
+          test "$(curl -s -o /dev/null -w '%{http_code}' -m 20 "$BASE/api/v1/me")" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -m 20 -H 'Authorization: Bearer eyJhbGciOiJub25lIn0.eyJzdWIiOiJ4In0.' "$BASE/api/v1/me")" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -m 20 -X POST -H 'Content-Type: application/json' -d '{"event_id":"evt_smoke"}' "$BASE/api/v1/webhooks/paddle")" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -m 20 "$BASE/api/v1/admin/users")" = "401"
+          curl -fsS -m 20 -D - -o /dev/null "$BASE/health" | grep -i "x-content-type-options: nosniff"

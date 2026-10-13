@@ -15,7 +15,7 @@ public class BillingTests : IClassFixture<ApiFactory>
     public async Task CheckoutReturnsHostedPaddleUrlWithUserLink()
     {
         var (id, c) = await NewUser();
-        var url = await (await c.PostAsJsonAsync("/api/v1/billing/checkout", new CheckoutRequest("pro-dev"))).Read<UrlResponse>();
+        var url = await (await c.PostAsJsonAsync("/api/v1/billing/checkout", new CheckoutRequest("pro"))).Read<UrlResponse>();
         Assert.StartsWith("https://sandbox-checkout.paddle.test/", url.Url);
         var sent = _f.Paddle.Requests.Last(r => r.Request.RequestUri!.AbsolutePath == "/transactions");
         Assert.Contains("pri_test_pro", sent.Body);
@@ -29,7 +29,7 @@ public class BillingTests : IClassFixture<ApiFactory>
         var (id, c) = await NewUser();
         (await _f.PaddleEvent("evt_" + Guid.NewGuid(), "subscription.created", Helpers.SubscriptionData(id, "active", sub: "sub_" + id.ToString("n")))).EnsureSuccessStatusCode();
         var me = await (await c.GetAsync("/api/v1/me")).Read<AccountDto>();
-        Assert.Equal("pro-dev", me.Entitlements.PlanCode);
+        Assert.Equal("pro", me.Entitlements.PlanCode);
         Assert.Equal(3, me.Entitlements.MaxProfiles);
         Assert.Equal(600 * 60, me.Usage.LiveSecondsRemaining);
         var portal = await (await c.PostAsync("/api/v1/billing/portal", null)).Read<UrlResponse>();
@@ -73,7 +73,7 @@ public class BillingTests : IClassFixture<ApiFactory>
         _f.Time.Advance(TimeSpan.FromMinutes(1));
         (await _f.PaddleEvent("evt_" + Guid.NewGuid(), "subscription.past_due", Helpers.SubscriptionData(id, "past_due", sub: sub))).EnsureSuccessStatusCode();
         var me = await (await c.GetAsync("/api/v1/me")).Read<AccountDto>();
-        Assert.Equal("pro-dev", me.Entitlements.PlanCode);
+        Assert.Equal("pro", me.Entitlements.PlanCode);
         Assert.NotNull(me.Subscription!.GraceUntilUtc);
         _f.Time.Advance(TimeSpan.FromDays(8));
         c = _f.ClientFor(id); // the old access token has expired by now
@@ -91,7 +91,7 @@ public class BillingTests : IClassFixture<ApiFactory>
         Assert.True(me.Subscription!.CancelAtPeriodEnd);
         _f.Time.Advance(TimeSpan.FromMinutes(1));
         (await _f.PaddleEvent("evt_" + Guid.NewGuid(), "subscription.canceled", Helpers.SubscriptionData(id, "canceled", sub: sub, start: now.AddDays(-5), end: now.AddDays(25), scheduled: "cancel"))).EnsureSuccessStatusCode();
-        Assert.Equal("pro-dev", (await (await c.GetAsync("/api/v1/me")).Read<AccountDto>()).Entitlements.PlanCode);
+        Assert.Equal("pro", (await (await c.GetAsync("/api/v1/me")).Read<AccountDto>()).Entitlements.PlanCode);
         _f.Time.Advance(TimeSpan.FromDays(26));
         c = _f.ClientFor(id);
         Assert.Equal("trial", (await (await c.GetAsync("/api/v1/me")).Read<AccountDto>()).Entitlements.PlanCode);
@@ -123,7 +123,7 @@ public class BillingTests : IClassFixture<ApiFactory>
     {
         var (_, c) = await NewUser();
         // A modified client might claim a plan in its own documents — entitlements ignore client data entirely.
-        (await c.PutAsJsonAsync($"/api/v1/profiles/{Guid.NewGuid()}", new UpsertDocumentRequest(null, Helpers.Doc(new { plan = "pro-dev", maxProfiles = 99 }), null))).EnsureSuccessStatusCode();
+        (await c.PutAsJsonAsync($"/api/v1/profiles/{Guid.NewGuid()}", new UpsertDocumentRequest(null, Helpers.Doc(new { plan = "pro", maxProfiles = 99 }), null))).EnsureSuccessStatusCode();
         var second = await c.PutAsJsonAsync($"/api/v1/profiles/{Guid.NewGuid()}", new UpsertDocumentRequest(null, Helpers.Doc(new { name = "2nd" }), null));
         Assert.Equal(HttpStatusCode.PaymentRequired, second.StatusCode);
         Assert.Equal("profile_limit", (await second.Error()).Code);

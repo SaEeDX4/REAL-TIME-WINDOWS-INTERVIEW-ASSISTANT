@@ -21,11 +21,31 @@ public sealed class SessionService
     private readonly IRealtimeSecretIssuer _issuer;
     private readonly ConfigService _config;
     private readonly DeviceService _devices;
+    private readonly ILogger<SessionService> _log;
 
-    public SessionService(AppDbContext db, TimeProvider time, IOptions<SafetyOptions> safety, UsageService usage, IRealtimeSecretIssuer issuer, ConfigService config, DeviceService devices)
-    { _db = db; _time = time; _safety = safety.Value; _usage = usage; _issuer = issuer; _config = config; _devices = devices; }
+    public SessionService(AppDbContext db, TimeProvider time, IOptions<SafetyOptions> safety, UsageService usage, IRealtimeSecretIssuer issuer, ConfigService config, DeviceService devices, ILogger<SessionService> log)
+    { _db = db; _time = time; _safety = safety.Value; _usage = usage; _issuer = issuer; _config = config; _devices = devices; _log = log; }
 
-    public async Task<StartSessionResponse> StartAsync(UserAccount user, EffectivePlan plan, StartSessionRequest req, string transcriptionPrompt, CancellationToken ct)
+    /// <summary>
+    /// Serialises all lease operations of one user (start, heartbeat, renew, stop) with a transaction-scoped Postgres
+    /// advisory lock, so concurrent requests can neither exceed the concurrent-session limit nor bill a heartbeat twice.
+    /// </summary>
+    private async Task<T> UserLockedAsync<T>(Guid userId, Func<Task<T>> body, CancellationToken ct)
+    {
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        var key = BitConverter.ToInt64(userId.ToByteArray(), 0);
+        await _db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock({key})", ct);
+        var result = await body();
+        await tx.CommitAsync(ct);
+        return result;
+    }
+
+    private static IReadOnlyList<string> TranscriptionModels(RuntimeConfig cfg) => new[] { cfg.TranscriptionModel }.Concat(cfg.TranscriptionFallbacks).ToList();
+
+    public Task<StartSessionResponse> StartAsync(UserAccount user, EffectivePlan plan, StartSessionRequest req, string transcriptionPrompt, CancellationToken ct) =>
+        UserLockedAsync(user.Id, () => StartLockedAsync(user, plan, req, transcriptionPrompt, ct), ct);
+
+    private async Task<StartSessionResponse> StartLockedAsync(UserAccount user, EffectivePlan plan, StartSessionRequest req, string transcriptionPrompt, CancellationToken ct)
     {
         var cfg = await _config.GetAsync(ct);
         if (cfg.Maintenance) throw new ApiException(503, "maintenance", cfg.MaintenanceMessage ?? "The service is under maintenance. Prepared answers still work offline.");
@@ -41,19 +61,29 @@ public sealed class SessionService
         if (remaining <= 0) throw ApiException.Payment("allowance_exhausted", "No live interview minutes remain on your plan for this period.");
         if (existing == null)
         {
-            var active = await _db.Sessions.CountAsync(s => s.UserId == user.Id && s.Status == "active", ct);
+            // The same installation starting again (app crash/restart) replaces its own stale lease instead of being blocked.
+            foreach (var old in await _db.Sessions.Where(s => s.UserId == user.Id && s.Status == "active" && s.DeviceId == req.DeviceId).ToListAsync(ct))
+            {
+                await BillTailAsync(user, plan, old, now, ct);
+                End(old, "stopped", "replaced_on_device", now);
+            }
+            var active = await _db.Sessions.CountAsync(s => s.UserId == user.Id && s.Status == "active" && s.DeviceId != req.DeviceId, ct);
             if (active >= plan.Plan.MaxConcurrentSessions) throw ApiException.Conflict("concurrent_limit", "Another live session is already running for this account.");
             existing = new InterviewSession { Id = Guid.NewGuid(), UserId = user.Id, DeviceId = req.DeviceId, TargetId = req.TargetId, IdempotencyKey = req.IdempotencyKey, StartedUtc = now, LastHeartbeatUtc = now };
             _db.Sessions.Add(existing);
         }
-        var cred = await _issuer.IssueAsync(cfg.TranscriptionModel, transcriptionPrompt, req.InterviewLanguage, ct);
+        var cred = await _issuer.IssueAsync(TranscriptionModels(cfg), transcriptionPrompt, req.InterviewLanguage, ct);
         existing.SecretsIssued++;
         await _db.SaveChangesAsync(ct);
+        _log.LogInformation("Session {SessionId} started for user {UserId} on device {DeviceId} ({Plan}, {Remaining}s left, model {Model})", existing.Id, user.Id, req.DeviceId, plan.Plan.Code, remaining, cred.Model);
         var maxDuration = Math.Min(_safety.MaxSessionMinutes * 60, remaining);
         return new StartSessionResponse(existing.Id, cred, _safety.HeartbeatIntervalSeconds, maxDuration, remaining);
     }
 
-    public async Task<HeartbeatResponse> HeartbeatAsync(UserAccount user, EffectivePlan plan, Guid sessionId, long seq, CancellationToken ct)
+    public Task<HeartbeatResponse> HeartbeatAsync(UserAccount user, EffectivePlan plan, Guid sessionId, long seq, CancellationToken ct) =>
+        UserLockedAsync(user.Id, () => HeartbeatLockedAsync(user, plan, sessionId, seq, ct), ct);
+
+    private async Task<HeartbeatResponse> HeartbeatLockedAsync(UserAccount user, EffectivePlan plan, Guid sessionId, long seq, CancellationToken ct)
     {
         var s = await _db.Sessions.FirstOrDefaultAsync(x => x.Id == sessionId && x.UserId == user.Id, ct) ?? throw ApiException.NotFound();
         if (s.Status != "active") return new HeartbeatResponse(0, false, s.EndReason ?? s.Status);
@@ -68,32 +98,45 @@ public sealed class SessionService
         if (remaining <= 0) End(s, "exhausted", "allowance_exhausted", now);
         else if ((now - s.StartedUtc).TotalMinutes >= _safety.MaxSessionMinutes) End(s, "stopped", "max_duration", now);
         await _db.SaveChangesAsync(ct);
+        if (s.Status != "active") _log.LogInformation("Session {SessionId} ended: {Reason} ({Metered}s metered)", s.Id, s.EndReason, s.MeteredSeconds);
         return new HeartbeatResponse(Math.Max(0, remaining), s.Status == "active", s.EndReason);
     }
 
-    public async Task<RealtimeCredential> RenewSecretAsync(UserAccount user, EffectivePlan plan, Guid sessionId, string prompt, string? language, CancellationToken ct)
+    public Task<RealtimeCredential> RenewSecretAsync(UserAccount user, EffectivePlan plan, Guid sessionId, string prompt, string? language, CancellationToken ct) =>
+        UserLockedAsync(user.Id, () => RenewLockedAsync(user, plan, sessionId, prompt, language, ct), ct);
+
+    private async Task<RealtimeCredential> RenewLockedAsync(UserAccount user, EffectivePlan plan, Guid sessionId, string prompt, string? language, CancellationToken ct)
     {
         var s = await _db.Sessions.FirstOrDefaultAsync(x => x.Id == sessionId && x.UserId == user.Id, ct) ?? throw ApiException.NotFound();
         if (s.Status != "active") throw ApiException.Conflict("session_ended", "Session is not active.");
         if (await _usage.RemainingLiveSecondsAsync(user.Id, plan, ct) <= 0) throw ApiException.Payment("allowance_exhausted", "No live minutes remain.");
         if (s.SecretsIssued > (_safety.MaxSessionMinutes * 60 / 60) + 5) throw ApiException.TooMany("secret_rate", "Too many credential renewals for this session.");
         var cfg = await _config.GetAsync(ct);
-        var cred = await _issuer.IssueAsync(cfg.TranscriptionModel, prompt, language, ct);
+        var cred = await _issuer.IssueAsync(TranscriptionModels(cfg), prompt, language, ct);
         s.SecretsIssued++;
         await _db.SaveChangesAsync(ct);
         return cred;
     }
 
-    public async Task StopAsync(UserAccount user, EffectivePlan plan, Guid sessionId, CancellationToken ct)
+    public Task StopAsync(UserAccount user, EffectivePlan plan, Guid sessionId, CancellationToken ct) =>
+        UserLockedAsync(user.Id, async () =>
+        {
+            var s = await _db.Sessions.FirstOrDefaultAsync(x => x.Id == sessionId && x.UserId == user.Id, ct) ?? throw ApiException.NotFound();
+            if (s.Status != "active") return true;
+            var now = _time.GetUtcNow().UtcDateTime;
+            await BillTailAsync(user, plan, s, now, ct);
+            End(s, "stopped", "client_stop", now);
+            await _db.SaveChangesAsync(ct);
+            _log.LogInformation("Session {SessionId} stopped by client ({Metered}s metered)", s.Id, s.MeteredSeconds);
+            return true;
+        }, ct);
+
+    /// <summary>Bills the time since the last heartbeat (bounded to 2 intervals) when a lease ends.</summary>
+    private async Task BillTailAsync(UserAccount user, EffectivePlan plan, InterviewSession s, DateTime now, CancellationToken ct)
     {
-        var s = await _db.Sessions.FirstOrDefaultAsync(x => x.Id == sessionId && x.UserId == user.Id, ct) ?? throw ApiException.NotFound();
-        if (s.Status != "active") return;
-        var now = _time.GetUtcNow().UtcDateTime;
         var tail = (int)Math.Clamp((now - s.LastHeartbeatUtc).TotalSeconds, 0, _safety.HeartbeatIntervalSeconds * 2);
         var billable = Math.Min(tail, await _usage.RemainingLiveSecondsAsync(user.Id, plan, ct));
         if (billable > 0) { _usage.Record(user.Id, UsageService.LiveSeconds, billable, s.Id); s.MeteredSeconds += billable; }
-        End(s, "stopped", "client_stop", now);
-        await _db.SaveChangesAsync(ct);
     }
 
     /// <summary>Expires leases without heartbeats (crash, network loss). Bills at most one interval after the last heartbeat.</summary>
@@ -104,6 +147,7 @@ public sealed class SessionService
         var stale = await _db.Sessions.Where(s => s.Status == "active" && s.LastHeartbeatUtc < cutoff).ToListAsync(ct);
         foreach (var s in stale) End(s, "expired", "heartbeat_timeout", now);
         await _db.SaveChangesAsync(ct);
+        foreach (var s in stale) _log.LogInformation("Session {SessionId} expired: no heartbeat for {Timeout}s", s.Id, _safety.HeartbeatTimeoutSeconds);
         return stale.Count;
     }
 
