@@ -81,7 +81,7 @@ public static class SelfTest
             await vm.SubmitManualAsync("Zebra quantum basketball orchestra symphony?");
             var ok = await WaitFor(() => vm.Question.Contains("Zebra") && !string.IsNullOrEmpty(vm.Note), 8000);
             var note = vm.Note ?? "";
-            return (ok && !note.Contains("Exception") && !note.Contains(" at "), note);
+            return (ok && !note.Contains("Exception") && !note.Contains(" at ") && (BuildFlavor.Developer || !note.Contains("API key")), note);
         });
         await Check("Previous / next answer navigation", async () =>
         {

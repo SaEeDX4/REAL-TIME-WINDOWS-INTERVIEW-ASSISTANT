@@ -46,4 +46,6 @@ public sealed class EngineOptions
     /// <summary>Seconds without audio level above the floor while listening before "NO AUDIO" is shown.</summary>
     public int NoAudioWarningSeconds { get; set; } = 20;
     public int HistoryCapacity { get; set; } = 30;
+    /// <summary>Note shown when the answer service rejects the credential (own key vs. signed-in service account).</summary>
+    public string CredentialRejectedNote { get; set; } = "API key rejected — open Settings";
 }

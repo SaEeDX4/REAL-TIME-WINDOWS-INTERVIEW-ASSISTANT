@@ -344,7 +344,7 @@ public sealed class InterviewEngine : IAsyncDisposable
                     else
                     {
                         view.Source = view.Bullets.Count > 0 ? AnswerSource.Llm : AnswerSource.Error;
-                        view.Note = ex.Kind == ProviderErrorKind.InvalidApiKey ? "API key rejected — open Settings" : "AI unavailable (" + ex.Kind + ") — type the question or press Regenerate";
+                        view.Note = ex.Kind == ProviderErrorKind.InvalidApiKey ? Options.CredentialRejectedNote : "AI unavailable (" + ex.Kind + ") — type the question or press Regenerate";
                     }
                     SetStatus(EngineStatus.ApiError, ex.Message);
                 }

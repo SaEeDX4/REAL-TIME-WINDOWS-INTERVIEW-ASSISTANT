@@ -296,7 +296,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             _transcriber = new OpenAiRealtimeTranscriber(SecretStore.GetApiKey, _transcriberOptions);
         }
         _transcriber.Diagnostic += m => AppLog.Info(m);
-        _engine = new InterviewEngine(Knowledge, _transcriber, _provider, new EngineOptions { UseFastCache = Settings.UseFastCache });
+        _engine = new InterviewEngine(Knowledge, _transcriber, _provider, new EngineOptions { UseFastCache = Settings.UseFastCache, CredentialRejectedNote = UsingCloud ? "Sign in from Home → Account to get AI answers" : "API key rejected — open Settings" });
         if (Settings.AnswerLanguage != "same" && LanguageRegistry.IsSupported(Settings.AnswerLanguage)) _engine.AnswerLanguageOverride = Settings.AnswerLanguage;
         if (Settings.StartInCoachMode) _engine.Presentation = Presentation.Coach;
         _engine.AdaptiveChanged += lvl => Post(() => Adaptive = lvl);

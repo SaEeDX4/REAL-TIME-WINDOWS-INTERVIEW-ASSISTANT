@@ -123,6 +123,16 @@ public class EngineTests
     }
 
     [Fact]
+    public async Task ServiceBuildShowsSignInNoteInsteadOfApiKeyAdvice()
+    {
+        var r = await CreateAsync();
+        r.Engine.Options.CredentialRejectedNote = "Sign in from Home → Account to get AI answers";
+        r.P.Throw = new ProviderException(ProviderErrorKind.InvalidApiKey, "401");
+        var a = await r.Ask("Zebra quantum basketball orchestra?");
+        Assert.Equal("Sign in from Home → Account to get AI answers", a.Note);
+    }
+
+    [Fact]
     public async Task ManualQuestionWorksWithoutAudioOrProvider()
     {
         var e = new InterviewEngine(TestKnowledge.Load(), null, null, new EngineOptions { AutoTick = false });
