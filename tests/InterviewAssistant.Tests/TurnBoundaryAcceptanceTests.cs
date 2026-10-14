@@ -145,10 +145,11 @@ public class TurnBoundaryAcceptanceTests
     [Fact]
     public async Task NewQuestionDuringAStreamingAnswerSupersedesItWithoutDuplicates()
     {
-        var s = await Sim();
-        s.P.DelayMsPerDelta = 400;                                       // slow AI stream (real time)
+        // Slow AI measured on the VIRTUAL clock (deterministic on any OS timer resolution): 3 s to first token, 3 s per bullet.
+        var s = new InterviewSimulator(provider: c => new VirtualLatencyProvider(c) { FirstTokenMs = 3000, PerBulletMs = 3000 });
+        await s.StartAsync();
         s.Say("How would you price a premium tier bundle for VIP clients?");
-        await s.RunAsync(8500);                                          // finalized; answer still streaming
+        await s.RunAsync(8500);                                          // finalized ~4.8 s; answer still streaming
         Assert.False(s.E.Current!.IsComplete);
         s.Say("What's your view on gamification in finance?");
         await s.RunAsync(8000); await s.SettleAsync(20_000);
