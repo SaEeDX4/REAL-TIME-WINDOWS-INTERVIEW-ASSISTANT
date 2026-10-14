@@ -40,6 +40,7 @@ public partial class MainWindow : Window
     {
         var error = _vm.Initialize();
         if (error != null) { ShowTransientError(error); return; }
+        _vm.ShowLiveIntro = !_vm.Settings.LiveIntroDismissed;
         RegisterHotkeys();
         _vm.StartAudioPreview(); // meter works before the interview starts
         AppLog.Info("Main window loaded");
@@ -55,7 +56,6 @@ public partial class MainWindow : Window
         // First run: onboarding (authorized-use acknowledgement, account, profile, interview) in Home.
         if (!_vm.Settings.AuthorizedUseAcknowledged || !_vm.Settings.FirstRunCompleted)
             Dispatcher.BeginInvoke(() => OpenHome(), DispatcherPriority.ApplicationIdle);
-        _vm.ShowLiveIntro = !_vm.Settings.LiveIntroDismissed;
     }
 
     // ---------------- appearance & placement ----------------
@@ -78,7 +78,7 @@ public partial class MainWindow : Window
         var v = compact ? Visibility.Collapsed : Visibility.Visible;
         ActionBar.Visibility = v;
         ManualBar.Visibility = v;
-        QuestionLabel.Visibility = v;
+        QuestionHeader.Visibility = v;
         AnswerHeader.Visibility = v;
         CompactIcon.Text = compact ? "" : "";
     }

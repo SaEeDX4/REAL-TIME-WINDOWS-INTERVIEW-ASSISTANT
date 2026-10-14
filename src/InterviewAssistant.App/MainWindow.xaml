@@ -113,9 +113,6 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="0">
-                    <!-- calm explanation of the current state ("Listening to system audio · microphone off", "Live minutes are not being used") -->
-                    <TextBlock x:Name="StatusLine" Text="{Binding StatusDetail}" FontSize="11.5" Foreground="{StaticResource B.TextFaint}" Margin="2,0,0,6" TextTrimming="CharacterEllipsis"
-                               ToolTip="{Binding StatusDetail}" Visibility="{Binding StatusDetail, Converter={StaticResource StrVis}}"/>
                     <!-- Service / plan banner: only when live help is blocked (signed out, offline, limit reached, expired) -->
                     <Border Margin="0,0,0,8" Padding="10,5" CornerRadius="8" Background="{StaticResource B.Surface2}"
                             BorderBrush="{StaticResource B.Thinking}" BorderThickness="1" Cursor="Hand" MouseLeftButtonUp="Banner_Click"
@@ -127,7 +124,12 @@
                 <!-- Question -->
                 <Border x:Name="QuestionCard" Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,10">
                     <StackPanel>
-                        <TextBlock x:Name="QuestionLabel" Text="{Binding LQuestion}" Style="{StaticResource T.Label}"/>
+                        <!-- label row also carries a calm explanation of the state (no extra height taken from the answer) -->
+                        <DockPanel x:Name="QuestionHeader" LastChildFill="True">
+                            <TextBlock x:Name="QuestionLabel" DockPanel.Dock="Left" Text="{Binding LQuestion}" Style="{StaticResource T.Label}"/>
+                            <TextBlock x:Name="StatusLine" Text="{Binding StatusDetail}" FontSize="11" Foreground="{StaticResource B.TextFaint}" Margin="12,0,0,8"
+                                       HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusDetail}"/>
+                        </DockPanel>
                         <TextBlock Text="{Binding Question}" FontSize="{Binding QuestionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"
                                    Visibility="{Binding Question, Converter={StaticResource StrVis}}"/>
                         <TextBlock Text="{Binding LWaiting}" FontSize="{Binding QuestionFontSize}" Foreground="{StaticResource B.TextFaint}"

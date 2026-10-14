@@ -82,7 +82,7 @@ public static class SelfTest
             await vm.SubmitManualAsync("so um tell me a little bit about yourself");
             var ok = await WaitFor(() => vm.Bullets.Count >= 3 && vm.Question.Contains("yourself", StringComparison.OrdinalIgnoreCase), 3000);
             await Task.Delay(300); await Idle();
-            return (ok && vm.Bullets.Count == 4, $"{vm.Bullets.Count} bullets: {vm.Bullets.FirstOrDefault()?.Text}");
+            return (ok && vm.Bullets.Count == 3, $"{vm.Bullets.Count} bullets (default view shows exactly 3): {vm.Bullets.FirstOrDefault()?.Text}");
         });
         await Check("Customer build: service-only mode (no own-API-key path)", () =>
             Task.FromResult((BuildFlavor.Developer || vm.UsingCloud, BuildFlavor.Developer ? "developer build" : "release build, cloud only")));

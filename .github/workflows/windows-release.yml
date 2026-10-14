@@ -22,7 +22,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      - name: Version (single source: the app project)
+      - name: "Version (single source: the app project)"
         id: v
         shell: pwsh
         run: |
