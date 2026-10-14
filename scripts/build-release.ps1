@@ -14,7 +14,8 @@ param(
     [string]$Version = "",  # e.g. 2.1.0 (default: the version in the .csproj)
     [string]$OutDir = "artifacts\InterviewAssistant",
     [switch]$SkipBuild,     # publish only (solution already built and tested in this run)
-    [switch]$UpdateTestBuild # CI only: compiles the --update-test hook; such builds are never shipped
+    [switch]$UpdateTestBuild, # CI only: compiles the --update-test hook; such builds are never shipped
+    [string]$Commit = ""     # git commit stamped into the informational version (Help -> About)
 )
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -41,6 +42,7 @@ $out = Join-Path $root $OutDir
 $versionArgs = @()
 if ($Version) { $versionArgs = @("-p:Version=$Version") }
 if ($UpdateTestBuild) { $versionArgs += "-p:UpdateTestBuild=true" }
+if ($Commit) { $versionArgs += "-p:SourceRevisionId=$Commit" }
 if (Test-Path $out) { Remove-Item $out -Recurse -Force }
 $single = if ($FolderLayout) { "false" } else { "true" }
 dotnet publish src/InterviewAssistant.App -c $Configuration -r win-x64 --self-contained true `
@@ -48,10 +50,12 @@ dotnet publish src/InterviewAssistant.App -c $Configuration -r win-x64 --self-co
     -p:DebugType=none @versionArgs -o $out
 if ($LASTEXITCODE) { throw "publish failed" }
 
-Copy-Item README.md, TESTING.md, docs\PRE_INTERVIEW_CHECKLIST.md, docs\TROUBLESHOOTING.md -Destination $out -ErrorAction SilentlyContinue
+# End-user documentation only (no developer docs, sources or tests in the package).
+Copy-Item docs\user\USER_GUIDE.txt -Destination (Join-Path $out "User Guide.txt")
+Copy-Item THIRD_PARTY_NOTICES.md -Destination $out -ErrorAction SilentlyContinue
 
 # Safety: never ship secrets or local settings.
-$bad = Get-ChildItem $out -Recurse -Include *.dpapi, settings.json, *.env -ErrorAction SilentlyContinue
+$bad = Get-ChildItem $out -Recurse -Include *.dpapi, settings.json, *.env, *.pdb, *.cs, *.csproj, *.sln, *Tests.dll, appsettings*.json, *.key, *.pfx -ErrorAction SilentlyContinue
 if ($bad) { throw "Refusing to package secret/settings files: $($bad.FullName -join ', ')" }
 
 if ($OutDir -ne "artifacts\InterviewAssistant") { Write-Host "Published to $out"; return }

@@ -22,6 +22,18 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Version (single source: the app project)
+        id: v
+        shell: pwsh
+        run: |
+          $v = ([xml](Get-Content src/InterviewAssistant.App/InterviewAssistant.App.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+          if ($v -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$') { throw "Not a semantic version: $v" }
+          $sha = "${{ github.sha }}".Substring(0, 12)
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "commit=$sha" >> $env:GITHUB_OUTPUT
+          "channel=$(if ($v.Contains('-')) { 'beta' } else { 'stable' })" >> $env:GITHUB_OUTPUT
+          Write-Host "Building $v ($sha)"
+
       - name: Restore
         run: dotnet restore InterviewAssistant.sln
 
@@ -36,7 +48,7 @@ jobs:
 
       - name: Publish win-x64 self-contained + package
         shell: pwsh
-        run: ./scripts/build-release.ps1 -SkipTests
+        run: ./scripts/build-release.ps1 -SkipTests -Version ${{ steps.v.outputs.version }} -Commit ${{ steps.v.outputs.commit }}
 
       - name: Smoke test — launch real EXE, window appears, stays alive, clean exit
         shell: pwsh
@@ -48,24 +60,22 @@ jobs:
 
       - name: Installer (Velopack, unsigned CI build)
         shell: pwsh
-        run: ./scripts/package-installer.ps1 -Version 2.0.0 -Channel stable
+        run: ./scripts/package-installer.ps1 -Version ${{ steps.v.outputs.version }} -Channel ${{ steps.v.outputs.channel }} -ReleaseNotes docs/release/RELEASE_NOTES_${{ steps.v.outputs.version }}.md
 
       - name: Install N, self-update to N+1, verify, uninstall
         shell: pwsh
         run: ./scripts/update-test.ps1
 
-      - name: Upload installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: InterviewAssistant-Setup-unsigned
-          path: artifacts/installer/
-          if-no-files-found: error
+      # Only reached when every step above passed: the artifacts come from this exact, validated commit.
+      - name: Release-candidate package (portable ZIP, Setup.exe, SHA-256, notes, build info)
+        shell: pwsh
+        run: ./scripts/package-rc.ps1 -Version ${{ steps.v.outputs.version }} -Commit ${{ github.sha }} -RunUrl "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-      - name: Upload release ZIP
+      - name: Upload release candidate
         uses: actions/upload-artifact@v4
         with:
-          name: InterviewAssistant-Windows-x64
-          path: artifacts/InterviewAssistant-Windows-x64.zip
+          name: InterviewAssistant-v${{ steps.v.outputs.version }}
+          path: artifacts/release/
           if-no-files-found: error
 
       - name: Upload validation evidence (logs, self-test JSON, test results)

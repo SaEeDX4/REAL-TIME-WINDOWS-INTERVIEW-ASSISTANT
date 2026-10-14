@@ -1,0 +1,40 @@
+INTERVIEW ASSISTANT — USER GUIDE
+================================
+
+GETTING STARTED
+1. Open Interview Assistant. (This release candidate is not code-signed yet: if Windows
+   SmartScreen appears, choose "More info" -> "Run anyway".)
+2. Home -> Account: create an account or sign in. Confirm your e-mail if asked.
+3. Home -> Profiles: Import resume. Review the extracted facts and tick only the ones that
+   are accurate, then Save profile. Only confirmed facts are ever presented as your experience.
+4. Home -> Interviews: New interview. Enter the job title, company and paste the job
+   description. Press Save & prepare (takes about a minute).
+5. Run the Pre-interview check, then press Open Live Assistant.
+
+BEFORE YOUR INTERVIEW
+- Join the call in Chrome, Meet, Zoom or Teams and play a short sound: the level meter in the
+  Live Assistant should move.
+- Settings: choose the playback device (headset or speakers) you hear the interviewer on.
+- Pre-interview check (shield icon): fix anything marked FAIL. Warnings are optional.
+- Use the assistant only where assistance is permitted.
+
+LIVE ASSISTANT CONTROLS
+- Start listening / Pause ........ Ctrl+Alt+L   (paused time uses no live minutes)
+- Type a question ................ Ctrl+Alt+Q   (works while paused; uses no live minutes)
+- Show / hide the window ......... Ctrl+Alt+Space
+- Coach mode (keywords) .......... Ctrl+Alt+C
+- Shorter / Technical / Example / Full answer / Regenerate rework the current answer.
+- < and > browse earlier answers. The stop button ends the interview and saves a report.
+- Your microphone is never captured — only the audio you hear from the interviewer.
+- Minutes: "585/600 min" is what is left of your plan this billing period. "· 224 today"
+  appears only when the daily safety limit is lower. Hover the number for details.
+
+TROUBLESHOOTING AUDIO
+- "No interview audio": the meeting plays on a different device. Choose it in Settings, or
+  make it the Windows default playback device.
+- Meter moves but nothing is transcribed: check the internet connection and run
+  Test transcription in the Pre-interview check.
+- Bluetooth headsets: use the "Headphones"/"Stereo" output, not "Hands-Free".
+- Silence between questions is normal: the status shows "Listening · quiet".
+- Logs for support: Help & about -> Open log folder. Logs contain no resume text, answers
+  or keys.
