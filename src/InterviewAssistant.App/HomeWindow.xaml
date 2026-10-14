@@ -67,7 +67,7 @@
                 <Button x:Name="NavSettings" Style="{StaticResource Nav}" Click="Settings_Click" Content="Settings"/>
                 <Border Height="1" Background="{StaticResource B.Border}" Margin="6,12"/>
                 <TextBlock Text="LANGUAGE" Style="{StaticResource T.Label}" Margin="12,0,0,6"/>
-                <ComboBox x:Name="UiLanguageBox" Style="{StaticResource Combo}" Margin="6,0" SelectionChanged="UiLanguage_Changed" DisplayMemberPath="NativeName"/>
+                <ComboBox x:Name="UiLanguageBox" Style="{StaticResource Combo}" Margin="6,0" SelectionChanged="UiLanguage_Changed" DisplayMemberPath="DisplayName" ToolTip="App language"/>
             </StackPanel>
 
             <!-- content -->

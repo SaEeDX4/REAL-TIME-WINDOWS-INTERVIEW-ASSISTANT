@@ -28,8 +28,9 @@ public partial class HomeWindow : Window
     private readonly ObservableCollection<FactRow> _facts = new();
     private CancellationTokenSource? _prepCts;
 
-    private sealed record Item<T>(string Label, T Value);
-    private sealed record LangItem(string Label, string Code);
+    // Display records: ToString is the label so no picker can ever show "LangItem { Label = … }".
+    private sealed record Item<T>(string Label, T Value) { public override string ToString() => Label; }
+    private sealed record LangItem(string Label, string Code) { public override string ToString() => Label; }
 
     public sealed class FactRow : INotifyPropertyChanged
     {
@@ -53,9 +54,9 @@ public partial class HomeWindow : Window
         FactList.ItemsSource = _facts;
         UiLanguageBox.ItemsSource = LanguageRegistry.All;
         UiLanguageBox.SelectedItem = LanguageRegistry.Find(_vm.UiLanguage);
-        var langs = LanguageRegistry.All.Select(l => new LangItem($"{l.NativeName} ({l.EnglishName})", l.Code)).ToList();
+        var langs = LanguageRegistry.All.Select(l => new LangItem(l.DisplayName, l.Code)).ToList();
         TargetLanguage.ItemsSource = new[] { new LangItem("Detect automatically", "auto") }.Concat(langs).ToList();
-        TargetAnswerLanguage.ItemsSource = new[] { new LangItem("Same as the interviewer", "same") }.Concat(langs).ToList();
+        TargetAnswerLanguage.ItemsSource = new[] { new LangItem("Same as interview language", "same") }.Concat(langs).ToList();
         AckBox.IsChecked = _vm.Settings.AuthorizedUseAcknowledged;
         ChannelBox.SelectedIndex = _vm.Updates.Channel == "beta" ? 1 : 0;
         _vm.Updates.Changed += OnUpdatesChanged;

@@ -1,6 +1,11 @@
 namespace InterviewAssistant.Core.Languages;
 
-public sealed record LanguageInfo(string Code, string EnglishName, string NativeName, bool IsRightToLeft, string Script, string CultureName);
+public sealed record LanguageInfo(string Code, string EnglishName, string NativeName, bool IsRightToLeft, string Script, string CultureName)
+{
+    /// <summary>Human label for pickers: "English", "Persian — فارسی".</summary>
+    public string DisplayName => string.Equals(NativeName, EnglishName, StringComparison.OrdinalIgnoreCase) ? EnglishName : $"{EnglishName} — {NativeName}";
+    public override string ToString() => DisplayName;   // never the record's debug format in UI
+}
 
 /// <summary>
 /// Supported interview/answer/UI languages. Adding a language = one entry here + a UI resource file
