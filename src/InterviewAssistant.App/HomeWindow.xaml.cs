@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using InterviewAssistant.App.Services;
+using InterviewAssistant.App.Views;
 using InterviewAssistant.App.ViewModels;
 using InterviewAssistant.Client;
 using InterviewAssistant.Contracts;
@@ -62,6 +63,12 @@ public partial class HomeWindow : Window
         _vm.Updates.Changed += OnUpdatesChanged;
         _vm.Cloud.Changed += OnCloudChanged;
         Closed += (_, _) => { _vm.Cloud.Changed -= OnCloudChanged; _vm.Updates.Changed -= OnUpdatesChanged; _prepCts?.Cancel(); };
+        WindowPlacement.HookMaximizeToWorkArea(this);
+        WindowPlacement.Restore(this, _vm.Settings.HomeLeft, _vm.Settings.HomeTop, _vm.Settings.HomeWidth, _vm.Settings.HomeHeight, _vm.Settings.HomeMaximized);
+        StateChanged += (_, _) => OnWindowStateChanged();
+        Closing += (_, _) => SavePlacement();
+        _factView = System.Windows.Data.CollectionViewSource.GetDefaultView(_facts);
+        _factView.Filter = o => o is FactRow r && (_factFilter == "all" || (_factFilter == "review") != r.Confirmed);
         Localize();
         RefreshAll();
         ShowPage(_vm.Settings.AuthorizedUseAcknowledged && _vm.Settings.FirstRunCompleted ? "interviews" : "start");
@@ -220,8 +227,13 @@ public partial class HomeWindow : Window
         _facts.Clear();
         if (p != null)
             foreach (var f in p.Facts.Where(f => f.Kind != FactKind.Summary).OrderBy(f => f.Kind).ThenBy(f => f.Company))
-                _facts.Add(new FactRow { Fact = f, Initial = f.Status, Confirmed = f.Status == FactStatus.UserConfirmed });
+            {
+                var row = new FactRow { Fact = f, Initial = f.Status, Confirmed = f.Status == FactStatus.UserConfirmed };
+                row.PropertyChanged += (_, _) => UpdateFactSummary();
+                _facts.Add(row);
+            }
         FactsHeader.Text = p == null ? "FACTS" : $"FACTS — {p.PendingReviewCount} AWAITING REVIEW";
+        UpdateFactSummary();
         RefreshTargets();
     }
 
@@ -259,9 +271,41 @@ public partial class HomeWindow : Window
         RefreshProfiles(profile.Id);
         ShowPage("profiles");
         RefreshChecklist();
+        Notify(parsed.Facts.Count > 0 ? $"Résumé imported — {parsed.Facts.Count} facts ready to review" : "Résumé imported, but no facts were recognised — check the document", parsed.Facts.Count > 0 ? ToastKind.Success : ToastKind.Warning);
     }
 
-    private void ConfirmAll_Click(object sender, RoutedEventArgs e) { foreach (var f in _facts) f.Confirmed = true; }
+    private System.ComponentModel.ICollectionView? _factView;
+    private string _factFilter = "all";
+
+    private void FactFilter_Click(object sender, RoutedEventArgs e)
+    {
+        _factFilter = (string)((FrameworkElement)sender).Tag;
+        _factView?.Refresh();
+        UpdateFactSummary();
+    }
+
+    private void UpdateFactSummary()
+    {
+        var confirmed = _facts.Count(f => f.Confirmed);
+        FactSummary.Text = _facts.Count == 0 ? "" : $"{confirmed} of {_facts.Count} confirmed · {_facts.Count - confirmed} to review";
+        foreach (var (btn, tag) in new[] { (FilterAll, "all"), (FilterReview, "review"), (FilterConfirmed, "confirmed") })
+            btn.Opacity = _factFilter == tag ? 1.0 : 0.65;
+    }
+
+    /// <summary>
+    /// AI-extracted résumé content becomes verified history only by explicit user action: confirm-all asks first, ticks the
+    /// boxes for review, and nothing is stored until Save profile. Individual facts can be unticked afterwards.
+    /// </summary>
+    private void ConfirmAll_Click(object sender, RoutedEventArgs e)
+    {
+        var pending = _facts.Where(f => !f.Confirmed).ToList();
+        if (pending.Count == 0) { Notify("All facts are already confirmed.", ToastKind.Info); return; }
+        if (!Confirm($"Confirm all {pending.Count} extracted facts as accurate?\n\nConfirmed facts may be used as your real experience in answers. You can untick any fact before saving, and change it later."))
+            return;
+        foreach (var f in pending) f.Confirmed = true;
+        UpdateFactSummary();
+        Notify($"{pending.Count} facts ticked — press Save profile to apply", ToastKind.Info);
+    }
 
     private void SaveProfile_Click(object sender, RoutedEventArgs e)
     {
@@ -276,6 +320,7 @@ public partial class HomeWindow : Window
         foreach (var t in Store.Targets(_profile.Id).Where(t => t.Preparation == PreparationState.Prepared)) { t.Preparation = PreparationState.Stale; Store.SaveTarget(t); }
         RefreshProfiles(_profile.Id);
         RefreshChecklist();
+        Notify($"Profile saved — {_profile.ConfirmedFacts.Count()} confirmed facts", ToastKind.Success);
     }
 
     private void ExportProfile_Click(object sender, RoutedEventArgs e)
@@ -283,8 +328,8 @@ public partial class HomeWindow : Window
         if (_profile == null || Store == null) return;
         var dlg = new SaveFileDialog { FileName = "interview-assistant-profile.zip", Filter = "ZIP archive (*.zip)|*.zip" };
         if (dlg.ShowDialog(this) != true) return;
-        using var fs = File.Create(dlg.FileName);
-        Store.ExportProfile(_profile.Id, fs);
+        using (var fs = File.Create(dlg.FileName)) Store.ExportProfile(_profile.Id, fs);
+        Notify("Profile exported", ToastKind.Success);
     }
 
     private void DeleteProfile_Click(object sender, RoutedEventArgs e)
@@ -401,12 +446,14 @@ public partial class HomeWindow : Window
             Store.SavePack(pack);
             t.Preparation = PreparationState.Prepared; t.PreparedUtc = DateTime.UtcNow;
             AppLog.Info($"Prepared target: {pack.Questions.Count} questions");
+            Notify($"Preparation complete — {pack.Questions.Count} questions ready", ToastKind.Success);
         }
         catch (OperationCanceledException) { t.Preparation = PreparationState.NotPrepared; }
         catch (Exception ex) when (ex is InvalidOperationException or IOException or ArgumentException)
         {
             t.Preparation = PreparationState.Failed; t.PreparationError = ex.Message;
             AppLog.Error("Preparation failed", ex);
+            Notify("Preparation failed — try again", ToastKind.Error);
         }
         finally
         {
@@ -428,7 +475,9 @@ public partial class HomeWindow : Window
         _vm.UseKnowledge(kb, label);
         RefreshTargets(_target.Id);
         RefreshChecklist();
+        _main.Show();
         _main.Activate();
+        _main.ShowToast($"Live Assistant opened · {_target.DisplayName}", ToastKind.Success);
     }
 
     private void DeleteTarget_Click(object sender, RoutedEventArgs e)
@@ -472,7 +521,9 @@ public partial class HomeWindow : Window
         var r = SelectedReport(out _);
         if (r == null) return;
         var dlg = new SaveFileDialog { FileName = "interview-report.html", Filter = "HTML (*.html)|*.html" };
-        if (dlg.ShowDialog(this) == true) File.WriteAllText(dlg.FileName, HtmlReportRenderer.Render(r, Branding.ProductName));
+        if (dlg.ShowDialog(this) != true) return;
+        File.WriteAllText(dlg.FileName, HtmlReportRenderer.Render(r, Branding.ProductName));
+        Notify("Report exported", ToastKind.Success);
     }
 
     private void DeleteReport_Click(object sender, RoutedEventArgs e)
@@ -698,7 +749,7 @@ public partial class HomeWindow : Window
     {
         AccountError.Text = "";
         var (ok, error) = await action();
-        if (!ok) AccountError.Text = error ?? "Something went wrong.";
+        if (!ok) { AccountError.Text = error ?? "Something went wrong."; Notify(AccountError.Text, ToastKind.Error); }
         RefreshAccount();
     }
 
@@ -718,14 +769,16 @@ public partial class HomeWindow : Window
         await LoadAccountExtrasAsync();
         ApplyAccountLimits();
         RefreshAccount();
+        if (_vm.Cloud.IsSignedIn) Notify("Billing status refreshed", ToastKind.Info);
+        else if (_vm.Cloud.Message is { Length: > 0 } m) Notify(m, ToastKind.Warning);
     }
 
     private async void RevokeDevice_Click(object sender, RoutedEventArgs e)
     {
         if ((DeviceList.SelectedItem as Item<DeviceDto>)?.Value is not { } d || _vm.Cloud.Api == null) return;
         if (!Confirm($"Remove “{d.Name}” from your account? Any live session on it ends.")) return;
-        try { await _vm.Cloud.Api.RevokeDeviceAsync(d.Id, CancellationToken.None); }
-        catch (BackendException ex) { AccountError.Text = CloudService.Describe(ex); }
+        try { await _vm.Cloud.Api.RevokeDeviceAsync(d.Id, CancellationToken.None); Notify("Device removed", ToastKind.Success); }
+        catch (BackendException ex) { AccountError.Text = CloudService.Describe(ex); Notify(CloudService.Describe(ex), ToastKind.Error); }
         await LoadAccountExtrasAsync();
     }
 
@@ -739,6 +792,7 @@ public partial class HomeWindow : Window
             var json = await _vm.Cloud.Api.ExportAsync(CancellationToken.None);
             await File.WriteAllTextAsync(dlg.FileName, JsonSerializer.Serialize(json, new JsonSerializerOptions { WriteIndented = true }));
             AccountInfo.Text = "Exported.";
+            Notify("Account data exported", ToastKind.Success);
         }
         catch (BackendException ex) { AccountError.Text = CloudService.Describe(ex); }
     }
@@ -762,12 +816,39 @@ public partial class HomeWindow : Window
         if (_vm.IsListening || _vm.IsPaused) await _vm.StopAsync();
         await _vm.Cloud.SignOutAsync();
         RefreshAccount(); RefreshChecklist();
+        Notify("Signed out", ToastKind.Info);
     }
 
     // ================= helpers =================
 
     private void Warn(string message) => MessageBox.Show(this, message, Branding.ProductName, MessageBoxButton.OK, MessageBoxImage.Information);
     private bool Confirm(string message) => MessageBox.Show(this, message, Branding.ProductName, MessageBoxButton.OKCancel, MessageBoxImage.Question) == MessageBoxResult.OK;
-    private void Header_MouseDown(object sender, MouseButtonEventArgs e) { if (e.ButtonState == MouseButtonState.Pressed) DragMove(); }
+    private void Header_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2) { ToggleMaximize(); return; }
+        if (e.ButtonState == MouseButtonState.Pressed) DragMove();
+    }
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
+    private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    private void Maximize_Click(object sender, RoutedEventArgs e) => ToggleMaximize();
+    private void ToggleMaximize() => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+
+    private void OnWindowStateChanged()
+    {
+        var max = WindowState == WindowState.Maximized;
+        HomeRoot.Margin = new Thickness(max ? 0 : 8);
+        HomeRoot.CornerRadius = new CornerRadius(max ? 0 : 14);
+        MaxIcon.Text = max ? "\uE923" : "\uE922";
+    }
+
+    private void SavePlacement()
+    {
+        var s = _vm.Settings;
+        s.HomeMaximized = WindowState == WindowState.Maximized;
+        if (WindowState == WindowState.Normal) { s.HomeLeft = Left; s.HomeTop = Top; s.HomeWidth = Width; s.HomeHeight = Height; }
+        s.Save();
+    }
+
+    /// <summary>Notification inside Home (bottom-right).</summary>
+    public void Notify(string text, ToastKind kind = ToastKind.Success) => Toasts.Show(text, kind);
 }

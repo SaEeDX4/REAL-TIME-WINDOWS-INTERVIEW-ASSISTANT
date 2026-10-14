@@ -86,13 +86,12 @@ public partial class MainWindow : Window
     private void RestorePlacement()
     {
         var s = _vm.Settings;
-        Width = Math.Max(MinWidth, s.Width);
-        Height = Math.Max(MinHeight, s.Height);
+        Width = Math.Clamp(s.Width, MinWidth, Math.Max(MinWidth, SystemParameters.WorkArea.Width));
+        Height = Math.Clamp(s.Height, MinHeight, Math.Max(MinHeight, SystemParameters.WorkArea.Height));
         if (s.Left is double l && s.Top is double t)
         {
-            // Only restore if the saved position is still on a connected monitor (multi-monitor safe).
-            var vsLeft = SystemParameters.VirtualScreenLeft; var vsTop = SystemParameters.VirtualScreenTop;
-            if (l >= vsLeft - 50 && t >= vsTop - 20 && l < vsLeft + SystemParameters.VirtualScreenWidth - 80 && t < vsTop + SystemParameters.VirtualScreenHeight - 60)
+            // Only restore if the title area is still on a connected monitor (monitor unplugged, resolution/DPI changed).
+            if (WindowPlacement.IsVisibleOnAnyMonitor(l, t, Width))
             { Left = l; Top = t; WindowStartupLocation = WindowStartupLocation.Manual; return; }
         }
         WindowStartupLocation = WindowStartupLocation.Manual;
