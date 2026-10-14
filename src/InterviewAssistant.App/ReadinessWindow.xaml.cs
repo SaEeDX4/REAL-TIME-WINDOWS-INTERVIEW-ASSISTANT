@@ -110,7 +110,14 @@ public partial class ReadinessWindow : Window
             var mins = a.Usage.LiveSecondsRemaining / 60;
             if (_vm.Cloud.Config?.Maintenance == true) _auth.Fail("MAINTENANCE", _vm.Cloud.Config.MaintenanceMessage ?? "The service is in maintenance.");
             else if (mins <= 0) _auth.Fail("NO MINUTES", $"{MainViewModel.BillingLabel(a)} — upgrade in Home → Account.");
-            else _auth.Pass("READY", $"{a.Email} · {MainViewModel.BillingLabel(a)} · {mins} min left");
+            else
+            {
+                // The device must be registered (and not removed) for live sessions.
+                string device;
+                try { await _vm.Cloud.EnsureDeviceAsync(CancellationToken.None); device = "this PC registered"; }
+                catch (Client.BackendException ex) { device = ""; _auth.Fail(ex.Code is "device_limit" ? "DEVICE LIMIT" : "DEVICE", CloudService.Describe(ex) + " Manage devices in Home → Account."); }
+                if (device.Length > 0) _auth.Pass("READY", $"{a.Email} · {MainViewModel.BillingLabel(a)} · {mins} min left · {device}");
+            }
             if (mins > 0)
             {
                 _answer.Busy("Generating a test answer through the service…");
@@ -145,7 +152,7 @@ public partial class ReadinessWindow : Window
 
         if (_vm.Knowledge is { } k)
         {
-            if (k.Questions.Count > 0) _kb.Pass("LOADED", $"{_vm.ActiveLabel} · {k.Profile.Experience.Count} roles · {k.Stories.Count} verified stories");
+            if (k.Questions.Count > 0) _kb.Pass("LOADED", $"{_vm.ActiveLabel} · {k.Profile.Experience.Count} roles · {k.Stories.Count} verified stories · {k.Context.TranscriptionTerms().Count} interview terms for transcription");
             else _kb.Warn("NOT PREPARED", "No interview prepared yet — AI answers still work, but prepared answers and your verified facts need a prepared interview.");
             if (k.Questions.Count >= 50) _bank.Pass("LOADED", $"{k.Questions.Count} prepared answers");
             else if (k.Questions.Count == 0) _bank.Warn("NONE", "Prepare an interview to get instant answers");
@@ -194,7 +201,7 @@ public partial class ReadinessWindow : Window
         {
             VerdictTitle.Text = "✓ " + _vm.L("ready");
             VerdictTitle.Foreground = (Brush)res["B.Listening"];
-            VerdictDetail.Text = "Press Start interview. Keep this window near your camera.";
+            VerdictDetail.Text = "Open the Live Assistant and press Start listening. Keep it near your camera.";
         }
         else
         {

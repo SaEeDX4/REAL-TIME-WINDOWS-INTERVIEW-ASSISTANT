@@ -120,7 +120,31 @@ public partial class HomeWindow : Window
         PageInterviews.Visibility = tag == "interviews" ? Visibility.Visible : Visibility.Collapsed;
         PageReports.Visibility = tag == "reports" ? Visibility.Visible : Visibility.Collapsed;
         PageAccount.Visibility = tag == "account" ? Visibility.Visible : Visibility.Collapsed;
+        PageHelp.Visibility = tag == "help" ? Visibility.Visible : Visibility.Collapsed;
         if (tag == "account" && _vm.Cloud.IsSignedIn) _ = LoadAccountExtrasAsync();
+        if (tag == "help") RefreshAbout();
+        // Where am I: highlight the current section.
+        foreach (var nav in new[] { NavStart, NavProfiles, NavInterviews, NavReports, NavAccount, NavHelp })
+        {
+            var active = (string)nav.Tag == tag;
+            nav.Background = active ? (System.Windows.Media.Brush)FindResource("B.Surface2") : System.Windows.Media.Brushes.Transparent;
+            nav.Foreground = (System.Windows.Media.Brush)FindResource(active ? "B.Text" : "B.TextDim");
+            nav.FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal;
+        }
+    }
+
+    private void RefreshAbout()
+    {
+        AboutText.Text = $"{Branding.ProductName}\n{BuildInfo.Summary}";
+        var signer = Environment.ProcessPath is { } exe ? Authenticode.TrustedSigner(exe) : null;
+        var env = _vm.Cloud.Config?.BillingEnvironment is { Length: > 0 } b ? (b == "sandbox" ? "Service: test billing (sandbox)" : "Service: live") : "Service: not connected";
+        AboutDetail.Text = $"{env} · {(signer != null ? "Code signed" : "Unsigned build — Windows SmartScreen may warn on install")} · {(_vm.Updates.IsInstalled ? "Installed copy" : "Portable copy")}";
+    }
+
+    private void OpenLogs_Click(object sender, RoutedEventArgs e)
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(AppPaths.Logs) { UseShellExecute = true }); }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException) { Notify("Could not open the log folder.", ToastKind.Error); }
     }
 
     private void RefreshAll()

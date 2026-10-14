@@ -38,6 +38,13 @@ public static class SelfTest
             await Idle();
             return (shown && !vm.ShowLiveIntro && !vm.Settings.LiveIntroDismissed, shown ? "shown, then dismissed for this session" : "not shown");
         });
+        await Check("Build information: version, channel and commit", () =>
+        {
+            var v = BuildInfo.Version;
+            var ok = v.Length > 0 && !v.Contains('+') && BuildInfo.Channel.Length > 0 && BuildInfo.Commit.Length > 0
+                     && (!v.Contains("-rc") || BuildInfo.Channel == "Release Candidate");
+            return Task.FromResult((ok, BuildInfo.Summary));
+        });
         await Check("Notifications: toast appears, duplicates suppressed", async () =>
         {
             vm.Toast("Self-test notification", Views.ToastKind.Success);
@@ -154,7 +161,7 @@ public static class SelfTest
         {
             var home = new HomeWindow(vm, w) { Owner = w };
             home.Show(); await Idle();
-            foreach (var page in new[] { "start", "profiles", "interviews", "reports", "account" }) { home.ShowPage(page); await Idle(); }
+            foreach (var page in new[] { "start", "profiles", "interviews", "reports", "account", "help" }) { home.ShowPage(page); await Idle(); }
             home.ShowPage("account"); await Idle();
             var signInForm = home.SignedOutPanel.Visibility == Visibility.Visible || !vm.Cloud.IsConfigured;
             var noDevButton = BuildFlavor.Developer || home.DeveloperModeBtn.Visibility != Visibility.Visible;

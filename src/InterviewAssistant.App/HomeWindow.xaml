@@ -74,6 +74,7 @@
                 <Button x:Name="NavReports" Style="{StaticResource Nav}" Click="Nav_Click" Tag="reports" Content="Reports"/>
                 <Button x:Name="NavAccount" Style="{StaticResource Nav}" Click="Nav_Click" Tag="account" Content="Account"/>
                 <Button x:Name="NavSettings" Style="{StaticResource Nav}" Click="Settings_Click" Content="Settings"/>
+                <Button x:Name="NavHelp" Style="{StaticResource Nav}" Click="Nav_Click" Tag="help" Content="Help &amp; about"/>
                 <Border Height="1" Background="{StaticResource B.Border}" Margin="6,12"/>
                 <TextBlock Text="LANGUAGE" Style="{StaticResource T.Label}" Margin="12,0,0,6"/>
                 <ComboBox x:Name="UiLanguageBox" Style="{StaticResource Combo}" Margin="6,0" SelectionChanged="UiLanguage_Changed" DisplayMemberPath="DisplayName" ToolTip="App language"/>
@@ -245,6 +246,23 @@
                             <Button Style="{StaticResource Btn.Base}" Content="Save as HTML…" Click="ExportReport_Click" Margin="0,0,8,0"/>
                             <Button Style="{StaticResource Btn.Ghost}" Content="Delete" Click="DeleteReport_Click"/>
                         </WrapPanel>
+                    </StackPanel>
+
+                    <!-- ===== Help & about ===== -->
+                    <StackPanel x:Name="PageHelp" Visibility="Collapsed">
+                        <TextBlock Style="{StaticResource H1}" Text="Help"/>
+                        <TextBlock Text="GETTING STARTED" Style="{StaticResource Section}"/>
+                        <TextBlock Style="{StaticResource T.Body}" Text="1. Create an account or sign in (Account). Confirm your e-mail if asked.&#x0a;2. Import your résumé (Profiles) and confirm only the facts that are accurate — only confirmed facts are ever presented as your experience.&#x0a;3. Add the interview (Interviews): job title, company and the job description, then Save &amp; prepare.&#x0a;4. Run the Pre-interview check, then Open Live Assistant."/>
+                        <TextBlock Text="BEFORE YOUR INTERVIEW" Style="{StaticResource Section}"/>
+                        <TextBlock Style="{StaticResource T.Body}" Text="• Join the call in Chrome, Meet, Zoom or Teams and play a short sound: the meter in the Live Assistant should move.&#x0a;• In Settings, choose the playback device (headset or speakers) you hear the interviewer on.&#x0a;• Run the Pre-interview check (shield icon). Fix anything marked FAIL; warnings are optional.&#x0a;• Use the assistant only where assistance is permitted."/>
+                        <TextBlock Text="LIVE ASSISTANT CONTROLS" Style="{StaticResource Section}"/>
+                        <TextBlock Style="{StaticResource T.Body}" Text="Start listening / Pause — Ctrl+Alt+L. Paused time uses no live minutes.&#x0a;Type a question — Ctrl+Alt+Q (works while paused, uses no live minutes).&#x0a;Show / hide the window — Ctrl+Alt+Space.   Coach mode (keywords) — Ctrl+Alt+C.&#x0a;Shorter, Technical, Example, Full answer and Regenerate rework the current answer. ‹ › browse earlier answers.&#x0a;Your microphone is never captured — only the audio you hear from the interviewer."/>
+                        <TextBlock Text="TROUBLESHOOTING AUDIO" Style="{StaticResource Section}"/>
+                        <TextBlock Style="{StaticResource T.Body}" Text="• 'No interview audio' — the meeting plays on a different device. Pick it in Settings, or set it as the Windows default playback device.&#x0a;• The meter moves but nothing is transcribed — check your internet connection and run Test transcription in the Pre-interview check.&#x0a;• Bluetooth headsets: use the 'Headphones'/'Stereo' output, not 'Hands-Free'.&#x0a;• Silence between questions is normal: the status shows 'Listening · quiet'."/>
+                        <TextBlock Text="ABOUT" Style="{StaticResource Section}"/>
+                        <TextBlock x:Name="AboutText" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}"/>
+                        <TextBlock x:Name="AboutDetail" Style="{StaticResource Hint}"/>
+                        <Button Style="{StaticResource Btn.Base}" Content="Open log folder" Click="OpenLogs_Click" HorizontalAlignment="Left" Margin="0,10,0,0" ToolTip="Logs contain no résumé text, answers or keys — useful for support"/>
                     </StackPanel>
 
                     <!-- ===== Account ===== -->
