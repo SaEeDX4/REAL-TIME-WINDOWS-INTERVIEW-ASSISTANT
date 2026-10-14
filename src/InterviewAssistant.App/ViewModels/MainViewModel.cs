@@ -54,6 +54,16 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private DateTime _lastCpuAt = DateTime.UtcNow;
 
     public ObservableCollection<BulletVm> Bullets { get; } = new();
+    /// <summary>Meaningful action results for the in-app notification area (never per click).</summary>
+    public event Action<string, Views.ToastKind>? Notify;
+    public void Toast(string text, Views.ToastKind kind = Views.ToastKind.Info) => Notify?.Invoke(text, kind);
+
+    private bool _showLiveIntro; public bool ShowLiveIntro { get => _showLiveIntro; set => Set(ref _showLiveIntro, value); }
+    public void DismissLiveIntro(bool dontShowAgain)
+    {
+        ShowLiveIntro = false;
+        if (dontShowAgain) { Settings.LiveIntroDismissed = true; Settings.Save(); }
+    }
 
     public MainViewModel(Dispatcher ui)
     {
@@ -64,7 +74,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _updateTimer = new DispatcherTimer(DispatcherPriority.Background, ui) { Interval = TimeSpan.FromMinutes(1) };
         _updateTimer.Tick += async (_, _) => await Updates.TickAsync(sessionActive: IsListening || IsPaused || _cloudSession != null);
         _updateTimer.Start();
-        Cloud.Changed += () => Post(() => { Raise(nameof(AccountLabel)); Raise(nameof(UsingCloud)); Raise(nameof(MinutesLeftLabel)); Raise(nameof(ServiceBanner)); });
+        Cloud.Changed += () => Post(() => { Raise(nameof(AccountLabel)); Raise(nameof(UsingCloud)); RaiseMinutes(); Raise(nameof(ServiceBanner)); });
         _capture.FrameReady += OnAudioFrame;
         _capture.StatusChanged += s => Post(() => AudioStatus = s);
         _diagTimer = new DispatcherTimer(DispatcherPriority.Background, ui) { Interval = TimeSpan.FromSeconds(1) };
@@ -171,7 +181,42 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             BillingLabel(Cloud.Account!) + " — upgrade or manage billing in Home → Account.",
         _ => "",
     };
-    private int? _remainingSeconds; public string MinutesLeftLabel => UsingCloud && (_remainingSeconds ?? Cloud.Account?.Usage.LiveSecondsRemaining) is int r ? UiStrings.Format(UiLanguage, "minutes_left", r / 60) : "";
+    private int? _periodRemainingSeconds, _todayRemainingSeconds;
+
+    /// <summary>Plan minutes left this billing period (never confused with the per-day safety limit).</summary>
+    private int? PeriodMinutesLeft => (_periodRemainingSeconds ?? Cloud.Account?.Usage.LiveSecondsRemaining) is int s ? s / 60 : null;
+    private int? TodayMinutesLeft => (_todayRemainingSeconds ?? (Cloud.Account?.Usage.LiveSecondsAvailableToday is int t && t >= 0 ? t : null)) is int s ? s / 60 : null;
+    private int PlanMinutes => Cloud.Account is { } a ? (a.BillingState == Contracts.BillingStates.Trial || a.BillingState == Contracts.BillingStates.TrialExhausted ? a.Entitlements.TrialMinutes : a.Entitlements.LiveMinutesPerPeriod) : 0;
+
+    /// <summary>Compact header label: plan minutes for the period; today's figure is added only when it is the real limit.</summary>
+    public string MinutesLeftLabel
+    {
+        get
+        {
+            if (!UsingCloud || PeriodMinutesLeft is not int period) return "";
+            var label = PlanMinutes > 0 ? $"{period}/{PlanMinutes} min" : UiStrings.Format(UiLanguage, "minutes_left", period);
+            return TodayMinutesLeft is int today && today < period ? $"{label} · {today} today" : label;
+        }
+    }
+
+    public string MinutesTooltip
+    {
+        get
+        {
+            if (!UsingCloud || PeriodMinutesLeft is not int period) return "";
+            var sb = new StringBuilder();
+            sb.Append(PlanMinutes > 0 ? $"{period} of {PlanMinutes} live minutes remaining this billing period." : $"{period} live minutes remaining this billing period.");
+            if (TodayMinutesLeft is int today)
+            {
+                var cap = Cloud.Account?.Usage.DailyLiveMinutesCap ?? 0;
+                sb.Append($"\n{today} minutes available today" + (cap > 0 ? $" (daily safety limit {cap} min, resets 00:00 UTC)." : "."));
+            }
+            sb.Append("\nPaused time is never counted. Typed questions don't use live minutes.");
+            return sb.ToString();
+        }
+    }
+
+    private void RaiseMinutes() { Raise(nameof(MinutesLeftLabel)); Raise(nameof(MinutesTooltip)); }
 
     public ICommand StartPauseCommand { get; }
     public ICommand StopCommand { get; }
@@ -419,6 +464,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         {
             _engine.Pause(); IsListening = false; IsPaused = true;
             await EndLeaseAsync();   // paused time is never billed
+            Toast(UsingCloud ? "Listening paused — no live minutes are being used" : "Listening paused", Views.ToastKind.Info);
             return;
         }
         if (UsingCloud)
@@ -432,6 +478,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         if (_sessionStartedUtc == default) _sessionStartedUtc = DateTime.UtcNow;
         await _engine.StartListeningAsync();
         IsListening = true; IsPaused = false;
+        Toast("Listening to system audio — microphone off", Views.ToastKind.Success);
     }
 
     public async Task StopAsync()
@@ -453,10 +500,11 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             _cloudSession = await StartLeaseAsync(CancellationToken.None);
             _transcriberOptions!.Endpoint = _cloudSession.Credential.WebSocketUrl;
             var session = _cloudSession;
-            session.RemainingChanged += r => Post(() => { _remainingSeconds = r; Raise(nameof(MinutesLeftLabel)); });
+            void Sync() { _periodRemainingSeconds = session.PeriodRemainingSeconds >= 0 ? session.PeriodRemainingSeconds : null; _todayRemainingSeconds = session.TodayRemainingSeconds >= 0 ? session.TodayRemainingSeconds : null; RaiseMinutes(); }
+            session.RemainingChanged += _ => Post(Sync);
             session.Warning += w => Post(() => Note = w);
             session.Ended += reason => Post(async () => { if (session == _cloudSession) await OnLeaseEndedAsync(reason); });
-            _remainingSeconds = session.RemainingSeconds; Raise(nameof(MinutesLeftLabel));
+            Sync();
             return true;
         }
         catch (BackendException ex)
@@ -510,7 +558,13 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     {
         var s = _cloudSession;
         _cloudSession = null;
-        if (s != null) await s.DisposeAsync();
+        if (s != null)
+        {
+            await s.DisposeAsync();
+            _periodRemainingSeconds = _todayRemainingSeconds = null;   // the account summary is authoritative again
+            _ = Cloud.RefreshAsync(CancellationToken.None);
+            RaiseMinutes();
+        }
     }
 
     private async Task OnLeaseEndedAsync(string reason)

@@ -80,23 +80,24 @@
                         <TextBlock x:Name="PresentationText" Text="{Binding PresentationLabel}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource B.TextDim}"/>
                     </Border>
                     <TextBlock Text="{Binding MinutesLeftLabel}" FontSize="10.5" Foreground="{StaticResource B.TextFaint}" VerticalAlignment="Center"
-                               Visibility="{Binding MinutesLeftLabel, Converter={StaticResource StrVis}}"/>
+                               Visibility="{Binding MinutesLeftLabel, Converter={StaticResource StrVis}}" ToolTip="{Binding MinutesTooltip}"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="StartBtn" Style="{StaticResource Btn.Primary}" Command="{Binding StartPauseCommand}" Padding="12,5" Margin="0,0,6,0" ToolTip="Start / pause listening (Ctrl+Alt+L)">
+                    <Button x:Name="StartBtn" Style="{StaticResource Btn.Primary}" Command="{Binding StartPauseCommand}" Padding="12,5" Margin="0,0,6,0" ToolTip="Start or pause listening to the interviewer (Ctrl+Alt+L). Paused time uses no live minutes.">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock x:Name="StartIcon" Style="{StaticResource T.Icon}" Text="&#xE768;" FontSize="12" Margin="0,0,6,0"/>
                             <TextBlock Text="{Binding StartPauseLabel}"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Command="{Binding StopCommand}" ToolTip="Stop listening"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE71A;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Compact_Click" ToolTip="Compact interview mode"><TextBlock x:Name="CompactIcon" Style="{StaticResource T.Icon}" Text="&#xE73F;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Command="{Binding StopCommand}" ToolTip="End the interview and save the report"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE71A;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Compact_Click" ToolTip="Compact / expanded view"><TextBlock x:Name="CompactIcon" Style="{StaticResource T.Icon}" Text="&#xE73F;"/></Button>
                     <Button Style="{StaticResource Btn.Ghost}" Click="Home_Click" ToolTip="Home: profiles, interviews, reports, account"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE80F;"/></Button>
                     <Button x:Name="ReportBtn" Style="{StaticResource Btn.Ghost}" Click="Report_Click" ToolTip="Open the last interview report"
                             Visibility="{Binding LastReportPath, Converter={StaticResource StrVis}}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE9F9;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Diagnostics_Click" ToolTip="Diagnostics / latency"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE9D9;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Readiness_Click" ToolTip="Pre-interview check"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Help_Click" ToolTip="How the Live Assistant works"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE897;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Diagnostics_Click" ToolTip="Diagnostics and latency"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE9D9;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Readiness_Click" ToolTip="Pre-interview check (audio, account, service)"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;"/></Button>
                     <Button Style="{StaticResource Btn.Ghost}" Click="Settings_Click" ToolTip="Settings"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE713;"/></Button>
                     <Button Style="{StaticResource Btn.Ghost}" Click="Minimize_Click" ToolTip="Minimize"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE921;" FontSize="11"/></Button>
                     <Button Style="{StaticResource Btn.Ghost}" Click="Close_Click" ToolTip="Close"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE8BB;" FontSize="11"/></Button>
@@ -111,12 +112,17 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Service / plan banner: only when live help is blocked (signed out, offline, limit reached, expired) -->
-                <Border Grid.Row="0" Margin="0,0,0,8" Padding="10,5" CornerRadius="8" Background="{StaticResource B.Surface2}"
-                        BorderBrush="{StaticResource B.Thinking}" BorderThickness="1" Cursor="Hand" MouseLeftButtonUp="Banner_Click"
-                        Visibility="{Binding ServiceBanner, Converter={StaticResource StrVis}}" ToolTip="Open Account">
-                    <TextBlock Text="{Binding ServiceBanner}" FontSize="12" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
-                </Border>
+                <StackPanel Grid.Row="0">
+                    <!-- calm explanation of the current state ("Listening to system audio · microphone off", "Live minutes are not being used") -->
+                    <TextBlock x:Name="StatusLine" Text="{Binding StatusDetail}" FontSize="11.5" Foreground="{StaticResource B.TextFaint}" Margin="2,0,0,6" TextTrimming="CharacterEllipsis"
+                               ToolTip="{Binding StatusDetail}" Visibility="{Binding StatusDetail, Converter={StaticResource StrVis}}"/>
+                    <!-- Service / plan banner: only when live help is blocked (signed out, offline, limit reached, expired) -->
+                    <Border Margin="0,0,0,8" Padding="10,5" CornerRadius="8" Background="{StaticResource B.Surface2}"
+                            BorderBrush="{StaticResource B.Thinking}" BorderThickness="1" Cursor="Hand" MouseLeftButtonUp="Banner_Click"
+                            Visibility="{Binding ServiceBanner, Converter={StaticResource StrVis}}" ToolTip="Open Account">
+                        <TextBlock Text="{Binding ServiceBanner}" FontSize="12" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
+                    </Border>
+                </StackPanel>
 
                 <!-- Question -->
                 <Border x:Name="QuestionCard" Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,10">
@@ -249,11 +255,26 @@
                 <TextBlock Text="{Binding Diagnostics}" FontFamily="Cascadia Mono, Consolas" FontSize="10.5" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap"/>
             </Border>
 
-            <!-- transient toast -->
-            <Border x:Name="Toast" Grid.Row="1" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,18" Padding="14,8" CornerRadius="10"
-                    Background="{StaticResource B.Surface3}" BorderBrush="{StaticResource B.Error}" BorderThickness="1" Visibility="Collapsed">
-                <TextBlock x:Name="ToastText" Foreground="{StaticResource B.Text}" FontSize="12.5" TextWrapping="Wrap" MaxWidth="460"/>
+            <!-- first-time introduction (short; reopen with the ? button) -->
+            <Border x:Name="LiveIntro" Grid.Row="1" Grid.RowSpan="3" Margin="14,4,14,10" Padding="20,16" CornerRadius="12" Panel.ZIndex="5"
+                    Background="{StaticResource B.Surface2}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" VerticalAlignment="Top"
+                    Visibility="{Binding ShowLiveIntro, Converter={StaticResource BoolVis}}">
+                <StackPanel>
+                    <TextBlock Text="Before you start" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" Margin="0,0,0,10"/>
+                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,5" Text="1.  Join the interview in Chrome, Meet, Zoom or Teams."/>
+                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,5" Text="2.  Make sure you hear the interviewer through the selected playback device (Settings)."/>
+                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,5" Text="3.  Click Start listening (Ctrl+Alt+L)."/>
+                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,5" Text="4.  Your microphone is never captured — only what the interviewer says."/>
+                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,12" Text="5.  An answer appears automatically when the interviewer finishes a question. You can also type a question below."/>
+                    <DockPanel LastChildFill="False">
+                        <CheckBox x:Name="IntroDontShow" Style="{StaticResource Check}" Content="Don't show again" VerticalAlignment="Center" Foreground="{StaticResource B.TextDim}"/>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource Btn.Primary}" Content="Got it" Click="IntroClose_Click" Padding="18,6"/>
+                    </DockPanel>
+                </StackPanel>
             </Border>
+
+            <!-- notifications: bottom of the window, over the action/typing area — never over the answer text -->
+            <v:ToastHost x:Name="Toasts" Grid.Row="2" Grid.RowSpan="3" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="12,0,12,10" Panel.ZIndex="10"/>
         </Grid>
     </Border>
     </Grid>

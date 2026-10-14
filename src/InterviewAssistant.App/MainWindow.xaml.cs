@@ -13,7 +13,6 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
     private HotkeyService? _hotkeys;
-    private readonly DispatcherTimer _toastTimer = new() { Interval = TimeSpan.FromSeconds(6) };
     private bool _closingHandled;
 
     public MainWindow()
@@ -22,7 +21,7 @@ public partial class MainWindow : Window
         Title = Branding.ProductName;
         _vm = new MainViewModel(Dispatcher);
         DataContext = _vm;
-        _toastTimer.Tick += (_, _) => { Toast.Visibility = Visibility.Collapsed; _toastTimer.Stop(); };
+        _vm.Notify += (text, kind) => Toasts.Show(text, kind);
         _vm.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.IsListening))
@@ -53,9 +52,10 @@ public partial class MainWindow : Window
             }, DispatcherPriority.ApplicationIdle);
             return;
         }
-        // First run: onboarding (authorized-use acknowledgement, account/developer mode, profile, interview) in Home.
+        // First run: onboarding (authorized-use acknowledgement, account, profile, interview) in Home.
         if (!_vm.Settings.AuthorizedUseAcknowledged || !_vm.Settings.FirstRunCompleted)
             Dispatcher.BeginInvoke(() => OpenHome(), DispatcherPriority.ApplicationIdle);
+        _vm.ShowLiveIntro = !_vm.Settings.LiveIntroDismissed;
     }
 
     // ---------------- appearance & placement ----------------
@@ -243,6 +243,8 @@ public partial class MainWindow : Window
         return c.TransformToAncestor(AnswerScroll).Transform(new Point(0, c.ActualHeight)).Y;
     }
     private void Readiness_Click(object sender, RoutedEventArgs e) => OpenReadiness(firstRun: false);
+    private void Help_Click(object sender, RoutedEventArgs e) => _vm.ShowLiveIntro = !_vm.ShowLiveIntro;
+    private void IntroClose_Click(object sender, RoutedEventArgs e) => _vm.DismissLiveIntro(IntroDontShow.IsChecked == true);
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
@@ -284,12 +286,8 @@ public partial class MainWindow : Window
         _readiness.Show();
     }
 
-    public void ShowTransientError(string message)
-    {
-        ToastText.Text = message;
-        Toast.Visibility = Visibility.Visible;
-        _toastTimer.Stop(); _toastTimer.Start();
-    }
+    public void ShowTransientError(string message) => Toasts.Show(message, Views.ToastKind.Error);
+    public void ShowToast(string message, Views.ToastKind kind = Views.ToastKind.Info) => Toasts.Show(message, kind);
 
     private async void OnClosing(object? sender, CancelEventArgs e)
     {

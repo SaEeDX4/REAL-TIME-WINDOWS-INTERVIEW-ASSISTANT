@@ -30,6 +30,24 @@ public static class SelfTest
         async Task Idle() => await w.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
         async Task<bool> WaitFor(Func<bool> cond, int ms) { var until = Environment.TickCount64 + ms; while (!cond() && Environment.TickCount64 < until) await Task.Delay(50); return cond(); }
 
+        await Check("Live Assistant introduction: shown on first use, dismissible", async () =>
+        {
+            await Idle();
+            var shown = vm.ShowLiveIntro && w.FindName("LiveIntro") is FrameworkElement f && f.Visibility == Visibility.Visible;
+            vm.DismissLiveIntro(dontShowAgain: false);
+            await Idle();
+            return (shown && !vm.ShowLiveIntro && !vm.Settings.LiveIntroDismissed, shown ? "shown, then dismissed for this session" : "not shown");
+        });
+        await Check("Notifications: toast appears, duplicates suppressed", async () =>
+        {
+            vm.Toast("Self-test notification", Views.ToastKind.Success);
+            vm.Toast("Self-test notification", Views.ToastKind.Success);
+            await Idle();
+            var host = (Views.ToastHost)w.FindName("Toasts");
+            var n = host.VisibleTexts.Count(t => t == "Self-test notification");
+            return (n == 1, $"{n} visible");
+        });
+
         await Check("Generic start: no hard-coded candidate", () => Task.FromResult((vm.Knowledge!.Questions.Count == 0 || vm.ActiveLabel.Length > 0, vm.ActiveLabel)));
         await Check("Fixture pack loads on request (--fixture)", () => Task.FromResult((vm.LoadSample(App.FixtureDir), vm.ActiveLabel)));
         await Check("Main window created + XAML loaded", () => Task.FromResult((w.IsLoaded && w.IsVisible && new System.Windows.Interop.WindowInteropHelper(w).Handle != IntPtr.Zero, $"{w.ActualWidth:0}x{w.ActualHeight:0}")));
