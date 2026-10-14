@@ -70,6 +70,8 @@ public sealed class SafetyOptions
     public int MaxTranscriptionPromptChars { get; set; } = 1500;
     public int MaxAnswerTokens { get; set; } = 600;
     public int MaxDocumentBytes { get; set; } = 2 * 1024 * 1024;
+    /// <summary>Upper bound on stored targets/reports per account (profiles are limited by the plan).</summary>
+    public int MaxDocumentsPerKind { get; set; } = 500;
     public int MaxRequestBodyBytes { get; set; } = 4 * 1024 * 1024;
     public int OfflineGraceHours { get; set; } = 72;
     public string MinimumClientVersion { get; set; } = "2.0.0";

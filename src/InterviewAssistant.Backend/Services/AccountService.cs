@@ -51,6 +51,8 @@ public sealed class DocumentService
         {
             if (kind == "profile" && await _db.Documents.CountAsync(x => x.UserId == userId && x.Kind == "profile", ct) >= plan.Plan.MaxProfiles)
                 throw ApiException.Payment("profile_limit", $"Your plan allows {plan.Plan.MaxProfiles} candidate profile(s).");
+            if (kind != "profile" && await _db.Documents.CountAsync(x => x.UserId == userId && x.Kind == kind, ct) >= _safety.MaxDocumentsPerKind)
+                throw ApiException.TooMany("document_limit", $"Too many saved {kind}s. Delete old ones first.");
             d = new UserDocument { Id = id, UserId = userId, Kind = kind, CreatedUtc = now };
             if (kind == "report") d.RetainUntilUtc = now.AddDays(plan.Plan.ReportRetentionDays);
             _db.Documents.Add(d);
