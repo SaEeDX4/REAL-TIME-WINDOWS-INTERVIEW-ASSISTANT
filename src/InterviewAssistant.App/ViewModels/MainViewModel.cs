@@ -368,7 +368,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public void OpenWorkspaceForCurrentAccount()
     {
         string? owner = App.SelfTestOutput != null ? "selftest" : !UsingCloud ? "local" : Cloud.Auth?.Session?.UserId;
-        if (owner == _workspaceOwner && (Workspace != null || owner == null)) return;
+        // First call (startup) always initializes — signed out at startup must still get the empty knowledge base and an engine.
+        if (_workspaceInitialized && owner == _workspaceOwner && (Workspace != null || owner == null)) return;
         if (SessionActive)
         {
             // A token that expires mid-interview (owner null) keeps the interview running. A DIFFERENT account signing
@@ -384,6 +385,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             }
             return;
         }
+        _workspaceInitialized = true;
         var baseDir = Path.Combine(AppPaths.Roaming, "workspace");
         Workspace?.ClearViewerCopies();
         ClearUserState();
@@ -759,6 +761,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private string? _lastReportPath; public string? LastReportPath { get => _lastReportPath; private set => Set(ref _lastReportPath, value); }
 
     private bool _switchPending;
+    private bool _workspaceInitialized;
 
     /// <summary>
     /// Post-interview report (honesty-labelled), saved encrypted in the account's workspace; a plain HTML viewer copy is

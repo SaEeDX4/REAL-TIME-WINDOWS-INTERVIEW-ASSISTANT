@@ -39,7 +39,7 @@ public partial class App : Application
             CloudService.ForcedApiBaseUrl = "https://127.0.0.1:9";
         }
         Branding.Load(AppContext.BaseDirectory);
-        AppLog.Info($"{Branding.ProductName} {typeof(App).Assembly.GetName().Version} starting on {Environment.OSVersion}");
+        AppLog.Info($"{Branding.ProductName} {Services.BuildInfo.Summary} starting on {Environment.OSVersion}");
         var window = new MainWindow();
         MainWindow = window;
         window.Show();
