@@ -52,7 +52,7 @@ if ($LASTEXITCODE) { throw "publish failed" }
 
 # End-user documentation only (no developer docs, sources or tests in the package).
 Copy-Item docs\user\USER_GUIDE.txt -Destination (Join-Path $out "User Guide.txt")
-Copy-Item THIRD_PARTY_NOTICES.md -Destination $out -ErrorAction SilentlyContinue
+Copy-Item THIRD_PARTY_NOTICES.md -Destination $out   # required: shipped dependencies are attributed in the package
 
 # Safety: never ship secrets or local settings.
 $bad = Get-ChildItem $out -Recurse -Include *.dpapi, settings.json, *.env, *.pdb, *.cs, *.csproj, *.sln, *Tests.dll, appsettings*.json, *.key, *.pfx -ErrorAction SilentlyContinue
