@@ -26,6 +26,14 @@ public static class Helpers
 
     public static JsonElement Doc(object o) => JsonSerializer.SerializeToElement(o, Json);
 
+    /// <summary>A correctly signed delivery of an arbitrary raw body.</summary>
+    public static async Task<HttpResponseMessage> PaddleRaw(this ApiFactory f, string body)
+    {
+        var req = new HttpRequestMessage(HttpMethod.Post, "/api/v1/webhooks/paddle") { Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json") };
+        req.Headers.Add("Paddle-Signature", PaddleSignature.Sign(body, ApiFactory.WebhookSecret, f.Time.GetUtcNow().ToUnixTimeSeconds()));
+        return await f.CreateClient().SendAsync(req);
+    }
+
     /// <summary>Simulates a verified Paddle webhook delivery.</summary>
     public static async Task<HttpResponseMessage> PaddleEvent(this ApiFactory f, string eventId, string type, object data, DateTimeOffset? occurred = null, string? secret = null, long? ts = null)
     {

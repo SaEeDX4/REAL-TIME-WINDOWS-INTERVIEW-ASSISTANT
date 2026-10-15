@@ -26,14 +26,15 @@ public class SessionAndUsageTests : IClassFixture<ApiFactory>
         var hb = await (await c.PostAsJsonAsync($"/api/v1/sessions/{start.SessionId}/heartbeat", new HeartbeatRequest(1))).Read<HeartbeatResponse>();
         Assert.True(hb.Active);
         Assert.Equal(30 * 60 - 30, hb.RemainingSeconds);
-        // Long gap (client paused/offline): billed at most 2 intervals.
+        // Long gap (offline; pause ends the lease on the client so it never gets here): billed at most the heartbeat
+        // timeout (90 s) — the same bound the sweeper bills when it expires a silent lease.
         _f.Time.Advance(TimeSpan.FromMinutes(10));
         hb = await (await c.PostAsJsonAsync($"/api/v1/sessions/{start.SessionId}/heartbeat", new HeartbeatRequest(2))).Read<HeartbeatResponse>();
-        Assert.Equal(30 * 60 - 30 - 60, hb.RemainingSeconds);
+        Assert.Equal(30 * 60 - 30 - 90, hb.RemainingSeconds);
         _f.Time.Advance(TimeSpan.FromSeconds(10));
         (await c.PostAsync($"/api/v1/sessions/{start.SessionId}/stop", null)).EnsureSuccessStatusCode();
         var me = await (await c.GetAsync("/api/v1/me")).Read<AccountDto>();
-        Assert.Equal(100, me.Usage.LiveSecondsUsed);
+        Assert.Equal(130, me.Usage.LiveSecondsUsed);
     }
 
     [Fact]

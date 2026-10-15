@@ -105,11 +105,22 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     public static HttpResponseMessage Json(object o) => new(HttpStatusCode.OK) { Content = JsonContent.Create(o) };
 
-    public string Token(Guid userId, string? email = null, DateTime? expires = null, string? issuer = null, string? secret = null, string audience = "authenticated")
+    /// <summary>
+    /// A Supabase-shaped access token. Like the real provider it carries <c>amr</c> with the time of the sign-in
+    /// (<paramref name="authenticatedAt"/>, default: now); <paramref name="extraClaims"/> adds or overrides claims.
+    /// </summary>
+    public string Token(Guid userId, string? email = null, DateTime? expires = null, string? issuer = null, string? secret = null, string audience = "authenticated",
+        DateTimeOffset? authenticatedAt = null, IDictionary<string, object>? extraClaims = null)
     {
         var now = Time.GetUtcNow().UtcDateTime;
+        var claims = new Dictionary<string, object>
+        {
+            ["amr"] = new object[] { new Dictionary<string, object> { ["method"] = "password", ["timestamp"] = (authenticatedAt ?? Time.GetUtcNow()).ToUnixTimeSeconds() } },
+        };
+        if (extraClaims != null) foreach (var kv in extraClaims) claims[kv.Key] = kv.Value;
         return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
         {
+            Claims = claims,
             Issuer = issuer ?? Issuer, Audience = audience,
             Subject = new ClaimsIdentity(new[] { new Claim("sub", userId.ToString()), new Claim("email", email ?? $"{userId:n}@example.test"), new Claim("role", "authenticated") }),
             NotBefore = now.AddMinutes(-1), IssuedAt = now.AddMinutes(-1), Expires = expires ?? now.AddHours(1),

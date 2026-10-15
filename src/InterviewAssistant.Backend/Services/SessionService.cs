@@ -8,9 +8,12 @@ namespace InterviewAssistant.Backend.Services;
 
 /// <summary>
 /// Live interview session leases. Start: entitlement + remaining allowance + concurrency + device + maintenance checks,
-/// then an ephemeral transcription credential. Heartbeat: meters elapsed time (bounded to 2× interval so a paused client
-/// can't be over-billed, and a hacked client can't under-report beyond one interval), requires increasing sequence
-/// numbers (replay protection), ends the lease when allowance is exhausted. Stop/timeout releases the lease.
+/// then an ephemeral transcription credential. Heartbeat: meters elapsed wall-clock time since the previous heartbeat,
+/// bounded by the heartbeat timeout (a lease without a heartbeat for that long is expired anyway, so a modified client
+/// cannot stretch heartbeats to under-report), requires increasing sequence numbers (replay protection) and ends the
+/// lease when allowance is exhausted. Stop, replacement and expiry bill the time since the last heartbeat with the same
+/// bound — a client that never heartbeats is still billed. Pause ends the lease on the client, so paused time is never
+/// billed.
 /// </summary>
 public sealed class SessionService
 {
@@ -21,10 +24,12 @@ public sealed class SessionService
     private readonly IRealtimeSecretIssuer _issuer;
     private readonly ConfigService _config;
     private readonly DeviceService _devices;
+    private readonly EntitlementService _entitlements;
     private readonly ILogger<SessionService> _log;
 
-    public SessionService(AppDbContext db, TimeProvider time, IOptions<SafetyOptions> safety, UsageService usage, IRealtimeSecretIssuer issuer, ConfigService config, DeviceService devices, ILogger<SessionService> log)
-    { _db = db; _time = time; _safety = safety.Value; _usage = usage; _issuer = issuer; _config = config; _devices = devices; _log = log; }
+    public SessionService(AppDbContext db, TimeProvider time, IOptions<SafetyOptions> safety, UsageService usage, IRealtimeSecretIssuer issuer, ConfigService config, DeviceService devices,
+        EntitlementService entitlements, ILogger<SessionService> log)
+    { _db = db; _time = time; _safety = safety.Value; _usage = usage; _issuer = issuer; _config = config; _devices = devices; _entitlements = entitlements; _log = log; }
 
     /// <summary>
     /// Serialises all lease operations of one user (start, heartbeat, renew, stop) with a transaction-scoped Postgres
@@ -56,6 +61,12 @@ public sealed class SessionService
         var existing = await _db.Sessions.FirstOrDefaultAsync(s => s.UserId == user.Id && s.IdempotencyKey == req.IdempotencyKey, ct);
         var now = _time.GetUtcNow().UtcDateTime;
         if (existing != null && existing.Status != "active") throw ApiException.Conflict("session_ended", "This session already ended. Start a new one.");
+        if (existing != null && existing.SecretsIssued > MaxSecretsPerSession) throw ApiException.TooMany("secret_rate", "Too many credential requests for this session.");
+        // Starting leases that are then abandoned without heartbeats must not become a way to mint transcription
+        // credentials: each expiry is billed (see ExpireStaleAsync), and the number of new leases per hour is bounded.
+        var hourAgo = now.AddHours(-1);
+        if (existing == null && await _db.Sessions.CountAsync(s => s.UserId == user.Id && s.StartedUtc > hourAgo, ct) >= _safety.MaxSessionStartsPerHour)
+            throw ApiException.TooMany("session_start_rate", "Too many live sessions were started in the last hour. Please wait a few minutes.");
 
         var live = await _usage.LiveRemainingAsync(user.Id, plan, ct);
         var remaining = live.Effective;
@@ -92,7 +103,7 @@ public sealed class SessionService
         if (s.Status != "active") return new HeartbeatResponse(0, false, s.EndReason ?? s.Status);
         if (seq <= s.HeartbeatSequence) throw ApiException.Conflict("replayed_heartbeat", "Heartbeat sequence must increase.");
         var now = _time.GetUtcNow().UtcDateTime;
-        var elapsed = (int)Math.Clamp((now - s.LastHeartbeatUtc).TotalSeconds, 0, _safety.HeartbeatIntervalSeconds * 2);
+        var elapsed = (int)Math.Clamp((now - s.LastHeartbeatUtc).TotalSeconds, 0, _safety.HeartbeatTimeoutSeconds);
         var before = await _usage.LiveRemainingAsync(user.Id, plan, ct);
         var remainingBefore = before.Effective;
         var billable = Math.Min(elapsed, remainingBefore);
@@ -114,7 +125,7 @@ public sealed class SessionService
         var s = await _db.Sessions.FirstOrDefaultAsync(x => x.Id == sessionId && x.UserId == user.Id, ct) ?? throw ApiException.NotFound();
         if (s.Status != "active") throw ApiException.Conflict("session_ended", "Session is not active.");
         if (await _usage.RemainingLiveSecondsAsync(user.Id, plan, ct) <= 0) throw ApiException.Payment("allowance_exhausted", "No live minutes remain.");
-        if (s.SecretsIssued > (_safety.MaxSessionMinutes * 60 / 60) + 5) throw ApiException.TooMany("secret_rate", "Too many credential renewals for this session.");
+        if (s.SecretsIssued > MaxSecretsPerSession) throw ApiException.TooMany("secret_rate", "Too many credential renewals for this session.");
         var cfg = await _config.GetAsync(ct);
         var cred = await _issuer.IssueAsync(TranscriptionModels(cfg), prompt, language, ct);
         s.SecretsIssued++;
@@ -135,24 +146,44 @@ public sealed class SessionService
             return true;
         }, ct);
 
-    /// <summary>Bills the time since the last heartbeat (bounded to 2 intervals) when a lease ends.</summary>
+    private int MaxSecretsPerSession => _safety.MaxSessionMinutes + 5;
+
+    /// <summary>Bills the time since the last heartbeat (bounded by the heartbeat timeout) when a lease ends.</summary>
     private async Task BillTailAsync(UserAccount user, EffectivePlan plan, InterviewSession s, DateTime now, CancellationToken ct)
     {
-        var tail = (int)Math.Clamp((now - s.LastHeartbeatUtc).TotalSeconds, 0, _safety.HeartbeatIntervalSeconds * 2);
+        var tail = (int)Math.Clamp((now - s.LastHeartbeatUtc).TotalSeconds, 0, _safety.HeartbeatTimeoutSeconds);
         var billable = Math.Min(tail, await _usage.RemainingLiveSecondsAsync(user.Id, plan, ct));
         if (billable > 0) { _usage.Record(user.Id, UsageService.LiveSeconds, billable, s.Id); s.MeteredSeconds += billable; }
     }
 
-    /// <summary>Expires leases without heartbeats (crash, network loss). Bills at most one interval after the last heartbeat.</summary>
+    /// <summary>
+    /// Expires leases without heartbeats (crash, network loss, or a client that never heartbeats) and bills the time
+    /// since the last heartbeat, bounded by the timeout. Runs under the same per-user lock as heartbeats, and re-checks
+    /// the lease inside the lock so a heartbeat that just arrived wins.
+    /// </summary>
     public async Task<int> ExpireStaleAsync(CancellationToken ct)
     {
-        var now = _time.GetUtcNow().UtcDateTime;
-        var cutoff = now.AddSeconds(-_safety.HeartbeatTimeoutSeconds);
-        var stale = await _db.Sessions.Where(s => s.Status == "active" && s.LastHeartbeatUtc < cutoff).ToListAsync(ct);
-        foreach (var s in stale) End(s, "expired", "heartbeat_timeout", now);
-        await _db.SaveChangesAsync(ct);
-        foreach (var s in stale) _log.LogInformation("Session {SessionId} expired: no heartbeat for {Timeout}s", s.Id, _safety.HeartbeatTimeoutSeconds);
-        return stale.Count;
+        var cutoff = _time.GetUtcNow().UtcDateTime.AddSeconds(-_safety.HeartbeatTimeoutSeconds);
+        var candidates = await _db.Sessions.AsNoTracking().Where(s => s.Status == "active" && s.LastHeartbeatUtc < cutoff).Select(s => new { s.Id, s.UserId }).ToListAsync(ct);
+        int expired = 0;
+        foreach (var c in candidates)
+        {
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == c.UserId, ct);
+            if (user == null) continue;
+            var (plan, _) = await _entitlements.ResolveAsync(user, ct);
+            var ended = await UserLockedAsync(c.UserId, async () =>
+            {
+                var s = await _db.Sessions.FirstOrDefaultAsync(x => x.Id == c.Id, ct);
+                var now = _time.GetUtcNow().UtcDateTime;
+                if (s == null || s.Status != "active" || s.LastHeartbeatUtc >= now.AddSeconds(-_safety.HeartbeatTimeoutSeconds)) return false;
+                await BillTailAsync(user, plan, s, now, ct);
+                End(s, "expired", "heartbeat_timeout", now);
+                await _db.SaveChangesAsync(ct);
+                return true;
+            }, ct);
+            if (ended) { expired++; _log.LogInformation("Session {SessionId} expired: no heartbeat for {Timeout}s", c.Id, _safety.HeartbeatTimeoutSeconds); }
+        }
+        return expired;
     }
 
     public async Task<bool> IsActiveAsync(Guid userId, Guid sessionId, CancellationToken ct) =>

@@ -509,6 +509,7 @@
  "svc_rate_limited": "Zu viele Anfragen — bitte warten Sie einen Moment.",
  "svc_unavailable": "Der Dienst ist vorübergehend nicht verfügbar. Bitte versuchen Sie es in Kürze erneut.",
  "svc_timeout": "Das hat zu lange gedauert. Bitte versuchen Sie es erneut.",
+ "svc_subscription_active": "Ihr Abonnement ist noch aktiv. Kündigen Sie es unter „Abrechnung verwalten“, bevor Sie das Konto löschen.",
  "svc_ref": "(Ref. {0})",
  "updates": "AKTUALISIERUNGEN",
  "updates_this_build": "Dieser Build: Version {0} · {1}",

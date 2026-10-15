@@ -5,7 +5,7 @@
   - The app project version is a semantic version; a release candidate (x.y.z-rc.N) is never built as Stable.
   - docs/release/RELEASE_NOTES-v<version>.md exists, names the version and is not a placeholder.
   - For a release candidate N >= 2, every mandatory RC audit document exists and is substantive.
-  - No provider keys or webhook secrets are committed (test fixtures are marked "fake-credential: test fixture").
+  - No provider keys, webhook secrets, signed JWTs (e.g. a service-role key), database URLs with passwords or private keys are committed (test fixtures are marked "fake-credential: test fixture").
 #>
 param([Parameter(Mandatory)][string]$Version)
 $ErrorActionPreference = "Stop"
@@ -37,7 +37,7 @@ if ($Version -match '-rc\.(\d+)$' -and [int]$Matches[1] -ge 2) {
     }
 }
 
-$secrets = git grep -nE "sk-(proj-)?[A-Za-z0-9_-]{32,}|pdl_(live|sdbx)_apikey_[A-Za-z0-9]{20,}|pdl_ntfset_[A-Za-z0-9]{20,}|-----BEGIN (RSA |EC )?PRIVATE KEY-----" |
+$secrets = git grep -nE "sk-(proj-)?[A-Za-z0-9_-]{32,}|pdl_(live|sdbx)_apikey_[A-Za-z0-9]{20,}|pdl_ntfset_[A-Za-z0-9]{20,}|-----BEGIN (RSA |EC )?PRIVATE KEY-----|eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}|postgres(ql)?://[^:/ ]+:[^@ ]+@|sb_secret_[A-Za-z0-9_-]{20,}" |
     Where-Object { $_ -notmatch "fake-credential: test fixture" }
 if ($secrets) { $failures += "Possible committed secrets:`n$($secrets -join "`n")" }
 

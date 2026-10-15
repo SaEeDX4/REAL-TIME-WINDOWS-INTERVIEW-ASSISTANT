@@ -509,6 +509,7 @@
  "svc_rate_limited": "Muitas solicitações — aguarde um momento.",
  "svc_unavailable": "O serviço está temporariamente indisponível. Tente novamente em instantes.",
  "svc_timeout": "A operação demorou demais. Tente novamente.",
+ "svc_subscription_active": "Sua assinatura ainda está ativa. Cancele-a em Gerenciar cobrança antes de excluir a conta.",
  "svc_ref": "(ref. {0})",
  "updates": "ATUALIZAÇÕES",
  "updates_this_build": "Esta versão: {0} · {1}",

@@ -59,6 +59,8 @@ public sealed class SafetyOptions
     public int HeartbeatIntervalSeconds { get; set; } = 30;
     public int HeartbeatTimeoutSeconds { get; set; } = 90;
     public int MaxSessionMinutes { get; set; } = 120;
+    /// <summary>New live leases per account per hour (each one mints a transcription credential).</summary>
+    public int MaxSessionStartsPerHour { get; set; } = 20;
     public int PerAccountDailyLiveMinutes { get; set; } = 240;
     public int GlobalDailyLiveMinutes { get; set; } = 100_000;
     public int AnswersPerMinute { get; set; } = 30;

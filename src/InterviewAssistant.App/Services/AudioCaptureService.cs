@@ -100,6 +100,9 @@ public sealed class AudioCaptureService : IDisposable, IMMNotificationClient
             var device = _requestedDeviceId == null
                 ? _enumerator!.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia)
                 : _enumerator!.GetDevice(_requestedDeviceId);
+            // Only playback (render) endpoints are ever captured, via loopback. A stored id that points at a capture
+            // device (a microphone) is ignored in favour of the default playback device — the microphone is never opened.
+            if (device.DataFlow != DataFlow.Render) device = _enumerator!.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
             CurrentDeviceName = device.FriendlyName;
             _capture = new WasapiLoopbackCapture(device);
             var fmt = ToSourceFormat(_capture.WaveFormat);

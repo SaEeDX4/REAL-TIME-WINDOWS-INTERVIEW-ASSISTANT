@@ -192,7 +192,8 @@ public sealed class BillingWebhookProcessor
         var eventId = Str(At(root, "event_id"));
         if (string.IsNullOrWhiteSpace(eventId) || eventId.Length > 100) throw ApiException.BadRequest("invalid_payload", "event_id missing.");
         var type = Str(At(root, "event_type")) ?? "";
-        var occurred = ParseDate(At(root, "occurred_at")) ?? _time.GetUtcNow().UtcDateTime;
+        // occurred_at drives the out-of-order guard; an event without it cannot be ordered safely.
+        var occurred = ParseDate(At(root, "occurred_at")) ?? throw ApiException.BadRequest("invalid_payload", "occurred_at missing.");
         var now = _time.GetUtcNow().UtcDateTime;
 
         if (await _db.WebhookEvents.AnyAsync(e => e.EventId == eventId, ct))
@@ -244,10 +245,22 @@ public sealed class BillingWebhookProcessor
             return (Outcome.Ignored, "older than the applied state (out of order)");
 
         var status = Str(At(data, "status")) ?? sub.Status;
+        // An event for a different subscription than the one on record (e.g. a late event from a canceled, older
+        // subscription) must not overwrite a newer subscription that currently grants access.
+        var otherSubscription = subId != null && sub.ProviderSubscriptionId != null && subId != sub.ProviderSubscriptionId;
+        if (otherSubscription && status is not ("active" or "trialing") && EntitlementService.PaidAccess(sub, _time.GetUtcNow().UtcDateTime))
+            return (Outcome.Ignored, "event for another subscription while the current one grants access");
+        if (otherSubscription && sub.LastEventOccurredUtc != null && occurred < sub.LastEventOccurredUtc)
+            return (Outcome.Ignored, "event for another subscription, older than the applied state");
+
         var priceId = Str(At(data, "items", 0, "price", "id")) ?? Str(At(data, "items", 0, "price_id"));
         var plan = _plans.ByPaddlePrice(priceId);
         if (plan == null && priceId != null)
-            _log.LogError("Paddle price {PriceId} is not mapped to any plan (PlanCatalog__Plans__N__PaddlePriceIds) — subscription {SubscriptionId} keeps plan '{PlanCode}'", priceId, subId, sub.PlanCode);
+        {
+            _log.LogError("Paddle price {PriceId} is not mapped to any plan (PlanCatalog__Plans__N__PaddlePriceIds) — subscription {SubscriptionId} not applied; Paddle will retry", priceId, subId);
+            // Not recorded as processed: once the price is mapped, Paddle's retry applies the subscription.
+            throw new ApiException(503, "price_not_mapped", "The subscription's price is not configured on the service yet.");
+        }
         sub.ProviderSubscriptionId = subId ?? sub.ProviderSubscriptionId;
         sub.ProviderCustomerId = customerId ?? sub.ProviderCustomerId;
         if (plan != null) sub.PlanCode = plan.Code;
@@ -284,5 +297,5 @@ public sealed class BillingWebhookProcessor
     private static JsonNode? At(JsonNode? n, params object[] path) => PaddleBillingProvider.At(n, path);
 
     private static DateTime? ParseDate(JsonNode? n) =>
-        Str(n) is { } t && DateTime.TryParse(t, null, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var d) ? d : null;
+        Str(n) is { } t && DateTime.TryParse(t, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var d) ? d : null;
 }

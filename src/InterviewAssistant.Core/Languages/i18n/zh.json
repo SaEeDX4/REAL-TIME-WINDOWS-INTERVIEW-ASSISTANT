@@ -509,6 +509,7 @@
  "svc_rate_limited": "请求过多——请稍候。",
  "svc_unavailable": "服务暂时不可用，请稍后重试。",
  "svc_timeout": "操作超时，请重试。",
+ "svc_subscription_active": "您的订阅仍然有效。请先在“管理账单”中取消订阅，再删除账户。",
  "svc_ref": "（参考编号 {0}）",
  "updates": "更新",
  "updates_this_build": "当前版本：{0} · {1}",

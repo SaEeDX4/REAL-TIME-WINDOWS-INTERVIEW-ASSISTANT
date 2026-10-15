@@ -24,8 +24,17 @@ public sealed class EntitlementService
     /// <summary>Trial allowance has no period end; a fixed UTC horizon keeps Npgsql timestamptz parameters valid.</summary>
     public static readonly DateTime TrialHorizonUtc = new(9000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
+    /// <summary>
+    /// An active/trialing subscription whose period ended more than this long ago is treated as lapsed: Paddle renews
+    /// (or retries a failed renewal) around the period end and sends a webhook; if none arrives, access must not continue
+    /// indefinitely on a stale row (late/missing webhook, sandbox rows left behind after a Live cutover).
+    /// </summary>
+    public static readonly TimeSpan RenewalGrace = TimeSpan.FromDays(3);
+
+    public static bool CurrentPeriodValid(Subscription sub, DateTime now) => sub.CurrentPeriodEndUtc is not { } end || end + RenewalGrace > now;
+
     public static bool PaidAccess(Subscription sub, DateTime now) =>
-        sub.Status is "active" or "trialing"
+        (sub.Status is "active" or "trialing" && CurrentPeriodValid(sub, now))
         || (sub.Status == "past_due" && sub.GraceUntilUtc > now)
         || (sub.Status == "canceled" && sub.CancelAtPeriodEnd && sub.CurrentPeriodEndUtc > now);
 
@@ -51,7 +60,8 @@ public sealed class EntitlementService
     {
         if (sub != null && !string.IsNullOrEmpty(sub.Status) && sub.Status != "none")
         {
-            if (sub.Status is "active" or "trialing") return sub.CancelAtPeriodEnd ? BillingStates.Canceling : BillingStates.Active;
+            if (sub.Status is "active" or "trialing")
+                return !CurrentPeriodValid(sub, now) ? BillingStates.Expired : sub.CancelAtPeriodEnd ? BillingStates.Canceling : BillingStates.Active;
             if (sub.Status == "past_due") return sub.GraceUntilUtc > now ? BillingStates.PastDue : BillingStates.Expired;
             if (sub.Status == "paused") return BillingStates.Paused;
             if (sub.Status == "canceled") return sub.CancelAtPeriodEnd && sub.CurrentPeriodEndUtc > now ? BillingStates.Canceling : BillingStates.Expired;

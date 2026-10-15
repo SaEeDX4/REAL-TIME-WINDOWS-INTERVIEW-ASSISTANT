@@ -22,10 +22,12 @@ public static class ApiEndpoints
         return new Ctx(user, plan, sub);
     }
 
+    private static readonly TimeSpan RecentAuthWindow = TimeSpan.FromMinutes(10);
+
     public static void MapApi(this WebApplication app)
     {
         var api = app.MapGroup("/api/v1");
-        var authed = api.MapGroup("").RequireAuthorization();
+        var authed = api.MapGroup("").RequireAuthorization().RequireRateLimiting("user");
 
         // ---------------- public ----------------
         api.MapGet("/config", async (ConfigService c, CancellationToken ct) => Results.Ok(await c.GetAsync(ct))).RequireRateLimiting("anon");
@@ -49,8 +51,19 @@ public static class ApiEndpoints
             var state = EntitlementService.BillingState(c.Plan, c.Sub, summary.LiveSecondsRemaining, time.GetUtcNow().UtcDateTime);
             return Results.Ok(new AccountDto(c.User.Id, c.User.Email, c.User.Status, EntitlementService.ToDto(c.Plan), summary, subDto, c.User.CreatedUtc, state));
         });
-        authed.MapGet("/me/export", async (HttpContext http, AccountService acc, CancellationToken ct) => Results.Json(await acc.ExportAsync((await Resolve(http)).User, ct)));
-        authed.MapDelete("/me", async (HttpContext http, AccountService acc, CancellationToken ct) => { await acc.DeleteAsync((await Resolve(http)).User, ct); return Results.NoContent(); });
+        // Sensitive actions: the server requires a recent sign-in (the app re-authenticates with the password first),
+        // so a leaked access token alone cannot export or delete the account.
+        authed.MapGet("/me/export", async (HttpContext http, AccountService acc, TimeProvider time, CancellationToken ct) =>
+        {
+            UserService.RequireRecentAuthentication(http.User, time.GetUtcNow(), RecentAuthWindow);
+            return Results.Json(await acc.ExportAsync((await Resolve(http)).User, ct));
+        });
+        authed.MapDelete("/me", async (HttpContext http, AccountService acc, TimeProvider time, CancellationToken ct) =>
+        {
+            UserService.RequireRecentAuthentication(http.User, time.GetUtcNow(), RecentAuthWindow);
+            await acc.DeleteAsync((await Resolve(http)).User, ct);
+            return Results.NoContent();
+        });
 
         // ---------------- devices ----------------
         authed.MapPost("/devices", async (HttpContext http, RegisterDeviceRequest req, DeviceService d, CancellationToken ct) =>
@@ -91,7 +104,7 @@ public static class ApiEndpoints
             var c = await Resolve(http);
             var prompt = await TranscriptionPrompt.BuildAsync(db, c.User.Id, req.TargetId, safety.Value.MaxTranscriptionPromptChars, ct);
             return Results.Ok(await s.StartAsync(c.User, c.Plan, req, prompt, ct));
-        });
+        }).RequireRateLimiting("credentials");
         authed.MapPost("/sessions/{id:guid}/heartbeat", async (HttpContext http, Guid id, HeartbeatRequest req, SessionService s, CancellationToken ct) =>
         { var c = await Resolve(http); return Results.Ok(await s.HeartbeatAsync(c.User, c.Plan, id, req.Sequence, ct)); });
         authed.MapPost("/sessions/{id:guid}/realtime-secret", async (HttpContext http, Guid id, string? language, SessionService s, AppDbContext db, IOptions<SafetyOptions> safety, CancellationToken ct) =>
@@ -101,7 +114,7 @@ public static class ApiEndpoints
             var target = await db.Sessions.Where(x => x.Id == id && x.UserId == c.User.Id).Select(x => x.TargetId).FirstOrDefaultAsync(ct);
             var lang = language is { Length: > 0 and <= 12 } l && l.All(ch => char.IsAsciiLetter(ch) || ch == '-') ? l : null;
             return Results.Ok(await s.RenewSecretAsync(c.User, c.Plan, id, await TranscriptionPrompt.BuildAsync(db, c.User.Id, target, safety.Value.MaxTranscriptionPromptChars, ct), lang, ct));
-        });
+        }).RequireRateLimiting("credentials");
         authed.MapPost("/sessions/{id:guid}/stop", async (HttpContext http, Guid id, SessionService s, CancellationToken ct) =>
         { var c = await Resolve(http); await s.StopAsync(c.User, c.Plan, id, ct); return Results.NoContent(); });
 
@@ -172,13 +185,13 @@ public static class ApiEndpoints
             if (c.Sub is { Status: "active" or "trialing" or "past_due" or "paused" })
                 throw ApiException.Conflict("already_subscribed", "You already have a subscription. Use Manage billing to change it.");
             return Results.Ok(new UrlResponse(await billing.CreateCheckoutUrlAsync(c.User, plan, c.Sub?.ProviderCustomerId, ct)));
-        });
+        }).RequireRateLimiting("credentials");
         authed.MapPost("/billing/portal", async (HttpContext http, IBillingProvider billing, CancellationToken ct) =>
         {
             var c = await Resolve(http);
             if (c.Sub?.ProviderCustomerId == null) throw new ApiException(404, "no_billing_account", "There is no billing account yet. Upgrade first.");
             return Results.Ok(new UrlResponse(await billing.CreatePortalUrlAsync(c.Sub.ProviderCustomerId, c.Sub.ProviderSubscriptionId, ct)));
-        });
+        }).RequireRateLimiting("credentials");
         api.MapPost("/webhooks/paddle", async (HttpContext http, BillingWebhookProcessor proc, IOptions<PaddleOptions> opt, TimeProvider time, ILoggerFactory lf, CancellationToken ct) =>
         {
             http.Request.EnableBuffering();

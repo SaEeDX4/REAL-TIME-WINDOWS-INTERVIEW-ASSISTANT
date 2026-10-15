@@ -123,8 +123,16 @@ builder.Services.AddRateLimiter(o =>
         _ => new FixedWindowRateLimiterOptions { PermitLimit = ctx.RequestServices.GetRequiredService<IOptions<SafetyOptions>>().Value.AnswersPerMinute, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     o.AddPolicy("anon", ctx => RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "ip",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 240, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
-    // Paddle may burst-deliver; its own bucket so webhooks never compete with public traffic.
-    o.AddPolicy("webhooks", _ => RateLimitPartition.GetFixedWindowLimiter("paddle",
+    // Every authenticated route: a generous per-user ceiling (normal use is a few requests per minute).
+    o.AddPolicy("user", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? ctx.User.FindFirstValue("sub") ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 300, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    // Routes that mint transcription credentials or call billing: tight per-user bucket.
+    o.AddPolicy("credentials", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? ctx.User.FindFirstValue("sub") ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 12, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    // Paddle may burst-deliver; per source IP so an unsigned flood from one address cannot starve Paddle's deliveries.
+    o.AddPolicy("webhooks", ctx => RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "paddle",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 600, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     o.OnRejected = async (ctx, ct) =>
     {
@@ -146,11 +154,24 @@ var startupLog = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger(
 // migration lock, so concurrent instances cannot apply them twice. Production data is never dropped.
 if (cfg.GetValue("Database:MigrateOnStartup", false) || cfg.GetValue("Database:MigrateOnStart", false))
 {
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var pending = (await db.Database.GetPendingMigrationsAsync()).ToList();
-    if (pending.Count > 0) { startupLog.LogInformation("Applying {Count} migration(s): {Names}", pending.Count, string.Join(", ", pending)); await db.Database.MigrateAsync(); }
-    else startupLog.LogInformation("Database schema up to date");
+    // The database may still be starting (deploy order, failover): retry with backoff instead of crash-looping.
+    for (int attempt = 1; ; attempt++)
+    {
+        try
+        {
+            using var scope = app.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var pending = (await db.Database.GetPendingMigrationsAsync()).ToList();
+            if (pending.Count > 0) { startupLog.LogInformation("Applying {Count} migration(s): {Names}", pending.Count, string.Join(", ", pending)); await db.Database.MigrateAsync(); }
+            else startupLog.LogInformation("Database schema up to date");
+            break;
+        }
+        catch (Exception ex) when (attempt < 6 && ex is Npgsql.NpgsqlException or System.Net.Sockets.SocketException or TimeoutException)
+        {
+            startupLog.LogWarning("Database not reachable for migrations (attempt {Attempt}/6: {Error}); retrying", attempt, ex.GetType().Name);
+            await Task.Delay(TimeSpan.FromSeconds(2 << attempt));
+        }
+    }
 }
 await app.Services.GetRequiredService<JwksProvider>().RefreshAsync(CancellationToken.None);
 {

@@ -103,13 +103,20 @@ public sealed class AccountService
     };
 
     /// <summary>
-    /// Deletes personal data immediately (documents, devices, sessions, usage, subscription row) and tombstones the account
-    /// id so the same JWT can't recreate it. Billing records held by Paddle (MoR) follow Paddle's retention; cancel first.
+    /// Deletes personal data immediately (documents, devices, sessions, usage, preparation jobs, subscription row) and
+    /// tombstones the account id so the same JWT can't recreate it — in one transaction under the same per-user lock as
+    /// live-session operations, so a concurrent heartbeat cannot re-insert usage and a failure leaves nothing half-deleted.
+    /// A subscription that can still charge or resume (active without scheduled cancellation, trialing, past_due, paused)
+    /// blocks deletion. Retained: the tombstone (id + timestamps), audit entries, webhook receipts (hashes only) and
+    /// billing records held by Paddle as merchant of record. The sign-in identity lives in the auth provider.
     /// </summary>
     public async Task DeleteAsync(UserAccount u, CancellationToken ct)
     {
-        var active = await _db.Subscriptions.AnyAsync(s => s.UserId == u.Id && (s.Status == "active" || s.Status == "trialing" || s.Status == "past_due"), ct);
-        if (active) throw ApiException.Conflict("subscription_active", "Cancel your subscription in the billing portal before deleting the account.");
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        await _db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock({BitConverter.ToInt64(u.Id.ToByteArray(), 0)})", ct);
+        var blocking = await _db.Subscriptions.AnyAsync(s => s.UserId == u.Id &&
+            ((s.Status == "active" && !s.CancelAtPeriodEnd) || s.Status == "trialing" || s.Status == "past_due" || s.Status == "paused"), ct);
+        if (blocking) throw ApiException.Conflict("subscription_active", "Cancel your subscription in the billing portal before deleting the account.");
         await _db.Documents.Where(x => x.UserId == u.Id).ExecuteDeleteAsync(ct);
         await _db.Sessions.Where(x => x.UserId == u.Id).ExecuteDeleteAsync(ct);
         await _db.Devices.Where(x => x.UserId == u.Id).ExecuteDeleteAsync(ct);
@@ -119,5 +126,6 @@ public sealed class AccountService
         u.Status = "deleted"; u.Email = ""; u.PrivacyJson = "{}"; u.FeatureFlagsJson = "{}"; u.UpdatedUtc = _time.GetUtcNow().UtcDateTime;
         _db.Audit.Add(new AuditEntry { ActorUserId = u.Id, SubjectUserId = u.Id, Action = "account_deleted", AtUtc = u.UpdatedUtc });
         await _db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
     }
 }

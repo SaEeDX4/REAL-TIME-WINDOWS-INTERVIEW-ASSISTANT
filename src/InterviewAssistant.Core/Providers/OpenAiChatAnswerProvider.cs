@@ -19,6 +19,10 @@ public sealed class ChatProviderOptions
     public string FallbackModel { get; set; } = "gpt-4.1-mini";
     public double Temperature { get; set; } = 0.4;
     public TimeSpan FirstTokenTimeout { get; set; } = TimeSpan.FromSeconds(8);
+    /// <summary>Longest silence between streamed chunks after the first token before the stream is treated as stalled.</summary>
+    public TimeSpan StreamIdleTimeout { get; set; } = TimeSpan.FromSeconds(20);
+    /// <summary>Upper bound for one streamed answer (bullets are short; this only guards against a stuck upstream).</summary>
+    public TimeSpan MaxStreamDuration { get; set; } = TimeSpan.FromSeconds(90);
     /// <summary>"auto" picks the lowest-latency effort the model family accepts (gpt-5.x: none; gpt-5/5-mini/o*: minimal).</summary>
     public string ReasoningEffort { get; set; } = "auto";
 }
@@ -73,6 +77,7 @@ public sealed class OpenAiChatAnswerProvider : IAnswerProvider, IDisposable
         {
             ["model"] = model,
             ["stream"] = true,
+            ["store"] = false,   // never retain interview content for the provider's dashboards/evals
             ["messages"] = new JsonArray(messages.Select(m => (JsonNode)new JsonObject { ["role"] = m.Role, ["content"] = m.Content }).ToArray()),
         };
         if (IsReasoningModel(model))
@@ -134,15 +139,25 @@ public sealed class OpenAiChatAnswerProvider : IAnswerProvider, IDisposable
         {
             using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             using var reader = new StreamReader(stream, Encoding.UTF8);
+            using var idleCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var streamStarted = System.Diagnostics.Stopwatch.StartNew();
             bool gotFirst = false;
             while (true)
             {
                 string? line;
                 try
                 {
-                    line = await reader.ReadLineAsync(gotFirst ? ct : firstTokenCts.Token).ConfigureAwait(false);
+                    if (gotFirst)
+                    {
+                        if (streamStarted.Elapsed > Options.MaxStreamDuration) throw new ProviderException(ProviderErrorKind.Timeout, "The answer stream took too long");
+                        idleCts.CancelAfter(Options.StreamIdleTimeout);   // re-armed for every chunk
+                    }
+                    line = await reader.ReadLineAsync(gotFirst ? idleCts.Token : firstTokenCts.Token).ConfigureAwait(false);
                 }
-                catch (OperationCanceledException) when (!ct.IsCancellationRequested) { throw new ProviderException(ProviderErrorKind.Timeout, "No answer tokens received in time"); }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    throw new ProviderException(ProviderErrorKind.Timeout, gotFirst ? "The answer stream stalled" : "No answer tokens received in time");
+                }
                 catch (IOException ex) { throw new ProviderException(ProviderErrorKind.Network, "Stream interrupted: " + ex.Message, ex); }
                 if (line == null) yield break;
                 if (!line.StartsWith("data:", StringComparison.Ordinal)) continue;

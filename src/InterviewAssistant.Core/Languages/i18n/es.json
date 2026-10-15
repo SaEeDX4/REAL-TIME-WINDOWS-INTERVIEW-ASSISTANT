@@ -509,6 +509,7 @@
  "svc_rate_limited": "Demasiadas solicitudes — espera un momento.",
  "svc_unavailable": "El servicio no está disponible temporalmente. Inténtalo de nuevo en breve.",
  "svc_timeout": "Ha tardado demasiado. Inténtalo de nuevo.",
+ "svc_subscription_active": "Tu suscripción sigue activa. Cancélala en Gestionar facturación antes de eliminar la cuenta.",
  "svc_ref": "(ref. {0})",
  "updates": "ACTUALIZACIONES",
  "updates_this_build": "Esta compilación: versión {0} · {1}",

@@ -509,6 +509,7 @@
  "svc_rate_limited": "Troppe richieste — attendi un momento.",
  "svc_unavailable": "Il servizio è temporaneamente non disponibile. Riprova tra poco.",
  "svc_timeout": "L'operazione ha richiesto troppo tempo. Riprova.",
+ "svc_subscription_active": "Il tuo abbonamento è ancora attivo. Annullalo in Gestisci fatturazione prima di eliminare l'account.",
  "svc_ref": "(rif. {0})",
  "updates": "AGGIORNAMENTI",
  "updates_this_build": "Questa build: versione {0} · {1}",

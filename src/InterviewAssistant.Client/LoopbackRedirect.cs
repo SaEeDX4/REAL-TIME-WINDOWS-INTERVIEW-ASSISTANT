@@ -75,7 +75,7 @@ public sealed class LoopbackRedirect : IDisposable
         catch (Exception ex) when (ex is IOException or OperationCanceledException or SocketException) { return (0, "", null, null); }
 
         if (target == null) { await RespondAsync(stream, 400, Core.Languages.Loc.T("browser_bad_request")); return (400, "", null, null); }
-        var uri = new Uri("http://127.0.0.1" + target);
+        if (!Uri.TryCreate("http://127.0.0.1" + target, UriKind.Absolute, out var uri)) { await RespondAsync(stream, 400, Core.Languages.Loc.T("browser_bad_request")); return (400, "", null, null); }
         var q = ParseQuery(uri.Query);
         if (uri.AbsolutePath.TrimEnd('/') != "/callback" || q.GetValueOrDefault("s") != State)
         {

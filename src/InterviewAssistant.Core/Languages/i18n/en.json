@@ -509,6 +509,7 @@
  "svc_rate_limited": "Too many requests — please wait a moment.",
  "svc_unavailable": "The service is temporarily unavailable. Please try again shortly.",
  "svc_timeout": "That took too long. Please try again.",
+ "svc_subscription_active": "Your subscription is still active. Cancel it in Manage billing before deleting the account.",
  "svc_ref": "(ref {0})",
  "updates": "UPDATES",
  "updates_this_build": "This build: version {0} · {1}",

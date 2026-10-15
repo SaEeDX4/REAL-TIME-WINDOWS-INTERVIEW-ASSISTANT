@@ -200,17 +200,18 @@ public sealed class SupabaseAuth
     public async Task SignOutAsync(CancellationToken ct)
     {
         var s = _session;
-        if (s != null)
+        try
         {
-            try
+            if (s != null)
             {
                 using var req = Request(HttpMethod.Post, $"{AuthBase}/logout", new { });
                 req.Headers.Authorization = new("Bearer", s.AccessToken);
                 using var _ = await _http.SendAsync(req, ct);
             }
-            catch (HttpRequestException) { /* offline sign-out still clears local tokens */ }
         }
-        SignOutLocal();
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or OperationCanceledException or TimeoutException)
+        { /* offline or slow sign-out still clears local tokens */ }
+        finally { SignOutLocal(); }
     }
 
     public void SignOutLocal(bool keepReason = false)
