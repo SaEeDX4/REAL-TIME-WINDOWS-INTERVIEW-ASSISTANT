@@ -1,21 +1,26 @@
-INTERVIEW ASSISTANT — USER GUIDE
-================================
+INTERVIEW ASSISTANT — USER GUIDE (2.1.0-rc.2)
+=============================================
 
 GETTING STARTED
 1. Open Interview Assistant. (This release candidate is not code-signed yet: if Windows
    SmartScreen appears, choose "More info" -> "Run anyway".)
 2. Home -> Account: create an account or sign in. Confirm your e-mail if asked.
-3. Home -> Profiles: Import resume. Review the extracted facts and tick only the ones that
-   are accurate, then Save profile. Only confirmed facts are ever presented as your experience.
-4. Home -> Interviews: New interview. Enter the job title, company and paste the job
-   description. Press Save & prepare (takes about a minute).
-5. Run the Pre-interview check, then press Open Live Assistant.
+3. Home -> Profiles -> Facts: Import resume. Review the extracted facts and tick only the ones
+   that are accurate, then Save profile. Only confirmed facts are ever presented as your
+   experience. You can add, edit and delete facts; each shows where it came from.
+4. Home -> Profiles -> Interview profile (optional): hobbies, motivation, goals, working style,
+   things never to mention. Personal questions are answered only from what you write here;
+   if a field is empty, the assistant tells you so instead of inventing an answer.
+5. Home -> Interviews: New interview. Enter the job title, company and paste the job
+   description, then press Prepare (it saves the interview first; takes about a minute).
+6. Run the Pre-interview check, then press Open Live Assistant.
 
 BEFORE YOUR INTERVIEW
 - Join the call in Chrome, Meet, Zoom or Teams and play a short sound: the level meter in the
   Live Assistant should move.
 - Settings: choose the playback device (headset or speakers) you hear the interviewer on.
-- Pre-interview check (shield icon): fix anything marked FAIL. Warnings are optional.
+- Pre-interview check (shield icon): PASS means ready, WARNING is optional, fix anything marked
+  FAIL.
 - Use the assistant only where assistance is permitted.
 
 LIVE ASSISTANT CONTROLS
@@ -23,11 +28,25 @@ LIVE ASSISTANT CONTROLS
 - Type a question ................ Ctrl+Alt+Q   (works while paused; uses no live minutes)
 - Show / hide the window ......... Ctrl+Alt+Space
 - Coach mode (keywords) .......... Ctrl+Alt+C
-- Shorter / Technical / Example / Full answer / Regenerate rework the current answer.
-- < and > browse earlier answers. The stop button ends the interview and saves a report.
+- Shorter / Technical / Example / Full answer / Regenerate rework the answer you are looking
+  at; the question keeps its place in the history (5/8 stays 5/8).
+- < and > browse earlier questions. Pause and resume continue the same session.
+- The stop button ends the interview and saves a report; it appears in Home -> Reports at once.
 - Your microphone is never captured — only the audio you hear from the interviewer.
-- Minutes: "585/600 min" is what is left of your plan this billing period. "· 224 today"
-  appears only when the daily safety limit is lower. Hover the number for details.
+- Notification sounds, beeps, screenshot sounds and remarks addressed to another interviewer by
+  name are ignored and never answered.
+- When the interviewer gives context before asking, the question is shown with a short context
+  line and the answer addresses the actual question.
+
+ACCOUNT, LANGUAGE AND PRIVACY
+- Home -> Account shows minutes remaining this billing period and available today, your
+  devices with their app version, and your update preference.
+- The app language (Settings) changes immediately and is separate from the interview and
+  answer languages, which you choose per interview.
+- Signing out hides all of your profiles, interviews and reports; another account on the same
+  PC never sees them. Exporting your data or deleting your account asks for your password.
+- Reports are stored encrypted for your account. The interview transcript is saved to
+  Documents only if you turn it on in Settings.
 
 TROUBLESHOOTING AUDIO
 - "No interview audio": the meeting plays on a different device. Choose it in Settings, or
@@ -36,5 +55,7 @@ TROUBLESHOOTING AUDIO
   Test transcription in the Pre-interview check.
 - Bluetooth headsets: use the "Headphones"/"Stereo" output, not "Hands-Free".
 - Silence between questions is normal: the status shows "Listening · quiet".
-- Logs for support: Help & about -> Open log folder. Logs contain no resume text, answers
-  or keys.
+- Connection lost: a notification and a banner appear; prepared answers and typed questions
+  keep working, and the app reconnects by itself.
+- Logs for support: Help & about -> Open log folder (and Copy build info). Logs contain no
+  resume text, answers or keys.
