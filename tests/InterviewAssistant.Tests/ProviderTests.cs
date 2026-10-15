@@ -26,6 +26,40 @@ public class ProviderTests
 
     private static readonly ChatMessage[] Msgs = { new("system", "s"), new("user", "u") };
 
+    /// <summary>A body that delivers one chunk, then never sends anything again (a stalled upstream).</summary>
+    private sealed class StallingStream : Stream
+    {
+        private readonly byte[] _first;
+        private bool _sent;
+        public StallingStream(string first) => _first = Encoding.UTF8.GetBytes(first);
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
+        {
+            if (!_sent) { _sent = true; _first.CopyTo(buffer); return _first.Length; }
+            await Task.Delay(Timeout.Infinite, ct);
+            return 0;
+        }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override bool CanRead => true; public override bool CanSeek => false; public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException(); public override long Position { get => 0; set { } }
+        public override void Flush() { } public override long Seek(long o, SeekOrigin s) => 0; public override void SetLength(long v) { }
+        public override void Write(byte[] b, int o, int c) => throw new NotSupportedException();
+    }
+
+    [Fact]
+    public async Task StalledStreamAfterTheFirstToken_TimesOutInsteadOfHanging()
+    {
+        var first = "data: " + new JsonObject { ["choices"] = new JsonArray(new JsonObject { ["delta"] = new JsonObject { ["content"] = "• I'd start" } }) }.ToJsonString() + "\n\n";
+        var h = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(new StallingStream(first)) });
+        using var p = new OpenAiChatAnswerProvider(() => "k", new ChatProviderOptions { StreamIdleTimeout = TimeSpan.FromMilliseconds(300) }, h);
+        var parts = new List<string>();
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var ex = await Assert.ThrowsAsync<ProviderException>(async () => { await foreach (var d in p.StreamAsync(Msgs, 100, CancellationToken.None)) parts.Add(d); });
+        Assert.Equal(ProviderErrorKind.Timeout, ex.Kind);
+        Assert.Equal("• I'd start", Assert.Single(parts));
+        Assert.True(sw.ElapsedMilliseconds < 5000, $"{sw.ElapsedMilliseconds} ms");
+        Assert.False(JsonNode.Parse(h.LastBody!)!["store"]!.GetValue<bool>());      // provider-side retention off
+    }
+
     [Fact]
     public async Task StreamsDeltasFromSse()
     {
