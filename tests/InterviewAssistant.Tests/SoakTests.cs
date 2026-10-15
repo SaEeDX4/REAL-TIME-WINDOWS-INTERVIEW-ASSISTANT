@@ -121,6 +121,8 @@ public class SoakTests
         _out.WriteLine($"prepared answer: finalized → first bullet {P(cache.Select(x => x.FinalizedToFirstBulletMs))}");
         _out.WriteLine($"AI answer (700 ms simulated first token): finalized → first token {P(llm.Select(x => x.FinalizedToFirstTokenMs))}; → first bullet {P(llm.Select(x => x.FinalizedToFirstBulletMs))}; → complete {P(llm.Select(x => x.FinalizedToCompleteMs))}");
         _out.WriteLine($"managed memory start {memStart / 1024} KB end {memEnd / 1024} KB; history {e.History.Count}; samples {samples.Count}");
+        _out.WriteLine($"virtual session length {sim.Clock.NowMs / 60_000.0:0.0} min");
+        Assert.True(sim.Clock.NowMs >= 40 * 60_000, "the soak must cover a long interview");
 
         Assert.True(asked >= 100);
         // One question → one record (multi-part merged). The only exception is the same question repeated within the
@@ -200,7 +202,7 @@ public class SoakTests
             if (rnd.NextDouble() < 0.2) s.Say(NextQuestion().TrimEnd('?') + " for VIP clients?", 600, "And which metrics would you track to prove it is working?");
             else s.Say(NextQuestion());
             await s.RunAsync(9000);
-            await s.RunAsync(15_000);   // candidate answers; interviewer silent
+            await s.RunAsync(22_000);   // candidate answers (~20 s); interviewer silent
             await s.SettleAsync();
 
             if (i % 10 == 0 && e.History.Count > 3)
@@ -223,6 +225,8 @@ public class SoakTests
         _out.WriteLine($"records {questions.Count}, history {e.History.Count}, duplicates {m.DuplicatesSuppressed}, merged {m.TurnsMerged}, AI requests {provider.Requests}, fallback {m.FallbackAnswers}, api errors {m.ApiErrors}");
         _out.WriteLine("suppressed: " + string.Join(", ", m.Suppression.Select(kv => $"{kv.Key} {kv.Value}")));
         _out.WriteLine($"managed memory start {memStart / 1024} KB end {memEnd / 1024} KB");
+        _out.WriteLine($"virtual session length {s.Clock.NowMs / 60_000.0:0.0} min");
+        Assert.True(s.Clock.NowMs >= 60 * 60_000, "the RC2 soak must cover at least a 60-minute interview");
 
         Assert.True(heard + typed >= 100);
         Assert.Equal(heard + typed - m.DuplicatesSuppressed, questions.Count);   // one real question → one record

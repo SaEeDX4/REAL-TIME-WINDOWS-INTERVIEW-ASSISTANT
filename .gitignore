@@ -491,3 +491,4 @@ artifacts/
 settings.json
 .env
 *.env
+.claude/worktrees/
