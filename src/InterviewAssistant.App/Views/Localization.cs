@@ -33,7 +33,7 @@ public sealed class LocSource : INotifyPropertyChanged
     }
 }
 
-/// <summary><c>Text="{v:Loc home_title}"</c> — a live-updating localized string.</summary>
+/// <summary><c>Text="{v:Loc start_title}"</c> — a live-updating localized string.</summary>
 [MarkupExtensionReturnType(typeof(object))]
 public sealed class LocExtension : MarkupExtension
 {

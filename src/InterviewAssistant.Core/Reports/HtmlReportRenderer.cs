@@ -64,8 +64,8 @@ public static class HtmlReportRenderer
         List("repeated", r.RepeatedTopics);
         List("notcovered", r.TopicsNotCovered, true);
         List("gaps", r.GapQuestions);
-        List("interruptions", r.Interruptions.Select(i => $"after Q{i.AfterQuestionIndex}: {i.Note} (confidence {i.Confidence:0.00}, {i.ElapsedMs / 1000.0:0.0}s of ~{i.ExpectedMs / 1000.0:0.0}s)"), true);
-        List("latency", r.LatencyP50Ms >= 0 ? new[] { $"P50 {r.LatencyP50Ms} ms · P95 {r.LatencyP95Ms} ms (question → first suggestion)" } : Array.Empty<string>());
+        List("interruptions", r.Interruptions.Select(i => Languages.Loc.Format(r.ReportLanguage, "rpt_interruption", i.AfterQuestionIndex, Math.Round(i.Confidence, 2), Math.Round(i.ElapsedMs / 1000.0, 1), Math.Round(i.ExpectedMs / 1000.0, 1))), true);
+        List("latency", r.LatencyP50Ms >= 0 ? new[] { Languages.Loc.Format(r.ReportLanguage, "rpt_latency", r.LatencyP50Ms, r.LatencyP95Ms) } : Array.Empty<string>());
         List("transcription", r.TranscriptionIssues);
         List("strengths", r.StrengthsOfPreparation, true);
         List("weaknesses", r.PreparationWeaknesses, true);

@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using InterviewAssistant.App.Services;
+using InterviewAssistant.Core.Languages;
 using InterviewAssistant.App.ViewModels;
 using InterviewAssistant.Core.Intelligence;
 using InterviewAssistant.Core.Providers;
@@ -23,7 +24,7 @@ public partial class SettingsWindow : Window
         _vm = vm;
         _s = vm.Settings;
         DataContext = vm; // for the live level meter
-        KeyStatus.Text = SecretStore.HasKey ? "Saved key: " + SecretStore.Mask(SecretStore.GetApiKey()) : "No key saved yet.";
+        KeyStatus.Text = SecretStore.HasKey ? Loc.F("set_key_saved", SecretStore.Mask(SecretStore.GetApiKey())) : Loc.T("set_key_none");
         if (!BuildFlavor.Developer)
         {
             // Customer builds: AI runs through the Interview Assistant service; models are chosen server-side.
@@ -37,8 +38,8 @@ public partial class SettingsWindow : Window
         SttBox.Text = _s.TranscriptionModel;
         foreach (var p in new[] { "auto", "ga", "beta" }) ProtocolBox.Items.Add(p);
         ProtocolBox.SelectedItem = _s.RealtimeProtocol;
-        foreach (var f in Enum.GetValues<FontPreset>()) FontBox.Items.Add(f);
-        FontBox.SelectedItem = _s.FontPreset;
+        foreach (var f in Enum.GetValues<FontPreset>()) FontBox.Items.Add(new ComboBoxItem { Content = Loc.T("font_" + f.ToString().ToLowerInvariant()), Tag = f });
+        FontBox.SelectedItem = FontBox.Items.Cast<ComboBoxItem>().FirstOrDefault(i => (FontPreset)i.Tag == _s.FontPreset);
         FastCacheBox.IsChecked = _s.UseFastCache;
         VadSlider.Value = _s.VadSensitivity;
         OpacitySlider.Value = _s.WindowOpacity;
@@ -68,24 +69,24 @@ public partial class SettingsWindow : Window
     private async void TestKey_Click(object sender, RoutedEventArgs e)
     {
         var key = string.IsNullOrWhiteSpace(KeyBox.Password) ? SecretStore.GetApiKey() : KeyBox.Password.Trim();
-        if (string.IsNullOrEmpty(key)) { KeyStatus.Text = "Enter a key first."; return; }
-        KeyStatus.Text = "Testing…";
+        if (string.IsNullOrEmpty(key)) { KeyStatus.Text = Loc.T("set_key_enter"); return; }
+        KeyStatus.Text = Loc.T("set_key_testing");
         var result = await AnswerServiceProbe.RunAsync(() => key, ModelBox.Text);
-        KeyStatus.Text = result.Ok ? $"✓ Answer service OK — first token in {result.FirstTokenMs} ms ({ModelBox.Text})" : "✗ " + result.Error;
+        KeyStatus.Text = result.Ok ? "✓ " + Loc.F("set_key_ok", result.FirstTokenMs, ModelBox.Text) : "✗ " + result.Error;
     }
 
     private void RemoveKey_Click(object sender, RoutedEventArgs e)
     {
         SecretStore.Clear();
         KeyBox.Clear();
-        KeyStatus.Text = "Key removed.";
-        EngineSettingsChanged = true;
+        KeyStatus.Text = Loc.T("set_key_removed");
+        EngineSettingsChanged = ModelSettingsChanged = true;
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         foreach (var hk in new[] { HkToggle.Text, HkStart.Text, HkManual.Text })
-            if (!HotkeyService.TryParse(hk, out _, out _)) { SaveStatus.Text = $"Invalid hotkey: {hk} (example: Ctrl+Alt+Space)"; return; }
+            if (!HotkeyService.TryParse(hk, out _, out _)) { SaveStatus.Text = Loc.F("set_hotkey_invalid", hk); return; }
 
         if (BuildFlavor.Developer && !string.IsNullOrWhiteSpace(KeyBox.Password)) { SecretStore.SetApiKey(KeyBox.Password); EngineSettingsChanged = ModelSettingsChanged = true; }
         var model = ModelBox.Text.Trim(); var stt = SttBox.Text.Trim(); var proto = ProtocolBox.SelectedItem as string ?? "auto";
@@ -95,7 +96,7 @@ public partial class SettingsWindow : Window
         _s.AnswerModel = model.Length > 0 ? model : _s.AnswerModel;
         _s.TranscriptionModel = stt.Length > 0 ? stt : _s.TranscriptionModel;
         _s.RealtimeProtocol = proto;
-        _s.FontPreset = FontBox.SelectedItem is FontPreset f ? f : _s.FontPreset;
+        _s.FontPreset = FontBox.SelectedItem is ComboBoxItem { Tag: FontPreset f } ? f : _s.FontPreset;
         _s.UseFastCache = FastCacheBox.IsChecked == true;
         _s.VadSensitivity = VadSlider.Value;
         _s.WindowOpacity = OpacitySlider.Value;

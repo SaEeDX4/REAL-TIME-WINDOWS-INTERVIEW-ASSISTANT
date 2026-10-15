@@ -20,7 +20,7 @@ public partial class App : Application
         DispatcherUnhandledException += (_, args) =>
         {
             AppLog.Error("UI exception", args.Exception);
-            (MainWindow as MainWindow)?.ShowTransientError("Unexpected error — the assistant is still running. Details in diagnostics.");
+            (MainWindow as MainWindow)?.ShowTransientError(Core.Languages.Loc.T("err_unexpected_ui"));
             args.Handled = true;
         };
         TaskScheduler.UnobservedTaskException += (_, args) => { AppLog.Error("Background task exception", args.Exception); args.SetObserved(); };

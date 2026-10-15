@@ -96,36 +96,37 @@ public static class ReportBuilder
 
         var gapQs = memory.Questions.Where(q => q.Mode == "Bridge" || q.Category == "GAP_EXPERIENCE").Select(q => q.Original).ToList();
         var difficult = new List<string>();
-        difficult.AddRange(gapQs.Select(g => "Experience gap: " + Short(g, 14)));
-        difficult.AddRange(memory.Questions.Where(q => q.Source is "Error" or "CacheFallback").Select(q => "No live AI answer available: " + Short(q.Original, 12)));
-        difficult.AddRange(memory.Questions.Where(q => q.ReferencesEarlierAnswer).Select(q => "Interviewer referred back to an earlier answer: " + Short(q.Original, 12)));
+        string R(string key, params object?[] a) => Languages.Loc.Format(reportLanguage, key, a);
+        difficult.AddRange(gapQs.Select(g => R("rpt_experience_gap", Short(g, 14))));
+        difficult.AddRange(memory.Questions.Where(q => q.Source is "Error" or "CacheFallback").Select(q => R("rpt_no_ai_answer", Short(q.Original, 12))));
+        difficult.AddRange(memory.Questions.Where(q => q.ReferencesEarlierAnswer).Select(q => R("rpt_referred_back", Short(q.Original, 12))));
 
         // Latency statistics cover heard questions only (a typed question has no speech end to measure from).
         var latencies = memory.Questions.Where(q => !q.Typed).Select(q => q.FirstBulletLatencyMs).Where(l => l >= 0).ToList();
         var issues = new List<string>();
         var undetected = memory.Questions.Count(q => q.DetectedLanguage == "und");
-        if (undetected > 0) issues.Add($"{undetected} question(s) were too short to detect the language reliably.");
+        if (undetected > 0) issues.Add(R("rpt_language_undetected", undetected));
         var veryShort = memory.Questions.Count(q => TextNormalizer.WordCount(q.Original) <= 3);
-        if (veryShort > 0) issues.Add($"{veryShort} very short question(s) — possibly partial transcription or follow-ups.");
-        if (reconnects > 0) issues.Add($"{reconnects} transcription reconnect(s) during the session.");
-        if (duplicatesSuppressed > 0) issues.Add($"{duplicatesSuppressed} duplicate transcript(s) suppressed.");
+        if (veryShort > 0) issues.Add(R("rpt_very_short", veryShort));
+        if (reconnects > 0) issues.Add(R("rpt_reconnects", reconnects));
+        if (duplicatesSuppressed > 0) issues.Add(R("rpt_duplicates", duplicatesSuppressed));
 
         var prepared = memory.Questions.Count(q => q.Source == "Cache");
         var strengths = new List<string>();
-        if (memory.Questions.Count > 0) strengths.Add($"{prepared} of {memory.Questions.Count} questions matched prepared answers instantly.");
-        if (stories.Count > 0) strengths.Add($"{stories.Count} different verified stories were suggested.");
-        if (memory.Questions.Count > 0 && memory.StoryUse.Values.DefaultIfEmpty(0).Max() <= 2) strengths.Add("No story was suggested more than twice (low repetition).");
+        if (memory.Questions.Count > 0) strengths.Add(R("rpt_prepared_matches", prepared, memory.Questions.Count));
+        if (stories.Count > 0) strengths.Add(R("rpt_stories_suggested", stories.Count));
+        if (memory.Questions.Count > 0 && memory.StoryUse.Values.DefaultIfEmpty(0).Max() <= 2) strengths.Add(R("rpt_low_repetition"));
         var weaknesses = new List<string>();
         var unprepared = memory.Questions.Where(q => q.MatchedQuestionId == null || q.Source == "Llm").Select(q => q.Category).GroupBy(c => c).Where(g => g.Count() >= 2).Select(g => g.Key.ToLowerInvariant()).ToList();
-        if (unprepared.Count > 0) weaknesses.Add("Categories that needed live AI repeatedly (consider adding to preparation): " + string.Join(", ", unprepared));
-        if (gapQs.Count > 0) weaknesses.Add($"{gapQs.Count} question(s) touched experience the profile does not show.");
+        if (unprepared.Count > 0) weaknesses.Add(R("rpt_needed_ai", string.Join(", ", unprepared)));
+        if (gapQs.Count > 0) weaknesses.Add(R("rpt_gap_count", gapQs.Count));
         var overused = memory.StoryUse.Where(kv => kv.Value >= 3).Select(kv => storyLabel.GetValueOrDefault(kv.Key, kv.Key)).ToList();
-        if (overused.Count > 0) weaknesses.Add("Stories suggested 3+ times: " + string.Join("; ", overused));
+        if (overused.Count > 0) weaknesses.Add(R("rpt_overused", string.Join("; ", overused)));
 
-        var followUp = gapQs.Select(g => "Prepare a concise bridge + example for: " + Short(g, 12)).Concat(notCovered.Take(5).Select(n => "Not asked but in the job description: " + n)).ToList();
-        var themes = memory.TopicCounts.OrderByDescending(kv => kv.Value).Take(3).Select(kv => $"Topic discussed: {kv.Key.ToLowerInvariant().Replace('_', ' ')}").ToList();
-        if (kb.Context.CompanyName.Length > 0) themes.Insert(0, $"Thank them for the conversation about {kb.Context.RoleTitle} at {kb.Context.CompanyName}.");
-        if (memory.CompanyTopics.Count > 0) themes.Add("Reference what you learned about: " + string.Join(", ", memory.CompanyTopics.Take(3)));
+        var followUp = gapQs.Select(g => R("rpt_prepare_bridge", Short(g, 12))).Concat(notCovered.Take(5).Select(n => R("rpt_not_asked", n))).ToList();
+        var themes = memory.TopicCounts.OrderByDescending(kv => kv.Value).Take(3).Select(kv => R("rpt_topic_discussed", kv.Key.ToLowerInvariant().Replace('_', ' '))).ToList();
+        if (kb.Context.CompanyName.Length > 0) themes.Insert(0, R("rpt_thank_them", kb.Context.RoleTitle, kb.Context.CompanyName));
+        if (memory.CompanyTopics.Count > 0) themes.Add(R("rpt_reference_learned", string.Join(", ", memory.CompanyTopics.Take(3))));
         var unused = kb.Stories.Where(s => !memory.StoryUse.ContainsKey(s.Id)).Take(5).Select(s => storyLabel[s.Id]).ToList();
 
         return new InterviewReport

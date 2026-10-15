@@ -80,7 +80,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         Cloud.Changed += () => Post(() => { Raise(nameof(AccountLabel)); Raise(nameof(UsingCloud)); RaiseMinutes(); Raise(nameof(ServiceBanner)); OnConnectivity(); OpenWorkspaceForCurrentAccount(); });
         Loc.LanguageChanged += () => Post(RefreshLanguage);
         _capture.FrameReady += OnAudioFrame;
-        _capture.StatusChanged += s => Post(() => AudioStatus = s);
+        _capture.StatusChanged += s => Post(() => OnCaptureStatus(s));
         _diagTimer = new DispatcherTimer(DispatcherPriority.Background, ui) { Interval = TimeSpan.FromSeconds(1) };
         _diagTimer.Tick += (_, _) => RefreshDiagnostics();
         _diagTimer.Start();
@@ -505,6 +505,20 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     }
 
     public void StartAudioPreview() { if (!_capture.IsRunning) _capture.Start(Settings.PlaybackDeviceId); }
+
+    private bool _captureTrouble;
+
+    /// <summary>Device unplugged / Bluetooth reconnect / default-device change: one calm toast per transition, never a crash.</summary>
+    private void OnCaptureStatus(string status)
+    {
+        AudioStatus = _capture.StatusLabel;
+        var trouble = status is "DEVICE ERROR" or "NO PLAYBACK DEVICE" or "RECONNECTING DEVICE";
+        if (trouble == _captureTrouble) return;
+        _captureTrouble = trouble;
+        if (!SessionActive) return;
+        if (trouble) Toast(Loc.T("toast_audio_device_lost"), Views.ToastKind.Warning, Loc.T("toast_audio_device_lost_detail"));
+        else Toast(Loc.T("toast_audio_device_back"), Views.ToastKind.Success, _capture.CurrentDeviceName);
+    }
     public void RestartAudio() { _capture.Stop(); _capture.Start(Settings.PlaybackDeviceId); }
     public string CurrentDeviceName => _capture.CurrentDeviceName;
     public AudioCaptureService Capture => _capture;

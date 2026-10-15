@@ -33,7 +33,10 @@ public sealed class AudioCaptureService : IDisposable, IMMNotificationClient
     public event Action<byte[], double>? FrameReady;   // pcm16 frame (100 ms), level dBFS
     public event Action<string>? StatusChanged;
     public string CurrentDeviceName { get; private set; } = "";
+    /// <summary>Machine status code (ACTIVE, STOPPED, DEVICE ERROR, NO PLAYBACK DEVICE, RECONNECTING DEVICE).</summary>
     public string Status { get; private set; } = "STOPPED";
+    /// <summary>Status in the user's language.</summary>
+    public string StatusLabel => Core.Languages.Loc.T("audio_" + Status.ToLowerInvariant().Replace(' ', '_'));
     public int SampleRate { get; private set; }
     public int Channels { get; private set; }
     public string Encoding { get; private set; } = "";
@@ -45,7 +48,7 @@ public sealed class AudioCaptureService : IDisposable, IMMNotificationClient
 
     public static IReadOnlyList<PlaybackDevice> ListDevices()
     {
-        var list = new List<PlaybackDevice> { new(null, "System default (follows Windows)") };
+        var list = new List<PlaybackDevice> { new(null, Core.Languages.Loc.T("audio_system_default")) };
         try
         {
             using var en = new MMDeviceEnumerator();
