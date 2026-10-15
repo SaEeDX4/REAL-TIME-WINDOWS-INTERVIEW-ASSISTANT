@@ -89,6 +89,19 @@ public sealed class CandidateProfile
     [JsonPropertyName("education")] public List<EducationEntry> Education { get; init; } = new();
     /// <summary>Confirmed spoken languages with level.</summary>
     [JsonPropertyName("languages")] public List<LanguageEntry> Languages { get; init; } = new();
+    [JsonPropertyName("preferred_name")] public string PreferredName { get; init; } = "";
+    /// <summary>Confirmed personal / professional-identity answers (hobbies, motivation, team preference…). Never invented.</summary>
+    [JsonPropertyName("personal")] public List<PersonalEntry> Personal { get; init; } = new();
+    /// <summary>Topics and claims the user forbade ("never mention X").</summary>
+    [JsonPropertyName("boundaries")] public List<string> Boundaries { get; init; } = new();
+
+    public IEnumerable<string> PersonalFor(string category) => Personal.Where(p => p.Category == category).Select(p => p.Text);
+}
+
+public sealed class PersonalEntry
+{
+    [JsonPropertyName("category")] public string Category { get; init; } = "";
+    [JsonPropertyName("text")] public string Text { get; init; } = "";
 }
 
 public sealed class EducationEntry

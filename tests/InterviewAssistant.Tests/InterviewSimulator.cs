@@ -27,6 +27,16 @@ public sealed class InterviewSimulator
     private readonly List<AnswerView> _started = new(), _completed = new();
     private readonly SortedList<long, List<Action>> _events = new();
     private int _item;
+    // What is audible at each moment (virtual ms → kind), so the engine receives realistic audio frames.
+    private readonly List<(long From, long To, SoundKind Kind)> _sounds = new();
+    private static readonly byte[][] SpeechFrames = SyntheticAudio.Frames(SyntheticAudio.Speech(2000, 135)).ToArray();
+    private static readonly byte[][] BeepFrames = SyntheticAudio.Frames(SyntheticAudio.Beep(600, 880)).ToArray();
+    private static readonly byte[][] ShutterFrames = SyntheticAudio.Frames(SyntheticAudio.Concat(SyntheticAudio.Shutter(), SyntheticAudio.Silence(250))).ToArray();
+    private static readonly byte[][] ChordFrames = SyntheticAudio.Frames(SyntheticAudio.Chord(2000)).ToArray();
+    private static readonly byte[] SilenceFrame = new byte[4800];
+    public enum SoundKind { Speech, Beep, Shutter, Music }
+    /// <summary>False = the old behaviour (digital silence frames only), for tests about timing without acoustics.</summary>
+    public bool SendAudio { get; set; } = true;
     public IReadOnlyList<AnswerView> Started { get { lock (_started) return _started.ToList(); } }
     public IReadOnlyList<AnswerView> Completed { get { lock (_completed) return _completed.ToList(); } }
     /// <summary>Completed answers that are still on screen (not replaced by a continuation of the same question).</summary>
@@ -68,7 +78,9 @@ public sealed class InterviewSimulator
             if (pending.Length == 0)
                 At(t + OnsetMs, () => T.Start());
             pending = pending.Length == 0 ? text : pending + " " + text;
-            t += Math.Max(600, text.Split(' ').Length * MsPerWord);
+            var dur = Math.Max(600, text.Split(' ').Length * MsPerWord);
+            _sounds.Add((t, t + dur, SoundKind.Speech));
+            t += dur;
             bool last = i == parts.Count - 1;
             if (!last && pause < VadSilenceMs) { t += pause; continue; }   // VAD does not split: same segment
             var segment = pending;
@@ -80,11 +92,42 @@ public sealed class InterviewSimulator
         }
     }
 
+    /// <summary>
+    /// A non-speech sound (beep, chime, screenshot shutter, music) that the server VAD nevertheless segments and the
+    /// recognizer "transcribes" as <paramref name="hallucination"/> (e.g. its own vocabulary prompt). Null = no text.
+    /// </summary>
+    public void Sound(SoundKind kind, string? hallucination, int durationMs = 600)
+    {
+        long t = Clock.NowMs;
+        _sounds.Add((t, t + durationMs, kind));
+        var id = "item" + (++_item);
+        At(t + OnsetMs, () => T.Start());
+        At(t + durationMs + VadSilenceMs, () => T.Stop());
+        At(t + durationMs + VadSilenceMs + TranscriptMs, () => T.Complete(hallucination ?? "", id));
+    }
+
+    private byte[] FrameAt(long now)
+    {
+        if (!SendAudio) return SilenceFrame;
+        foreach (var (from, to, kind) in _sounds)
+        {
+            if (now < from || now >= to) continue;
+            var idx = (int)((now - from) / 100);
+            return kind switch
+            {
+                SoundKind.Speech => SpeechFrames[idx % SpeechFrames.Length],
+                SoundKind.Beep => BeepFrames[Math.Min(idx, BeepFrames.Length - 1)],
+                SoundKind.Shutter => ShutterFrames[Math.Min(idx, ShutterFrames.Length - 1)],
+                _ => ChordFrames[idx % ChordFrames.Length],
+            };
+        }
+        return SilenceFrame;
+    }
+
     /// <summary>Plays scheduled events and advances virtual time by <paramref name="ms"/>.</summary>
     public async Task RunAsync(int ms)
     {
         var end = Clock.NowMs + ms;
-        var frame = new byte[4800];
         while (Clock.NowMs < end)
         {
             Clock.Advance(20);
@@ -95,7 +138,12 @@ public sealed class InterviewSimulator
                 _events.RemoveAt(0);
                 foreach (var a in actions) a();
             }
-            if (now % AudioFrameEveryMs == 0) E.OnAudioFrame(frame, -30);
+            if (now % AudioFrameEveryMs == 0)
+            {
+                var f = FrameAt(now);
+                E.OnAudioFrame(f, ReferenceEquals(f, SilenceFrame) ? -100 : -30);
+                _sounds.RemoveAll(x => x.To < now - 60_000);
+            }
             E.Tick();
             // Let background answer work (hold release, streaming) run in real time while an answer is in flight.
             if (InFlight > 0) await Task.Delay(1);

@@ -47,9 +47,69 @@ public static class ProfileService
         if (profile.Location.Length == 0) profile.Location = parsed.Location;
         // De-duplicate facts across multiple CV versions (same kind + normalised text).
         var existing = profile.Facts.Select(f => Key(f)).ToHashSet();
-        foreach (var f in parsed.Facts) if (existing.Add(Key(f))) profile.Facts.Add(f);
-        profile.UpdatedUtc = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        foreach (var f in parsed.Facts)
+            if (existing.Add(Key(f)))
+            {
+                f.Source = FactSource.ResumeImport; f.SourceName = doc.FileName; f.CreatedUtc = now;
+                profile.Facts.Add(f);
+            }
+        profile.UpdatedUtc = now;
+        ProfileMigration.Migrate(profile);
         return parsed;
+    }
+
+    /// <summary>Adds a fact the user typed (profile editor or questionnaire). The user's own statement starts confirmed.</summary>
+    public static ProfileFact AddManualFact(CandidateProfileRecord profile, FactKind kind, string text, string category = "", string company = "", string title = "",
+        string period = "", FactSource source = FactSource.Manual, bool confirmed = true)
+    {
+        var now = DateTime.UtcNow;
+        var f = new ProfileFact
+        {
+            Kind = kind, Text = text.Trim(), Category = category, Company = company.Trim(), Title = title.Trim(), Period = period.Trim(),
+            Source = source, SourceName = source == FactSource.Questionnaire ? "Interview profile questions" : "Added by you",
+            CreatedUtc = now, UpdatedUtc = now, Confidence = 1.0,
+            Metrics = ResumeParser.ExtractMetrics(text).ToList(),
+            Status = confirmed ? FactStatus.UserConfirmed : FactStatus.Source, ConfirmedUtc = confirmed ? now : null,
+        };
+        profile.Facts.Add(f);
+        profile.UpdatedUtc = now;
+        return f;
+    }
+
+    /// <summary>Edits a fact's text. An edited fact keeps its confirmation only if the user re-confirms it in the same edit.</summary>
+    public static void EditFact(CandidateProfileRecord profile, ProfileFact f, string text, bool confirmed, string? company = null, string? title = null, string? period = null)
+    {
+        var now = DateTime.UtcNow;
+        f.Text = text.Trim();
+        if (company != null) f.Company = company.Trim();
+        if (title != null) f.Title = title.Trim();
+        if (period != null) f.Period = period.Trim();
+        f.Metrics = ResumeParser.ExtractMetrics(f.Text).ToList();
+        f.UpdatedUtc = now;
+        f.SetConfirmed(confirmed, now);
+        profile.UpdatedUtc = now;
+    }
+
+    /// <summary>Removes a fact (the user deleted it). Stories built from it disappear on the next rebuild.</summary>
+    public static bool DeleteFact(CandidateProfileRecord profile, string factId)
+    {
+        var removed = profile.Facts.RemoveAll(f => f.Id == factId) > 0;
+        if (removed) { profile.UpdatedUtc = DateTime.UtcNow; RebuildStories(profile); }
+        return removed;
+    }
+
+    /// <summary>Replaces the answers for one questionnaire category (empty text removes it). Answers are the user's own, so confirmed.</summary>
+    public static void SetPersonal(CandidateProfileRecord profile, string category, string? text)
+    {
+        var cat = PersonalCategories.Find(category) ?? throw new ArgumentException("Unknown category", nameof(category));
+        var kind = cat.Boundary ? FactKind.Boundary : FactKind.Personal;
+        var current = profile.Facts.FirstOrDefault(f => f.Kind == kind && f.Category == category && f.Status != FactStatus.Rejected);
+        var value = (text ?? "").Trim();
+        if (value.Length > 600) value = value[..600];
+        if (value.Length == 0) { if (current != null) profile.Facts.Remove(current); profile.UpdatedUtc = DateTime.UtcNow; return; }
+        if (current == null) AddManualFact(profile, kind, value, category, source: FactSource.Questionnaire);
+        else if (current.Text != value) EditFact(profile, current, value, confirmed: true);
     }
 
     private static string Key(ProfileFact f) => f.Kind + "|" + Regex.Replace(f.Text.ToLowerInvariant(), @"\W+", " ").Trim();
@@ -128,8 +188,20 @@ public static class ProfileService
             KnownGaps = knownGaps?.ToList() ?? new(),
             Education = confirmed.Where(f => f.Kind == FactKind.Education).Select(f => new EducationEntry { Degree = f.Text, School = f.Company }).ToList(),
             Languages = confirmed.Where(f => f.Kind == FactKind.Language).Select(f => new LanguageEntry { Language = f.Text }).ToList(),
+            PreferredName = p.PreferredName,
+            Personal = PersonalEntries(p),
+            Boundaries = BoundaryEntries(p),
         };
     }
+
+    /// <summary>Confirmed personal answers only (unconfirmed or rejected entries never reach a prompt).</summary>
+    public static List<PersonalEntry> PersonalEntries(CandidateProfileRecord p) =>
+        p.ConfirmedFacts.Where(f => f.Kind == FactKind.Personal && f.Category.Length > 0 && f.Text.Length > 0)
+            .Select(f => new PersonalEntry { Category = f.Category, Text = f.Text }).ToList();
+
+    /// <summary>User-defined boundaries (active unless the user rejected/removed them).</summary>
+    public static List<string> BoundaryEntries(CandidateProfileRecord p) =>
+        p.Facts.Where(f => f.Kind == FactKind.Boundary && f.Status == FactStatus.UserConfirmed && f.Text.Length > 0).Select(f => f.Text).ToList();
 
     public static int YearsOfExperience(CandidateProfileRecord p)
     {

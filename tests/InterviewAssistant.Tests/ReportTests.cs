@@ -11,11 +11,12 @@ public class ReportTests
     private static async Task<(InterviewEngine E, InterviewReport R)> RunSessionAsync(string reportLang = "en")
     {
         var pack = await Fixtures.ShervinPackAsync();
-        var clock = new InterviewAssistant.Core.Diagnostics.ManualClock();
-        var e = new InterviewEngine(pack.ToKnowledgeBase(), null, new FakeProvider(), new EngineOptions { AutoTick = false }, clock);
-        await e.SubmitManualQuestionAsync("Tell me about yourself.");
-        clock.Advance(1500); e.OnInterviewerSpeechStarted();
-        await e.SubmitManualQuestionAsync("Tell me about your experience at Arzif Crypto Exchange.");
+        var s = new InterviewSimulator(pack.ToKnowledgeBase());
+        var e = s.E;
+        await e.StartListeningAsync();
+        // Heard questions; the second cuts in right after the first answer appeared (a likely interruption).
+        s.Say("Tell me about yourself."); await s.RunAsync(6000); await s.SettleAsync();
+        s.Say("Tell me about your experience at Arzif Crypto Exchange."); await s.RunAsync(7000); await s.SettleAsync();
         await e.SubmitManualQuestionAsync("Have you personally worked with building or owning financial ledgers?");
         await e.SubmitManualQuestionAsync("Und wie würden Sie das mit den Stakeholdern abstimmen?");
         await e.SubmitManualQuestionAsync("<script>alert('x')</script> Why?");

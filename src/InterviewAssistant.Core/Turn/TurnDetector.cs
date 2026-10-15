@@ -12,7 +12,8 @@ public enum TurnState { Idle, Listening, SpeechStarted, PossibleEnd, TurnSettlin
 /// question after a pause (multi-part question) or restated it: the consumer must replace that turn's answer
 /// instead of creating a new one.
 /// </summary>
-public sealed record FinalizedTurn(string Text, long SpeechEndMs, long FinalizedMs, int SegmentCount, int TurnId = 0, int? RevisesTurnId = null);
+public sealed record FinalizedTurn(string Text, long SpeechEndMs, long FinalizedMs, int SegmentCount, int TurnId = 0, int? RevisesTurnId = null,
+    Audio.SpeechEvidence Evidence = default, long SpeechStartMs = -1);
 
 /// <summary>
 /// Adaptive end-of-turn detector. Server VAD splits speech into segments at short pauses; this class decides
@@ -33,7 +34,12 @@ public sealed class TurnDetector
 {
     private readonly IClock _clock;
     private readonly List<(string ItemId, string Text)> _segments = new();
-    private readonly Dictionary<string, string> _partials = new();
+    private readonly Dictionary<string, System.Text.StringBuilder> _partials = new();
+    private readonly Queue<Audio.SpeechEvidence> _pendingEvidence = new();
+    private Audio.SpeechEvidence _turnEvidence;
+    private long _turnStartMs = -1;
+    private string? _segmentsText;   // cached join of completed segments (long monologues: no O(n²) rebuilding)
+    private int _droppedSegments;
     private long _speechStoppedAt = -1, _lastSegmentAt = -1, _settleDeadline = -1;
     private int _awaitingSegments;
     private int _nextTurnId;
@@ -42,12 +48,24 @@ public sealed class TurnDetector
 
     public TurnState State { get; private set; } = TurnState.Idle;
     public IReadOnlyList<Knowledge.TermAlias>? Aliases { get; set; }
+    /// <summary>
+    /// Segment filter: returns false for a segment that must not join the turn (recognizer artefact, prompt echo, no
+    /// speech in its audio). Applied when the segment's transcript completes, with that segment's acoustic evidence.
+    /// </summary>
+    public Func<string, Audio.SpeechEvidence, bool>? SegmentFilter { get; set; }
+    /// <summary>Target-scoped term normalization applied to finalized text (e.g. MiCA → MiCAR when the target uses MiCAR).</summary>
+    public Func<string, string>? TermNormalizer { get; set; }
     public double Sensitivity { get; set; } = 1.0; // >1 waits longer, <1 answers faster
     public int QuestionCompleteMs { get; set; } = 600;
     public int DefaultMs { get; set; } = 800;
     public int IncompleteMs { get; set; } = 1700;
     public int MissingTranscriptTimeoutMs { get; set; } = 4000;
-    public int MaxSegmentsPerTurn { get; set; } = 40;
+    public int MaxSegmentsPerTurn { get; set; } = 400;
+    /// <summary>Bound on the text kept for one turn (a 5-minute monologue is ~5,000 characters). The beginning and the
+    /// most recent speech are kept; the middle of an extremely long turn is elided.</summary>
+    public int MaxTurnChars { get; set; } = 8000;
+    /// <summary>Bound on one in-progress partial transcript (tail kept).</summary>
+    public int MaxPartialChars { get; set; } = 4000;
     /// <summary>Interviewer speech resuming within this time after the previous turn's speech stopped continues that turn.</summary>
     public int ContinuationWindowMs { get; set; } = 2500;
 
@@ -62,10 +80,12 @@ public sealed class TurnDetector
 
     public void Reset()
     {
-        _segments.Clear(); _partials.Clear();
+        _segments.Clear(); _partials.Clear(); _segmentsText = null; _droppedSegments = 0;
         _speechStoppedAt = _lastSegmentAt = _settleDeadline = -1;
         _awaitingSegments = 0;
         _reopened = null;
+        _turnEvidence = default; _turnStartMs = -1;
+        _pendingEvidence.Clear();
     }
 
     /// <summary>Interviewer speech started. Returns true when it continues the just-finalized question (not an interruption).</summary>
@@ -74,6 +94,7 @@ public sealed class TurnDetector
         if (State == TurnState.Idle) return false;
         _settleDeadline = -1; // interviewer resumed: cancel pending finalization
         _awaitingSegments++;
+        if (_turnStartMs < 0) _turnStartMs = _clock.NowMs;
         bool continuation = false;
         if (_segments.Count == 0 && _partials.Count == 0 && _reopened == null && _lastFinal is { } last && _clock.NowMs - last.SpeechStoppedAt <= ContinuationWindowMs)
         {
@@ -84,12 +105,25 @@ public sealed class TurnDetector
         return continuation;
     }
 
+    /// <summary>
+    /// The consumer rejected this turn (no speech, prompt echo, logistics, remark to someone else): later speech must
+    /// not be merged into it — a real question right after a beep starts a fresh turn.
+    /// </summary>
+    public void Forget(int turnId)
+    {
+        if (_lastFinal is { } l && l.Id == turnId) _lastFinal = null;
+        if (_reopened is { } r && r.Id == turnId) _reopened = null;
+    }
+
     /// <summary>True while a just-finalized question can still be continued by the interviewer.</summary>
     public bool InContinuationWindow => _lastFinal is { } l && _clock.NowMs - l.SpeechStoppedAt <= ContinuationWindowMs;
 
-    public void OnSpeechStopped()
+    /// <param name="evidence">Acoustic evidence for the segment that just ended (attached to its transcript).</param>
+    public void OnSpeechStopped(Audio.SpeechEvidence evidence = default)
     {
         if (State == TurnState.Idle) return;
+        _pendingEvidence.Enqueue(evidence);
+        while (_pendingEvidence.Count > 8) _pendingEvidence.Dequeue();
         _speechStoppedAt = _clock.NowMs;
         SetState(TurnState.PossibleEnd);
         ScheduleSettle();
@@ -98,7 +132,9 @@ public sealed class TurnDetector
     public void OnPartial(string itemId, string delta)
     {
         if (State == TurnState.Idle) return;
-        _partials[itemId] = _partials.GetValueOrDefault(itemId, "") + delta;
+        if (!_partials.TryGetValue(itemId, out var sb)) _partials[itemId] = sb = new System.Text.StringBuilder();
+        sb.Append(delta);
+        if (sb.Length > MaxPartialChars) sb.Remove(0, sb.Length - MaxPartialChars);
         LiveTextChanged?.Invoke(CurrentText());
     }
 
@@ -109,11 +145,29 @@ public sealed class TurnDetector
         if (_awaitingSegments > 0) _awaitingSegments--;
         var text = transcript.Trim();
         var idx = _segments.FindIndex(s => s.ItemId == itemId);
-        if (idx >= 0) _segments[idx] = (itemId, text); // revised transcript replaces, never duplicates
-        else if (text.Length > 0 && !(_segments.Count > 0 && SameText(_segments[^1].Text, text))) // a re-delivered segment is not new speech
+        if (idx >= 0) { _segments[idx] = (itemId, text); _segmentsText = null; } // revised transcript replaces, never duplicates
+        else
         {
-            _segments.Add((itemId, text));
-            if (_segments.Count > MaxSegmentsPerTurn) _segments.RemoveAt(0);
+            var segEvidence = _pendingEvidence.Count > 0 ? _pendingEvidence.Dequeue() : default;
+            if (text.Length > 0 && SegmentFilter != null && !SegmentFilter(text, segEvidence))
+            {
+                // Dropped: the turn continues (or ends) as if this sound had not been transcribed.
+                _lastSegmentAt = _clock.NowMs;
+                LiveTextChanged?.Invoke(CurrentText());
+                if (_segments.Count == 0 && _partials.Count == 0 && _awaitingSegments == 0 && State is TurnState.PossibleEnd or TurnState.TurnSettling)
+                {
+                    _speechStoppedAt = _settleDeadline = -1; _turnStartMs = -1; _turnEvidence = default; _reopened = null;
+                    SetState(TurnState.Listening);
+                }
+                return;
+            }
+            _turnEvidence += segEvidence;
+            if (text.Length > 0 && !(_segments.Count > 0 && SameText(_segments[^1].Text, text))) // a re-delivered segment is not new speech
+            {
+                _segments.Add((itemId, text));
+                _segmentsText = null;
+                Bound();
+            }
         }
         _lastSegmentAt = _clock.NowMs;
         LiveTextChanged?.Invoke(CurrentText());
@@ -200,15 +254,23 @@ public sealed class TurnDetector
         var t = text.Trim();
         if (t.Length == 0) return true;
         if (Pleasantry.IsMatch(t)) return true;
-        return TextNormalizer.WordCount(t) < 2;
+        if (TextNormalizer.WordCount(t) < 2) return !OneWordAsk.IsMatch(t); // "Why?" / "Example?" are real follow-ups
+        return false;
     }
+
+    private static readonly Regex OneWordAsk = new(@"^(why|how|really|example|examples|which|meaning|explain|elaborate|metrics|when|where|who|what)\s*\?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private void Finalize(long now)
     {
         var text = TextNormalizer.CleanTranscript(CurrentText(), Aliases);
+        if (TermNormalizer != null) text = TermNormalizer(text);
         var speechEnd = _speechStoppedAt;
         var count = _segments.Count;
         var reopened = _reopened;
+        // Evidence for segments whose transcript never arrived still belongs to this turn.
+        var evidence = _turnEvidence;
+        while (_pendingEvidence.Count > 0) evidence += _pendingEvidence.Dequeue();
+        var startMs = _turnStartMs;
         Reset();
         if (IsNonQuestion(text)) { SetState(TurnState.Listening); return; } // an acknowledgement never reopens or creates a turn
 
@@ -231,7 +293,7 @@ public sealed class TurnDetector
         var id = revises ?? ++_nextTurnId;
         RememberFinal(id, text, speechEnd);
         SetState(TurnState.QuestionFinalized);
-        TurnFinalized?.Invoke(new FinalizedTurn(text, speechEnd, now, count, id, revises));
+        TurnFinalized?.Invoke(new FinalizedTurn(text, speechEnd, now, count, id, revises, evidence, startMs));
         SetState(TurnState.Listening);
     }
 
@@ -248,13 +310,39 @@ public sealed class TurnDetector
         return n.Count(p.Contains) / (double)n.Length >= 0.8;
     }
 
+    /// <summary>Keeps a very long turn bounded: the opening segment (often the framing) and the most recent speech.</summary>
+    private void Bound()
+    {
+        int total = _segments.Sum(s => s.Text.Length + 1);
+        while ((total > MaxTurnChars || _segments.Count > MaxSegmentsPerTurn) && _segments.Count > 2)
+        {
+            total -= _segments[1].Text.Length + 1;
+            _segments.RemoveAt(1);
+            _droppedSegments++;
+        }
+    }
+
     public string CurrentText()
     {
-        var sb = new StringBuilder();
-        foreach (var s in _segments) { if (sb.Length > 0) sb.Append(' '); sb.Append(s.Text); }
-        foreach (var p in _partials.Values) { if (p.Length == 0) continue; if (sb.Length > 0) sb.Append(' '); sb.Append(p.Trim()); }
+        if (_segmentsText == null)
+        {
+            var b = new StringBuilder();
+            for (int i = 0; i < _segments.Count; i++)
+            {
+                if (b.Length > 0) b.Append(' ');
+                if (i == 1 && _droppedSegments > 0) b.Append("… ");
+                b.Append(_segments[i].Text);
+            }
+            _segmentsText = b.ToString();
+        }
+        if (_partials.Count == 0) return _segmentsText;
+        var sb = new StringBuilder(_segmentsText);
+        foreach (var p in _partials.Values) { if (p.Length == 0) continue; if (sb.Length > 0) sb.Append(' '); sb.Append(p.ToString().Trim()); }
         return sb.ToString();
     }
+
+    /// <summary>Number of segments elided from the middle of the current turn (diagnostics).</summary>
+    public int DroppedSegments => _droppedSegments;
 
     private void SetState(TurnState s)
     {

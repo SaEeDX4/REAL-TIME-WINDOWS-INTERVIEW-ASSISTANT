@@ -77,9 +77,10 @@ public sealed class WorkspaceStore
     }
 
     // ---- profiles
-    public void SaveProfile(CandidateProfileRecord p) { p.UpdatedUtc = DateTime.UtcNow; Write("profiles", p.Id, p); }
-    public CandidateProfileRecord? GetProfile(string id) => Read<CandidateProfileRecord>("profiles", id);
-    public IReadOnlyList<CandidateProfileRecord> Profiles() => All<CandidateProfileRecord>("profiles").OrderBy(p => p.CreatedUtc).ToList();
+    public void SaveProfile(CandidateProfileRecord p) { ProfileMigration.Migrate(p); p.UpdatedUtc = DateTime.UtcNow; Write("profiles", p.Id, p); }
+    /// <summary>Loads a profile, upgrading older schemas in memory (persisted on the next save; nothing is lost).</summary>
+    public CandidateProfileRecord? GetProfile(string id) { var p = Read<CandidateProfileRecord>("profiles", id); if (p != null) ProfileMigration.Migrate(p); return p; }
+    public IReadOnlyList<CandidateProfileRecord> Profiles() => All<CandidateProfileRecord>("profiles").Select(p => { ProfileMigration.Migrate(p); return p; }).OrderBy(p => p.CreatedUtc).ToList();
 
     /// <summary>Deletes the profile and everything owned by it (targets, packs, sessions).</summary>
     public void DeleteProfile(string id)

@@ -13,7 +13,10 @@ public static class TextNormalizer
     // Generic ASR confusions for widely used business/tech terms. Target-specific names come from TargetContext.Aliases.
     private static readonly (Regex Pattern, string Replacement)[] TermFixes =
     {
-        (new Regex(@"\b(micar|mica r|mika|mica regulation|mi ca)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "MiCA"),
+        // "MiCA" vs "MiCAR" is NOT normalized globally (both are correct names): the active target decides
+        // (TargetContext.NormalizeTerms). Only clear misrecognitions are fixed here; personal names like "Mika" are left alone.
+        (new Regex(@"\b(mica r|mi car)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "MiCAR"),
+        (new Regex(@"\b(mi ca|mica regulation)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "MiCA"),
         (new Regex(@"\b(cysec|cy sec|sci sec|psy sec)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "CySEC"),
         (new Regex(@"\b(jira|gira|jeera)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "Jira"),
         (new Regex(@"\b(item potency|idem potency|ident potency)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled), "idempotency"),

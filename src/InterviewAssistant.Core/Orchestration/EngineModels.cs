@@ -9,7 +9,11 @@ namespace InterviewAssistant.Core.Orchestration;
 /// </summary>
 public enum EngineStatus { Ready, Listening, SpeechDetected, Finalizing, Answering, Paused, Reconnecting, NoAudio, ApiError, Stopped, Quiet, AnswerReady }
 
-public enum AnswerSource { Cache, Llm, CacheFallback, Error }
+/// <summary><see cref="Guidance"/>: deterministic coaching shown instead of an invented personal answer.</summary>
+public enum AnswerSource { Cache, Llm, CacheFallback, Error, Guidance }
+
+/// <summary>Why an answer exists: a heard question, a typed question, or a rework of an existing answer.</summary>
+public enum AnswerKind { Live, Typed, Variant }
 
 /// <summary>An answer being displayed. Bullets are append-only (stable under the reader's eyes).</summary>
 public sealed class AnswerView
@@ -46,6 +50,18 @@ public sealed class AnswerView
     public Providers.ProviderErrorKind? Error { get; set; }
     internal Live.QuestionRecord? Record { get; set; }
     internal bool BridgePending { get; set; }
+    /// <summary>Live question, typed question, or a variant (rework) of an existing answer.</summary>
+    public AnswerKind Kind { get; init; }
+    /// <summary>Short interviewer context before the actual ask (empty for a direct question).</summary>
+    public string ContextSummary { get; init; } = "";
+    /// <summary>The full interviewer turn the question was extracted from.</summary>
+    public string OriginalText { get; init; } = "";
+    public IReadOnlyList<string> SubQuestions { get; init; } = Array.Empty<string>();
+    public Intelligence.AnswerConfidence Confidence { get; set; } = Intelligence.AnswerConfidence.Medium;
+    public Intelligence.AnswerPlan? Plan { get; set; }
+    internal Intelligence.ExtractedQuestion? Extracted { get; init; }
+    /// <summary>Clears bullets (a variant re-generates the content of the same history item).</summary>
+    internal void ClearBullets() { lock (Bullets) Bullets.Clear(); }
 }
 
 public sealed class EngineOptions
@@ -67,7 +83,14 @@ public sealed class EngineOptions
     public int ContinuationHoldMs { get; set; } = 300;
     /// <summary>Seconds of silence before the neutral "Listening · quiet" state.</summary>
     public int QuietAfterSeconds { get; set; } = 6;
-    public int HistoryCapacity { get; set; } = 30;
+    /// <summary>Questions kept in the navigable history (the whole interview; old answers are small).</summary>
+    public int HistoryCapacity { get; set; } = 500;
+    /// <summary>Acoustic evidence window opens this long before the server's speech_started (onset lag + VAD prefix).</summary>
+    public int EvidenceLeadMs { get; set; } = 1000;
+    /// <summary>Minimum interval between live-transcript UI updates (long monologues never flood the UI thread).</summary>
+    public int LiveTextIntervalMs { get; set; } = 120;
+    /// <summary>Characters of the live transcript shown (tail).</summary>
+    public int LiveTextMaxChars { get; set; } = 360;
     /// <summary>Developer own-key mode: credential errors point to Settings instead of sign-in.</summary>
     public bool DeveloperKeyMode { get; set; } = true;
 }

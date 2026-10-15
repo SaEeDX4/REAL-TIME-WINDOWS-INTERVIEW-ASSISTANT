@@ -29,6 +29,15 @@ public sealed class QuestionRecord
     public long FirstBulletLatencyMs { get; set; } = -1;
     public DateTime AtUtc { get; set; } = DateTime.UtcNow;
     public bool Truncated { get; set; }
+    /// <summary>Interviewer context that preceded the core question (bounded summary).</summary>
+    public string Context { get; set; } = "";
+    /// <summary>Typed by the user (not heard from the interviewer).</summary>
+    public bool Typed { get; set; }
+    /// <summary>Answer variant currently shown for this question (Balanced unless the user asked for another).</summary>
+    public string Style { get; set; } = "Balanced";
+    public int VariantCount { get; set; }
+    public string Confidence { get; set; } = "";
+    public List<string> QualityFlags { get; set; } = new();
 }
 
 public sealed class InterruptionEvent

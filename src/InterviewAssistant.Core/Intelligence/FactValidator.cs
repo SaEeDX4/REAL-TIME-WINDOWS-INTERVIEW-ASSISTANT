@@ -23,7 +23,8 @@ public sealed class FactValidator
     // Past-tense ownership claims. Present habits ("I run a weekly review") are not history; "I've run…" is.
     private static readonly Regex PastClaim = new(
         @"\bI(?:(?:'ve|’ve|\s+have)\s+(built|implemented|led|managed|delivered|launched|designed|owned|created|developed|run|been responsible for|been in charge of|set up|introduced|driven|scaled|overseen|headed|spearheaded|architected|shipped|rolled out|established)" +
-        @"|\s+(built|implemented|led|managed|delivered|launched|designed|owned|created|developed|ran|was responsible for|was in charge of|set up|introduced|drove|scaled|oversaw|headed|spearheaded|architected|shipped|rolled out|established))\b",
+        @"|\s+(built|implemented|led|managed|delivered|launched|designed|owned|created|developed|ran|was responsible for|was in charge of|set up|introduced|drove|scaled|oversaw|headed|spearheaded|architected|shipped|rolled out|established)" +
+        @"|\s+did\s+(build|implement|lead|manage|deliver|launch|design|own|create|develop|run|set up|introduce|drive|scale|oversee|head|architect|ship|roll out|establish))\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex ClauseEnd = new(@"[.;!?]|,\s+(and|but|which|so)\b|\s+—\s+", RegexOptions.Compiled);
     private static readonly Regex EmployerClaim = new(@"\b(?:at|with|while at|when I was at)\s+([A-Z][A-Za-z]+(?:\s[A-Z][A-Za-z]+)?)", RegexOptions.Compiled);
@@ -115,11 +116,18 @@ public sealed class FactValidator
         var rest = bullet[(claim.Index + claim.Length)..];
         var end = ClauseEnd.Match(rest);
         var clause = end.Success ? rest[..end.Index] : rest;
-        // The sentence may name the employer before the verb ("At Arzif, I led…"): include the lead-in.
-        var lead = bullet[..claim.Index];
-        var text = lead + " " + clause;
+        // The clause may name the employer before the verb ("At Arzif, I led…"). Only the SAME clause counts: an
+        // earlier clause such as the honest bridge ("I haven't owned that ledger, but I led…") must not dilute the claim.
+        var lead = LeadIn(bullet[..claim.Index]);
         if (EvidenceIndex.Topic(clause).Count == 0) return _profileEntities.Any(e => lead.Contains(e, StringComparison.OrdinalIgnoreCase));
-        return _evidence.Supports(text, 0.5);
+        return _evidence.Supports(clause, 0.5) || (EvidenceIndex.Topic(lead).Count > 0 && _evidence.Supports(lead + " " + clause, 0.5));
+    }
+
+    private static readonly Regex ClauseBoundary = new(@"(.*)(\bbut\b|\band\b|\bhowever\b|\balthough\b|\bwhile\b|\bthough\b|[.;!?]|\s[—–-]\s)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.Singleline);
+    private static string LeadIn(string before)
+    {
+        var m = ClauseBoundary.Match(before);
+        return m.Success ? before[(m.Groups[1].Length + m.Groups[2].Length)..] : before;
     }
 
     /// <summary>True when the bullet contains a first-person past claim no confirmed evidence supports.</summary>
@@ -131,7 +139,7 @@ public sealed class FactValidator
         // "I built X" / "I've built X" -> "I'd build X": the same idea as a plan, never as history.
         return PastClaim.Replace(bullet, m =>
         {
-            var verb = (m.Groups[1].Success ? m.Groups[1] : m.Groups[2]).Value.ToLowerInvariant();
+            var verb = (m.Groups[1].Success ? m.Groups[1] : m.Groups[2].Success ? m.Groups[2] : m.Groups[3]).Value.ToLowerInvariant();
             var baseVerb = verb switch
             {
                 "built" => "build", "implemented" => "implement", "led" => "lead", "managed" => "manage", "delivered" => "deliver",

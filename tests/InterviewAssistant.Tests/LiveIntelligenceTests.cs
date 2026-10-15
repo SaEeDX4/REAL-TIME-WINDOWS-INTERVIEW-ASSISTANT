@@ -147,32 +147,70 @@ public class LiveIntelligenceTests
 
     // ---------------- Interruption adaptation ----------------
 
+    /// <summary>Asks a heard question and lets the answer appear (realistic VAD timing + speech audio).</summary>
+    private static async Task AskAsync(InterviewSimulator s, string q)
+    {
+        s.Say(q);
+        await s.RunAsync(q.Split(" ").Length * s.MsPerWord + 4500);   // beyond the 2.5 s continuation window
+        await s.SettleAsync();
+    }
+
     [Fact]
     public async Task InterruptionsShortenAnswersAndResetRestoresNormal()
     {
-        var (e, p, c) = Create();
+        // RC2: pace adapts to HEARD interviewer questions that cut in on a long answer (not to typed questions or beeps).
+        var s = new InterviewSimulator();
+        await s.StartAsync();
         var levels = new List<AdaptiveLevel>();
-        e.AdaptiveChanged += levels.Add;
-        await e.SubmitManualQuestionAsync("How would you price a premium tier bundled with partner benefits?");
-        c.Advance(2000);                     // ~45-word answer needs ~20 s; interviewer speaks after 2 s
-        e.OnInterviewerSpeechStarted();
-        Assert.Equal(AdaptiveLevel.Concise, e.Adaptive);
-        Assert.Single(e.Memory.Interruptions);
-        Assert.True(e.Memory.Interruptions[0].Confidence >= 0.7);
+        s.E.AdaptiveChanged += levels.Add;
+        await AskAsync(s, "How would you price a premium tier bundled with partner benefits?");
+        await AskAsync(s, "How would you design onboarding for enterprise customers?");   // asked ~1 s after a ~20 s answer appeared
+        Assert.Equal(AdaptiveLevel.Concise, s.E.Adaptive);
+        Assert.Single(s.E.Memory.Interruptions);
+        Assert.True(s.E.Memory.Interruptions[0].Confidence >= 0.7);
+        Assert.Equal(AnswerStyle.Concise, s.E.Current!.Style);
+        Assert.Contains("moving fast", s.P.Calls.Last()[0].Content);
 
-        await e.SubmitManualQuestionAsync("How would you design onboarding for enterprise customers?");
-        Assert.Equal(AnswerStyle.Concise, e.Current!.Style);
-        Assert.Contains("moving fast", p.Calls.Last()[0].Content);
-        c.Advance(1500);
-        e.OnInterviewerSpeechStarted();
-        Assert.Equal(AdaptiveLevel.Rapid, e.Adaptive);
-        await e.SubmitManualQuestionAsync("How would you measure partner channel profitability?");
-        Assert.Equal(AnswerStyle.Rapid, e.Current!.Style);
-        Assert.Contains("bullet 1 must directly answer", p.Calls.Last()[0].Content);
+        await AskAsync(s, "How would you measure partner channel profitability?");
+        Assert.Equal(AdaptiveLevel.Rapid, s.E.Adaptive);
+        await AskAsync(s, "How would you decide which partner benefits to retire first?");
+        Assert.Equal(AnswerStyle.Rapid, s.E.Current!.Style);
+        Assert.Contains("bullet 1 must directly answer", s.P.Calls.Last()[0].Content);
 
-        e.ResetAdaptive();
-        Assert.Equal(AdaptiveLevel.Normal, e.Adaptive);
+        s.E.ResetAdaptive();
+        Assert.Equal(AdaptiveLevel.Normal, s.E.Adaptive);
         Assert.Equal(new[] { AdaptiveLevel.Concise, AdaptiveLevel.Rapid, AdaptiveLevel.Normal }, levels);
+    }
+
+    [Fact]
+    public async Task TypedQuestionsAndBareSpeechStartsNeverChangeThePace()
+    {
+        // RC1 bug: repeated manual tests (typed questions) and any speech_started (even a beep) switched to Concise/Rapid.
+        var (e, _, c) = Create();
+        for (int i = 0; i < 4; i++)
+        {
+            await e.SubmitManualQuestionAsync($"How would you price premium tier number {i} for partners?");
+            c.Advance(800);
+            e.OnInterviewerSpeechStarted();
+        }
+        Assert.Equal(AdaptiveLevel.Normal, e.Adaptive);
+        Assert.Empty(e.Memory.Interruptions);
+    }
+
+    [Fact]
+    public async Task BeepsAndVariantsNeverChangeThePace()
+    {
+        var s = new InterviewSimulator();
+        await s.StartAsync();
+        await AskAsync(s, "How would you price a premium tier bundled with partner benefits?");
+        // A notification beep right after the answer appears, "transcribed" as the vocabulary prompt.
+        s.Sound(InterviewSimulator.SoundKind.Beep, "Job interview for a Product Owner role at Teroxx. Terms: XAB, Abloxx, Jira, CRM, KPIs.");
+        await s.RunAsync(2500); await s.SettleAsync();
+        await s.E.RequestVariantAsync(s.E.Current!.Id, AnswerStyle.Technical);
+        await s.E.RequestVariantAsync(s.E.Current!.Id, AnswerStyle.VeryShort);
+        Assert.Equal(AdaptiveLevel.Normal, s.E.Adaptive);
+        Assert.Empty(s.E.Memory.Interruptions);
+        Assert.Single(s.E.Memory.Questions);
     }
 
     [Fact]
@@ -191,14 +229,14 @@ public class LiveIntelligenceTests
     [Fact]
     public async Task RapidModeTrimsCachedAnswersToTwoBullets()
     {
-        var (e, _, c) = Create(provider: false);
-        await e.SubmitManualQuestionAsync("How would you increase XAB adoption?");
-        c.Advance(1000); e.OnInterviewerSpeechStarted();
-        await e.SubmitManualQuestionAsync("How would you design VIP tier governance?");
-        c.Advance(1000); e.OnInterviewerSpeechStarted();
-        Assert.Equal(AdaptiveLevel.Rapid, e.Adaptive);
-        await e.SubmitManualQuestionAsync("What would you do in your first 90 days?");
-        Assert.Equal(2, e.Current!.Bullets.Count);
+        var s = new InterviewSimulator(withProvider: false);
+        await s.StartAsync();
+        await AskAsync(s, "How would you increase XAB adoption?");
+        await AskAsync(s, "How would you design VIP tier governance?");
+        await AskAsync(s, "How would you prioritize improvements to the XAB rewards ecosystem?");
+        Assert.Equal(AdaptiveLevel.Rapid, s.E.Adaptive);
+        await AskAsync(s, "What would you do in your first 90 days?");
+        Assert.Equal(2, s.E.Current!.Bullets.Count);
     }
 
     // ---------------- Multilingual ----------------

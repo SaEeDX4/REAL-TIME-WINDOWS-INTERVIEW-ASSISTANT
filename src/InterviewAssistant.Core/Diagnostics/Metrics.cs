@@ -13,6 +13,7 @@ public sealed class SessionMetrics
     private readonly ConcurrentQueue<LatencySample> _samples = new();
     public int Capacity { get; init; } = 200;
     private int _questions, _cacheAnswers, _llmAnswers, _fallbackAnswers, _apiErrors, _duplicates, _reconnects, _llmRequests, _merged;
+    private int _nonSpeech, _promptEcho, _shortEvent, _invalid, _otherDirected, _logistics, _contextHeld, _acousticOverride, _variants, _guidance, _redundantDropped;
     public long AudioMsSent;
 
     public int Questions => _questions;
@@ -26,6 +27,24 @@ public sealed class SessionMetrics
     /// <summary>Multi-part questions joined after a pause (one answer instead of two).</summary>
     public int TurnsMerged => _merged;
     public long ApproxLlmInputChars, ApproxLlmOutputChars;
+    /// <summary>Turns whose audio contained no human speech (non_speech_suppressed).</summary>
+    public int NonSpeechSuppressed => _nonSpeech;
+    /// <summary>Recognizer reproduced its vocabulary prompt (prompt_echo_suppressed).</summary>
+    public int PromptEchoSuppressed => _promptEcho;
+    /// <summary>Beeps, chimes, clicks, screenshot sounds (short_acoustic_event_suppressed).</summary>
+    public int ShortAcousticEventSuppressed => _shortEvent;
+    /// <summary>Recognizer artefacts and other invalid turns (invalid_turn_suppressed).</summary>
+    public int InvalidTurnSuppressed => _invalid;
+    public int OtherDirectedSuppressed => _otherDirected;
+    public int LogisticsSuppressed => _logistics;
+    /// <summary>Context statements held for the next question (not answered on their own).</summary>
+    public int ContextHeld => _contextHeld;
+    /// <summary>Clear questions accepted although the acoustic layer saw no speech (acoustic layer possibly wrong).</summary>
+    public int AcousticOverrides => _acousticOverride;
+    public int Variants => _variants;
+    public int GuidanceAnswers => _guidance;
+    public int RedundantBulletsDropped => _redundantDropped;
+    public int TotalSuppressed => _nonSpeech + _promptEcho + _shortEvent + _invalid + _otherDirected + _logistics;
 
     public void Add(LatencySample s)
     {
@@ -42,6 +61,25 @@ public sealed class SessionMetrics
     public void IncReconnect() => Interlocked.Increment(ref _reconnects);
     public void IncLlmRequest() => Interlocked.Increment(ref _llmRequests);
     public void IncMerged() => Interlocked.Increment(ref _merged);
+    public void IncNonSpeech() => Interlocked.Increment(ref _nonSpeech);
+    public void IncPromptEcho() => Interlocked.Increment(ref _promptEcho);
+    public void IncShortEvent() => Interlocked.Increment(ref _shortEvent);
+    public void IncInvalid() => Interlocked.Increment(ref _invalid);
+    public void IncOtherDirected() => Interlocked.Increment(ref _otherDirected);
+    public void IncLogistics() => Interlocked.Increment(ref _logistics);
+    public void IncContextHeld() => Interlocked.Increment(ref _contextHeld);
+    public void IncAcousticOverride() => Interlocked.Increment(ref _acousticOverride);
+    public void IncVariant() => Interlocked.Increment(ref _variants);
+    public void IncGuidance() => Interlocked.Increment(ref _guidance);
+    public void IncRedundantDropped() => Interlocked.Increment(ref _redundantDropped);
+
+    /// <summary>Suppression counters with their diagnostic names (no transcript content).</summary>
+    public IReadOnlyDictionary<string, int> Suppression => new Dictionary<string, int>
+    {
+        ["non_speech_suppressed"] = _nonSpeech, ["prompt_echo_suppressed"] = _promptEcho, ["short_acoustic_event_suppressed"] = _shortEvent,
+        ["invalid_turn_suppressed"] = _invalid, ["other_directed_suppressed"] = _otherDirected, ["logistics_suppressed"] = _logistics,
+        ["context_held"] = _contextHeld, ["acoustic_override"] = _acousticOverride,
+    };
 
     /// <summary>Approximate session cost in USD from configurable unit prices (estimate only).</summary>
     public double EstimatedCostUsd(double transcribePerMinute, double inputPerMTok, double outputPerMTok) =>

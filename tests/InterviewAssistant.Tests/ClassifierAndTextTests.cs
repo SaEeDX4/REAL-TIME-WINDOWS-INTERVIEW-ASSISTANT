@@ -31,7 +31,7 @@ public class ClassifierAndTextTests
 
     [Theory]
     [InlineData("um so how would you, uh, improve terox's ab locks token", "How would you, improve Teroxx's Abloxx token")]
-    [InlineData("what about mica r and cy sec", "What about MiCA and CySEC")]
+    [InlineData("what about mica r and cy sec", "What about MiCAR and CySEC")]   // "MiCA R" is MiCAR (RC2: MiCAR is no longer rewritten to MiCA)
     [InlineData("explain item potency", "Explain idempotency")]
     public void TranscriptCleanupFixesDomainTerms(string raw, string expected) => Assert.Equal(expected, TextNormalizer.CleanTranscript(raw, TestKnowledge.Load().Context.Aliases));
 

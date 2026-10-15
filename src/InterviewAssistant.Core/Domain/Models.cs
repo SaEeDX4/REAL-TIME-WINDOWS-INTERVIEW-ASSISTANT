@@ -20,7 +20,11 @@ public enum FactStatus
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
-public enum FactKind { Summary, Role, Achievement, Skill, Education, Language, Certification, Project, Other }
+public enum FactKind { Summary, Role, Achievement, Skill, Education, Language, Certification, Project, Other, Personal, Boundary }
+
+/// <summary>Where a fact came from (provenance shown in the profile editor).</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum FactSource { Unknown, ResumeImport, Manual, Questionnaire, Document }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum DocumentKind { Resume, JobDescription, CompanyMaterial, LinkedIn, Portfolio, Notes }
@@ -63,8 +67,72 @@ public sealed class ProfileFact
     public double Confidence { get; set; } = 0.8;
     public List<string> Flags { get; set; } = new();
     public string Language { get; set; } = "und";
+    /// <summary>Personal/boundary facts: <see cref="PersonalCategories"/> key (hobby, motivation, …).</summary>
+    public string Category { get; set; } = "";
+    public FactSource Source { get; set; } = FactSource.Unknown;
+    /// <summary>File name or questionnaire label the fact came from (no content).</summary>
+    public string SourceName { get; set; } = "";
+    public DateTime? CreatedUtc { get; set; }
+    public DateTime? UpdatedUtc { get; set; }
+    public DateTime? ConfirmedUtc { get; set; }
 
     [JsonIgnore] public bool IsVerifiedClaim => Status == FactStatus.UserConfirmed;
+    /// <summary>Shown in the review list (every kind, including the résumé summary — nothing hidden can be "awaiting review").</summary>
+    [JsonIgnore] public bool IsReviewable => Status != FactStatus.Rejected && Status != FactStatus.GeneratedKnowledge;
+    [JsonIgnore] public bool AwaitingReview => IsReviewable && Status is FactStatus.Source or FactStatus.AiInference;
+
+    /// <summary>Confirms (or un-confirms) the fact and records when.</summary>
+    public void SetConfirmed(bool confirmed, DateTime nowUtc)
+    {
+        if (confirmed && Status != FactStatus.UserConfirmed) { Status = FactStatus.UserConfirmed; ConfirmedUtc = nowUtc; UpdatedUtc = nowUtc; }
+        else if (!confirmed && Status == FactStatus.UserConfirmed) { Status = FactStatus.Source; ConfirmedUtc = null; UpdatedUtc = nowUtc; }
+    }
+}
+
+/// <summary>Counts for the profile header, list footer and filters — ONE derivation used everywhere (no drift).</summary>
+public sealed record FactStats(int Total, int Confirmed, int ToReview)
+{
+    public static FactStats Of(IEnumerable<ProfileFact> facts)
+    {
+        var list = facts.Where(f => f.IsReviewable).ToList();
+        return new FactStats(list.Count, list.Count(f => f.IsVerifiedClaim), list.Count(f => f.AwaitingReview));
+    }
+}
+
+/// <summary>
+/// Interview-safe personal and professional-identity topics of the Candidate Knowledge Profile. Everything is optional;
+/// nothing sensitive (health, religion, politics, family status, age…) is asked. Answers come ONLY from confirmed entries.
+/// </summary>
+public static class PersonalCategories
+{
+    public sealed record Category(string Key, string Section, string Label, string Prompt, bool Boundary = false);
+
+    public static readonly IReadOnlyList<Category> All = new[]
+    {
+        new Category("hobby", "personal", "Hobbies", "What are your hobbies?"),
+        new Category("outside_work", "personal", "Outside work", "What do you enjoy doing outside work?"),
+        new Category("learning", "personal", "Currently learning", "What do you enjoy learning about at the moment?"),
+        new Category("motivation", "identity", "What motivates you", "What motivates you professionally?"),
+        new Category("strength", "identity", "Strength to remember", "What strength do you want interviewers to remember?"),
+        new Category("weakness", "identity", "Real weakness (and how you manage it)", "What real weakness are you comfortable discussing, and how do you manage it?"),
+        new Category("work_style", "identity", "Work style", "How do you prefer to work (pace, autonomy, structure)?"),
+        new Category("team", "identity", "Team you work best in", "What type of team do you work best in?"),
+        new Category("leadership_style", "identity", "Leadership style", "How would you describe your leadership style?"),
+        new Category("communication_style", "identity", "Communication with stakeholders", "How do you communicate with stakeholders and handle disagreement?"),
+        new Category("why_looking", "goals", "Why you are looking", "Why are you looking for your next role?"),
+        new Category("career_goal", "goals", "Career goals", "What are your career goals for the next few years?"),
+        new Category("ideal_role", "goals", "Ideal next role / company", "What does your ideal next role, product or company look like?"),
+        new Category("location", "basics", "Location / time zone", "Where are you based (city, time zone)?"),
+        new Category("remote", "basics", "Remote / hybrid / relocation", "What is your preference for remote, hybrid or relocation?"),
+        new Category("availability", "basics", "Availability / notice period", "When could you start (notice period)?"),
+        new Category("work_authorization", "basics", "Work authorization (optional)", "Optional: anything you want said about work authorization?"),
+        new Category("pronunciation", "basics", "Name pronunciation", "How should your name be pronounced (optional)?"),
+        new Category("avoid_topic", "boundaries", "Topics never to speculate about", "Topics the assistant must never speculate about or mention.", Boundary: true),
+        new Category("disallowed_claim", "boundaries", "Claims that must never be made", "Claims that must never be made about you.", Boundary: true),
+        new Category("answer_style", "preferences", "Answer style preferences", "How should suggested answers sound (simple English, more technical, vocabulary to use/avoid)?"),
+    };
+
+    public static Category? Find(string? key) => All.FirstOrDefault(c => c.Key == key);
 }
 
 public sealed class Story
@@ -85,6 +153,9 @@ public sealed class Story
 /// <summary>A candidate (person being interviewed). One account may own several.</summary>
 public sealed class CandidateProfileRecord
 {
+    /// <summary>Profile schema: 0/1 = résumé facts only (RC1), 2 = Candidate Knowledge Profile with provenance.</summary>
+    public const int CurrentSchemaVersion = 2;
+    public int SchemaVersion { get; set; }
     public string Id { get; init; } = Guid.NewGuid().ToString("n");
     public string Name { get; set; } = "";
     public string PreferredName { get; set; } = "";
@@ -106,12 +177,15 @@ public sealed class CandidateProfileRecord
     public DateTime UpdatedUtc { get; set; } = DateTime.UtcNow;
 
     [JsonIgnore] public IEnumerable<ProfileFact> ConfirmedFacts => Facts.Where(f => f.IsVerifiedClaim);
-    [JsonIgnore] public int PendingReviewCount => Facts.Count(f => f.Status is FactStatus.Source or FactStatus.AiInference);
+    /// <summary>Facts awaiting review — the same derivation as the list and filters (<see cref="FactStats"/>).</summary>
+    [JsonIgnore] public int PendingReviewCount => FactStats.Of(Facts).ToReview;
+    [JsonIgnore] public FactStats Stats => FactStats.Of(Facts);
 
     public void ConfirmAll(Func<ProfileFact, bool>? filter = null)
     {
-        foreach (var f in Facts.Where(f => f.Status == FactStatus.Source && (filter?.Invoke(f) ?? true))) f.Status = FactStatus.UserConfirmed;
-        UpdatedUtc = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        foreach (var f in Facts.Where(f => f.AwaitingReview && (filter?.Invoke(f) ?? true))) f.SetConfirmed(true, now);
+        UpdatedUtc = now;
     }
 }
 

@@ -44,6 +44,37 @@ public sealed class TargetContext
 
     [JsonIgnore] public IEnumerable<string> Employers { get; set; } = Array.Empty<string>();
 
+    private List<(Regex Pattern, string Canonical)>? _termRules;
+
+    /// <summary>
+    /// Conservative, target-scoped normalization of recognised terms: an acronym-style vocabulary term (e.g. "MiCAR")
+    /// also replaces its one-letter-shorter recognition ("MiCA"/"mica") — only when the shorter form is not itself in
+    /// this target's vocabulary. Never global, never for short terms (so "XAB" can never replace "app").
+    /// </summary>
+    public string NormalizeTerms(string text)
+    {
+        _termRules ??= BuildTermRules();
+        foreach (var (rx, canonical) in _termRules) text = rx.Replace(text, canonical);
+        return text;
+    }
+
+    private List<(Regex, string)> BuildTermRules()
+    {
+        var vocab = new[] { CompanyName }.Concat(Products).Concat(Vocabulary).Concat(Aliases.Select(a => a.Canonical))
+            .Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim()).Distinct(StringComparer.Ordinal).ToList();
+        var lower = new HashSet<string>(vocab.Select(v => v.ToLowerInvariant()));
+        var rules = new List<(Regex, string)>();
+        foreach (var v in vocab)
+        {
+            bool acronymLike = v.Length >= 4 && v.Length <= 12 && !v.Contains(' ') && v.Count(char.IsUpper) >= 2 && v.All(char.IsLetterOrDigit);
+            if (!acronymLike) continue;
+            var shorter = v[..^1];
+            if (shorter.Length < 3 || lower.Contains(shorter.ToLowerInvariant()) || !char.IsUpper(v[^1])) continue;
+            rules.Add((new Regex(@"(?<![\p{L}\p{N}])" + Regex.Escape(shorter) + @"(?![\p{L}\p{N}])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant), v));
+        }
+        return rules;
+    }
+
     /// <summary>Transcription bias prompt built from the target (no hard-coded names).</summary>
     public string BuildTranscriptionPrompt()
     {
