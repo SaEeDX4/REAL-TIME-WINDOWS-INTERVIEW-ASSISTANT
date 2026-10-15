@@ -64,7 +64,7 @@ public partial class MainWindow : Window
     {
         _vm.RefreshLanguage();
         Topmost = _vm.Settings.AlwaysOnTop;
-        Root.Opacity = ShadowLayer.Opacity = Math.Clamp(_vm.Settings.WindowOpacity, 0.6, 1.0);
+        Root.Opacity = ShadowLayer.Opacity = Math.Clamp(_vm.Settings.WindowOpacity, 0.75, 1.0);
         DiagPanel.Visibility = _vm.Settings.ShowDiagnostics ? Visibility.Visible : Visibility.Collapsed;
         ApplyCompact(_vm.Settings.CompactMode);
         _vm.RefreshFonts();
@@ -178,8 +178,8 @@ public partial class MainWindow : Window
 
     private void Settings_Click(object sender, RoutedEventArgs e) => OpenSettings();
     private void Home_Click(object sender, RoutedEventArgs e) => OpenHome();
-    private void Banner_Click(object sender, MouseButtonEventArgs e) { OpenHome(); _home?.ShowPage("account"); }
-    private void Presentation_Click(object sender, MouseButtonEventArgs e) => _vm.ToggleCoach();
+    private void Banner_Click(object sender, RoutedEventArgs e) { OpenHome(); _home?.ShowPage("account"); }
+    private void Presentation_Click(object sender, RoutedEventArgs e) => _vm.ToggleCoach();
 
     private void Report_Click(object sender, RoutedEventArgs e)
     {
@@ -243,7 +243,7 @@ public partial class MainWindow : Window
     }
     private void Readiness_Click(object sender, RoutedEventArgs e) => OpenReadiness(firstRun: false);
     private void Help_Click(object sender, RoutedEventArgs e) => _vm.ShowLiveIntro = !_vm.ShowLiveIntro;
-    private void Adaptive_Click(object sender, MouseButtonEventArgs e) { _vm.ResetAdaptive(); Toasts.Show(Core.Languages.Loc.T("toast_adaptive_reset"), Views.ToastKind.Info); }
+    private void Adaptive_Click(object sender, RoutedEventArgs e) { _vm.ResetAdaptive(); Toasts.Show(Core.Languages.Loc.T("toast_adaptive_reset"), Views.ToastKind.Info); }
     private void IntroClose_Click(object sender, RoutedEventArgs e) => _vm.DismissLiveIntro(IntroDontShow.IsChecked == true);
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Close_Click(object sender, RoutedEventArgs e) => Close();

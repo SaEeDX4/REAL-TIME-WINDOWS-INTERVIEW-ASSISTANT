@@ -44,6 +44,32 @@ public static class WindowPlacement
         if (maximized) w.Loaded += (_, _) => w.WindowState = WindowState.Maximized;
     }
 
+    /// <summary>
+    /// Fixed-size dialogs: never taller than the work area of the monitor they open on, and fully on that monitor
+    /// (small or scaled displays). Call on Loaded, when the startup position is known.
+    /// </summary>
+    public static void FitToWorkArea(Window w)
+    {
+        var work = WorkAreaOf(w);
+        w.MaxHeight = Math.Max(w.MinHeight, work.Height - 16);
+        var width = double.IsNaN(w.Width) ? w.ActualWidth : w.Width;
+        var height = Math.Min(double.IsNaN(w.Height) ? w.ActualHeight : w.Height, w.MaxHeight);
+        if (!double.IsNaN(w.Left)) w.Left = Math.Clamp(w.Left, work.Left, Math.Max(work.Left, work.Right - width));
+        if (!double.IsNaN(w.Top)) w.Top = Math.Clamp(w.Top, work.Top, Math.Max(work.Top, work.Bottom - height));
+    }
+
+    /// <summary>Work area (DIPs) of the monitor showing the window; the primary work area when unknown.</summary>
+    private static Rect WorkAreaOf(Window w)
+    {
+        var hwnd = new WindowInteropHelper(w).Handle;
+        var monitor = hwnd == IntPtr.Zero ? IntPtr.Zero : MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+        if (monitor == IntPtr.Zero || !GetMonitorInfo(monitor, ref info) || PresentationSource.FromVisual(w)?.CompositionTarget is not { } target)
+            return SystemParameters.WorkArea;
+        var m = target.TransformFromDevice;
+        return new Rect(m.Transform(new Point(info.rcWork.Left, info.rcWork.Top)), m.Transform(new Point(info.rcWork.Right, info.rcWork.Bottom)));
+    }
+
     private static double SystemDpiScale()
     {
         try { return GetDpiForSystem() / 96.0; } catch (EntryPointNotFoundException) { return 1.0; }

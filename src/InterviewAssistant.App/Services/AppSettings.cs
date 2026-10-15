@@ -42,7 +42,7 @@ public sealed class AppSettings
     public string UpdateChannel { get; set; } = "stable";
     public double? Left { get; set; }
     public double? Top { get; set; }
-    public double Width { get; set; } = 620;
+    public double Width { get; set; } = 720;
     public double Height { get; set; } = 560;
     public bool FirstRunCompleted { get; set; }
     /// <summary>The short Live Assistant introduction was dismissed with "Don't show again" (reopen with the ? button).</summary>

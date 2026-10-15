@@ -24,6 +24,7 @@ public partial class SettingsWindow : Window
         _vm = vm;
         _s = vm.Settings;
         DataContext = vm; // for the live level meter
+        Loaded += (_, _) => WindowPlacement.FitToWorkArea(this);
         KeyStatus.Text = SecretStore.HasKey ? Loc.F("set_key_saved", SecretStore.Mask(SecretStore.GetApiKey())) : Loc.T("set_key_none");
         if (!BuildFlavor.Developer)
         {
@@ -127,9 +128,9 @@ public static class AnswerServiceProbe
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             await foreach (var _ in p.StreamAsync(new[] { new ChatMessage("user", "Reply with the single word: ready") }, 5, cts.Token))
                 return new Result(true, sw.ElapsedMilliseconds, null);
-            return new Result(false, -1, "No content returned");
+            return new Result(false, -1, Loc.T("set_key_no_reply"));
         }
         catch (ProviderException ex) { return new Result(false, -1, ex.Message); }
-        catch (OperationCanceledException) { return new Result(false, -1, "Timed out"); }
+        catch (OperationCanceledException) { return new Result(false, -1, Loc.T("set_key_timeout")); }
     }
 }

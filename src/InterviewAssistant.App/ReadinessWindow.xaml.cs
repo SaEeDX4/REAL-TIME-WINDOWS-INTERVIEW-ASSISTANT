@@ -36,7 +36,8 @@ public sealed class CheckItem : ObservableObject
 /// <summary>Pre-interview check + test tools. All tests use the production classes (capture, transcriber, engine).</summary>
 public partial class ReadinessWindow : Window
 {
-    public const string TestQuestion = "How would you prioritise competing requests from two important stakeholders?";
+    /// <summary>Sample question for the AI test, in the UI language (it is sent to the AI as typed text).</summary>
+    public static string TestQuestion => Loc.T("pf_ai_test_question");
     private readonly MainViewModel _vm;
     private readonly MainWindow _main;
     private readonly bool _autoRun;
@@ -64,7 +65,7 @@ public partial class ReadinessWindow : Window
             _stt.FixKey = "pf_fix_stt";
         }
         Checks.ItemsSource = new ObservableCollection<CheckItem>(All);
-        Loaded += (_, _) => { if (_autoRun) _ = RunAllAsync(); };
+        Loaded += (_, _) => { WindowPlacement.FitToWorkArea(this); if (_autoRun) _ = RunAllAsync(); };
         Loc.LanguageChanged += OnLanguageChanged;
         Closed += (_, _) => { _toolCts?.Cancel(); Loc.LanguageChanged -= OnLanguageChanged; };
     }
@@ -337,4 +338,5 @@ public partial class ReadinessWindow : Window
     }
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
     private void Header_MouseDown(object sender, MouseButtonEventArgs e) { if (e.ButtonState == MouseButtonState.Pressed) DragMove(); }
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e) { if (e.Key == Key.Escape) { e.Handled = true; Close(); } }
 }

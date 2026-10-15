@@ -4,7 +4,7 @@
         xmlns:v="clr-namespace:InterviewAssistant.App.Views"
         Title="{v:Loc preflight}" Width="640" Height="760" WindowStartupLocation="CenterOwner"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize" ShowInTaskbar="False"
-        FontFamily="{StaticResource F.Ui}" UseLayoutRounding="True" FlowDirection="{v:LocFlow}">
+        FontFamily="{StaticResource F.Ui}" UseLayoutRounding="True" FlowDirection="{v:LocFlow}" PreviewKeyDown="Window_PreviewKeyDown">
     <Window.Resources>
         <v:LevelToWidth x:Key="LevelW" Max="220"/>
         <DataTemplate x:Key="CheckRow">
@@ -49,18 +49,20 @@
                 </Grid>
             </StackPanel>
 
-            <StackPanel>
-                <ItemsControl x:Name="Checks" ItemTemplate="{StaticResource CheckRow}"/>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+            <StackPanel Margin="0,0,6,0">
+                <ItemsControl x:Name="Checks" ItemTemplate="{StaticResource CheckRow}" Focusable="False"/>
 
                 <TextBlock Text="{v:Loc pf_test_tools}" Style="{StaticResource T.Label}" Margin="0,10,0,6"/>
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                    <Button x:Name="AudioBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc pf_test_audio}" Click="TestAudio_Click" Margin="0,0,8,0"/>
-                    <Button x:Name="SttBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc pf_test_stt}" Click="TestStt_Click" Margin="0,0,8,0"/>
-                    <Button x:Name="AiBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc pf_test_ai}" Click="TestAi_Click" Margin="0,0,16,0"/>
-                    <Border Width="220" Height="6" CornerRadius="3" Background="{StaticResource B.Surface3}" VerticalAlignment="Center">
+                <!-- wraps in long languages: buttons first, the level meter moves to its own line when needed -->
+                <WrapPanel Margin="0,0,0,8">
+                    <Button x:Name="AudioBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc pf_test_audio}" Click="TestAudio_Click" Margin="0,0,8,6"/>
+                    <Button x:Name="SttBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc pf_test_stt}" Click="TestStt_Click" Margin="0,0,8,6"/>
+                    <Button x:Name="AiBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc pf_test_ai}" Click="TestAi_Click" Margin="0,0,16,6"/>
+                    <Border Width="220" Height="6" CornerRadius="3" Background="{StaticResource B.Surface3}" VerticalAlignment="Center" Margin="0,0,0,6">
                         <Border HorizontalAlignment="Left" CornerRadius="3" Background="{StaticResource B.Listening}" Width="{Binding AudioLevel, Converter={StaticResource LevelW}}"/>
                     </Border>
-                </StackPanel>
+                </WrapPanel>
                 <Border Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" CornerRadius="10" Padding="12,10" MinHeight="120">
                     <StackPanel>
                         <TextBlock x:Name="ToolTitle" Text="{v:Loc pf_pick_test}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
@@ -72,6 +74,7 @@
                     </StackPanel>
                 </Border>
             </StackPanel>
+            </ScrollViewer>
         </DockPanel>
     </Border>
 </Window>

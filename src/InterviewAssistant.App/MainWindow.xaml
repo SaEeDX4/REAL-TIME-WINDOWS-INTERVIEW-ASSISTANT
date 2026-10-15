@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:v="clr-namespace:InterviewAssistant.App.Views"
         Title="Interview Assistant" Icon="Assets/app.ico"
-        Width="620" Height="560" MinWidth="380" MinHeight="260"
+        Width="720" Height="560" MinWidth="440" MinHeight="260"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="CanResize" Topmost="True" ShowInTaskbar="True"
         FontFamily="{StaticResource F.Ui}" UseLayoutRounding="True" TextOptions.TextFormattingMode="Ideal"
@@ -18,6 +18,10 @@
         <v:StringToVisibility x:Key="StrVisInv" Invert="True"/>
         <v:LevelToWidth x:Key="LevelW"/>
         <v:Multiply x:Key="LineH" Factor="1.42"/>
+        <!-- header icon buttons: slightly tighter than Btn.Ghost so the header fits at the default width -->
+        <Style x:Key="Btn.HeaderIcon" TargetType="Button" BasedOn="{StaticResource Btn.Ghost}">
+            <Setter Property="Padding" Value="6,6"/>
+        </Style>
 
         <Storyboard x:Key="Pulse" RepeatBehavior="Forever" AutoReverse="True">
             <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.3" Duration="0:0:0.9">
@@ -42,16 +46,16 @@
             <!-- ===== Header / drag area ===== -->
             <Grid x:Name="Header" Grid.Row="0" Background="Transparent" Margin="14,10,8,6" MouseLeftButtonDown="Header_MouseDown">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- status pill -->
+                <!-- status pill: shrinks first when the header is tight (status text trims, details in the tooltip) -->
                 <Border Grid.Column="0" Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" CornerRadius="14" Padding="10,5,12,5"
-                        ToolTip="{Binding StatusDetail}">
-                    <StackPanel Orientation="Horizontal">
-                        <Ellipse Width="8" Height="8" Fill="{Binding StatusBrush}" VerticalAlignment="Center">
+                        HorizontalAlignment="Left" ToolTip="{Binding StatusDetail}">
+                    <DockPanel>
+                        <Ellipse DockPanel.Dock="Left" Width="8" Height="8" Fill="{Binding StatusBrush}" VerticalAlignment="Center">
                             <Ellipse.Style>
                                 <Style TargetType="Ellipse">
                                     <Style.Triggers>
@@ -63,22 +67,23 @@
                                 </Style>
                             </Ellipse.Style>
                         </Ellipse>
-                        <TextBlock Text="{Binding StatusText}" Margin="8,0,0,0" FontSize="11" FontWeight="SemiBold" Foreground="{Binding StatusBrush}" VerticalAlignment="Center"/>
                         <!-- audio meter -->
-                        <Border Width="56" Height="4" CornerRadius="2" Background="{StaticResource B.Surface3}" Margin="12,0,0,0" VerticalAlignment="Center" ToolTip="{v:Loc tt_audio_meter}">
+                        <Border DockPanel.Dock="Right" Width="48" Height="4" CornerRadius="2" Background="{StaticResource B.Surface3}" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="{v:Loc tt_audio_meter}">
                             <Border HorizontalAlignment="Left" CornerRadius="2" Background="{StaticResource B.Listening}" Width="{Binding AudioLevel, Converter={StaticResource LevelW}}"/>
                         </Border>
-                    </StackPanel>
+                        <TextBlock Text="{Binding StatusText}" Margin="8,0,0,0" FontSize="11" FontWeight="SemiBold" Foreground="{Binding StatusBrush}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" AutomationProperties.LiveSetting="Polite"/>
+                    </DockPanel>
                 </Border>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
-                    <Border x:Name="AdaptiveBadge" CornerRadius="10" Padding="8,2" Background="{StaticResource B.AccentSoft}" Margin="0,0,6,0"
-                            Visibility="{Binding AdaptiveLabel, Converter={StaticResource StrVis}}" ToolTip="{v:Loc tt_adaptive}" Cursor="Hand" MouseLeftButtonUp="Adaptive_Click">
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,6,0">
+                    <Button x:Name="AdaptiveBadge" Style="{StaticResource Btn.Chip}" Padding="8,2" Background="{StaticResource B.AccentSoft}" BorderBrush="Transparent" Margin="0,0,6,0"
+                            Visibility="{Binding AdaptiveLabel, Converter={StaticResource StrVis}}" ToolTip="{v:Loc tt_adaptive}" AutomationProperties.Name="{v:Loc tt_adaptive}" Click="Adaptive_Click">
                         <TextBlock Text="{Binding AdaptiveLabel}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource B.Accent}"/>
-                    </Border>
-                    <Border CornerRadius="10" Padding="8,2" Background="{StaticResource B.Surface2}" Margin="0,0,6,0" ToolTip="{v:Loc tt_presentation}" Cursor="Hand" MouseLeftButtonUp="Presentation_Click">
+                    </Button>
+                    <Button Style="{StaticResource Btn.Chip}" Padding="8,2" BorderBrush="Transparent" Margin="0,0,6,0" ToolTip="{v:Loc tt_presentation}" AutomationProperties.Name="{v:Loc tt_presentation}" Click="Presentation_Click">
                         <TextBlock x:Name="PresentationText" Text="{Binding PresentationLabel}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource B.TextDim}"/>
-                    </Border>
+                    </Button>
                     <TextBlock Text="{Binding MinutesLeftLabel}" FontSize="10.5" Foreground="{StaticResource B.TextFaint}" VerticalAlignment="Center"
                                Visibility="{Binding MinutesLeftLabel, Converter={StaticResource StrVis}}" ToolTip="{Binding MinutesTooltip}"/>
                 </StackPanel>
@@ -87,20 +92,20 @@
                     <Button x:Name="StartBtn" Style="{StaticResource Btn.Primary}" Command="{Binding StartPauseCommand}" Padding="12,5" Margin="0,0,6,0" ToolTip="{v:Loc tt_start_pause}" AutomationProperties.Name="{Binding StartPauseLabel}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock x:Name="StartIcon" Style="{StaticResource T.Icon}" Text="&#xE768;" FontSize="12" Margin="0,0,6,0"/>
-                            <TextBlock Text="{Binding StartPauseLabel}"/>
+                            <TextBlock Text="{Binding StartPauseLabel}" MaxWidth="140" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Command="{Binding StopCommand}" ToolTip="{v:Loc tt_stop}" AutomationProperties.Name="{v:Loc tt_stop}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE71A;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Compact_Click" ToolTip="{v:Loc tt_compact}" AutomationProperties.Name="{v:Loc tt_compact}"><TextBlock x:Name="CompactIcon" Style="{StaticResource T.Icon}" Text="&#xE73F;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Home_Click" ToolTip="{v:Loc tt_home}" AutomationProperties.Name="{v:Loc tt_home}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE80F;"/></Button>
-                    <Button x:Name="ReportBtn" Style="{StaticResource Btn.Ghost}" Click="Report_Click" ToolTip="{v:Loc tt_last_report}" AutomationProperties.Name="{v:Loc tt_last_report}"
+                    <Button Style="{StaticResource Btn.HeaderIcon}" Command="{Binding StopCommand}" ToolTip="{v:Loc tt_stop}" AutomationProperties.Name="{v:Loc tt_stop}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE71A;"/></Button>
+                    <Button Style="{StaticResource Btn.HeaderIcon}" Click="Compact_Click" ToolTip="{v:Loc tt_compact}" AutomationProperties.Name="{v:Loc tt_compact}"><TextBlock x:Name="CompactIcon" Style="{StaticResource T.Icon}" Text="&#xE73F;"/></Button>
+                    <Button Style="{StaticResource Btn.HeaderIcon}" Click="Home_Click" ToolTip="{v:Loc tt_home}" AutomationProperties.Name="{v:Loc tt_home}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE80F;"/></Button>
+                    <Button x:Name="ReportBtn" Style="{StaticResource Btn.HeaderIcon}" Click="Report_Click" ToolTip="{v:Loc tt_last_report}" AutomationProperties.Name="{v:Loc tt_last_report}"
                             Visibility="{Binding LastReportPath, Converter={StaticResource StrVis}}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE9F9;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Help_Click" ToolTip="{v:Loc tt_help}" AutomationProperties.Name="{v:Loc tt_help}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE897;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Diagnostics_Click" ToolTip="{v:Loc tt_diagnostics}" AutomationProperties.Name="{v:Loc tt_diagnostics}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE9D9;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Readiness_Click" ToolTip="{v:Loc tt_preflight}" AutomationProperties.Name="{v:Loc tt_preflight}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Settings_Click" ToolTip="{v:Loc tt_settings}" AutomationProperties.Name="{v:Loc tt_settings}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE713;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Minimize_Click" ToolTip="{v:Loc tt_minimize}" AutomationProperties.Name="{v:Loc tt_minimize}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE921;" FontSize="11"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Close_Click" ToolTip="{v:Loc tt_close}" AutomationProperties.Name="{v:Loc tt_close}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE8BB;" FontSize="11"/></Button>
+                    <Button Style="{StaticResource Btn.HeaderIcon}" Click="Help_Click" ToolTip="{v:Loc tt_help}" AutomationProperties.Name="{v:Loc tt_help}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE897;"/></Button>
+                    <Button Style="{StaticResource Btn.HeaderIcon}" Click="Diagnostics_Click" ToolTip="{v:Loc tt_diagnostics}" AutomationProperties.Name="{v:Loc tt_diagnostics}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE9D9;"/></Button>
+                    <Button Style="{StaticResource Btn.HeaderIcon}" Click="Readiness_Click" ToolTip="{v:Loc tt_preflight}" AutomationProperties.Name="{v:Loc tt_preflight}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;"/></Button>
+                    <Button Style="{StaticResource Btn.HeaderIcon}" Click="Settings_Click" ToolTip="{v:Loc tt_settings}" AutomationProperties.Name="{v:Loc tt_settings}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE713;"/></Button>
+                    <Button Style="{StaticResource Btn.HeaderIcon}" Click="Minimize_Click" ToolTip="{v:Loc tt_minimize}" AutomationProperties.Name="{v:Loc tt_minimize}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE921;" FontSize="11"/></Button>
+                    <Button Style="{StaticResource Btn.HeaderIcon}" Click="Close_Click" ToolTip="{v:Loc tt_close}" AutomationProperties.Name="{v:Loc tt_close}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE8BB;" FontSize="11"/></Button>
                 </StackPanel>
             </Grid>
 
@@ -114,11 +119,11 @@
 
                 <StackPanel Grid.Row="0">
                     <!-- Service / plan banner: only when live help is blocked (signed out, offline, limit reached, expired) -->
-                    <Border Margin="0,0,0,8" Padding="10,5" CornerRadius="8" Background="{StaticResource B.Surface2}"
-                            BorderBrush="{StaticResource B.Thinking}" BorderThickness="1" Cursor="Hand" MouseLeftButtonUp="Banner_Click"
-                            Visibility="{Binding ServiceBanner, Converter={StaticResource StrVis}}" ToolTip="{v:Loc tt_open_account}">
+                    <Button Style="{StaticResource Btn.Base}" Margin="0,0,0,8" Padding="10,5" Background="{StaticResource B.Surface2}" BorderBrush="{StaticResource B.Thinking}"
+                            HorizontalContentAlignment="Stretch" Click="Banner_Click" Visibility="{Binding ServiceBanner, Converter={StaticResource StrVis}}"
+                            ToolTip="{v:Loc tt_open_account}" AutomationProperties.Name="{Binding ServiceBanner}" AutomationProperties.HelpText="{v:Loc tt_open_account}">
                         <TextBlock Text="{Binding ServiceBanner}" FontSize="12" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
-                    </Border>
+                    </Button>
                 </StackPanel>
 
                 <!-- Question -->
@@ -219,22 +224,27 @@
             </Grid>
 
             <!-- ===== Answer actions ===== -->
-            <DockPanel x:Name="ActionBar" Grid.Row="2" Margin="14,0,14,8" LastChildFill="False">
-                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding ShorterCommand}" Content="{Binding LShorter}" ToolTip="{v:Loc tt_shorter}"/>
-                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding TechnicalCommand}" Content="{Binding LTechnical}" ToolTip="{v:Loc tt_technical}"/>
-                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding ExampleCommand}" Content="{Binding LExample}" ToolTip="{v:Loc tt_example}"/>
-                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding FullCommand}" Content="{Binding LFull}" ToolTip="{v:Loc tt_full}"/>
-                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding RegenerateCommand}" ToolTip="{v:Loc tt_regenerate}" AutomationProperties.Name="{v:Loc regenerate}">
+            <Grid x:Name="ActionBar" Grid.Row="2" Margin="14,0,14,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <!-- chips wrap on narrow windows; history navigation always keeps its place -->
+                <WrapPanel>
+                    <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,4" Command="{Binding ShorterCommand}" Content="{Binding LShorter}" ToolTip="{v:Loc tt_shorter}"/>
+                    <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,4" Command="{Binding TechnicalCommand}" Content="{Binding LTechnical}" ToolTip="{v:Loc tt_technical}"/>
+                    <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,4" Command="{Binding ExampleCommand}" Content="{Binding LExample}" ToolTip="{v:Loc tt_example}"/>
+                    <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,4" Command="{Binding FullCommand}" Content="{Binding LFull}" ToolTip="{v:Loc tt_full}"/>
+                    <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,4" Command="{Binding RegenerateCommand}" ToolTip="{v:Loc tt_regenerate}" AutomationProperties.Name="{v:Loc regenerate}">
                         <TextBlock Style="{StaticResource T.Icon}" Text="&#xE72C;" FontSize="12"/>
                     </Button>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
+                </WrapPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
                     <Button Style="{StaticResource Btn.Ghost}" Command="{Binding PreviousCommand}" ToolTip="{v:Loc tt_previous}" AutomationProperties.Name="{v:Loc tt_previous}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE76B;" FontSize="11"/></Button>
                     <TextBlock Text="{Binding HistoryLabel}" Foreground="{StaticResource B.TextFaint}" FontSize="11" VerticalAlignment="Center" Margin="2,0"/>
                     <Button Style="{StaticResource Btn.Ghost}" Command="{Binding NextCommand}" ToolTip="{v:Loc tt_next}" AutomationProperties.Name="{v:Loc tt_next}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE76C;" FontSize="11"/></Button>
                 </StackPanel>
-            </DockPanel>
+            </Grid>
 
             <!-- ===== Manual question (always-available fallback) ===== -->
             <Grid x:Name="ManualBar" Grid.Row="3" Margin="14,0,14,12">
@@ -258,7 +268,8 @@
             </Grid>
 
             <!-- ===== Diagnostics ===== -->
-            <Border x:Name="DiagPanel" Grid.Row="4" Margin="14,0,14,12" Padding="12,8" CornerRadius="8" Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" Visibility="Collapsed">
+            <Border x:Name="DiagPanel" Grid.Row="4" Margin="14,0,14,12" Padding="12,8" CornerRadius="8" Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" Visibility="Collapsed"
+                    FlowDirection="LeftToRight">
                 <TextBlock Text="{Binding Diagnostics}" FontFamily="Cascadia Mono, Consolas" FontSize="10.5" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap"/>
             </Border>
 
@@ -275,7 +286,7 @@
                     <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,12" Text="{v:Loc live_intro_5}"/>
                     <DockPanel LastChildFill="False">
                         <CheckBox x:Name="IntroDontShow" Style="{StaticResource Check}" Content="{v:Loc live_intro_dont_show}" VerticalAlignment="Center" Foreground="{StaticResource B.TextDim}"/>
-                        <Button DockPanel.Dock="Right" Style="{StaticResource Btn.Primary}" Content="{v:Loc live_intro_got_it}" Click="IntroClose_Click" Padding="18,6"/>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource Btn.Primary}" Content="{v:Loc live_intro_got_it}" Click="IntroClose_Click" Padding="18,6" IsCancel="True"/>
                     </DockPanel>
                 </StackPanel>
             </Border>
