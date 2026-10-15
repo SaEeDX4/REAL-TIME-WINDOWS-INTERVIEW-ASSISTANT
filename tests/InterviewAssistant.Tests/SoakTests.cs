@@ -139,4 +139,108 @@ public class SoakTests
         Assert.True(SessionMetrics.Percentile(cache.Select(x => x.FinalizedToFirstBulletMs), 95) <= 60);
         Assert.True(SessionMetrics.Percentile(llm.Select(x => x.FinalizedToFirstBulletMs), 95) <= 700 + 300 + 200);
     }
+
+    /// <summary>
+    /// RC2 production-shaped soak: 110+ heard questions on a virtual clock interleaved with the noise that broke RC1 —
+    /// Windows beeps and screenshot shutters "transcribed" as the recognizer's own prompt, remarks addressed to another
+    /// panel member, variants on earlier history items, AI outages, a transcription reconnect and three pause/resume
+    /// cycles with typed questions. Invariants: no suppressed turn reaches memory, history or the report; one heard
+    /// question → one record; variants never add entries; the session stays one continuous session; bounded memory.
+    /// </summary>
+    [Fact]
+    public async Task Rc2SoakWithBeepsPanelVariantsOutagesAndPausesKeepsOnlyRealQuestions()
+    {
+        var kb = TestKnowledge.Load();
+        var echo = kb.Context.BuildTranscriptionPrompt();
+        VirtualLatencyProvider provider = null!;
+        var s = new InterviewSimulator(kb, provider: c => provider = new VirtualLatencyProvider(c));
+        var e = s.E;
+        await e.StartListeningAsync();
+        var rnd = new Random(11);
+        var subjects = new[] { "the rewards ledger", "VIP onboarding", "the referral programme", "card cashback", "the Dubai launch", "the KYC vendor",
+                               "the support backlog", "token utility", "the loyalty tiers", "the partner API", "fraud monitoring",
+                               "the mobile wallet", "merchant payouts", "the savings product", "chargebacks", "the pricing page" };   // 160 distinct questions
+        var asks = new[] { "How would you prioritise work on {0}?", "What metrics would you use to judge {0}?", "How would you explain {0} to the CEO?",
+                           "What risks do you see with {0}?", "How would you test a change to {0}?", "Who would you involve first for {0}?", "How would you cut the scope of {0}?",
+                           "What would you do in your first month on {0}?", "How would you handle pushback from Compliance on {0}?", "How would you measure adoption of {0}?" };
+        int heard = 0, typed = 0, beeps = 0, shutters = 0, panel = 0, variants = 0, pauses = 0;
+        var usedQuestions = new HashSet<string>();
+        string NextQuestion()
+        {
+            while (true)
+            {
+                var q = string.Format(asks[rnd.Next(asks.Length)], subjects[rnd.Next(subjects.Length)]);
+                if (usedQuestions.Add(q)) return q;
+            }
+        }
+        GC.Collect(); GC.WaitForPendingFinalizers();
+        long memStart = GC.GetTotalMemory(true);
+
+        for (int i = 1; i <= 112; i++)
+        {
+            if (i == 70) { s.T.Raise(ConnectionStatus.Reconnecting, "simulated drop"); await s.RunAsync(1500); s.T.Raise(ConnectionStatus.Connected, null); }
+            if (i is 40 or 41) provider.Throw = new ProviderException(ProviderErrorKind.ServiceUnavailable, "503") { Code = "ai_unavailable" };
+            if (i == 42) provider.Throw = null;
+            if (i is 30 or 65 or 95)
+            {
+                pauses++;
+                e.Pause();
+                s.Sound(InterviewSimulator.SoundKind.Beep, echo);            // a beep while paused is never even heard
+                await s.RunAsync(20_000);
+                var t = e.SubmitManualQuestionAsync(NextQuestion());
+                while (!t.IsCompleted) await s.RunAsync(20);
+                await t; typed++;
+                await e.StartListeningAsync();
+            }
+            if (i % 6 == 0) { beeps++; s.Sound(InterviewSimulator.SoundKind.Beep, echo); await s.RunAsync(3000); }
+            if (i % 9 == 0) { shutters++; s.Sound(InterviewSimulator.SoundKind.Shutter, "Thank you."); await s.RunAsync(3000); }
+            if (i % 11 == 0) { panel++; s.Say(new[] { "John, what do you think about that?", "What's your view on the rollout, Sarah?" }[panel % 2]); await s.RunAsync(6000); await s.SettleAsync(); }
+
+            heard++;
+            if (rnd.NextDouble() < 0.2) s.Say(NextQuestion().TrimEnd('?') + " for VIP clients?", 600, "And which metrics would you track to prove it is working?");
+            else s.Say(NextQuestion());
+            await s.RunAsync(9000);
+            await s.RunAsync(15_000);   // candidate answers; interviewer silent
+            await s.SettleAsync();
+
+            if (i % 10 == 0 && e.History.Count > 3)
+            {
+                var before = e.History.Count;
+                var target = e.History[rnd.Next(e.History.Count - 1)];
+                var vt = e.RequestVariantAsync(target.Id, new[] { AnswerStyle.VeryShort, AnswerStyle.Technical, AnswerStyle.Example }[variants % 3]);
+                while (!vt.IsCompleted) await s.RunAsync(20);
+                await vt; variants++;
+                Assert.Equal(before, e.History.Count);
+            }
+        }
+        await e.StopAsync();
+        GC.Collect(); GC.WaitForPendingFinalizers();
+        long memEnd = GC.GetTotalMemory(true);
+
+        var m = e.Metrics;
+        var questions = e.Memory.Questions;
+        _out.WriteLine($"heard {heard}, typed {typed}, beeps {beeps + pauses} (paused {pauses}), shutters {shutters}, panel remarks {panel}, variants {variants}, pauses {pauses}");
+        _out.WriteLine($"records {questions.Count}, history {e.History.Count}, duplicates {m.DuplicatesSuppressed}, merged {m.TurnsMerged}, AI requests {provider.Requests}, fallback {m.FallbackAnswers}, api errors {m.ApiErrors}");
+        _out.WriteLine("suppressed: " + string.Join(", ", m.Suppression.Select(kv => $"{kv.Key} {kv.Value}")));
+        _out.WriteLine($"managed memory start {memStart / 1024} KB end {memEnd / 1024} KB");
+
+        Assert.True(heard + typed >= 100);
+        Assert.Equal(heard + typed - m.DuplicatesSuppressed, questions.Count);   // one real question → one record
+        Assert.Equal(questions.Count, e.Metrics.Questions);
+        Assert.Equal(Math.Min(questions.Count, e.Options.HistoryCapacity), e.History.Count);   // variants add nothing
+        Assert.Equal(variants, m.Variants);
+        Assert.Equal(panel, m.OtherDirectedSuppressed);
+        Assert.True(m.TotalSuppressed >= beeps + shutters, string.Join(", ", m.Suppression));
+        Assert.DoesNotContain(questions, q => q.Original.Contains("Terms:", StringComparison.Ordinal) || q.Original.StartsWith("Thank you", StringComparison.Ordinal)
+                                              || q.Original.Contains("John,", StringComparison.Ordinal) || q.Original.Contains("Sarah", StringComparison.Ordinal));
+        Assert.Equal(typed, questions.Count(q => q.Typed));
+        Assert.Equal(1, m.Reconnects);
+        Assert.True(provider.Requests <= heard + typed + variants, $"{provider.Requests} AI requests");
+        Assert.True(m.FallbackAnswers + m.ApiErrors >= 2);
+
+        var report = InterviewAssistant.Core.Reports.ReportBuilder.Build(e.Memory, kb, m, "soak", DateTime.UtcNow.AddHours(-1), DateTime.UtcNow);
+        Assert.Equal(questions.Count, report.Questions.Count);
+        Assert.Equal(m.TotalSuppressed, report.ExcludedTurns);           // disclosed as "not counted", never listed as questions
+        Assert.True(memEnd - memStart < 8 * 1024 * 1024, $"memory grew {(memEnd - memStart) / 1024} KB");
+    }
 }

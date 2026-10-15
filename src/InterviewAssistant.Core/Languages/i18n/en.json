@@ -533,7 +533,7 @@
  "upd_ready": "Version {0} is ready — it installs when you close the app.",
  "upd_failed": "Update check failed; will retry later.",
  "help_getting_started": "GETTING STARTED",
- "help_getting_started_body": "1. Create an account or sign in (Account). Confirm your e-mail if asked.\n2. Import your résumé (Profiles) and confirm only the facts that are accurate — only confirmed facts are ever presented as your experience. Optionally complete your interview profile (hobbies, motivation, goals).\n3. Add the interview (Interviews): job title, company and the job description, then Save & prepare.\n4. Run the Pre-interview check, then Open Live Assistant.",
+ "help_getting_started_body": "1. Create an account or sign in (Account). Confirm your e-mail if asked.\n2. Import your résumé (Profiles) and confirm only the facts that are accurate — only confirmed facts are ever presented as your experience. Optionally complete your interview profile (hobbies, motivation, goals).\n3. Add the interview (Interviews): job title, company and the job description, then press Prepare (it saves the interview first).\n4. Run the Pre-interview check, then Open Live Assistant.",
  "help_before": "BEFORE YOUR INTERVIEW",
  "help_before_body": "• Join the call in Chrome, Meet, Zoom or Teams and play a short sound: the meter in the Live Assistant should move.\n• In Settings, choose the playback device (headset or speakers) you hear the interviewer on.\n• Run the Pre-interview check (shield icon). Fix anything marked FAIL; warnings are optional.\n• Use the assistant only where assistance is permitted.",
  "help_controls": "LIVE ASSISTANT CONTROLS",

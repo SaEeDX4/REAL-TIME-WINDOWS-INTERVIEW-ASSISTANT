@@ -31,6 +31,19 @@ public class LocalizationCoverageTests
         "history_label", "min_label", "svc_ref", "set_key_saved", "fact_line", "device_row", "about_product",
         "coach", "pf_answer_ok", "prep_progress", "acct_signed_in_as", "start_signed_in", "min_today", "bill_payment_problem",
     };
+    /// <summary>
+    /// Reviewed cognates: words that are spelled the same as English and are the natural term in that language
+    /// (e.g. German "Interviews", French "Version", Italian "Account"). Anything else identical to English fails.
+    /// </summary>
+    private static readonly Dictionary<string, HashSet<string>> Cognates = new()
+    {
+        ["es"] = new() { "fact_kind_personal", "channel_beta_build", "font_normal" },
+        ["pt"] = new() { "channel_beta_build", "font_normal" },
+        ["it"] = new() { "account", "password", "channel_beta_build" },
+        ["de"] = new() { "upgrade", "interviews", "report_default_label", "channel_beta_build", "about_version", "font_normal" },
+        ["fr"] = new() { "question", "pause", "structure", "file_filter_documents", "fact_kind", "fact_kind_certification", "report_preview_meta",
+                         "channel_stable_build", "about_version", "about_install", "about_service", "pf_check_stt", "font_compact", "font_normal" },
+    };
     private static readonly Regex Placeholder = new(@"\{\d+\}", RegexOptions.Compiled);
 
     [Fact]
@@ -53,7 +66,7 @@ public class LocalizationCoverageTests
             !Placeholder.Matches(en[k]).Select(m => m.Value).OrderBy(x => x).SequenceEqual(Placeholder.Matches(t[k]).Select(m => m.Value).OrderBy(x => x))).ToList();
         Assert.True(placeholderMismatch.Count == 0, $"{lang}: placeholder mismatch in {string.Join(", ", placeholderMismatch)}");
         // Fallback-only detection: a value identical to English means the section was not translated.
-        var untranslated = en.Keys.Where(k => t.TryGetValue(k, out var v) && v == en[k] && !SameInEveryLanguage.Contains(k) && HasEnglishWords(v)).ToList();
+        var untranslated = en.Keys.Where(k => t.TryGetValue(k, out var v) && v == en[k] && !SameInEveryLanguage.Contains(k) && !(Cognates.TryGetValue(lang, out var c) && c.Contains(k)) && HasEnglishWords(v)).ToList();
         _out.WriteLine($"{lang}: {t.Count} keys, {untranslated.Count} identical to English");
         Assert.True(untranslated.Count == 0, $"{lang}: untranslated (identical to English): {string.Join(", ", untranslated.Take(40))}");
         var extra = t.Keys.Where(k => !en.ContainsKey(k)).ToList();

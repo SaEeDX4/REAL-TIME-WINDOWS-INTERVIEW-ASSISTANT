@@ -70,6 +70,58 @@ public sealed class ConfigService
         await _db.SaveChangesAsync(ct);
     }
 
-    public static bool VersionAtLeast(string? client, string minimum) =>
-        Version.TryParse((client ?? "0.0.0").Split('-', '+')[0], out var c) && Version.TryParse(minimum, out var m) && c >= m;
+    /// <summary>
+    /// SemVer 2.0 precedence check: a pre-release sorts below its release (2.1.0-rc.2 &lt; 2.1.0), pre-release identifiers
+    /// compare numerically or ordinally per spec (rc.2 &lt; rc.10), build metadata (+abc) is ignored. Unparseable client
+    /// versions never pass; an unparseable minimum is a configuration error and does not lock clients out.
+    /// </summary>
+    public static bool VersionAtLeast(string? client, string minimum)
+    {
+        if (!SemVer.TryParse(client, out var c)) return false;
+        if (!SemVer.TryParse(minimum, out var m)) return true;
+        return SemVer.Compare(c, m) >= 0;
+    }
+}
+
+/// <summary>Minimal SemVer 2.0 value (major.minor.patch[-pre][+build]) used for the minimum-client-version gate.</summary>
+public readonly record struct SemVer(int Major, int Minor, int Patch, string[] Pre)
+{
+    public static bool TryParse(string? s, out SemVer v)
+    {
+        v = default;
+        s = s?.Trim().TrimStart('v', 'V');
+        if (string.IsNullOrEmpty(s) || s.Length > 64) return false;
+        var plus = s.IndexOf('+');
+        if (plus >= 0) s = s[..plus];
+        var dash = s.IndexOf('-');
+        var core = dash >= 0 ? s[..dash] : s;
+        var pre = dash >= 0 ? s[(dash + 1)..].Split('.') : [];
+        var parts = core.Split('.');
+        if (parts.Length is < 2 or > 4) return false;   // tolerate "2.1" and a 4-part assembly version
+        var n = new int[3];
+        for (int i = 0; i < parts.Length; i++)
+        {
+            if (!int.TryParse(parts[i], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var x)) return false;
+            if (i < 3) n[i] = x;
+        }
+        if (pre.Any(p => p.Length == 0 || !p.All(ch => char.IsAsciiLetterOrDigit(ch) || ch == '-'))) return false;
+        v = new SemVer(n[0], n[1], n[2], pre);
+        return true;
+    }
+
+    public static int Compare(SemVer a, SemVer b)
+    {
+        int c = a.Major.CompareTo(b.Major);
+        if (c == 0) c = a.Minor.CompareTo(b.Minor);
+        if (c == 0) c = a.Patch.CompareTo(b.Patch);
+        if (c != 0) return c;
+        if (a.Pre.Length == 0 || b.Pre.Length == 0) return b.Pre.Length.CompareTo(a.Pre.Length);   // release > pre-release
+        for (int i = 0; i < Math.Min(a.Pre.Length, b.Pre.Length); i++)
+        {
+            bool an = long.TryParse(a.Pre[i], out var ai), bn = long.TryParse(b.Pre[i], out var bi);
+            c = an && bn ? ai.CompareTo(bi) : an ? -1 : bn ? 1 : string.CompareOrdinal(a.Pre[i], b.Pre[i]);
+            if (c != 0) return c;
+        }
+        return a.Pre.Length.CompareTo(b.Pre.Length);
+    }
 }

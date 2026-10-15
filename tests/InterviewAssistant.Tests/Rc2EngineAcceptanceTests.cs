@@ -531,4 +531,39 @@ public class Rc2EngineAcceptanceTests
         Assert.Equal(2, a.Bullets.Count);
         Assert.Contains(a.ValidationFlags, f => f.StartsWith("DROPPED_REDUNDANT"));
     }
+
+    // ---------------- latency: the local decision layers add no meaningful time ----------------
+
+    [Fact]
+    public void LocalDecisionPipeline_GateExtractClassifyMatchRetrievePlan_IsWellUnderTheLatencyBudget()
+    {
+        var kb = Kb;
+        var evidence = EvidenceIndex.For(kb);
+        var matcher = new QuestionMatcher(kb.Questions);
+        var retriever = new ContextRetriever(kb);
+        var gate = new UtteranceGate(new PromptEchoDetector(kb.Context.BuildTranscriptionPrompt(), kb.Context.TranscriptionTerms()),
+            new[] { kb.Context.CandidateName, kb.Profile.Name }, kb.Context.TranscriptionTerms());
+        var inputs = kb.Questions.Select(q => q.SemanticVariants[0] + "?").Take(150)
+            .Append(RewardsMonologue).Append("We're expanding to Dubai next year and the team is small. Given that, how would you approach the first ninety days, and what would you deliberately not do?")
+            .ToList();
+        var times = new List<double>();
+        foreach (var round in Enumerable.Range(0, 3))   // round 0 warms up the JIT; rounds 1-2 are measured
+            foreach (var text in inputs)
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var xq = QuestionExtractor.Extract(text, "", kb.Context, gate);
+                var cls = QuestionClassifier.Classify(xq.CoreQuestion, kb.Context, evidence);
+                var match = matcher.Match(xq.CoreQuestion);
+                var ctx = retriever.Retrieve(xq.CoreQuestion, cls, match);
+                var plan = AnswerPlanner.Plan(xq, cls, match, ctx, kb, evidence);
+                sw.Stop();
+                Assert.NotNull(plan);
+                if (round > 0) times.Add(sw.Elapsed.TotalMilliseconds);
+            }
+        times.Sort();
+        double P(int p) => times[Math.Min(times.Count - 1, times.Count * p / 100)];
+        _out.WriteLine($"local pipeline per question over {times.Count} runs: p50 {P(50):0.00} ms, p95 {P(95):0.00} ms, max {times[^1]:0.00} ms");
+        Assert.True(P(95) < 25, $"p95 {P(95):0.00} ms");   // budget: <25 ms p95 on a CI runner (no model call, no I/O)
+    }
 }
+

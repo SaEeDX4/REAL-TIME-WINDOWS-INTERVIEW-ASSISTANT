@@ -105,4 +105,30 @@ public class AuthAndIsolationTests : IClassFixture<ApiFactory>
         Assert.Equal((HttpStatusCode)426, r.StatusCode);
         Assert.Equal("client_update_required", (await r.Error()).Code);
     }
+
+    [Fact]
+    public async Task ReleaseCandidateClientsPassTheGateAndKeepTheirFullVersionOnTheDevice()
+    {
+        var c = _f.ClientFor(Guid.NewGuid(), version: "2.1.0-rc.2");
+        (await c.GetAsync("/api/v1/me")).EnsureSuccessStatusCode();
+        var r = await c.PostAsJsonAsync("/api/v1/devices", new RegisterDeviceRequest("inst-" + Guid.NewGuid().ToString("n"), "PC", "windows-x64", "2.1.0-rc.2"));
+        Assert.Equal("2.1.0-rc.2", (await r.Read<DeviceDto>()).ClientVersion);
+    }
+
+    [Theory]
+    [InlineData("2.1.0-rc.2", "2.0.0", true)]
+    [InlineData("2.1.0-rc.2", "2.1.0", false)]          // a pre-release sorts below its release
+    [InlineData("2.1.0", "2.1.0-rc.2", true)]
+    [InlineData("2.1.0-rc.10", "2.1.0-rc.2", true)]      // numeric identifiers compare numerically
+    [InlineData("2.1.0-rc.1", "2.1.0-rc.2", false)]
+    [InlineData("2.1.0-beta.9", "2.1.0-rc.1", false)]    // alphanumeric identifiers compare ordinally
+    [InlineData("2.1.0-rc.2+5ce6b95", "2.1.0-rc.2", true)] // build metadata ignored
+    [InlineData("v2.1.0", "2.1.0", true)]
+    [InlineData("2.1.0.0", "2.1.0", true)]
+    [InlineData("10.0.0", "9.9.9", true)]
+    [InlineData("garbage", "2.0.0", false)]
+    [InlineData(null, "2.0.0", false)]
+    [InlineData("2.0.0", "not-a-version", true)]         // bad server config never locks clients out
+    public void VersionGateFollowsSemVerPrecedence(string? client, string minimum, bool expected) =>
+        Assert.Equal(expected, InterviewAssistant.Backend.Services.ConfigService.VersionAtLeast(client, minimum));
 }

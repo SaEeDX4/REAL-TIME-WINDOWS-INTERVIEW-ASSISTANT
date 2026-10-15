@@ -117,6 +117,17 @@ public static class SelfTest
             vm.NextCommand.Execute(null); await Idle();
             return (moved && vm.Question == before, vm.HistoryLabel);
         });
+        await Check("Rework buttons act on the displayed item and never add a history entry", async () =>
+        {
+            await Idle();
+            vm.PreviousCommand.Execute(null); await Idle();
+            var label = vm.HistoryLabel; var q = vm.Question;
+            var can = vm.ShorterCommand.CanExecute(null);
+            if (can) { vm.ShorterCommand.Execute(null); await Task.Delay(1500); await Idle(); }
+            var ok = vm.HistoryLabel == label && vm.Question == q;
+            vm.NextCommand.Execute(null); await Idle();
+            return (ok, $"{label} → {vm.HistoryLabel}; rework {(can ? "ran" : "disabled without the answer service")}");
+        });
         await Check("Coach mode (Ctrl+Alt+C): 3 keywords + structure, then back to bullets", async () =>
         {
             vm.ToggleCoach();
@@ -157,6 +168,27 @@ public static class SelfTest
             vm.Settings.UiLanguage = "en"; w.ApplyAppearance(); await Idle();
             return (rtl && w.FlowDirection == FlowDirection.LeftToRight, $"fa label '{label}', restored to LTR");
         });
+        foreach (var lang in new[] { "fa", "hi" })
+            await Check($"UI localisation ({lang}): no English text left in the live, home, settings and pre-interview windows", async () =>
+            {
+                var leftovers = new SortedSet<string>(StringComparer.Ordinal);
+                vm.Settings.UiLanguage = lang; w.ApplyAppearance(); await Idle();
+                try
+                {
+                    var english = EnglishOnlyTexts(lang);
+                    ScanTexts(w, english, leftovers);
+                    var home = new HomeWindow(vm, w) { Owner = w };
+                    home.Show(); await Idle();
+                    foreach (var page in new[] { "start", "profiles", "interviews", "reports", "account", "help" }) { home.ShowPage(page); await Idle(); ScanTexts(home, english, leftovers); }
+                    var rtlOk = lang != "fa" || home.FlowDirection == FlowDirection.RightToLeft;
+                    home.Close();
+                    var s = new SettingsWindow(vm) { Owner = w }; s.Show(); await Idle(); ScanTexts(s, english, leftovers); s.Close();
+                    var r = new ReadinessWindow(vm, w, autoRun: false) { Owner = w }; r.Show(); await Idle(); r.CheckLocal(); await Idle(); ScanTexts(r, english, leftovers); r.Close();
+                    var mainRtl = lang != "fa" || w.FlowDirection == FlowDirection.RightToLeft;
+                    return (leftovers.Count == 0 && rtlOk && mainRtl, leftovers.Count == 0 ? $"4 windows, 6 home pages scanned; {(lang == "fa" ? "right-to-left" : "left-to-right")}" : "English left: " + string.Join(" | ", leftovers.Take(12)));
+                }
+                finally { vm.Settings.UiLanguage = "en"; w.ApplyAppearance(); await Idle(); }
+            });
         await Check("Home window: onboarding, profiles, interviews, reports, account pages load", async () =>
         {
             var home = new HomeWindow(vm, w) { Owner = w };
@@ -257,5 +289,41 @@ public static class SelfTest
         File.WriteAllText(outPath, json);
         AppLog.Info($"SELFTEST {(passed ? "PASSED" : "FAILED")} ({results.Count(r => r.Ok)}/{results.Count})");
         return passed ? 0 : 1;
+    }
+
+    /// <summary>English UI strings whose translation differs: seeing one of them on screen means a surface was not localised.</summary>
+    private static HashSet<string> EnglishOnlyTexts(string lang)
+    {
+        var en = Core.Languages.Loc.TableFor("en");
+        var t = Core.Languages.Loc.TableFor(lang);
+        return en.Where(kv => t.TryGetValue(kv.Key, out var v) && v != kv.Value && !kv.Value.Contains('{') && System.Text.RegularExpressions.Regex.IsMatch(kv.Value, "[A-Za-z]{3,}"))
+                 .Select(kv => kv.Value.Trim()).ToHashSet(StringComparer.Ordinal);
+    }
+
+    /// <summary>Walks the logical tree (collapsed pages and tool tips included) and records every English UI string found.</summary>
+    private static void ScanTexts(DependencyObject root, HashSet<string> english, SortedSet<string> found)
+    {
+        void Hit(object? o) { if (o is string str && english.Contains(str.Trim())) found.Add(str.Trim()); }
+        var stack = new Stack<object>(); stack.Push(root);
+        var seen = new HashSet<object>(ReferenceEqualityComparer.Instance);
+        while (stack.Count > 0)
+        {
+            var o = stack.Pop();
+            if (!seen.Add(o)) continue;
+            switch (o)
+            {
+                case System.Windows.Controls.TextBlock tb: Hit(tb.Text); break;
+                case System.Windows.Controls.TextBox: break;   // user content
+                case System.Windows.Controls.HeaderedContentControl hc: Hit(hc.Header); Hit(hc.Content); break;
+                case System.Windows.Controls.ContentControl cc: Hit(cc.Content); break;
+            }
+            if (o is FrameworkElement fe) { Hit(fe.ToolTip); Hit(System.Windows.Automation.AutomationProperties.GetName(fe)); }
+            if (o is DependencyObject d)
+            {
+                foreach (var c in LogicalTreeHelper.GetChildren(d)) stack.Push(c);
+                if (d is System.Windows.Media.Visual or System.Windows.Media.Media3D.Visual3D)
+                    for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(d); i++) stack.Push(System.Windows.Media.VisualTreeHelper.GetChild(d, i));
+            }
+        }
     }
 }

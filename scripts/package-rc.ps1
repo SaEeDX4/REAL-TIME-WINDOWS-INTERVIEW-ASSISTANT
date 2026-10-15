@@ -57,7 +57,7 @@ foreach ($f in @($zip, $setupOut)) {
     "$h  $(Split-Path $f -Leaf)" | Set-Content -Encoding ascii "$f.sha256"
     Write-Host "SHA256 $h  $(Split-Path $f -Leaf)"
 }
-$notes = "docs\release\RELEASE_NOTES_$Version.md"
+$notes = "docs\release\RELEASE_NOTES-v$Version.md"
 if (Test-Path $notes) { Copy-Item $notes (Join-Path $OutDir "RELEASE_NOTES-v$Version.md") } else { throw "Release notes missing: $notes" }
 $sig = Get-AuthenticodeSignature $exe
 @(

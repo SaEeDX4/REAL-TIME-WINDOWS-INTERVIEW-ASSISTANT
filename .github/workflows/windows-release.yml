@@ -40,7 +40,7 @@ jobs:
       - name: Build (warnings are errors)
         run: dotnet build InterviewAssistant.sln -c Release --no-restore -p:TreatWarningsAsErrors=true
 
-      - name: Test (unit, engine, 60-min simulated soak, answer evaluation)
+      - name: Test (unit, engine, localization coverage, 60-min simulated soak, answer evaluation)
         run: dotnet test tests/InterviewAssistant.Tests -c Release --no-build --logger "console;verbosity=normal" --logger "trx;LogFileName=tests.trx" --results-directory artifacts/test-results
         env:
           # Optional: repository secret OPENAI_API_KEY enables the live LLM evaluation test.
@@ -58,9 +58,13 @@ jobs:
         shell: pwsh
         run: ./scripts/selftest.ps1
 
+      - name: Release gate — version, release notes, mandatory RC documents, committed-secret scan
+        shell: pwsh
+        run: ./scripts/check-release.ps1 -Version ${{ steps.v.outputs.version }}
+
       - name: Installer (Velopack, unsigned CI build)
         shell: pwsh
-        run: ./scripts/package-installer.ps1 -Version ${{ steps.v.outputs.version }} -Channel ${{ steps.v.outputs.channel }} -ReleaseNotes docs/release/RELEASE_NOTES_${{ steps.v.outputs.version }}.md
+        run: ./scripts/package-installer.ps1 -Version ${{ steps.v.outputs.version }} -Channel ${{ steps.v.outputs.channel }} -ReleaseNotes docs/release/RELEASE_NOTES-v${{ steps.v.outputs.version }}.md
 
       - name: Install N, self-update to N+1, verify, uninstall
         shell: pwsh
