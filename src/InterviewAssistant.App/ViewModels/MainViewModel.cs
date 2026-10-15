@@ -255,7 +255,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private bool CanRework() => _provider != null && _engine?.History.Any(a => a.Id == _displayedAnswerId) == true;
 
     // ---------------- bindable state ----------------
-    private string _statusText = "READY"; public string StatusText { get => _statusText; set => Set(ref _statusText, value); }
+    private string _statusText = Loc.T("status_ready"); public string StatusText { get => _statusText; set => Set(ref _statusText, value); }
     private Brush _statusBrush = Brushes.Gray; public Brush StatusBrush { get => _statusBrush; set => Set(ref _statusBrush, value); }
     private bool _statusPulse; public bool StatusPulse { get => _statusPulse; set => Set(ref _statusPulse, value); }
     private string? _statusDetail; public string? StatusDetail { get => _statusDetail; set => Set(ref _statusDetail, value); }

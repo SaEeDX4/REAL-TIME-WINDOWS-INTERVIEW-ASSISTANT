@@ -8,9 +8,13 @@
     <Color x:Key="C.Border">#FF2A303C</Color>
     <Color x:Key="C.Text">#FFECEEF2</Color>
     <Color x:Key="C.TextDim">#FFA3A9B5</Color>
-    <Color x:Key="C.TextFaint">#FF6C7380</Color>
+    <Color x:Key="C.TextFaint">#FF8B92A0</Color>
     <Color x:Key="C.Accent">#FF5B8DEF</Color>
     <Color x:Key="C.AccentSoft">#335B8DEF</Color>
+    <!-- filled accent surfaces (primary buttons): white text on it stays above 4.5:1, also on hover -->
+    <Color x:Key="C.AccentStrong">#FF3567D0</Color>
+    <!-- input outlines: visible against both the page and the input fill -->
+    <Color x:Key="C.InputBorder">#FF5C6577</Color>
     <Color x:Key="C.Listening">#FF3DD68C</Color>
     <Color x:Key="C.Thinking">#FFF2B44C</Color>
     <Color x:Key="C.Error">#FFEF6B6B</Color>
@@ -25,6 +29,8 @@
     <SolidColorBrush x:Key="B.TextFaint" Color="{StaticResource C.TextFaint}"/>
     <SolidColorBrush x:Key="B.Accent" Color="{StaticResource C.Accent}"/>
     <SolidColorBrush x:Key="B.AccentSoft" Color="{StaticResource C.AccentSoft}"/>
+    <SolidColorBrush x:Key="B.AccentStrong" Color="{StaticResource C.AccentStrong}"/>
+    <SolidColorBrush x:Key="B.InputBorder" Color="{StaticResource C.InputBorder}"/>
     <SolidColorBrush x:Key="B.Listening" Color="{StaticResource C.Listening}"/>
     <SolidColorBrush x:Key="B.Thinking" Color="{StaticResource C.Thinking}"/>
     <SolidColorBrush x:Key="B.Error" Color="{StaticResource C.Error}"/>
@@ -37,6 +43,17 @@
     <CornerRadius x:Key="R.Control">8</CornerRadius>
 
     <DropShadowEffect x:Key="E.Shadow" BlurRadius="24" ShadowDepth="4" Direction="270" Opacity="0.35" Color="Black"/>
+
+    <!-- Keyboard focus ring for controls that keep the system focus visual (the default dotted one is invisible on the dark theme) -->
+    <Style x:Key="FocusRing">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Rectangle Stroke="{StaticResource B.Accent}" StrokeThickness="2" RadiusX="6" RadiusY="6" Margin="-2" SnapsToDevicePixels="True"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 
     <!-- ===== Text ===== -->
     <Style x:Key="T.Label" TargetType="TextBlock">
@@ -112,8 +129,8 @@
         </Setter>
     </Style>
     <Style x:Key="Btn.Primary" TargetType="Button" BasedOn="{StaticResource Btn.Base}">
-        <Setter Property="Background" Value="{StaticResource B.Accent}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+        <Setter Property="Background" Value="{StaticResource B.AccentStrong}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource B.AccentStrong}"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
@@ -137,18 +154,25 @@
         <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
         <Setter Property="CaretBrush" Value="{StaticResource B.Text}"/>
         <Setter Property="Background" Value="{StaticResource B.Surface2}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource B.Border}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource B.InputBorder}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="10,7"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
                     <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{StaticResource R.Control}">
-                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource B.TextDim}"/>
+                        </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -160,7 +184,7 @@
         <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
         <Setter Property="CaretBrush" Value="{StaticResource B.Text}"/>
         <Setter Property="Background" Value="{StaticResource B.Surface2}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource B.Border}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource B.InputBorder}"/>
         <Setter Property="Padding" Value="10,7"/>
     </Style>
 
@@ -200,7 +224,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ToggleButton">
-                    <Border x:Name="Bd" Background="{StaticResource B.Surface2}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" CornerRadius="{StaticResource R.Control}">
+                    <Border x:Name="Bd" Background="{StaticResource B.Surface2}" BorderBrush="{StaticResource B.InputBorder}" BorderThickness="1" CornerRadius="{StaticResource R.Control}">
                         <TextBlock Text="&#xE70D;" FontFamily="{StaticResource F.Icons}" FontSize="10" Foreground="{StaticResource B.TextDim}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"/>
                     </Border>
                     <ControlTemplate.Triggers>
@@ -265,5 +289,16 @@
         <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="Margin" Value="0,4"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
+    </Style>
+    <!-- Implicit styles: visible keyboard focus on the dark theme for controls that use the system templates -->
+    <Style TargetType="Slider">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
+    </Style>
+    <Style TargetType="ListBoxItem">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
+    </Style>
+    <Style TargetType="Expander">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
     </Style>
 </ResourceDictionary>

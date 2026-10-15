@@ -241,7 +241,7 @@ public sealed class CloudService
         var r = await AuthAction(async () =>
         {
             await Auth!.RecoverPasswordAsync(email, TimeSpan.FromMinutes(15), CancellationToken.None);
-            var pw = await askNewPassword() ?? throw new AuthException("cancelled", "Password not changed.");
+            var pw = await askNewPassword() ?? throw new AuthException("cancelled", Loc.T("acct_password_not_changed"));
             await Auth.UpdatePasswordAsync(pw, CancellationToken.None);
         }, "Password reset");
         if (r.Ok) await RefreshAsync(CancellationToken.None);

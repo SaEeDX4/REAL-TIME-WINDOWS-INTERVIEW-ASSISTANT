@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Windows.Input;
 using System.Windows.Interop;
+using InterviewAssistant.Core.Languages;
 
 namespace InterviewAssistant.App.Services;
 
@@ -46,9 +47,9 @@ public sealed class HotkeyService : IDisposable
     /// <returns>null on success, else a human-readable reason (e.g. already used by another app).</returns>
     public string? Register(string combo, Action action)
     {
-        if (!TryParse(combo, out var mods, out var vk)) return $"Invalid hotkey '{combo}'";
+        if (!TryParse(combo, out var mods, out var vk)) return Loc.F("set_hotkey_invalid", combo);
         var id = _nextId++;
-        if (!RegisterHotKey(_source.Handle, id, mods | MOD_NOREPEAT, vk)) return $"Hotkey {combo} is already in use by another application";
+        if (!RegisterHotKey(_source.Handle, id, mods | MOD_NOREPEAT, vk)) return Loc.F("hotkey_in_use", combo);
         _actions[id] = action;
         return null;
     }

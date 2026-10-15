@@ -295,6 +295,7 @@ public partial class HomeWindow : Window
         var list = Store?.Profiles() ?? Array.Empty<CandidateProfileRecord>();
         ProfileList.ItemsSource = list.Select(p => new Item<string>(
             $"{(p.PreferredName.Length > 0 ? p.PreferredName : p.Name.Length > 0 ? p.Name : T("profile_unnamed"))}  ·  {F("profile_confirmed_count", p.Stats.Confirmed)}", p.Id)).ToList();
+        ProfilesEmpty.Visibility = list.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         var id = selectId ?? _profile?.Id ?? _vm.ActiveProfileId ?? list.FirstOrDefault()?.Id;
         ProfileList.SelectedItem = ((IEnumerable<Item<string>>)ProfileList.ItemsSource).FirstOrDefault(i => i.Value == id);
         if (ProfileList.SelectedItem == null) LoadProfile(null);
@@ -307,6 +308,7 @@ public partial class HomeWindow : Window
     {
         _profile = p;
         ProfileDetail.IsEnabled = p != null;
+        ExportProfileBtn.IsEnabled = DeleteProfileBtn.IsEnabled = p != null;
         ProfileName.Text = p?.Name ?? "";
         ProfilePreferred.Text = p?.PreferredName ?? "";
         ProfileHeadline.Text = p?.Headline ?? "";
@@ -560,6 +562,7 @@ public partial class HomeWindow : Window
         InterviewsProfile.Text = _profile == null ? T("interviews_need_profile") : F("interviews_for", _profile.PreferredName.Length > 0 ? _profile.PreferredName : _profile.Name);
         var list = _profile == null || Store == null ? new List<InterviewTarget>() : Store.Targets(_profile.Id).ToList();
         TargetList.ItemsSource = list.Select(t => new Item<string>($"{t.DisplayName}  ·  {StateLabel(t.Preparation)}{(t.Id == _vm.ActiveTargetId ? "  ·  " + T("state_active") : "")}", t.Id)).ToList();
+        InterviewsEmpty.Visibility = _profile != null && list.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         var id = selectId ?? _target?.Id ?? _vm.ActiveTargetId;
         TargetList.SelectedItem = ((IEnumerable<Item<string>>)TargetList.ItemsSource).FirstOrDefault(i => i.Value == id);
         if (TargetList.SelectedItem == null) LoadTarget(null);
@@ -578,6 +581,7 @@ public partial class HomeWindow : Window
     {
         _target = t;
         TargetDetail.IsEnabled = _profile != null;
+        DeleteTargetBtn.IsEnabled = t != null;
         TargetTitle.Text = t?.JobTitle ?? "";
         TargetCompany.Text = t?.Company ?? "";
         TargetJd.Text = t?.JobDescriptionText ?? "";
@@ -713,7 +717,11 @@ public partial class HomeWindow : Window
         ReportsEmpty.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         ReportList.SelectedItem = items.FirstOrDefault(i => i.Value.Id == selectId) ?? (selectId != null ? items.FirstOrDefault() : ReportList.SelectedItem);
         if (ReportList.SelectedItem == null) ReportPreview.Visibility = Visibility.Collapsed;
+        SetReportButtons(ReportList.SelectedItem != null);
     }
+
+    private void SetReportButtons(bool selected) =>
+        OpenReportBtn.IsEnabled = CopyReportBtn.IsEnabled = ExportReportBtn.IsEnabled = DeleteReportBtn.IsEnabled = selected;
 
     private string LabelFor(StoredSession s) => Store?.GetTarget(s.TargetId)?.DisplayName ?? T("report_default_label");
 
@@ -726,11 +734,12 @@ public partial class HomeWindow : Window
     private void ReportList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         var r = SelectedReport(out var s);
+        SetReportButtons(r != null && s != null);
         if (r == null || s == null) { ReportPreview.Visibility = Visibility.Collapsed; return; }
         ReportPreview.Visibility = Visibility.Visible;
         ReportPreviewTitle.Text = HtmlReportRenderer.Header(r.ProfileLabel, r.TargetLabel);
         ReportPreviewMeta.Text = F("report_preview_meta", r.StartedUtc.ToLocalTime().ToString("g", Loc.Culture), (int)(r.EndedUtc - r.StartedUtc).TotalMinutes, r.Questions.Count);
-        ReportPreviewQuestions.Text = string.Join("\n", r.Questions.Take(8).Select(q => $"Q{q.Index}. {Short(q.OriginalWording, 110)}")) + (r.Questions.Count > 8 ? "\n…" : "");
+        ReportPreviewQuestions.Text = string.Join("\n", r.Questions.Take(8).Select(q => F("report_q_prefix", q.Index) + " " + Short(q.OriginalWording, 110))) + (r.Questions.Count > 8 ? "\n…" : "");
     }
 
     private void OpenReport_Click(object sender, RoutedEventArgs e)
@@ -754,7 +763,7 @@ public partial class HomeWindow : Window
     {
         var r = SelectedReport(out _);
         if (r == null) return;
-        var dlg = new SaveFileDialog { FileName = "interview-report.html", Filter = "HTML (*.html)|*.html" };
+        var dlg = new SaveFileDialog { FileName = "interview-report.html", Filter = T("file_filter_html") + " (*.html)|*.html" };
         if (dlg.ShowDialog(this) != true) return;
         File.WriteAllText(dlg.FileName, HtmlReportRenderer.Render(r, Branding.ProductName));
         Notify(T("toast_report_exported"), ToastKind.Success);
@@ -776,7 +785,7 @@ public partial class HomeWindow : Window
     private void RefreshAccount()
     {
         var c = _vm.Cloud;
-        AccountBadge.Content = _vm.AccountLabel;
+        AccountBadgeText.Text = _vm.AccountLabel;
         HeaderSignOutBtn.Visibility = c.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
         NotConfiguredPanel.Visibility = c.IsConfigured ? Visibility.Collapsed : Visibility.Visible;
         SignedOutPanel.Visibility = c.IsConfigured && !c.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
@@ -994,6 +1003,7 @@ public partial class HomeWindow : Window
             DeviceList.ItemsSource = devices.Where(d => !d.Revoked)
                 .Select(d => new Item<DeviceDto>(F("device_row", d.Name, d.ClientVersion, d.LastSeenUtc.ToLocalTime().ToString("g", Loc.Culture))
                     + (d.Id == _vm.Settings.CloudDeviceId ? " · " + T("device_this_pc") : ""), d)).ToList();
+            RemoveDeviceBtn.IsEnabled = DeviceList.SelectedItem != null;
         }
         catch (BackendException ex) { AccountError.Text = CloudService.Describe(ex); }
     }
@@ -1036,6 +1046,8 @@ public partial class HomeWindow : Window
         else if (_vm.Cloud.Message is { Length: > 0 } m) Notify(m, ToastKind.Warning);
     }
 
+    private void DeviceList_SelectionChanged(object sender, SelectionChangedEventArgs e) => RemoveDeviceBtn.IsEnabled = DeviceList.SelectedItem != null;
+
     private async void RevokeDevice_Click(object sender, RoutedEventArgs e)
     {
         if ((DeviceList.SelectedItem as Item<DeviceDto>)?.Value is not { } d || _vm.Cloud.Api == null) return;
@@ -1049,7 +1061,7 @@ public partial class HomeWindow : Window
     {
         if (_vm.Cloud.Api == null) return;
         if (!await ReauthenticateAsync("reauth_reason_export")) return;
-        var dlg = new SaveFileDialog { FileName = "interview-assistant-account-export.json", Filter = "JSON (*.json)|*.json" };
+        var dlg = new SaveFileDialog { FileName = "interview-assistant-account-export.json", Filter = T("file_filter_json") + " (*.json)|*.json" };
         if (dlg.ShowDialog(this) != true) return;
         try
         {
@@ -1121,8 +1133,10 @@ public partial class HomeWindow : Window
     // ================= helpers =================
 
     private static string Short(string s, int n) => s.Length <= n ? s : s[..n] + "…";
-    private void Warn(string message) => MessageBox.Show(this, message, Branding.ProductName, MessageBoxButton.OK, MessageBoxImage.Information);
-    private bool Confirm(string message) => MessageBox.Show(this, message, Branding.ProductName, MessageBoxButton.OKCancel, MessageBoxImage.Question) == MessageBoxResult.OK;
+    /// <summary>Right-to-left reading order for the system message box in Arabic/Persian.</summary>
+    private static MessageBoxOptions BoxOptions => Loc.IsRtl ? MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign : MessageBoxOptions.None;
+    private void Warn(string message) => MessageBox.Show(this, message, Branding.ProductName, MessageBoxButton.OK, MessageBoxImage.Information, MessageBoxResult.OK, BoxOptions);
+    private bool Confirm(string message) => MessageBox.Show(this, message, Branding.ProductName, MessageBoxButton.OKCancel, MessageBoxImage.Question, MessageBoxResult.OK, BoxOptions) == MessageBoxResult.OK;
     private void Header_MouseDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ClickCount == 2) { ToggleMaximize(); return; }
