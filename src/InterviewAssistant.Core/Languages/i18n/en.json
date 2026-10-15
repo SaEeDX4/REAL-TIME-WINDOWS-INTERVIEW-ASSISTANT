@@ -247,6 +247,7 @@
  "profile_tab_facts": "Experience & facts",
  "profile_tab_personal": "Interview profile",
  "profile_unsaved": "Unsaved changes",
+ "confirm_discard_profile_changes": "This profile has unsaved changes. Discard them?",
  "save_profile": "Save profile",
  "fact_add": "Add fact…",
  "tt_fact_add": "Add a fact yourself (role, achievement, skill, education…)",

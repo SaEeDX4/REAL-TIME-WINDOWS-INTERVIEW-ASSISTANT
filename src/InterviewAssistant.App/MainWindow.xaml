@@ -135,7 +135,7 @@
                             <TextBlock x:Name="StatusLine" Text="{Binding StatusDetail}" FontSize="11" Foreground="{StaticResource B.TextFaint}" Margin="12,0,0,8"
                                        HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusDetail}"/>
                         </DockPanel>
-                        <TextBlock Text="{Binding Question}" FontSize="{Binding QuestionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"
+                        <TextBlock Text="{Binding Question}" FlowDirection="{Binding QuestionFlowDirection}" FontSize="{Binding QuestionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"
                                    Visibility="{Binding Question, Converter={StaticResource StrVis}}"/>
                         <!-- the interviewer's background before the actual ask: short, never the whole monologue -->
                         <TextBlock x:Name="ContextLine" Margin="0,4,0,0" FontSize="11.5" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap" MaxHeight="34" TextTrimming="CharacterEllipsis"
@@ -144,7 +144,7 @@
                         </TextBlock>
                         <TextBlock Text="{Binding LWaiting}" FontSize="{Binding QuestionFontSize}" Foreground="{StaticResource B.TextFaint}"
                                    Visibility="{Binding Question, Converter={StaticResource StrVisInv}}"/>
-                        <TextBlock Text="{Binding LiveTranscript}" Margin="0,8,0,0" FontSize="13" FontStyle="Italic" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap"
+                        <TextBlock Text="{Binding LiveTranscript}" FlowDirection="{Binding LiveTranscriptFlowDirection}" Margin="0,8,0,0" FontSize="13" FontStyle="Italic" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap"
                                    Visibility="{Binding LiveTranscript, Converter={StaticResource StrVis}}"/>
                     </StackPanel>
                 </Border>

@@ -247,6 +247,7 @@
  "profile_tab_facts": "Experiencia y datos",
  "profile_tab_personal": "Perfil de entrevista",
  "profile_unsaved": "Cambios sin guardar",
+ "confirm_discard_profile_changes": "Este perfil tiene cambios sin guardar. ¿Descartarlos?",
  "save_profile": "Guardar perfil",
  "fact_add": "Añadir dato…",
  "tt_fact_add": "Añade un dato tú mismo (puesto, logro, habilidad, formación…)",

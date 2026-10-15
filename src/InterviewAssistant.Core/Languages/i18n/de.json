@@ -247,6 +247,7 @@
  "profile_tab_facts": "Erfahrung & Fakten",
  "profile_tab_personal": "Interviewprofil",
  "profile_unsaved": "Ungespeicherte Änderungen",
+ "confirm_discard_profile_changes": "Dieses Profil hat ungespeicherte Änderungen. Verwerfen?",
  "save_profile": "Profil speichern",
  "fact_add": "Fakt hinzufügen…",
  "tt_fact_add": "Selbst einen Fakt hinzufügen (Position, Erfolg, Fähigkeit, Ausbildung …)",

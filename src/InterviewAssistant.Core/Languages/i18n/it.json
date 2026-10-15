@@ -247,6 +247,7 @@
  "profile_tab_facts": "Esperienza e fatti",
  "profile_tab_personal": "Profilo per il colloquio",
  "profile_unsaved": "Modifiche non salvate",
+ "confirm_discard_profile_changes": "Questo profilo ha modifiche non salvate. Vuoi scartarle?",
  "save_profile": "Salva profilo",
  "fact_add": "Aggiungi fatto…",
  "tt_fact_add": "Aggiungi tu un fatto (ruolo, risultato, competenza, formazione…)",

@@ -247,6 +247,7 @@
  "profile_tab_facts": "Expérience et faits",
  "profile_tab_personal": "Profil d'entretien",
  "profile_unsaved": "Modifications non enregistrées",
+ "confirm_discard_profile_changes": "Ce profil contient des modifications non enregistrées. Les abandonner ?",
  "save_profile": "Enregistrer le profil",
  "fact_add": "Ajouter un fait…",
  "tt_fact_add": "Ajouter un fait vous-même (poste, réalisation, compétence, formation…)",

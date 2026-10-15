@@ -247,6 +247,7 @@
  "profile_tab_facts": "Experiência e fatos",
  "profile_tab_personal": "Perfil de entrevista",
  "profile_unsaved": "Alterações não salvas",
+ "confirm_discard_profile_changes": "Este perfil tem alterações não salvas. Descartá-las?",
  "save_profile": "Salvar perfil",
  "fact_add": "Adicionar fato…",
  "tt_fact_add": "Adicionar um fato você mesmo (cargo, conquista, habilidade, formação…)",

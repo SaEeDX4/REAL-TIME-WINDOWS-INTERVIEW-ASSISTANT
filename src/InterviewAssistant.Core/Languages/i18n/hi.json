@@ -247,6 +247,7 @@
  "profile_tab_facts": "अनुभव और तथ्य",
  "profile_tab_personal": "इंटरव्यू प्रोफ़ाइल",
  "profile_unsaved": "बिना सहेजे बदलाव",
+ "confirm_discard_profile_changes": "इस प्रोफ़ाइल में बिना सहेजे बदलाव हैं। क्या उन्हें छोड़ना है?",
  "save_profile": "प्रोफ़ाइल सहेजें",
  "fact_add": "तथ्य जोड़ें…",
  "tt_fact_add": "खुद एक तथ्य जोड़ें (भूमिका, उपलब्धि, कौशल, शिक्षा…)",

@@ -102,7 +102,11 @@ public partial class HomeWindow : Window
         WindowPlacement.HookMaximizeToWorkArea(this);
         WindowPlacement.Restore(this, _vm.Settings.HomeLeft, _vm.Settings.HomeTop, _vm.Settings.HomeWidth, _vm.Settings.HomeHeight, _vm.Settings.HomeMaximized);
         StateChanged += (_, _) => OnWindowStateChanged();
-        Closing += (_, _) => SavePlacement();
+        Closing += (_, e) =>
+        {
+            if (ProfileHasUnsavedChanges && !Confirm(T("confirm_discard_profile_changes"))) { e.Cancel = true; return; }
+            SavePlacement();
+        };
         _factView = System.Windows.Data.CollectionViewSource.GetDefaultView(_facts);
         _factView.Filter = o => o is FactRow r && (_factFilter == "all" || (_factFilter == "review") != r.Confirmed);
         _factView.SortDescriptions.Add(new SortDescription(nameof(FactRow.Confirmed), ListSortDirection.Ascending));
@@ -301,8 +305,27 @@ public partial class HomeWindow : Window
         if (ProfileList.SelectedItem == null) LoadProfile(null);
     }
 
-    private void ProfileList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
-        LoadProfile(ProfileList.SelectedItem is Item<string> i ? Store?.GetProfile(i.Value) : null);
+    private bool ProfileHasUnsavedChanges => _profile != null && ProfileDirty.Text.Length > 0;
+    private bool _revertingSelection;
+
+    private void ProfileList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_revertingSelection) return;
+        var next = ProfileList.SelectedItem as Item<string>;
+        if (ProfileHasUnsavedChanges)
+        {
+            // A refresh that re-selects the same profile (language switch, list refresh) keeps the edits on screen.
+            if (next?.Value == _profile!.Id) return;
+            if (!Confirm(T("confirm_discard_profile_changes")))
+            {
+                _revertingSelection = true;
+                ProfileList.SelectedItem = ((IEnumerable<Item<string>>)ProfileList.ItemsSource).FirstOrDefault(i => i.Value == _profile.Id);
+                _revertingSelection = false;
+                return;
+            }
+        }
+        LoadProfile(next != null ? Store?.GetProfile(next.Value) : null);
+    }
 
     private void LoadProfile(CandidateProfileRecord? p)
     {

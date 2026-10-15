@@ -247,6 +247,7 @@
  "profile_tab_facts": "经历与事实",
  "profile_tab_personal": "面试档案",
  "profile_unsaved": "有未保存的更改",
+ "confirm_discard_profile_changes": "此个人资料有未保存的更改。要放弃这些更改吗？",
  "save_profile": "保存资料",
  "fact_add": "添加事实…",
  "tt_fact_add": "自行添加一条事实（职位、成就、技能、教育背景等）",

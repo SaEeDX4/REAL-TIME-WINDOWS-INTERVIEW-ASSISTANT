@@ -247,6 +247,7 @@
  "profile_tab_facts": "الخبرات والمعلومات",
  "profile_tab_personal": "ملف المقابلة",
  "profile_unsaved": "تغييرات غير محفوظة",
+ "confirm_discard_profile_changes": "يحتوي هذا الملف الشخصي على تغييرات غير محفوظة. هل تريد تجاهلها؟",
  "save_profile": "حفظ الملف الشخصي",
  "fact_add": "إضافة معلومة…",
  "tt_fact_add": "أضف معلومة بنفسك (دور، إنجاز، مهارة، تعليم…)",

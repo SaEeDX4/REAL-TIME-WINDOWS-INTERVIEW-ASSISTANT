@@ -259,9 +259,23 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private Brush _statusBrush = Brushes.Gray; public Brush StatusBrush { get => _statusBrush; set => Set(ref _statusBrush, value); }
     private bool _statusPulse; public bool StatusPulse { get => _statusPulse; set => Set(ref _statusPulse, value); }
     private string? _statusDetail; public string? StatusDetail { get => _statusDetail; set => Set(ref _statusDetail, value); }
-    private string _question = ""; public string Question { get => _question; set { if (Set(ref _question, value)) Raise(nameof(HasQuestionText)); } }
+    private string _question = ""; public string Question { get => _question; set { if (Set(ref _question, value)) { Raise(nameof(HasQuestionText)); Raise(nameof(QuestionFlowDirection)); } } }
+    /// <summary>The interviewer's words follow their own script (an Arabic/Persian question reads right-to-left even in an English UI).</summary>
+    public FlowDirection QuestionFlowDirection => TextFlow(Question);
+    public FlowDirection LiveTranscriptFlowDirection => TextFlow(LiveTranscript);
+
+    private static FlowDirection TextFlow(string text)
+    {
+        int rtl = 0, ltr = 0;
+        foreach (var ch in text)
+        {
+            if (!char.IsLetter(ch)) continue;
+            if (ch is >= '\u0590' and <= '\u08FF' or >= '\uFB1D' and <= '\uFDFF' or >= '\uFE70' and <= '\uFEFF') rtl++; else ltr++;
+        }
+        return rtl > ltr ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+    }
     public bool HasQuestionText => Question.Length > 0;
-    private string _liveTranscript = ""; public string LiveTranscript { get => _liveTranscript; set => Set(ref _liveTranscript, value); }
+    private string _liveTranscript = ""; public string LiveTranscript { get => _liveTranscript; set { if (Set(ref _liveTranscript, value)) Raise(nameof(LiveTranscriptFlowDirection)); } }
     private string _pending = ""; public string Pending { get => _pending; set => Set(ref _pending, value); }
     private string? _note; public string? Note { get => _note; set => Set(ref _note, value); }
     private string _answerMeta = ""; public string AnswerMeta { get => _answerMeta; set => Set(ref _answerMeta, value); }
