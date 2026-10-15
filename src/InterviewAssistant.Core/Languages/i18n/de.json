@@ -563,6 +563,8 @@
  "open_log_folder": "Protokollordner öffnen",
  "tt_logs": "Protokolle enthalten keine Lebenslauftexte, Antworten oder Schlüssel — hilfreich für den Support",
  "toast_logs_failed": "Der Protokollordner konnte nicht geöffnet werden.",
+ "toast_file_quarantined": "Eine beschädigte Datei wurde beiseitegelegt",
+ "toast_file_quarantined_detail": "Sie konnte nicht gelesen werden (Datenträgerfehler oder von einem anderen Windows-Benutzer gespeichert). Alles andere ist nicht betroffen; die Datei bleibt für den Support erhalten.",
  "svc_minutes_left_warning": "Noch {0} Live-Minuten in Ihrem Tarif.",
  "err_unexpected_ui": "Unerwarteter Fehler — der Assistent läuft weiter. Details stehen im Protokoll.",
  "audio_active": "Aktiv",

@@ -29,6 +29,39 @@ public class WorkspaceStoreTests
         Directory.Delete(root, true);
     }
 
+    [Fact]
+    public void DamagedFile_IsQuarantinedAndEverythingElseStaysVisible()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ia-ws-" + Guid.NewGuid().ToString("n"));
+        var store = new WorkspaceStore(root, new XorProtector());
+        var good = Fixtures.ShervinProfile();
+        store.SaveProfile(good);
+        var damaged = Path.Combine(root, "profiles", "damaged-1.bin");
+        File.WriteAllBytes(damaged, new byte[] { 1, 2, 3, 4, 5 });          // not decryptable / not JSON
+        string? folder = null;
+        store.FileQuarantined += f => folder = f;
+
+        var profiles = store.Profiles();                                       // RC1: threw and hid every profile
+        Assert.Single(profiles);
+        Assert.Equal(good.Id, profiles[0].Id);
+        Assert.Equal("profiles", folder);
+        Assert.Equal(1, store.QuarantinedFiles);
+        Assert.False(File.Exists(damaged));
+        Assert.Single(Directory.GetFiles(Path.Combine(root, "profiles"), "damaged-1.bin.*.corrupt"));   // kept for support
+        Assert.Null(store.GetProfile("damaged-1"));
+        Directory.Delete(root, true);
+    }
+
+    [Fact]
+    public void MigrationTolerates_DuplicateDocumentIds()
+    {
+        var p = Fixtures.ShervinProfile();
+        p.SchemaVersion = 1;
+        if (p.Documents.Count > 0) p.Documents.Add(p.Documents[0]);
+        Assert.True(ProfileMigration.Migrate(p));
+        Assert.Equal(CandidateProfileRecord.CurrentSchemaVersion, p.SchemaVersion);
+    }
+
     [Theory]
     [InlineData("../escape")]
     [InlineData("a/b")]

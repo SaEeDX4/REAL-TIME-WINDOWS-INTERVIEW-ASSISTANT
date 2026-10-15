@@ -563,6 +563,8 @@
  "open_log_folder": "打开日志文件夹",
  "tt_logs": "日志不包含简历内容、回答或密钥——可用于技术支持",
  "toast_logs_failed": "无法打开日志文件夹。",
+ "toast_file_quarantined": "已隔离一个损坏的文件",
+ "toast_file_quarantined_detail": "无法读取该文件（磁盘错误，或由其他 Windows 用户保存）。其他内容不受影响；该文件会保留以便技术支持。",
  "svc_minutes_left_warning": "您的套餐剩余 {0} 实时分钟。",
  "err_unexpected_ui": "发生意外错误——助手仍在运行。详细信息请查看日志。",
  "audio_active": "正常",

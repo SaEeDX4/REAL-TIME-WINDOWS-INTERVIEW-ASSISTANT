@@ -74,16 +74,39 @@ public sealed class WorkspaceStore
         lock (_lock)
         {
             var tmp = path + ".tmp";
-            File.WriteAllBytes(tmp, bytes);
+            // Flushed to disk before the atomic rename, so a power loss can never leave an empty file behind.
+            using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
+            {
+                fs.Write(bytes);
+                fs.Flush(flushToDisk: true);
+            }
             File.Move(tmp, path, overwrite: true);
         }
     }
+
+    /// <summary>Files moved aside because they could not be decrypted or parsed (see <see cref="FileQuarantined"/>).</summary>
+    public int QuarantinedFiles => _quarantined;
+    private int _quarantined;
+    /// <summary>Raised with the folder name ("profiles", "sessions", …) when a damaged file is moved aside.</summary>
+    public event Action<string>? FileQuarantined;
 
     private T? Read<T>(string folder, string id) where T : class
     {
         var path = PathFor(folder, id);
         if (!File.Exists(path)) return null;
-        return JsonSerializer.Deserialize<T>(_protector.Unprotect(File.ReadAllBytes(path)), Json);
+        try { return JsonSerializer.Deserialize<T>(_protector.Unprotect(File.ReadAllBytes(path)), Json); }
+        catch (Exception ex) when (ex is JsonException or System.Security.Cryptography.CryptographicException or NotSupportedException or ArgumentException)
+        {
+            // One damaged file (disk error, or encrypted for another Windows user) must not hide every other item:
+            // it is renamed to *.corrupt (kept for support, never deleted) and skipped.
+            lock (_lock)
+            {
+                try { File.Move(path, path + "." + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".corrupt", overwrite: true); } catch (IOException) { }
+            }
+            Interlocked.Increment(ref _quarantined);
+            FileQuarantined?.Invoke(folder);
+            return null;
+        }
     }
 
     private IEnumerable<T> All<T>(string folder) where T : class

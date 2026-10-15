@@ -26,6 +26,32 @@ public sealed class Workspace
     /// <summary>Account id hash (or "local"/"selftest") this workspace belongs to.</summary>
     public string Owner { get; init; } = "local";
 
+    /// <summary>
+    /// Plain HTML copies of this account's reports, created only so a browser can display one. They live in the
+    /// account's own folder under %LOCALAPPDATA% (not in Documents, not shared between accounts, never synced) and are
+    /// removed when the account's workspace is closed or the report is deleted. The authoritative copy stays encrypted.
+    /// </summary>
+    public string ViewerDir => Path.Combine(AppPaths.Local, "view", Owner);
+
+    public string WriteViewerCopy(string reportId, string html)
+    {
+        Directory.CreateDirectory(ViewerDir);
+        var path = Path.Combine(ViewerDir, $"report-{reportId}.html");
+        File.WriteAllText(path, html);
+        return path;
+    }
+
+    public void DeleteViewerCopy(string reportId)
+    {
+        try { File.Delete(Path.Combine(ViewerDir, $"report-{reportId}.html")); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+    }
+
+    public void ClearViewerCopies()
+    {
+        try { if (Directory.Exists(ViewerDir)) Directory.Delete(ViewerDir, recursive: true); }
+        catch (IOException) { } catch (UnauthorizedAccessException) { }
+    }
+
     public Workspace(string root, IDataProtector protector)
     {
         Store = new WorkspaceStore(root, protector);

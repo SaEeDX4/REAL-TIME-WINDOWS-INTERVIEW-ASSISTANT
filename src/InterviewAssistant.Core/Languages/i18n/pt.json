@@ -563,6 +563,8 @@
  "open_log_folder": "Abrir pasta de logs",
  "tt_logs": "Os logs não contêm texto do currículo, respostas nem chaves — úteis para o suporte",
  "toast_logs_failed": "Não foi possível abrir a pasta de logs.",
+ "toast_file_quarantined": "Um arquivo danificado foi separado",
+ "toast_file_quarantined_detail": "Não foi possível lê-lo (erro de disco ou salvo por outro usuário do Windows). Todo o resto não foi afetado; o arquivo é mantido para o suporte.",
  "svc_minutes_left_warning": "Restam {0} minutos ao vivo no seu plano.",
  "err_unexpected_ui": "Erro inesperado — o assistente continua em execução. Os detalhes estão no log.",
  "audio_active": "Ativo",

@@ -563,6 +563,8 @@
  "open_log_folder": "Ouvrir le dossier des journaux",
  "tt_logs": "Les journaux ne contiennent ni texte de CV, ni réponses, ni clés — utiles pour l'assistance",
  "toast_logs_failed": "Impossible d'ouvrir le dossier des journaux.",
+ "toast_file_quarantined": "Un fichier endommagé a été mis de côté",
+ "toast_file_quarantined_detail": "Il n'a pas pu être lu (erreur de disque ou enregistré par un autre utilisateur Windows). Le reste n'est pas affecté ; le fichier est conservé pour l'assistance.",
  "svc_minutes_left_warning": "Il reste {0} minutes en direct sur votre offre.",
  "err_unexpected_ui": "Erreur inattendue — l'assistant fonctionne toujours. Les détails figurent dans le journal.",
  "audio_active": "Actif",

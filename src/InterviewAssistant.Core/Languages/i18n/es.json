@@ -563,6 +563,8 @@
  "open_log_folder": "Abrir carpeta de registros",
  "tt_logs": "Los registros no contienen texto del currículum, respuestas ni claves — útiles para el soporte",
  "toast_logs_failed": "No se pudo abrir la carpeta de registros.",
+ "toast_file_quarantined": "Se apartó un archivo dañado",
+ "toast_file_quarantined_detail": "No se pudo leer (error de disco o guardado por otro usuario de Windows). Todo lo demás no se ve afectado; el archivo se conserva para soporte.",
  "svc_minutes_left_warning": "Quedan {0} minutos en vivo en tu plan.",
  "err_unexpected_ui": "Error inesperado — el asistente sigue funcionando. Encontrarás los detalles en el registro.",
  "audio_active": "Activo",

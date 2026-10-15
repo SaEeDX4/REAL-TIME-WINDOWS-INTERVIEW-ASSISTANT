@@ -563,6 +563,8 @@
  "open_log_folder": "Open log folder",
  "tt_logs": "Logs contain no résumé text, answers or keys — useful for support",
  "toast_logs_failed": "Could not open the log folder.",
+ "toast_file_quarantined": "A damaged file was set aside",
+ "toast_file_quarantined_detail": "It could not be read (disk error, or saved by another Windows user). Everything else is unaffected; the file is kept for support.",
  "svc_minutes_left_warning": "{0} live minutes left on your plan.",
  "err_unexpected_ui": "Unexpected error — the assistant is still running. Details are in the log.",
  "audio_active": "Active",

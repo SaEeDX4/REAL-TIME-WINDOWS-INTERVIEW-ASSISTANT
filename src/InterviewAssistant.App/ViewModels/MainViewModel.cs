@@ -369,8 +369,23 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     {
         string? owner = App.SelfTestOutput != null ? "selftest" : !UsingCloud ? "local" : Cloud.Auth?.Session?.UserId;
         if (owner == _workspaceOwner && (Workspace != null || owner == null)) return;
-        if (SessionActive) return;
+        if (SessionActive)
+        {
+            // A token that expires mid-interview (owner null) keeps the interview running. A DIFFERENT account signing
+            // in must not inherit this interview: stop it first (its report is saved to the current account), then switch.
+            if (owner != null && _workspaceOwner != null && owner != _workspaceOwner && !_switchPending)
+            {
+                _switchPending = true;
+                Post(async () =>
+                {
+                    try { await StopAsync(); } finally { _switchPending = false; }
+                    OpenWorkspaceForCurrentAccount();
+                });
+            }
+            return;
+        }
         var baseDir = Path.Combine(AppPaths.Roaming, "workspace");
+        Workspace?.ClearViewerCopies();
         ClearUserState();
         if (owner == null)
         {
@@ -389,6 +404,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             root = WorkspaceLocator.RootFor(baseDir, owner);
         }
         Workspace = new Workspace(root, new DpapiProtector()) { Owner = owner == "local" || owner == "selftest" ? owner : WorkspaceLocator.AccountKey(owner) };
+        Workspace.ClearViewerCopies();   // leftovers from a previous run
+        Workspace.Store.FileQuarantined += folder => Post(() => Toast(Loc.T("toast_file_quarantined"), Views.ToastKind.Warning, Loc.T("toast_file_quarantined_detail")));
         var (p, t) = Workspace.Store.GetActive();
         if (p == null && Settings.ActiveProfileId is { } legacyP && Workspace.Store.GetProfile(legacyP) != null)
         {
@@ -741,10 +758,15 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
     private string? _lastReportPath; public string? LastReportPath { get => _lastReportPath; private set => Set(ref _lastReportPath, value); }
 
-    /// <summary>Post-interview report (honesty-labelled), saved encrypted in the workspace and as a local HTML file.</summary>
+    private bool _switchPending;
+
+    /// <summary>
+    /// Post-interview report (honesty-labelled), saved encrypted in the account's workspace; a plain HTML viewer copy is
+    /// written to the account's private view folder so "open last report" can show it in the browser.
+    /// </summary>
     public string? SaveReport()
     {
-        if (_engine == null || Knowledge == null || _engine.Memory.Questions.Count == 0) return null;
+        if (_engine == null || Knowledge == null || _engine.Memory.Questions.Count == 0) { _sessionStartedUtc = default; return null; }
         try
         {
             var id = Guid.NewGuid().ToString("n");
@@ -755,14 +777,13 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
                 _engine.Metrics.Reconnects, _engine.Metrics.DuplicatesSuppressed, Knowledge.Profile.PreferredName is { Length: > 0 } pn ? pn : Knowledge.Context.CandidateName, ActiveLabel);
             if (Workspace == null) return null;   // signed out: nothing is persisted anywhere
             Workspace.Store.SaveSession(new StoredSession { Id = id, ProfileId = ActiveProfileId ?? "", TargetId = ActiveTargetId ?? "", StartedUtc = started, EndedUtc = DateTime.UtcNow, ReportJson = report.ToJson() });
-            var path = Path.Combine(AppPaths.Sessions, $"report-{DateTime.Now:yyyyMMdd-HHmmss}.html");
-            File.WriteAllText(path, HtmlReportRenderer.Render(report, Branding.ProductName));
+            var path = Workspace.WriteViewerCopy(id, HtmlReportRenderer.Render(report, Branding.ProductName));
             _sessionStartedUtc = default;
             AppLog.Info($"Report saved ({report.Questions.Count} questions, {report.ExcludedTurns} non-interview turns excluded)");
             ReportSaved?.Invoke(id);
             return path;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Security.Cryptography.CryptographicException)
         {
             AppLog.Error("Report save failed", ex);
             return null;
@@ -922,7 +943,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         {
             var sb = new StringBuilder($"# Interview session {DateTime.Now:yyyy-MM-dd HH:mm}\n\n");
             foreach (var a in _engine.History) { sb.AppendLine($"## {a.Question}"); foreach (var b in a.Bullets) sb.AppendLine("- " + b); sb.AppendLine(); }
-            File.WriteAllText(Path.Combine(AppPaths.Sessions, $"session-{DateTime.Now:yyyyMMdd-HHmm}.md"), sb.ToString());
+            // Opt-in (Settings): the user chose a plain transcript in Documents. Unique per session, never overwritten.
+            File.WriteAllText(Path.Combine(AppPaths.Sessions, $"session-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid().ToString("n")[..6]}.md"), sb.ToString());
         }
         catch (IOException ex) { AppLog.Error("Session save failed", ex); }
     }
@@ -936,11 +958,15 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _updateTimer.Stop();
         _accountTimer?.Stop();
         _capture.Dispose();
-        var hadSession = SessionActive;
+        // Closing the app during an interview still keeps its report (RC1 lost it). Saved locally FIRST: ending the
+        // lease is a network call that may be slow or offline, and the window only waits a few seconds.
+        if (SessionActive)
+        {
+            SaveReport();
+            if (Settings.SaveSessionTranscript) SaveSession();
+        }
         if (_engine != null) await _engine.DisposeAsync();
         await EndLeaseAsync();
-        // Closing the app during an interview still keeps its report (RC1 lost it).
-        if (hadSession) SaveReport();
         (_provider as IDisposable)?.Dispose();
     }
 }

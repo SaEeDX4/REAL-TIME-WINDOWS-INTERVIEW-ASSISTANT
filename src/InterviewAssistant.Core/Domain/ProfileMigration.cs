@@ -10,7 +10,8 @@ public static class ProfileMigration
     public static bool Migrate(CandidateProfileRecord p)
     {
         if (p.SchemaVersion >= CandidateProfileRecord.CurrentSchemaVersion) return false;
-        var docs = p.Documents.ToDictionary(d => d.Id, d => d.FileName);
+        // Tolerates duplicate document ids (hand-edited or damaged files) instead of making the profile unloadable.
+        var docs = p.Documents.Where(d => d.Id != null).GroupBy(d => d.Id).ToDictionary(g => g.Key, g => g.First().FileName);
         foreach (var f in p.Facts)
         {
             if (f.Source == FactSource.Unknown && f.Provenance != null)

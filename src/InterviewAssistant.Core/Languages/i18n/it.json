@@ -563,6 +563,8 @@
  "open_log_folder": "Apri cartella dei log",
  "tt_logs": "I log non contengono testo del CV, risposte o chiavi — utili per l'assistenza",
  "toast_logs_failed": "Impossibile aprire la cartella dei log.",
+ "toast_file_quarantined": "Un file danneggiato è stato messo da parte",
+ "toast_file_quarantined_detail": "Non è stato possibile leggerlo (errore del disco o salvato da un altro utente di Windows). Tutto il resto non è interessato; il file viene conservato per l'assistenza.",
  "svc_minutes_left_warning": "{0} minuti live rimanenti nel tuo piano.",
  "err_unexpected_ui": "Errore imprevisto — l'assistente è ancora in esecuzione. I dettagli sono nel log.",
  "audio_active": "Attivo",
