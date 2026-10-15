@@ -50,6 +50,17 @@ There is still exactly **one** model call per generated answer. Every new layer 
 | E14 | Prompt injection via interviewer speech or documents | High | Untrusted text reaches the prompt | Interviewer text placed as quoted data with a SECURITY section; LeakGuard drops bullets with prompt internals/secrets; document injection guard | `InterviewerPromptInjection_IsTreatedAsDataAndLeaksAreNeverShown`, `UploadSecurityTests` | Document-derived text still reaches the system message (security audit L2). |
 | E15 | Redundant bullets | Low | Model repeats itself | `AnswerQualityGate.IsRedundant` (Jaccard ≥ 0.6) while streaming | `RedundantBullets_AreDroppedWhileStreaming`, evaluation (0 duplicates) | — |
 
+### Self-review of the RC2 diff (second pass, fixed in 796de96)
+
+| # | Severity | Finding | Fix | Test |
+|---|---|---|---|---|
+| R1 | High | A variant cancelled by the next question, Stop or another variant replaced the original answer with an empty one in history and in the report (introduced while fixing E7) | The original returns to its history slot; the question record is untouched; the UI shows it with a note | `VariantCancelledByTheNextQuestion_KeepsTheOriginalAnswerInHistoryAndReport` |
+| R2 | Medium | Speech evidence matched to segments in arrival order could drift after a dropped or out-of-order transcript, so a beep's evidence could veto a real short question | Evidence keyed by the realtime `item_id`; queue only as fallback; cleared on reconnect | `SpeechEvidence_FollowsItsOwnItem_EvenWhenTranscriptsArriveOutOfOrderOrAreDropped` |
+| R3 | Medium | The acronym rule rewrote real words (USD→USDT, GDP→GDPR) for fintech vocabularies | Mixed-case terms only | `TargetScopedTerms_MiCAtoMiCAR_OnlyWhenTheTargetUsesMiCAR` |
+| R4 | Low | A variant of a still-streaming answer skipped that question's memory update (story repetition) | Memory completed by the variant | engine tests |
+| R5 | Low | Answer cancellation-source hand-back not atomic; cancelled cloud answers raised unobserved errors | `CompareExchange` hand-back; cancellation caught | engine tests |
+| R6 | Low | The inserted honest bridge was English in German/Persian/… answers | Bridge text and cues per answer language | `HonestBridge_IsWrittenInTheAnswerLanguage` |
+
 ## 3. Answer planner and quality gate
 
 * **Planner** (`AnswerPlanner.Plan`): from the extracted question, classification, prepared-bank match and retrieved

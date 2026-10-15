@@ -36,7 +36,8 @@ after turns (end-of-question timing unchanged); the prepared/high-confidence pat
 | PF2 | Medium | Answer stream could hang indefinitely after the first token (connection held) | 20 s idle / 90 s total cap | `StalledStreamAfterTheFirstToken_TimesOutInsteadOfHanging` | — |
 | PF3 | Low | Local decision layers add work on every turn | Measured ≈ 5 ms p50; regexes compiled once | latency test (budget p95 < 25 ms) | CI runner noise produces occasional 20–48 ms maxima. |
 | PF4 | Low | HttpClient usage | Long-lived clients with pooled handlers (`PooledConnectionLifetime` 10 min); the key probe disposes its client | code review | — |
-| PF5 | Low | Timers / cancellation sources | View-model timers owned and stopped on dispose; per-operation cancellation sources are disposed or replaced on the UI thread | code review | See self-review notes in the final report. |
+| PF5 | Low | Timers / cancellation sources | View-model timers owned and stopped on dispose; answer/variant cancellation sources handed back atomically; toast hosts subscribe to language changes only while loaded | code review (self-review) | `ReadinessWindow`/Home preparation sources are replaced without dispose (minor, GC-reclaimed). |
+| PF7 | Medium | A connected but unresponsive backend could block Start/Pause indefinitely (no request timeout) | 30 s per-request timeout (response headers for streams), mapped to a readable message | code review | — |
 | PF6 | Info | Backend heartbeat runs three SUM queries incl. a global daily SUM | Unchanged | backend audit | Add a daily aggregate table when traffic grows. |
 
 ## Not measured (open)
