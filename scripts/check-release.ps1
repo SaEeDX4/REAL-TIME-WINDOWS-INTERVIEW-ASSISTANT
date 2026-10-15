@@ -43,3 +43,5 @@ if ($secrets) { $failures += "Possible committed secrets:`n$($secrets -join "`n"
 
 if ($failures) { $failures | ForEach-Object { Write-Host "::error::$_" }; throw "Release gate failed ($($failures.Count) problem(s))." }
 Write-Host "Release gate passed for ${Version}: version, release notes, RC documents, secret scan."
+# git grep exits 1 when nothing matched (the expected, clean result): never let that leak out as a failure.
+exit 0
