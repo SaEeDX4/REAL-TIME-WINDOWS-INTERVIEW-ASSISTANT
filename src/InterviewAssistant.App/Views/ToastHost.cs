@@ -26,6 +26,10 @@ public sealed class ToastHost : StackPanel
         VerticalAlignment = VerticalAlignment.Bottom;
         HorizontalAlignment = HorizontalAlignment.Center;
         Margin = new Thickness(12);
+        // Notifications already on screen follow a live UI-language switch (subscribed only while in a window, so a
+        // closed window's host is not kept alive by the static event).
+        Loaded += (_, _) => InterviewAssistant.Core.Languages.Loc.LanguageChanged += OnLanguageChanged;
+        Unloaded += (_, _) => InterviewAssistant.Core.Languages.Loc.LanguageChanged -= OnLanguageChanged;
         Loaded += (_, _) =>
         {
             // Escape dismisses the newest toast (only when nothing else in the window handled the key first).
@@ -40,6 +44,18 @@ public sealed class ToastHost : StackPanel
     }
 
     private Window? _window;
+
+    private void OnLanguageChanged() => Dispatcher.BeginInvoke(RelocalizeVisible);
+
+    private void RelocalizeVisible()
+    {
+        foreach (var card in Children.OfType<Border>())
+        {
+            card.ToolTip = InterviewAssistant.Core.Languages.Loc.T("toast_dismiss");
+            if (card.Child is DockPanel { Children.Count: > 1 } row && row.Children[1] is StackPanel texts)
+                foreach (var tb in texts.Children.OfType<TextBlock>()) tb.Text = InterviewAssistant.Core.Languages.Loc.Relocalize(tb.Text) ?? tb.Text;
+        }
+    }
 
     public void Show(string text, ToastKind kind = ToastKind.Info, int? milliseconds = null) => Show(text, null, kind, milliseconds);
 

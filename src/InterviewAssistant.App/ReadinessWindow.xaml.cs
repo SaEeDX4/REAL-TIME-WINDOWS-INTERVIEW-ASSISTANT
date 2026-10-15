@@ -116,8 +116,8 @@ public partial class ReadinessWindow : Window
         _auth.Busy(T("pf_busy_account"));
         var refreshed = _vm.Cloud.IsSignedIn && await _vm.Cloud.RefreshAsync(CancellationToken.None);
         if (!_vm.Cloud.IsConfigured) { _auth.Fail(T("acct_not_configured_long")); _answer.Warn(T("pf_skipped_service")); _stt.Warn(T("pf_skipped_service")); }
-        else if (!_vm.Cloud.IsSignedIn) { _auth.Fail(_vm.Cloud.Message ?? T("note_sign_in_to_listen")); _answer.Warn(T("pf_skipped_sign_in")); _stt.Warn(T("pf_skipped_sign_in")); }
-        else if (!refreshed || _vm.Cloud.Account is not { } a) { _auth.Fail(_vm.Cloud.Message ?? T("svc_unreachable")); _answer.Warn(T("pf_skipped_unreachable")); _stt.Warn(T("pf_skipped_unreachable")); }
+        else if (!_vm.Cloud.IsSignedIn) { _auth.Fail(Loc.Relocalize(_vm.Cloud.Message) ?? T("note_sign_in_to_listen")); _answer.Warn(T("pf_skipped_sign_in")); _stt.Warn(T("pf_skipped_sign_in")); }
+        else if (!refreshed || _vm.Cloud.Account is not { } a) { _auth.Fail(Loc.Relocalize(_vm.Cloud.Message) ?? T("svc_unreachable")); _answer.Warn(T("pf_skipped_unreachable")); _stt.Warn(T("pf_skipped_unreachable")); }
         else
         {
             var mins = a.Usage.LiveSecondsRemaining / 60;

@@ -65,6 +65,36 @@ public static class Loc
         return Table("en").Keys.Where(k => !t.TryGetValue(k, out var v) || string.IsNullOrWhiteSpace(v)).OrderBy(k => k).ToList();
     }
 
+    private static Dictionary<string, string>? _reverse;
+    private static readonly System.Text.RegularExpressions.Regex RefSuffix = new(@"\s(\(\S{1,24}\s[0-9a-fA-F]{8}\))$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>
+    /// Re-renders a message that was already localized (in any supported language) in the current UI language — for
+    /// status notes, banners and notifications that were on screen when the user switched languages. A trailing support
+    /// reference "(ref 1a2b3c4d)" is kept. Text that is not a complete table string (user data, formatted values) is
+    /// returned unchanged.
+    /// </summary>
+    public static string? Relocalize(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+        var reverse = _reverse ??= BuildReverse();
+        var body = text; var suffix = "";
+        var m = RefSuffix.Match(text);
+        if (m.Success) { body = text[..m.Index]; suffix = " " + m.Groups[1].Value; }
+        if (!reverse.TryGetValue(body, out var key)) return text;
+        if (suffix.Length > 0 && Format(_language, "svc_ref", m.Groups[1].Value[^9..^1]) is { } r) suffix = " " + r;
+        return T(key) + suffix;
+    }
+
+    private static Dictionary<string, string> BuildReverse()
+    {
+        var d = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var code in LanguageRegistry.All.Select(l => l.Code).Prepend("en").Distinct())
+            foreach (var (k, v) in Table(code))
+                if (v.Length > 0 && !v.Contains('{')) d.TryAdd(v, k);     // complete strings only (no placeholders)
+        return d;
+    }
+
     private static IReadOnlyDictionary<string, string> Table(string code) => Tables.GetOrAdd(code, Load);
 
     private static IReadOnlyDictionary<string, string> Load(string code)

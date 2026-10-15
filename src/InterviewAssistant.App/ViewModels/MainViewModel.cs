@@ -127,6 +127,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         RaiseMinutes();
         if (_engine != null) ApplyStatus(_engine.Status, _engine.StatusDetail);
         if (_engine?.History.FirstOrDefault(a => a.Id == _displayedAnswerId) is { } shown) AnswerMeta = Meta(shown);
+        Note = Loc.Relocalize(Note);   // a status note already on screen follows the new language
     }
 
     // ---------------- coach / adaptive ----------------
@@ -186,7 +187,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public string ServiceBanner => !UsingCloud ? "" : Cloud.State switch
     {
         CloudState.ServiceUnavailable => Loc.T("banner_offline"),
-        CloudState.UpdateRequired or CloudState.AccountDisabled or CloudState.SessionExpired or CloudState.NotConfigured => Cloud.Message ?? AccountLabel,
+        CloudState.UpdateRequired or CloudState.AccountDisabled or CloudState.SessionExpired or CloudState.NotConfigured => Loc.Relocalize(Cloud.Message) ?? AccountLabel,
         CloudState.SignedIn when Cloud.Account?.BillingState is Contracts.BillingStates.TrialExhausted or Contracts.BillingStates.Expired or Contracts.BillingStates.Paused =>
             Loc.F("banner_upgrade", BillingLabel(Cloud.Account!)),
         _ => "",
@@ -500,7 +501,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _engine.AnswerStarted += a => Post(() => OnAnswerStarted(a));
         _engine.BulletAdded += (a, _) => Post(() => { if (a.Id == _displayedAnswerId) { SyncBullets(a); Pending = ""; Raise(nameof(IsThinking)); } });
         _engine.PendingTextChanged += (a, p) => Post(() => { if (a.Id == _displayedAnswerId) Pending = p; });
-        _engine.AnswerCompleted += a => Post(() => { if (a.Id == _displayedAnswerId) { SyncBullets(a); Pending = ""; Note = a.Note; AnswerMeta = Meta(a); Raise(nameof(IsThinking)); } if (a.Kind != AnswerKind.Variant) LiveTranscript = ""; CommandManager.InvalidateRequerySuggested(); });
+        _engine.AnswerCompleted += a => Post(() => { if (a.Id == _displayedAnswerId) { SyncBullets(a); Pending = ""; Note = Loc.Relocalize(a.Note); AnswerMeta = Meta(a); Raise(nameof(IsThinking)); } if (a.Kind != AnswerKind.Variant) LiveTranscript = ""; CommandManager.InvalidateRequerySuggested(); });
         _engine.LatencyMeasured += s => AppLog.Info($"Latency [{s.Source}] finalize {s.SpeechEndToFinalizedMs} ms, first bullet {s.FinalizedToFirstBulletMs} ms, total {s.FinalizedToCompleteMs} ms");
         _engine.InterruptionDetected += _ => AppLog.Info("Pace: likely interruption (answers shortened)");
         _engine.Log += m => AppLog.Info(m);
@@ -854,7 +855,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         Bullets.Clear();
         SyncBullets(a);
         Pending = "";
-        Note = a.Note;
+        Note = Loc.Relocalize(a.Note);
         AnswerMeta = Meta(a);
         if (isNew && _engine != null) HistoryPosition = _engine.History.Count - 1;
         Raise(nameof(HistoryLabel));

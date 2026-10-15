@@ -246,7 +246,7 @@ public partial class HomeWindow : Window
         Step2Status.Text = devMode ? T(SecretStore.HasKey ? "start_dev_key" : "start_dev_no_key")
             : !_vm.Cloud.IsConfigured ? T("acct_not_configured_long")
             : _vm.Cloud.IsSignedIn ? F("start_signed_in", _vm.AccountLabel)
-            : _vm.Cloud.Message ?? T("start_account_hint");
+            : Loc.Relocalize(_vm.Cloud.Message) ?? T("start_account_hint");
         DeveloperModeBtn.Visibility = BuildFlavor.Developer ? Visibility.Visible : Visibility.Collapsed;
         GoAccountBtn.Visibility = _vm.Cloud.IsConfigured && !_vm.Cloud.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
         var stats = profiles.Select(p => p.Stats).ToList();
@@ -819,7 +819,7 @@ public partial class HomeWindow : Window
         {
             CloudState.SignedIn => F("acct_signed_in_email", c.Account?.Email),
             CloudState.Connecting => T("acct_connecting_service"),
-            _ => c.Message ?? "",
+            _ => Loc.Relocalize(c.Message) ?? "",
         };
         AccountStatus.Foreground = (Brush)FindResource(c.State is CloudState.ServiceUnavailable or CloudState.AccountDisabled or CloudState.UpdateRequired or CloudState.SessionExpired ? "B.Thinking" : "B.TextDim");
         SetCreateMode(_createMode);

@@ -104,6 +104,25 @@ public class LocalizationCoverageTests
     }
 
     [Fact]
+    public void MessagesAlreadyOnScreen_FollowALanguageSwitch()
+    {
+        var before = Loc.Language;
+        try
+        {
+            Loc.Language = "en";
+            var shown = Loc.T("svc_unreachable") + " " + Loc.F("svc_ref", "1a2b3c4d");
+            Loc.Language = "fa";
+            var now = Loc.Relocalize(shown)!;
+            Assert.StartsWith(Loc.T("svc_unreachable"), now);
+            Assert.EndsWith(Loc.F("svc_ref", "1a2b3c4d"), now);
+            Assert.Equal(Loc.T("toast_dismiss"), Loc.Relocalize(Loc.TableFor("hi")["toast_dismiss"]));   // from any language
+            Assert.Equal("How would you prioritise the backlog?", Loc.Relocalize("How would you prioritise the backlog?"));   // user data unchanged
+            Assert.Null(Loc.Relocalize(null));
+        }
+        finally { Loc.Language = before; }
+    }
+
+    [Fact]
     public void UiLanguageNeverChangesTheAnswerLanguage()
     {
         var before = Loc.Language;
