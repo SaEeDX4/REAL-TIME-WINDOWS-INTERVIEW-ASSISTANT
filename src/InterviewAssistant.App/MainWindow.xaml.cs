@@ -263,6 +263,7 @@ public partial class MainWindow : Window
         if (_vm.SessionActive)
         {
             _vm.ApplyLiveSettings();
+            if (dlg.ModelSettingsChanged) _vm.RebuildAfterSession();   // applied on the next Start even if this session had no questions
             Toasts.Show(Core.Languages.Loc.T(dlg.ModelSettingsChanged ? "toast_settings_after_stop" : "toast_settings_applied_live"), Views.ToastKind.Info);
         }
         else _vm.BuildEngine();

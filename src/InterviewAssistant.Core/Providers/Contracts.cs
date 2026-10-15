@@ -66,6 +66,8 @@ public interface ITranscriber : IAsyncDisposable
     event Action? SpeechStopped;
     event Action<string, string>? PartialTranscript;   // itemId, delta
     event Action<string, string>? SegmentCompleted;    // itemId, transcript
+    /// <summary>Item id of the speech segment that the most recent <see cref="SpeechStopped"/> ended (null when unknown).</summary>
+    string? LastStoppedItemId => null;
     event Action<ConnectionStatus, string?>? StatusChanged;
     Task StartAsync(CancellationToken ct);
     Task StopAsync();

@@ -91,6 +91,9 @@ public sealed class BackendClient
         throw new BackendException(502, "stream_truncated", "The answer stream ended unexpectedly.", LastCorrelationId);
     }
 
+    /// <summary>Longest wait for a response (for streams: for the response headers).</summary>
+    public TimeSpan RequestTimeout { get; init; } = TimeSpan.FromSeconds(30);
+
     private async Task<T> Send<T>(HttpMethod m, string path, object? body, CancellationToken ct, bool auth = true)
     {
         using var resp = await SendRaw(m, path, body, ct, auth, HttpCompletionOption.ResponseContentRead);
@@ -115,8 +118,13 @@ public sealed class BackendClient
                 req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             }
             HttpResponseMessage resp;
-            try { resp = await _http.SendAsync(req, completion, ct); }
+            // A connected but unresponsive server must never hang the app (the HttpClient itself has no timeout so that
+            // answer streams can run): every request gets a bounded wait for its response (headers for streams).
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            timeout.CancelAfter(RequestTimeout);
+            try { resp = await _http.SendAsync(req, completion, timeout.Token); }
             catch (HttpRequestException ex) { throw new BackendException(0, "offline", "Cannot reach the service. Check your connection.", cid) { Source = ex.Message }; }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested) { throw new BackendException(504, "timeout", "The service did not answer in time.", cid); }
             finally { req.Dispose(); }
             if (resp.StatusCode == HttpStatusCode.Unauthorized && auth && attempt == 0) { resp.Dispose(); continue; }
             return resp;

@@ -176,6 +176,8 @@ public sealed class CloudService
         BackendException { Code: "daily_live_cap" } b => Loc.T("lease_daily_cap") + Ref(b),
         BackendException { Code: "manual_daily_cap" } b => Loc.T("svc_manual_cap") + Ref(b),
         BackendException { Code: "reauth_required" } b => Loc.T("err_reauth_unavailable") + Ref(b),
+        BackendException { Code: "timeout" } b => Loc.T("svc_timeout") + Ref(b),
+        BackendException { Code: "session_start_rate" } b => Loc.T("svc_session_start_rate") + Ref(b),
         BackendException { Code: "subscription_active" } b => Loc.T("svc_subscription_active") + Ref(b),
         BackendException { Code: "prep_limit" } b => Loc.T("warn_prep_limit") + Ref(b),
         BackendException { Code: "document_limit" } b => Loc.T("svc_document_limit") + Ref(b),
@@ -258,6 +260,46 @@ public sealed class CloudService
     /// must be correct for the SAME account. Accounts that only use a sign-in provider cannot confirm a password and are
     /// asked to sign in again with that provider instead.
     /// </summary>
+    /// <summary>
+    /// The sign-in provider of the current session ("email" for e-mail/password, otherwise e.g. "google", "azure",
+    /// "github", "apple"), read from the access token's <c>app_metadata.provider</c>. Null when unknown.
+    /// </summary>
+    public string? SignInProvider
+    {
+        get
+        {
+            var token = Auth?.Session?.AccessToken;
+            var parts = token?.Split('.');
+            if (parts is not { Length: 3 }) return null;
+            try
+            {
+                var p = parts[1].Replace('-', '+').Replace('_', '/');
+                p = p.PadRight(p.Length + (4 - p.Length % 4) % 4, '=');
+                using var doc = System.Text.Json.JsonDocument.Parse(Convert.FromBase64String(p));
+                return doc.RootElement.TryGetProperty("app_metadata", out var meta) && meta.TryGetProperty("provider", out var prov) && prov.ValueKind == System.Text.Json.JsonValueKind.String
+                    ? prov.GetString() : null;
+            }
+            catch (Exception ex) when (ex is FormatException or System.Text.Json.JsonException) { return null; }
+        }
+    }
+
+    /// <summary>Re-authentication for accounts that sign in with a provider (no password): a fresh provider sign-in for the SAME account.</summary>
+    public async Task<(bool Ok, string? Error)> ReauthenticateWithProviderAsync(string provider)
+    {
+        var before = Auth?.Session?.UserId;
+        if (before == null) return (false, Loc.T("err_reauth_unavailable"));
+        var (ok, error) = await SignInWithProviderAsync(provider);
+        if (!ok) return (false, error ?? Loc.T("err_reauth_failed"));
+        if (!string.Equals(Auth?.Session?.UserId, before, StringComparison.Ordinal))
+        {
+            AppLog.Warn("Provider re-authentication returned a different account; signing out");
+            await SignOutAsync();
+            return (false, Loc.T("err_reauth_failed"));
+        }
+        AppLog.Info("Re-authenticated with the sign-in provider for a sensitive action");
+        return (true, null);
+    }
+
     public async Task<(bool Ok, string? Error)> ReauthenticateAsync(string password)
     {
         if (Auth?.Session is not { } s || string.IsNullOrWhiteSpace(s.Email)) return (false, Loc.T("err_reauth_unavailable"));

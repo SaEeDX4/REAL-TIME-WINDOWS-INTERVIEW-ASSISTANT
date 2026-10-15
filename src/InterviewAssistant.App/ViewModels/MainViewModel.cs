@@ -128,6 +128,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         if (_engine != null) ApplyStatus(_engine.Status, _engine.StatusDetail);
         if (_engine?.History.FirstOrDefault(a => a.Id == _displayedAnswerId) is { } shown) AnswerMeta = Meta(shown);
         Note = Loc.Relocalize(Note);   // a status note already on screen follows the new language
+        AudioStatus = _capture.StatusLabel;
     }
 
     // ---------------- coach / adaptive ----------------
@@ -198,7 +199,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>One toast per connectivity transition (never repeated while the outage lasts; the banner stays).</summary>
     private void OnConnectivity()
     {
-        if (!UsingCloud) return;
+        if (!UsingCloud || Cloud.State == CloudState.Connecting) return;   // a retry in progress is not a new transition
         var offline = Cloud.State == CloudState.ServiceUnavailable;
         if (offline == _wasOffline) return;
         _wasOffline = offline;
@@ -336,7 +337,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         {
             AppLog.Error("Workspace load failed", ex);
             UseKnowledge(KnowledgeBase.Empty(), Loc.T("no_interview_prepared"));
-            return Loc.F("workspace_open_failed", ex.Message);
+            return Loc.T("toast_workspace_failed") + " " + Loc.T("toast_workspace_failed_detail");
         }
         return null;
     }
@@ -362,6 +363,20 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     // ---------------- account-scoped workspace ----------------
 
     private string? _workspaceOwner;
+
+    /// <summary>
+    /// The open workspace belongs to the account that is signed in right now. False only during the short deferred
+    /// switch (another account signed in while an interview was running): Home then shows and changes nothing.
+    /// </summary>
+    public bool WorkspaceMatchesAccount
+    {
+        get
+        {
+            if (Workspace == null) return false;
+            var owner = App.SelfTestOutput != null ? "selftest" : !UsingCloud ? "local" : Cloud.Auth?.Session?.UserId;
+            return owner != null && owner == _workspaceOwner;
+        }
+    }
     /// <summary>The workspace was opened, switched or closed (sign-in, sign-out, account switch).</summary>
     public event Action? WorkspaceChanged;
     public string? ActiveProfileId { get; private set; }
@@ -394,47 +409,60 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
                 _switchPending = true;
                 Post(async () =>
                 {
-                    try { await StopAsync(); } finally { _switchPending = false; }
-                    OpenWorkspaceForCurrentAccount();
+                    try { await StopAsync(); }
+                    catch (Exception ex) { AppLog.Error("Stopping the interview before an account switch failed", ex); }
+                    finally { _switchPending = false; OpenWorkspaceForCurrentAccount(); }
                 });
             }
             return;
         }
         _workspaceInitialized = true;
         var baseDir = Path.Combine(AppPaths.Roaming, "workspace");
+        // Close the previous account's workspace FIRST: whatever happens below, its data is no longer reachable.
         Workspace?.ClearViewerCopies();
+        Workspace = null; _workspaceOwner = owner; ActiveProfileId = ActiveTargetId = null;
         ClearUserState();
         if (owner == null)
         {
-            Workspace = null; _workspaceOwner = null; ActiveProfileId = ActiveTargetId = null;
             UseKnowledge(KnowledgeBase.Empty(), Loc.T("signed_out_no_data"));
             AppLog.Info("Workspace closed (signed out)");
             WorkspaceChanged?.Invoke();
             return;
         }
-        string root;
-        if (owner == "selftest") root = Path.Combine(AppPaths.Local, "selftest-workspace-live");
-        else if (owner == "local") root = WorkspaceLocator.RootFor(baseDir, null);
-        else
+        try
         {
-            if (WorkspaceLocator.AdoptLegacy(baseDir, owner)) AppLog.Info("Pre-RC2 local workspace adopted by the signed-in account");
-            root = WorkspaceLocator.RootFor(baseDir, owner);
+            string root;
+            if (owner == "selftest") root = Path.Combine(AppPaths.Local, "selftest-workspace-live");
+            else if (owner == "local") root = WorkspaceLocator.RootFor(baseDir, null);
+            else
+            {
+                if (WorkspaceLocator.AdoptLegacy(baseDir, owner)) AppLog.Info("Pre-RC2 local workspace adopted by the signed-in account");
+                root = WorkspaceLocator.RootFor(baseDir, owner);
+            }
+            // Built and loaded locally; published only when everything succeeded (atomic switch).
+            var ws = new Workspace(root, new DpapiProtector()) { Owner = owner == "local" || owner == "selftest" ? owner : WorkspaceLocator.AccountKey(owner) };
+            ws.ClearViewerCopies();   // leftovers from a previous run
+            ws.Store.FileQuarantined += folder => Post(() => Toast(Loc.T("toast_file_quarantined"), Views.ToastKind.Warning, Loc.T("toast_file_quarantined_detail")));
+            var (p, t) = ws.Store.GetActive();
+            if (p == null && Settings.ActiveProfileId is { } legacyP && ws.Store.GetProfile(legacyP) != null)
+            {
+                p = legacyP; t = Settings.ActiveTargetId;     // pre-RC2 selection lived in settings.json
+                ws.Store.SetActive(p, t);
+                Settings.ActiveProfileId = Settings.ActiveTargetId = null; Settings.Save();
+            }
+            var (kb, label) = ws.LoadActive(p, t);
+            Workspace = ws; ActiveProfileId = p; ActiveTargetId = t;
+            UseKnowledge(kb, label);
+            AppLog.Info("Workspace opened for the current account");
         }
-        Workspace = new Workspace(root, new DpapiProtector()) { Owner = owner == "local" || owner == "selftest" ? owner : WorkspaceLocator.AccountKey(owner) };
-        Workspace.ClearViewerCopies();   // leftovers from a previous run
-        Workspace.Store.FileQuarantined += folder => Post(() => Toast(Loc.T("toast_file_quarantined"), Views.ToastKind.Warning, Loc.T("toast_file_quarantined_detail")));
-        var (p, t) = Workspace.Store.GetActive();
-        if (p == null && Settings.ActiveProfileId is { } legacyP && Workspace.Store.GetProfile(legacyP) != null)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or System.Security.Cryptography.CryptographicException or ArgumentException)
         {
-            p = legacyP; t = Settings.ActiveTargetId;     // pre-RC2 selection lived in settings.json
-            Workspace.Store.SetActive(p, t);
-            Settings.ActiveProfileId = Settings.ActiveTargetId = null; Settings.Save();
+            // Never fall back to another account's data: no workspace, generic knowledge, and a clear message.
+            AppLog.Error("Workspace open failed", ex);
+            Workspace = null; ActiveProfileId = ActiveTargetId = null;
+            UseKnowledge(KnowledgeBase.Empty(), Loc.T("no_interview_prepared"));
+            Toast(Loc.T("toast_workspace_failed"), Views.ToastKind.Error, Loc.T("toast_workspace_failed_detail"));
         }
-        ActiveProfileId = p; ActiveTargetId = t;
-        _workspaceOwner = owner;
-        var (kb, label) = Workspace.LoadActive(p, t);
-        UseKnowledge(kb, label);
-        AppLog.Info("Workspace opened for the current account");
         WorkspaceChanged?.Invoke();
     }
 
@@ -502,6 +530,13 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _engine.BulletAdded += (a, _) => Post(() => { if (a.Id == _displayedAnswerId) { SyncBullets(a); Pending = ""; Raise(nameof(IsThinking)); } });
         _engine.PendingTextChanged += (a, p) => Post(() => { if (a.Id == _displayedAnswerId) Pending = p; });
         _engine.AnswerCompleted += a => Post(() => { if (a.Id == _displayedAnswerId) { SyncBullets(a); Pending = ""; Note = Loc.Relocalize(a.Note); AnswerMeta = Meta(a); Raise(nameof(IsThinking)); } if (a.Kind != AnswerKind.Variant) LiveTranscript = ""; CommandManager.InvalidateRequerySuggested(); });
+        _engine.AnswerRestored += (failed, original) => Post(() =>
+        {
+            if (failed.Id != _displayedAnswerId) return;
+            ShowAnswer(original, isNew: false);
+            Note = Loc.T("note_variant_kept");
+            CommandManager.InvalidateRequerySuggested();
+        });
         _engine.LatencyMeasured += s => AppLog.Info($"Latency [{s.Source}] finalize {s.SpeechEndToFinalizedMs} ms, first bullet {s.FinalizedToFirstBulletMs} ms, total {s.FinalizedToCompleteMs} ms");
         _engine.InterruptionDetected += _ => AppLog.Info("Pace: likely interruption (answers shortened)");
         _engine.Log += m => AppLog.Info(m);
@@ -670,10 +705,15 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         if (hadSession) Toast(LastReportPath != null ? Loc.F("toast_report_saved", count) : Loc.T("toast_no_report"), LastReportPath != null ? Views.ToastKind.Success : Views.ToastKind.Info);
         // The next Start begins a NEW interview (fresh history, memory and numbering); until then the finished
         // interview stays browsable on screen.
-        _freshSessionOnStart = count > 0;
+        _freshSessionOnStart = count > 0 || _rebuildPending;
+        _rebuildPending = false;
     }
 
     private bool _freshSessionOnStart;
+
+    /// <summary>Model/provider settings changed during a session: build a new engine at the next Start.</summary>
+    public void RebuildAfterSession() => _rebuildPending = true;
+    private bool _rebuildPending;
 
     /// <summary>Starts the server lease for live listening and wires its events. False (with a readable note) when refused.</summary>
     private async Task<bool> BeginLeaseAsync()
@@ -985,6 +1025,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         }
         if (_engine != null) await _engine.DisposeAsync();
         await EndLeaseAsync();
+        Workspace?.ClearViewerCopies();   // plain viewer copies never outlive the app
         (_provider as IDisposable)?.Dispose();
     }
 }

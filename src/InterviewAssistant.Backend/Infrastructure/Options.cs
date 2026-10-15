@@ -59,8 +59,13 @@ public sealed class SafetyOptions
     public int HeartbeatIntervalSeconds { get; set; } = 30;
     public int HeartbeatTimeoutSeconds { get; set; } = 90;
     public int MaxSessionMinutes { get; set; } = 120;
-    /// <summary>New live leases per account per hour (each one mints a transcription credential).</summary>
-    public int MaxSessionStartsPerHour { get; set; } = 20;
+    /// <summary>
+    /// Ceiling on new live leases per account per hour (each one mints a transcription credential). Every Resume starts
+    /// a lease, so this is far above any real interview; it only stops runaway or scripted clients.
+    /// </summary>
+    public int MaxSessionStartsPerHour { get; set; } = 240;
+    /// <summary>Leases started and then abandoned without heartbeats (expired by the sweeper) per account per hour.</summary>
+    public int MaxAbandonedSessionsPerHour { get; set; } = 8;
     public int PerAccountDailyLiveMinutes { get; set; } = 240;
     public int GlobalDailyLiveMinutes { get; set; } = 100_000;
     public int AnswersPerMinute { get; set; } = 30;

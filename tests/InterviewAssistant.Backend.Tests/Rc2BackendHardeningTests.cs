@@ -72,6 +72,34 @@ public class Rc2BackendHardeningTests : IClassFixture<ApiFactory>
         Assert.True(hb.Active);
     }
 
+    [Fact]
+    public async Task FrequentPauseResume_NeverHitsTheStartLimit_ButAbandonedLeasesDo()
+    {
+        var (_, c) = await NewUser();
+        var dev = (await c.RegisterDevice()).Id;
+        for (int i = 0; i < 25; i++)                               // a candidate pausing during each of 25 answers (RC2 draft capped at 20)
+        {
+            var s = await (await c.StartSession(dev)).Read<StartSessionResponse>();
+            _f.Time.Advance(TimeSpan.FromSeconds(20));
+            (await c.PostAsJsonAsync($"/api/v1/sessions/{s.SessionId}/heartbeat", new HeartbeatRequest(1))).EnsureSuccessStatusCode();
+            (await c.PostAsync($"/api/v1/sessions/{s.SessionId}/stop", null)).EnsureSuccessStatusCode();
+        }
+
+        var (_, a) = await NewUser();
+        var device = (await a.RegisterDevice()).Id;
+        HttpResponseMessage? refused = null;
+        for (int i = 0; i < 12 && refused == null; i++)          // a client that mints credentials and never heartbeats
+        {
+            var r = await a.StartSession(device);
+            if (r.StatusCode == HttpStatusCode.TooManyRequests) { refused = r; break; }
+            r.EnsureSuccessStatusCode();
+            _f.Time.Advance(TimeSpan.FromSeconds(100));
+            await Expire();
+        }
+        Assert.NotNull(refused);
+        Assert.Equal("session_start_rate", (await refused!.Error()).Code);
+    }
+
     // ---------------- entitlements / billing ----------------
 
     [Fact]

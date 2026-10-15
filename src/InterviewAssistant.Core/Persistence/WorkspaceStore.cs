@@ -87,13 +87,14 @@ public sealed class WorkspaceStore
     /// <summary>Files moved aside because they could not be decrypted or parsed (see <see cref="FileQuarantined"/>).</summary>
     public int QuarantinedFiles => _quarantined;
     private int _quarantined;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _unreadable = new();
     /// <summary>Raised with the folder name ("profiles", "sessions", …) when a damaged file is moved aside.</summary>
     public event Action<string>? FileQuarantined;
 
     private T? Read<T>(string folder, string id) where T : class
     {
         var path = PathFor(folder, id);
-        if (!File.Exists(path)) return null;
+        if (!File.Exists(path) || _unreadable.ContainsKey(path)) return null;
         try { return JsonSerializer.Deserialize<T>(_protector.Unprotect(File.ReadAllBytes(path)), Json); }
         catch (Exception ex) when (ex is JsonException or System.Security.Cryptography.CryptographicException or NotSupportedException or ArgumentException)
         {
@@ -101,7 +102,8 @@ public sealed class WorkspaceStore
             // it is renamed to *.corrupt (kept for support, never deleted) and skipped.
             lock (_lock)
             {
-                try { File.Move(path, path + "." + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".corrupt", overwrite: true); } catch (IOException) { }
+                try { File.Move(path, path + "." + DateTime.UtcNow.ToString("yyyyMMddHHmmss") + ".corrupt", overwrite: true); }
+                catch (Exception moveEx) when (moveEx is IOException or UnauthorizedAccessException) { _unreadable[path] = 0; }   // could not move: skip it from now on
             }
             Interlocked.Increment(ref _quarantined);
             FileQuarantined?.Invoke(folder);

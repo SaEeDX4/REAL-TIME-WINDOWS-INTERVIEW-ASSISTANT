@@ -55,6 +55,7 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
 
     public event Action? SpeechStarted;
     public event Action? SpeechStopped;
+    public string? LastStoppedItemId { get; private set; }
     public event Action<string, string>? PartialTranscript;
     public event Action<string, string>? SegmentCompleted;
     public event Action<ConnectionStatus, string?>? StatusChanged;
@@ -238,7 +239,7 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
             case "input_audio_buffer.speech_started":
                 _inSpeech = true; SpeechStarted?.Invoke(); break;
             case "input_audio_buffer.speech_stopped":
-                _inSpeech = false; SpeechStopped?.Invoke(); break;
+                _inSpeech = false; LastStoppedItemId = node?["item_id"]?.GetValue<string>(); SpeechStopped?.Invoke(); break;
             case "conversation.item.input_audio_transcription.delta":
                 PartialTranscript?.Invoke(node?["item_id"]?.GetValue<string>() ?? "", node?["delta"]?.GetValue<string>() ?? ""); break;
             case "conversation.item.input_audio_transcription.completed":

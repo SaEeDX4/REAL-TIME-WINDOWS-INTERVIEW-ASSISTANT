@@ -362,6 +362,33 @@ public class Rc2EngineAcceptanceTests
         Assert.True(older.Superseded);
     }
 
+    [Fact]
+    public async Task VariantCancelledByTheNextQuestion_KeepsTheOriginalAnswerInHistoryAndReport()
+    {
+        var s = await StartAsync(cache: false);
+        await AskAsync(s, "How would you design a closed-loop internal token ledger?"); await s.RunAsync(15_000);
+        await AskAsync(s, "How would you prioritise the rewards backlog?"); await s.RunAsync(15_000);
+        var original = s.E.History[0];
+        var originalBullets = original.Bullets.ToList();
+        Assert.NotEmpty(originalBullets);
+
+        s.P.DelayMsPerDelta = 15_000;                                  // the rework is still streaming…
+        var variant = s.E.RequestVariantAsync(original.Id, AnswerStyle.Technical);
+        await Task.Delay(50);
+        s.P.DelayMsPerDelta = 0;
+        await AskAsync(s, "What metrics would you put on the first dashboard?");   // …when the next question arrives
+        await variant;
+        await s.SettleAsync();
+
+        Assert.Equal(3, s.E.History.Count);
+        Assert.Same(original, s.E.History[0]);                         // the original is back in its slot
+        Assert.False(original.Superseded);
+        Assert.Equal(originalBullets, s.E.History[0].Bullets);
+        var record = s.E.Memory.Questions[0];
+        Assert.Equal(originalBullets, record.AnswerBullets);            // report keeps the original answer
+        Assert.Equal(0, record.VariantCount);
+    }
+
     // ---------------- P0-8 pause / resume continuity ----------------
 
     [Fact]
@@ -434,6 +461,15 @@ public class Rc2EngineAcceptanceTests
         Assert.DoesNotContain("I'd lead blockchain operations", string.Join(" ", a.Bullets));
     }
 
+    [Theory]
+    [InlineData("de", "Genau diese Arbeit")]
+    [InlineData("fa", "انجام نداده‌ام")]
+    [InlineData("hi", "नहीं संभाला")]
+    [InlineData("en", "I haven't owned")]
+    [InlineData("sv", "I haven't owned")]          // no table: English bridge
+    public void HonestBridge_IsWrittenInTheAnswerLanguage(string lang, string expected) =>
+        Assert.Contains(expected, InterviewEngine.BridgeFor(lang).Bridge);
+
     [Fact]
     public void Validator_SoftensUnsupportedButPreservesSupportedClaims()
     {
@@ -499,6 +535,9 @@ public class Rc2EngineAcceptanceTests
         Assert.Equal("How does MiCA affect the app?", none.NormalizeTerms("How does MiCA affect the app?"));
         Assert.Equal("Our app and the XAB token", micar.NormalizeTerms("Our app and the XAB token"));   // "app" is never rewritten
         Assert.Equal("What about MiCAR?", TextNormalizer.CleanTranscript("what about MiCAR?"));         // RC1 rewrote it to MiCA
+        // All-capitals acronyms never rewrite real words/acronyms one letter shorter.
+        var fintech = new TargetContext { Vocabulary = new() { "USDT", "GDPR", "AMLD", "EMIR", "XRPL" } };
+        Assert.Equal("Salary in USD, GDP growth, AML checks, EMI licence and XRP", fintech.NormalizeTerms("Salary in USD, GDP growth, AML checks, EMI licence and XRP"));
     }
 
     // ---------------- security: prompt injection ----------------

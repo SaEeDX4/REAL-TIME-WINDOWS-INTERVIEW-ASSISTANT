@@ -36,6 +36,8 @@ public sealed class TurnDetector
     private readonly List<(string ItemId, string Text)> _segments = new();
     private readonly Dictionary<string, System.Text.StringBuilder> _partials = new();
     private readonly Queue<Audio.SpeechEvidence> _pendingEvidence = new();
+    // Evidence keyed by the transcription item it belongs to (exact); the queue is only a fallback when ids are unknown.
+    private readonly Dictionary<string, Audio.SpeechEvidence> _evidenceByItem = new();
     private Audio.SpeechEvidence _turnEvidence;
     private long _turnStartMs = -1;
     private string? _segmentsText;   // cached join of completed segments (long monologues: no O(n²) rebuilding)
@@ -86,6 +88,7 @@ public sealed class TurnDetector
         _reopened = null;
         _turnEvidence = default; _turnStartMs = -1;
         _pendingEvidence.Clear();
+        _evidenceByItem.Clear();
     }
 
     /// <summary>Interviewer speech started. Returns true when it continues the just-finalized question (not an interruption).</summary>
@@ -119,11 +122,20 @@ public sealed class TurnDetector
     public bool InContinuationWindow => _lastFinal is { } l && _clock.NowMs - l.SpeechStoppedAt <= ContinuationWindowMs;
 
     /// <param name="evidence">Acoustic evidence for the segment that just ended (attached to its transcript).</param>
-    public void OnSpeechStopped(Audio.SpeechEvidence evidence = default)
+    /// <param name="itemId">Transcription item the segment belongs to, when the provider reports it.</param>
+    public void OnSpeechStopped(Audio.SpeechEvidence evidence = default, string? itemId = null)
     {
         if (State == TurnState.Idle) return;
-        _pendingEvidence.Enqueue(evidence);
-        while (_pendingEvidence.Count > 8) _pendingEvidence.Dequeue();
+        if (!string.IsNullOrEmpty(itemId))
+        {
+            _evidenceByItem[itemId] = evidence;
+            if (_evidenceByItem.Count > 16) _evidenceByItem.Remove(_evidenceByItem.Keys.First());
+        }
+        else
+        {
+            _pendingEvidence.Enqueue(evidence);
+            while (_pendingEvidence.Count > 8) _pendingEvidence.Dequeue();
+        }
         _speechStoppedAt = _clock.NowMs;
         SetState(TurnState.PossibleEnd);
         ScheduleSettle();
@@ -148,7 +160,9 @@ public sealed class TurnDetector
         if (idx >= 0) { _segments[idx] = (itemId, text); _segmentsText = null; } // revised transcript replaces, never duplicates
         else
         {
-            var segEvidence = _pendingEvidence.Count > 0 ? _pendingEvidence.Dequeue() : default;
+            Audio.SpeechEvidence segEvidence;
+            if (_evidenceByItem.Remove(itemId, out var byItem)) segEvidence = byItem;
+            else segEvidence = _pendingEvidence.Count > 0 ? _pendingEvidence.Dequeue() : default;
             if (text.Length > 0 && SegmentFilter != null && !SegmentFilter(text, segEvidence))
             {
                 // Dropped: the turn continues (or ends) as if this sound had not been transcribed.
@@ -182,6 +196,9 @@ public sealed class TurnDetector
     {
         _partials.Clear();
         _awaitingSegments = 0;
+        // Transcripts of the dropped connection never arrive: their evidence must not shift onto later segments.
+        _pendingEvidence.Clear();
+        _evidenceByItem.Clear();
         if (_segments.Count == 0) { _reopened = null; if (State != TurnState.Idle) SetState(TurnState.Listening); return; }
         if (_speechStoppedAt < 0) _speechStoppedAt = _clock.NowMs;
         ScheduleSettle();
@@ -270,6 +287,7 @@ public sealed class TurnDetector
         // Evidence for segments whose transcript never arrived still belongs to this turn.
         var evidence = _turnEvidence;
         while (_pendingEvidence.Count > 0) evidence += _pendingEvidence.Dequeue();
+        foreach (var e in _evidenceByItem.Values) evidence += e;
         var startMs = _turnStartMs;
         Reset();
         if (IsNonQuestion(text)) { SetState(TurnState.Listening); return; } // an acknowledgement never reopens or creates a turn

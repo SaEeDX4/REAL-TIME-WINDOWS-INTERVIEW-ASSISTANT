@@ -130,7 +130,7 @@ builder.Services.AddRateLimiter(o =>
     // Routes that mint transcription credentials or call billing: tight per-user bucket.
     o.AddPolicy("credentials", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? ctx.User.FindFirstValue("sub") ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "anon",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 12, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     // Paddle may burst-deliver; per source IP so an unsigned flood from one address cannot starve Paddle's deliveries.
     o.AddPolicy("webhooks", ctx => RateLimitPartition.GetFixedWindowLimiter(ctx.Connection.RemoteIpAddress?.ToString() ?? "paddle",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 600, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));

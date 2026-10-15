@@ -113,7 +113,7 @@ public sealed class InterviewEngine : IAsyncDisposable
             var from = (_segmentStartedAt >= 0 ? _segmentStartedAt : now) - Options.EvidenceLeadMs;
             var evidence = _timeline.Sum(from, now);
             _inSegment = false; _segmentStartedAt = -1;
-            _turn.OnSpeechStopped(evidence);
+            _turn.OnSpeechStopped(evidence, _transcriber?.LastStoppedItemId);
         }
     }
 
@@ -123,6 +123,8 @@ public sealed class InterviewEngine : IAsyncDisposable
     public event Action<AnswerView, string>? BulletAdded;    // append-only
     public event Action<AnswerView, string>? PendingTextChanged; // preview of the bullet being written
     public event Action<AnswerView>? AnswerCompleted;
+    /// <summary>A variant was cancelled or produced nothing: (failed variant, original answer now back in its history slot).</summary>
+    public event Action<AnswerView, AnswerView>? AnswerRestored;
     public event Action<LatencySample>? LatencyMeasured;
     public event Action<string>? Log;
 
@@ -413,6 +415,8 @@ public sealed class InterviewEngine : IAsyncDisposable
     {
         bool isVariant = kind == AnswerKind.Variant;
         var question = xq.CoreQuestion;
+        // A variant of an answer that was still streaming must still complete that question's memory (stories, metrics).
+        bool replacesUnfinished = isVariant && replaces is { IsComplete: false };
         if (replaces != null) replaces.Superseded = true;
         CancellationTokenSource cts = new();
         if (isVariant)
@@ -426,7 +430,8 @@ public sealed class InterviewEngine : IAsyncDisposable
         {
             // A new question supersedes any in-flight generation, including variants of older items.
             CancelAnswer(includeVariants: true);
-            _answerCts = cts;
+            var previous = Interlocked.Exchange(ref _answerCts, cts);
+            if (previous != null) { try { previous.Cancel(); previous.Dispose(); } catch (ObjectDisposedException) { } }
         }
         var ct = cts.Token;
 
@@ -447,10 +452,11 @@ public sealed class InterviewEngine : IAsyncDisposable
         var presentation = isVariant ? Presentation.Answer : Presentation;
 
         QuestionRecord? record;
+        string? prevStyle = null;
         if (isVariant)
         {
             record = replaces?.Record;   // same question: never a new record
-            if (record != null) { record.Style = style.ToString(); record.VariantCount++; }
+            if (record != null) { prevStyle = record.Style; record.Style = style.ToString(); record.VariantCount++; }
         }
         else if (replaces?.Record is { } reused)
         {
@@ -585,10 +591,23 @@ public sealed class InterviewEngine : IAsyncDisposable
             }
         }
         catch (OperationCanceledException) { view.Note ??= Loc.T("note_superseded"); }
+        catch (ProviderException ex) when (ex.Kind == ProviderErrorKind.Cancelled || ct.IsCancellationRequested) { view.Note ??= Loc.T("note_superseded"); }
         finally
         {
             view.IsComplete = true;
             var bullets = view.SnapshotBullets();
+            // A variant that was cancelled (next question, Stop, another variant) or produced nothing must not wipe the
+            // answer it was reworking: the original goes back into its history slot and its question record is untouched.
+            if (isVariant && replaces != null && (ct.IsCancellationRequested || bullets.Count == 0))
+            {
+                lock (_history) { var at = _history.IndexOf(view); if (at >= 0) _history[at] = replaces; }
+                if (turnId > 0) lock (_turnAnswers) { if (_turnAnswers.TryGetValue(turnId, out var v) && ReferenceEquals(v, view)) _turnAnswers[turnId] = replaces; }
+                if (ReferenceEquals(Current, view)) Current = replaces;
+                replaces.Superseded = false;
+                view.Superseded = true;
+                if (record != null) { record.Style = prevStyle ?? record.Style; record.VariantCount = Math.Max(0, record.VariantCount - 1); }
+                AnswerRestored?.Invoke(view, replaces);
+            }
             if (!view.Superseded && bullets.Count > 0 && view.Source is AnswerSource.Llm)
             {
                 var quality = AnswerQualityGate.Assess(xq, plan, bullets, RecentAnswers(view), view.Style);
@@ -597,7 +616,7 @@ public sealed class InterviewEngine : IAsyncDisposable
             if (record != null && !view.Superseded)
             {
                 var metrics = bullets.SelectMany(Ingestion.ResumeParser.ExtractMetrics).Where(m => _kb.Profile.VerifiedNumbers.Contains(m)).Distinct();
-                if (isVariant) { record.AnswerBullets = bullets.ToList(); }
+                if (isVariant && !replacesUnfinished) { record.AnswerBullets = bullets.ToList(); }
                 else
                 {
                     _session.CompleteAnswer(record, bullets, view.StoryIds, metrics);
@@ -615,8 +634,9 @@ public sealed class InterviewEngine : IAsyncDisposable
                 _interrupt.AnswerShown(firstBullet, words, view.QuestionIndex);
             }
             AnswerCompleted?.Invoke(view);
-            if (isVariant) { if (ReferenceEquals(_variantCts, cts)) { _variantCts = null; cts.Dispose(); } }
-            else if (ReferenceEquals(_answerCts, cts)) { _answerCts = null; cts.Dispose(); }
+            // Atomic hand-back: only the owner of the slot clears it (a newer answer/variant may already hold it).
+            if (isVariant) { if (ReferenceEquals(Interlocked.CompareExchange(ref _variantCts, null, cts), cts)) cts.Dispose(); }
+            else if (ReferenceEquals(Interlocked.CompareExchange(ref _answerCts, null, cts), cts)) cts.Dispose();
             if (Status is EngineStatus.Answering && !view.Superseded)
                 SetStatus(!IsListening ? (_paused ? EngineStatus.Paused : EngineStatus.Ready) : view.Bullets.Count > 0 ? EngineStatus.AnswerReady : EngineStatus.Listening);
 
@@ -751,6 +771,26 @@ public sealed class InterviewEngine : IAsyncDisposable
         @"\b(reduced|increased|grew|improved|saved|raised|boosted|achieved|generated|doubled|tripled|lowered|cut|delivered|drove)\b(?!.*\b(I'd|I would|would|could|aim|target|goal|expect)\b)",
         System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
     public const string HonestBridge = "I haven't owned that exact work end-to-end, but here is how I'd approach it.";
+
+    /// <summary>The honest bridge and the cues that show the model already wrote one, per answer language.</summary>
+    private static readonly Dictionary<string, (string Bridge, System.Text.RegularExpressions.Regex Cue)> Bridges = new()
+    {
+        ["es"] = ("No he hecho exactamente ese trabajo de principio a fin, pero así es como lo abordaría.", Cue(@"\b(no he|nunca|no directamente|no personalmente|lo más cercano)\b")),
+        ["fr"] = ("Je n'ai pas mené ce travail exact de bout en bout, mais voici comment je l'aborderais.", Cue(@"(je n'ai pas|jamais|pas directement|pas personnellement|le plus proche)")),
+        ["de"] = ("Genau diese Arbeit habe ich noch nicht vollständig verantwortet, aber so würde ich vorgehen.", Cue(@"\b(nicht|noch nie|keine direkte|am nächsten)\b")),
+        ["pt"] = ("Não fui responsável exatamente por esse trabalho de ponta a ponta, mas é assim que eu o abordaria.", Cue(@"\b(não|nunca|mais próximo)\b")),
+        ["it"] = ("Non ho gestito esattamente questo lavoro dall'inizio alla fine, ma ecco come lo affronterei.", Cue(@"\b(non ho|mai|non direttamente|più vicino)\b")),
+        ["ar"] = ("لم أتولَّ هذا العمل بعينه من البداية إلى النهاية، لكن هكذا سأتعامل معه.", Cue(@"(لم |لا |ليس)")),
+        ["fa"] = ("این کار را دقیقاً از ابتدا تا انتها انجام نداده‌ام، اما این‌طور به آن می‌پردازم.", Cue(@"(نکرده|نداشته|نبوده|هرگز|نداده)")),
+        ["zh"] = ("我没有完整负责过这项具体工作，但我会这样着手。", Cue(@"(没有|未曾|从未|不是直接)")),
+        ["hi"] = ("मैंने ठीक यही काम शुरू से अंत तक नहीं संभाला है, लेकिन इसे करने का मेरा तरीका यह होगा।", Cue(@"(नहीं|कभी)")),
+    };
+    private static System.Text.RegularExpressions.Regex Cue(string pattern) =>
+        new(pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>Bridge for the answer language (English for languages without a table).</summary>
+    internal static (string Bridge, System.Text.RegularExpressions.Regex Cue) BridgeFor(string? language) =>
+        language != null && Bridges.TryGetValue(language, out var b) ? b : (HonestBridge, BridgeCue);
     private static readonly System.Text.RegularExpressions.Regex LeakGuard = new(
         @"\b(sk-[A-Za-z0-9_-]{12,}|pdl_[A-Za-z0-9_]{8,}|eyJ[A-Za-z0-9_-]{20,}\.|system prompt|my instructions (are|say)|TRUTH RULES|CANDIDATE EVIDENCE|INTERVIEWER CONTEXT|ANSWER PLAN|OUTPUT FORMAT|api[_ ]?key\s*[:=])",
         System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
@@ -795,11 +835,12 @@ public sealed class InterviewEngine : IAsyncDisposable
         if (view.BridgePending)
         {
             view.BridgePending = false;
-            if (!BridgeCue.IsMatch(text) && style != AnswerStyle.Full)
+            var (bridge, cue) = BridgeFor(view.AnswerLanguage);
+            if (!cue.IsMatch(text) && !BridgeCue.IsMatch(text) && style != AnswerStyle.Full)
             {
                 view.ValidationFlags.Add("BRIDGE_INSERTED: model answer did not start with an honest bridge");
-                view.AppendBullet(HonestBridge);
-                BulletAdded?.Invoke(view, HonestBridge);
+                view.AppendBullet(bridge);
+                BulletAdded?.Invoke(view, bridge);
                 if (view.Bullets.Count >= max) return true;
             }
         }

@@ -113,4 +113,28 @@ public class TurnDetectorTests
         Assert.False(g.IsDuplicate("How would you measure XAB retention by cohort?", 3000));
         Assert.False(g.IsDuplicate("How would you increase XAB adoption?", 60_000)); // outside window
     }
+
+    [Fact]
+    public void SpeechEvidence_FollowsItsOwnItem_EvenWhenTranscriptsArriveOutOfOrderOrAreDropped()
+    {
+        var (td, c, _) = Create();
+        var seen = new Dictionary<string, Core.Audio.SpeechEvidence>();
+        td.SegmentFilter = (text, ev) => { seen[text] = ev; return true; };
+        var beep = new Core.Audio.SpeechEvidence(5, 500, 500, 0, 480);       // tonal, no voice
+        var voice = new Core.Audio.SpeechEvidence(15, 1500, 1500, 1200, 0);  // voiced speech
+
+        td.OnSpeechStarted(); Run(td, c, 500); td.OnSpeechStopped(beep, "item-beep");
+        td.OnSpeechStarted(); Run(td, c, 1500); td.OnSpeechStopped(voice, "item-voice");
+        td.OnSegmentCompleted("item-voice", "And why?");                       // arrives first
+        td.OnSegmentCompleted("item-beep", "Thank you.");
+        Assert.Equal(voice, seen["And why?"]);                                  // FIFO would have given it the beep's evidence
+        Assert.Equal(beep, seen["Thank you."]);
+
+        // A reconnect drops a transcript: its evidence must not shift onto the next segment.
+        td.OnSpeechStarted(); Run(td, c, 500); td.OnSpeechStopped(beep);       // no item id (fallback queue)
+        td.OnConnectionInterrupted();
+        td.OnSpeechStarted(); Run(td, c, 1500); td.OnSpeechStopped(voice);
+        td.OnSegmentCompleted("item-next", "How so?");
+        Assert.Equal(voice, seen["How so?"]);
+    }
 }

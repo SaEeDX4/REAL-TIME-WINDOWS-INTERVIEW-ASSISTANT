@@ -29,7 +29,8 @@ public partial class HomeWindow : Window
 {
     private readonly MainViewModel _vm;
     private readonly MainWindow _main;
-    private WorkspaceStore? Store => _vm.Workspace?.Store;
+    /// <summary>The signed-in account's store — null while a workspace switch is pending, so nothing of another account is shown or changed.</summary>
+    private WorkspaceStore? Store => _vm.WorkspaceMatchesAccount ? _vm.Workspace!.Store : null;
     private CandidateProfileRecord? _profile;
     private InterviewTarget? _target;
     private readonly ObservableCollection<FactRow> _facts = new();
@@ -687,9 +688,10 @@ public partial class HomeWindow : Window
             Notify(T("toast_prep_complete"), ToastKind.Success, F("toast_prep_complete_detail", pack.Questions.Count));
         }
         catch (OperationCanceledException) { t.Preparation = PreparationState.NotPrepared; }
-        catch (Exception ex) when (ex is InvalidOperationException or IOException or ArgumentException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            t.Preparation = PreparationState.Failed; t.PreparationError = T("prep_failed_short");
+            // Any failure (I/O, encryption, network, service) ends as "failed — try again", never stuck in "preparing".
+            t.Preparation = PreparationState.Failed; t.PreparationError = ex is BackendException be ? CloudService.Describe(be) : T("prep_failed_short");
             AppLog.Error("Preparation failed", ex);
             Notify(T("toast_prep_failed"), ToastKind.Error);
         }
@@ -704,7 +706,7 @@ public partial class HomeWindow : Window
 
     private void UseTarget_Click(object sender, RoutedEventArgs e)
     {
-        if (_target == null || _profile == null || _vm.Workspace == null) return;
+        if (_target == null || _profile == null || _vm.Workspace == null || !_vm.WorkspaceMatchesAccount) return;
         if (_vm.SessionActive) { Warn(T("warn_stop_before_switch")); return; }
         _vm.SetActive(_profile.Id, _target.Id);
         var (kb, label) = _vm.Workspace.LoadActive(_profile.Id, _target.Id);
@@ -769,7 +771,7 @@ public partial class HomeWindow : Window
     {
         var r = SelectedReport(out var s);
         if (r == null || s == null) return;
-        if (_vm.Workspace == null) return;
+        if (_vm.Workspace == null || !_vm.WorkspaceMatchesAccount) return;
         // Viewer copy in this account's private folder (not Documents); removed when the workspace closes.
         var path = _vm.Workspace.WriteViewerCopy(s.Id, HtmlReportRenderer.Render(r, Branding.ProductName));
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
@@ -870,6 +872,15 @@ public partial class HomeWindow : Window
             ManageBillingBtn.Visibility = a.Subscription != null ? Visibility.Visible : Visibility.Collapsed;
             UpgradeStatus.Text = c.UpgradePending ? T("upgrade_pending") : "";
             BillingTerms.Text = pro == null ? "" : F("billing_terms", pro.Name, pro.PriceDisplay ?? "");
+        }
+        else
+        {
+            // No account data (signed out, or this account's data is not loaded yet): never leave the previous
+            // account's plan, minutes or devices on screen.
+            PlanText.Text = ""; BillingNotice.Text = ""; UpgradeStatus.Text = ""; BillingTerms.Text = "";
+            UsageGrid.Children.Clear(); UsageGrid.RowDefinitions.Clear();
+            UpgradeBtn.Visibility = ManageBillingBtn.Visibility = Visibility.Collapsed;
+            DeviceList.ItemsSource = null;
         }
         RefreshLegal();
         RefreshUpdates();
@@ -1000,12 +1011,26 @@ public partial class HomeWindow : Window
     private async Task<bool> ReauthenticateAsync(string reasonKey)
     {
         AccountError.Text = "";
+        // Accounts that sign in with Google/Microsoft/GitHub/Apple have no password: confirm with that provider instead.
+        if (_vm.Cloud.SignInProvider is { Length: > 0 } provider && provider != "email")
+        {
+            if (!Confirm(F("reauth_provider_confirm", ProviderLabel(provider)))) return false;
+            var (pok, perror) = await _vm.Cloud.ReauthenticateWithProviderAsync(provider);
+            if (!pok) { AccountError.Text = perror ?? T("err_reauth_failed"); Notify(AccountError.Text, ToastKind.Error); }
+            return pok;
+        }
         var password = Prompt.CurrentPassword(this, T(reasonKey), _vm.Cloud.Account?.Email ?? "");
         if (password == null) return false;
         var (ok, error) = await _vm.Cloud.ReauthenticateAsync(password);
         if (!ok) { AccountError.Text = error ?? T("err_reauth_failed"); Notify(AccountError.Text, ToastKind.Error); }
         return ok;
     }
+
+    private static string ProviderLabel(string provider) => provider switch
+    {
+        "google" => "Google", "azure" => "Microsoft", "github" => "GitHub", "apple" => "Apple",
+        _ => provider.Length > 0 ? char.ToUpperInvariant(provider[0]) + provider[1..] : provider,
+    };
 
     private async void ChangePassword_Click(object sender, RoutedEventArgs e)
     {
@@ -1021,16 +1046,22 @@ public partial class HomeWindow : Window
     private async Task LoadAccountExtrasAsync()
     {
         var api = _vm.Cloud.Api;
-        if (api == null || !_vm.Cloud.IsSignedIn) return;
+        if (api == null || !_vm.Cloud.IsSignedIn) { DeviceList.ItemsSource = null; return; }
+        var requestedFor = _vm.Cloud.Auth?.Session?.UserId;
         try
         {
             var devices = await api.DevicesAsync(CancellationToken.None);
+            if (_vm.Cloud.Auth?.Session?.UserId != requestedFor) return;   // the account changed while loading
             DeviceList.ItemsSource = devices.Where(d => !d.Revoked)
                 .Select(d => new Item<DeviceDto>(F("device_row", d.Name, d.ClientVersion, d.LastSeenUtc.ToLocalTime().ToString("g", Loc.Culture))
                     + (d.Id == _vm.Settings.CloudDeviceId ? " · " + T("device_this_pc") : ""), d)).ToList();
             RemoveDeviceBtn.IsEnabled = DeviceList.SelectedItem != null;
         }
-        catch (BackendException ex) { AccountError.Text = CloudService.Describe(ex); }
+        catch (Exception ex) when (ex is BackendException or System.Net.Http.HttpRequestException or TaskCanceledException)
+        {
+            DeviceList.ItemsSource = null;
+            AccountError.Text = CloudService.Describe(ex);
+        }
     }
 
     /// <summary>Plan limits for data that never leaves this PC: report retention (server value, applied locally).</summary>

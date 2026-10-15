@@ -143,7 +143,7 @@ public partial class ReadinessWindow : Window
                 {
                     var (answer, sample, model) = await _vm.TestAiAsync(TestQuestion, _ => { });
                     if (answer.Source == Core.Orchestration.AnswerSource.Llm && answer.Bullets.Count >= 2) _answer.Pass(F("pf_answer_ok_service", sample?.FinalizedToFirstBulletMs));
-                    else _answer.Fail(answer.Note ?? T("err_unknown"));
+                    else _answer.Fail(Loc.Relocalize(answer.Note) ?? T("err_unknown"));
                 }
                 catch (Exception ex) when (ex is ProviderException or InvalidOperationException or Client.BackendException) { _answer.Fail(CloudService.Describe(ex)); }
                 _stt.Warn(T("pf_stt_run_test"));
@@ -319,8 +319,8 @@ public partial class ReadinessWindow : Window
             var (answer, sample, model) = await _vm.TestAiAsync(TestQuestion, b => { sb.AppendLine("• " + b); ToolOutput.Text = sb.ToString(); });
             if (sample != null) Diagnostic($"{model} · first token {sample.FinalizedToFirstTokenMs} ms · first bullet {sample.FinalizedToFirstBulletMs} ms · complete {sample.FinalizedToCompleteMs} ms");
             var ok = answer.Bullets.Count is >= 2 and <= 4 && answer.Source == Core.Orchestration.AnswerSource.Llm;
-            ShowResult(ok, ok ? T("pf_ai_passed") : answer.Note ?? T("err_unknown"));
-            if (ok) _answer.Pass(F("pf_answer_ok_service", sample?.FinalizedToFirstBulletMs)); else _answer.Fail(answer.Note ?? T("err_unknown"));
+            ShowResult(ok, ok ? T("pf_ai_passed") : Loc.Relocalize(answer.Note) ?? T("err_unknown"));
+            if (ok) _answer.Pass(F("pf_answer_ok_service", sample?.FinalizedToFirstBulletMs)); else _answer.Fail(Loc.Relocalize(answer.Note) ?? T("err_unknown"));
         }
         catch (Exception ex) when (ex is ProviderException or InvalidOperationException or Client.BackendException) { ShowResult(false, CloudService.Describe(ex)); }
         UpdateVerdict();

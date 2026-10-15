@@ -49,7 +49,9 @@ public sealed class TargetContext
     /// <summary>
     /// Conservative, target-scoped normalization of recognised terms: an acronym-style vocabulary term (e.g. "MiCAR")
     /// also replaces its one-letter-shorter recognition ("MiCA"/"mica") — only when the shorter form is not itself in
-    /// this target's vocabulary. Never global, never for short terms (so "XAB" can never replace "app").
+    /// this target's vocabulary. Never global, never for short terms (so "XAB" can never replace "app"), and only for
+    /// mixed-case terms: all-capitals acronyms (USDT, GDPR, AMLD, EMIR) never rewrite their shorter forms (USD, GDP,
+    /// AML, EMI are words in their own right).
     /// </summary>
     public string NormalizeTerms(string text)
     {
@@ -66,7 +68,7 @@ public sealed class TargetContext
         var rules = new List<(Regex, string)>();
         foreach (var v in vocab)
         {
-            bool acronymLike = v.Length >= 4 && v.Length <= 12 && !v.Contains(' ') && v.Count(char.IsUpper) >= 2 && v.All(char.IsLetterOrDigit);
+            bool acronymLike = v.Length >= 4 && v.Length <= 12 && !v.Contains(' ') && v.Count(char.IsUpper) >= 2 && v.Any(char.IsLower) && v.All(char.IsLetterOrDigit);
             if (!acronymLike) continue;
             var shorter = v[..^1];
             if (shorter.Length < 3 || lower.Contains(shorter.ToLowerInvariant()) || !char.IsUpper(v[^1])) continue;

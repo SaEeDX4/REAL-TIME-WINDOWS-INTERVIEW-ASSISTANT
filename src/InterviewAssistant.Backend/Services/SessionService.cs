@@ -63,10 +63,18 @@ public sealed class SessionService
         if (existing != null && existing.Status != "active") throw ApiException.Conflict("session_ended", "This session already ended. Start a new one.");
         if (existing != null && existing.SecretsIssued > MaxSecretsPerSession) throw ApiException.TooMany("secret_rate", "Too many credential requests for this session.");
         // Starting leases that are then abandoned without heartbeats must not become a way to mint transcription
-        // credentials: each expiry is billed (see ExpireStaleAsync), and the number of new leases per hour is bounded.
+        // credentials: each expiry is billed (see ExpireStaleAsync) and abandoned leases per hour are bounded. Normal
+        // pause/resume (each resume is a new lease, ended by the client) only meets a high ceiling for runaway clients.
         var hourAgo = now.AddHours(-1);
-        if (existing == null && await _db.Sessions.CountAsync(s => s.UserId == user.Id && s.StartedUtc > hourAgo, ct) >= _safety.MaxSessionStartsPerHour)
-            throw ApiException.TooMany("session_start_rate", "Too many live sessions were started in the last hour. Please wait a few minutes.");
+        if (existing == null)
+        {
+            var recent = await _db.Sessions.Where(s => s.UserId == user.Id && s.StartedUtc > hourAgo)
+                .GroupBy(s => s.EndReason == "heartbeat_timeout").Select(g => new { Abandoned = g.Key, Count = g.Count() }).ToListAsync(ct);
+            var abandoned = recent.Where(r => r.Abandoned).Sum(r => r.Count);
+            var started = recent.Sum(r => r.Count);
+            if (abandoned >= _safety.MaxAbandonedSessionsPerHour || started >= _safety.MaxSessionStartsPerHour)
+                throw ApiException.TooMany("session_start_rate", "Too many live sessions were started in the last hour. Please wait a few minutes.");
+        }
 
         var live = await _usage.LiveRemainingAsync(user.Id, plan, ct);
         var remaining = live.Effective;
