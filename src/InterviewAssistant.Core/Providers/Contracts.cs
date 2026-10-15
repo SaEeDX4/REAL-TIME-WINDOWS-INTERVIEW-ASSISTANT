@@ -38,24 +38,25 @@ public sealed class ProviderException : Exception
     public ProviderException(ProviderErrorKind kind, string message, Exception? inner = null) : base(message, inner) => Kind = kind;
 
     /// <summary>Short, actionable text for the answer area. Prepared answers are mentioned only when they really still work.</summary>
-    public static string UserMessage(ProviderErrorKind kind, bool developerKeyMode = false) => kind switch
+    /// <summary>Localized, actionable message for the current UI language (never "Unknown").</summary>
+    public static string UserMessage(ProviderErrorKind kind, bool developerKeyMode = false) => Languages.Loc.T(kind switch
     {
-        ProviderErrorKind.InvalidApiKey => developerKeyMode ? "API key rejected — open Settings" : "Please sign in again (Home → Account).",
-        ProviderErrorKind.NotSignedIn => "Please sign in again (Home → Account).",
-        ProviderErrorKind.SessionEnded => "Your live session has ended. Press Resume.",
-        ProviderErrorKind.QuotaExceeded => "Daily answer limit reached. Prepared answers still work.",
-        ProviderErrorKind.PlanRequired => "AI answers need an active plan. Upgrade in Home → Account. Prepared answers still work.",
-        ProviderErrorKind.DeviceRevoked => "This device is no longer registered. Sign in again in Home → Account.",
-        ProviderErrorKind.AccountDisabled => "This account is disabled. Contact support.",
-        ProviderErrorKind.UpdateRequired => "Please update the app to keep using AI answers.",
-        ProviderErrorKind.RateLimited => "Too many requests right now — wait a few seconds and press Regenerate.",
-        ProviderErrorKind.Network => "No connection to the service. Prepared answers still work.",
-        ProviderErrorKind.Timeout => "The AI took too long to respond — press Regenerate.",
-        ProviderErrorKind.ServiceUnavailable or ProviderErrorKind.ServerError => "Service temporarily unavailable. Prepared answers still work.",
-        ProviderErrorKind.BadRequest => "This question could not be sent to the AI — try rephrasing it.",
-        ProviderErrorKind.Cancelled => "Cancelled.",
-        _ => "AI answer unavailable right now — press Regenerate.",
-    };
+        ProviderErrorKind.InvalidApiKey => developerKeyMode ? "err_auth_dev" : "err_auth",
+        ProviderErrorKind.NotSignedIn => "err_not_signed_in",
+        ProviderErrorKind.SessionEnded => "err_session_ended",
+        ProviderErrorKind.QuotaExceeded => "err_quota",
+        ProviderErrorKind.PlanRequired => "err_plan_required",
+        ProviderErrorKind.DeviceRevoked => "err_device_revoked",
+        ProviderErrorKind.AccountDisabled => "err_account_disabled",
+        ProviderErrorKind.UpdateRequired => "err_update_required",
+        ProviderErrorKind.RateLimited => "err_rate_limited",
+        ProviderErrorKind.Network => "err_network",
+        ProviderErrorKind.Timeout => "err_timeout",
+        ProviderErrorKind.ServiceUnavailable or ProviderErrorKind.ServerError => "err_service_unavailable",
+        ProviderErrorKind.BadRequest => "err_bad_request",
+        ProviderErrorKind.Cancelled => "err_cancelled",
+        _ => "err_unknown",
+    });
 }
 
 /// <summary>Streaming speech-to-text. Events may be raised from a background thread.</summary>

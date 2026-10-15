@@ -84,7 +84,7 @@ public sealed class SupabaseAuth
         using var req = Request(HttpMethod.Post, $"{AuthBase}/otp?redirect_to={Uri.EscapeDataString(redirectUri)}",
             new { email, create_user = true, code_challenge = codeChallenge, code_challenge_method = "s256" });
         using var resp = await Send(req, ct);
-        if (!resp.IsSuccessStatusCode) throw await Fail(resp, "Could not send the sign-in e-mail.");
+        if (!resp.IsSuccessStatusCode) throw await Fail(resp, Core.Languages.Loc.T("auth_email_send_failed"));
     }
 
     public async Task<AuthSession> ExchangeCodeAsync(string authCode, string verifier, CancellationToken ct)
@@ -103,7 +103,7 @@ public sealed class SupabaseAuth
         var redirect = _opt.EmailConfirmedRedirectUrl is { Length: > 0 } r ? "?redirect_to=" + Uri.EscapeDataString(r) : "";
         using var req = Request(HttpMethod.Post, $"{AuthBase}/signup{redirect}", new { email = email.Trim(), password });
         using var resp = await Send(req, ct);
-        if (!resp.IsSuccessStatusCode) throw await Fail(resp, "The account could not be created.");
+        if (!resp.IsSuccessStatusCode) throw await Fail(resp, Core.Languages.Loc.T("auth_create_failed"));
         var body = await resp.Content.ReadAsStringAsync(ct);
         if (body.Contains("\"access_token\"", StringComparison.Ordinal))
         {
@@ -133,7 +133,7 @@ public sealed class SupabaseAuth
         using (var req = Request(HttpMethod.Post, $"{AuthBase}/recover?redirect_to={Uri.EscapeDataString(loop.RedirectUri)}",
                    new { email = email.Trim(), code_challenge = Pkce.Challenge(verifier), code_challenge_method = "s256" }))
         using (var resp = await Send(req, ct))
-            if (!resp.IsSuccessStatusCode) throw await Fail(resp, "The reset e-mail could not be sent.");
+            if (!resp.IsSuccessStatusCode) throw await Fail(resp, Core.Languages.Loc.T("auth_reset_send_failed"));
         var code = await loop.WaitForCodeAsync(timeout, ct);
         return await ExchangeCodeAsync(code, verifier, ct);
     }
@@ -145,7 +145,7 @@ public sealed class SupabaseAuth
         using var req = Request(HttpMethod.Put, $"{AuthBase}/user", new { password = newPassword });
         req.Headers.Authorization = new("Bearer", token);
         using var resp = await Send(req, ct);
-        if (!resp.IsSuccessStatusCode) throw await Fail(resp, "The password could not be changed.");
+        if (!resp.IsSuccessStatusCode) throw await Fail(resp, Core.Languages.Loc.T("auth_password_change_failed"));
     }
 
     private void RequireReady()
@@ -231,7 +231,7 @@ public sealed class SupabaseAuth
     private async Task<AuthSession> TokenRequestAsync(HttpRequestMessage req, CancellationToken ct)
     {
         using var resp = await Send(req, ct);
-        if (!resp.IsSuccessStatusCode) throw await Fail(resp, "Sign-in failed.");
+        if (!resp.IsSuccessStatusCode) throw await Fail(resp, Core.Languages.Loc.T("err_sign_in_failed"));
         return await StoreTokensAsync(await resp.Content.ReadAsStringAsync(ct), ct);
     }
 
@@ -269,14 +269,14 @@ public sealed class SupabaseAuth
     /// <summary>Plain-language messages for the codes users actually hit (raw provider text otherwise).</summary>
     public static string Friendly(string code, string fallback) => code switch
     {
-        "invalid_credentials" or "invalid_grant" => "The e-mail or password is not correct.",
-        "email_not_confirmed" => "Please confirm your e-mail address first — check your inbox for the confirmation link.",
-        "user_already_exists" or "email_exists" => "An account with this e-mail already exists. Sign in instead.",
-        "weak_password" => "Choose a stronger password (at least 8 characters, mixing letters and numbers).",
-        "over_email_send_rate_limit" or "over_request_rate_limit" => "Too many attempts. Please wait a minute and try again.",
-        "user_banned" => "This account has been disabled. Contact support.",
-        "signup_disabled" => "New sign-ups are currently closed.",
-        "validation_failed" => "Please enter a valid e-mail address.",
+        "invalid_credentials" or "invalid_grant" => Core.Languages.Loc.T("auth_invalid_credentials"),
+        "email_not_confirmed" => Core.Languages.Loc.T("auth_email_not_confirmed"),
+        "user_already_exists" or "email_exists" => Core.Languages.Loc.T("auth_user_exists"),
+        "weak_password" => Core.Languages.Loc.T("auth_weak_password"),
+        "over_email_send_rate_limit" or "over_request_rate_limit" => Core.Languages.Loc.T("auth_rate_limited"),
+        "user_banned" => Core.Languages.Loc.T("acct_msg_disabled"),
+        "signup_disabled" => Core.Languages.Loc.T("auth_signup_disabled"),
+        "validation_failed" => Core.Languages.Loc.T("err_email_invalid"),
         _ => fallback,
     };
 

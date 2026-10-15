@@ -194,7 +194,7 @@ public class EngineAcceptanceTests
         var known = s.E.Current!;
         Assert.Equal(AnswerSource.CacheFallback, known.Source);
         Assert.Equal(3, known.SnapshotBullets().Count);
-        Assert.StartsWith("Prepared answer — ", known.Note);
+        Assert.StartsWith("Prepared answer shown", known.Note);
         Assert.DoesNotContain("Unknown", known.Note);
 
         await s.E.SubmitManualQuestionAsync("How would you design a quantum-safe custody roadmap for 2030?");   // nothing prepared

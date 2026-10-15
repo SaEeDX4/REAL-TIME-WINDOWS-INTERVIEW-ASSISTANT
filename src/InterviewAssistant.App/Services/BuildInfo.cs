@@ -31,4 +31,13 @@ public static class BuildInfo
         : Version.Contains('-') ? "Pre-release" : "Stable";
 
     public static string Summary => $"Version {Version} · {Channel} · Build {Commit}";
+
+    /// <summary>Localized channel name for the UI ("Release Candidate" / "Versionskandidat" / …).</summary>
+    public static string ChannelLabel => Core.Languages.Loc.T(Channel switch
+    {
+        "Release Candidate" => "channel_rc", "Beta" => "channel_beta_build", "Pre-release" => "channel_prerelease", _ => "channel_stable_build",
+    });
+
+    /// <summary>Installed by Setup (Velopack per-user layout) rather than run from an unzipped folder (RC1 showed "Portable" for installed copies).</summary>
+    public static bool IsInstalled => Core.Diagnostics.InstallLayout.IsInstalled(Environment.ProcessPath, File.Exists);
 }

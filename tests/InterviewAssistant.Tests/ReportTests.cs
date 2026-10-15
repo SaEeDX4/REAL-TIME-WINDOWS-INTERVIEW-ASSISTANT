@@ -98,3 +98,42 @@ public class ReportTests
         Assert.Null(ReportSerializer.FromJson(""));
     }
 }
+
+public class Rc2ReportTests
+{
+    [Fact]
+    public void HeaderNeverRepeatsTheCandidateName()
+    {
+        Assert.Equal("Shervin · Product Owner · Teroxx", HtmlReportRenderer.Header("Shervin", "Shervin · Product Owner · Teroxx"));
+        Assert.Equal("Shervin Fallahdoust · PO · Teroxx", HtmlReportRenderer.Header("Shervin Fallahdoust", "Shervin · PO · Teroxx"));
+        Assert.Equal("Maria · PO", HtmlReportRenderer.Header("", "Maria · PO"));
+    }
+
+    [Fact]
+    public async Task EchoRecordsNeverCountAndCopyTextHasSeparators()
+    {
+        var kb = TestKnowledge.Load();
+        var e = new InterviewEngine(kb, null, new FakeProvider(), new EngineOptions { AutoTick = false }, new InterviewAssistant.Core.Diagnostics.ManualClock());
+        await e.SubmitManualQuestionAsync("How would you design a closed-loop internal token ledger?");
+        // A record that slipped in from an older build (RC1 stored prompt echoes as questions): never counted.
+        e.Memory.Add(new QuestionRecord { Original = kb.Context.BuildTranscriptionPrompt(), Category = "MICAR", Mode = "Verified" });
+        var r = ReportBuilder.Build(e.Memory, kb, e.Metrics, "s", DateTime.UtcNow.AddMinutes(-5), DateTime.UtcNow, "en", null, profileLabel: "Shervin", targetLabel: "Shervin · PO · Teroxx");
+        Assert.Single(r.Questions);
+        Assert.DoesNotContain("MICAR", r.CategoryCounts.Keys);
+        Assert.Equal(1, r.ExcludedTurns);
+        var html = HtmlReportRenderer.Render(r);
+        Assert.Contains("<h3>Q1. ", html);
+        Assert.Contains("Category: ", html);
+        Assert.Contains("Difficulty areas <span", html);
+        Assert.DoesNotContain("Shervin · Shervin", html);
+        var text = HtmlReportRenderer.RenderText(r);
+        Assert.Contains("Q1. How would you design a closed-loop internal token ledger?", text);
+        Assert.Contains("microphone was OFF", text);
+    }
+
+    [Fact]
+    public void AllReportLanguagesHaveEveryLabel()
+    {
+        foreach (var l in ReportLabels.Languages) Assert.True(ReportLabels.IsComplete(l), l);
+    }
+}

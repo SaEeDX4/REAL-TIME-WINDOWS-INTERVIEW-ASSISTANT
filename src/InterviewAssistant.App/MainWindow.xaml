@@ -7,7 +7,7 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="CanResize" Topmost="True" ShowInTaskbar="True"
         FontFamily="{StaticResource F.Ui}" UseLayoutRounding="True" TextOptions.TextFormattingMode="Ideal"
-        FlowDirection="{Binding UiFlowDirection}">
+        FlowDirection="{v:LocFlow}">
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="7" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
@@ -65,7 +65,7 @@
                         </Ellipse>
                         <TextBlock Text="{Binding StatusText}" Margin="8,0,0,0" FontSize="11" FontWeight="SemiBold" Foreground="{Binding StatusBrush}" VerticalAlignment="Center"/>
                         <!-- audio meter -->
-                        <Border Width="56" Height="4" CornerRadius="2" Background="{StaticResource B.Surface3}" Margin="12,0,0,0" VerticalAlignment="Center" ToolTip="Playback audio level (should move when the interviewer speaks)">
+                        <Border Width="56" Height="4" CornerRadius="2" Background="{StaticResource B.Surface3}" Margin="12,0,0,0" VerticalAlignment="Center" ToolTip="{v:Loc tt_audio_meter}">
                             <Border HorizontalAlignment="Left" CornerRadius="2" Background="{StaticResource B.Listening}" Width="{Binding AudioLevel, Converter={StaticResource LevelW}}"/>
                         </Border>
                     </StackPanel>
@@ -73,10 +73,10 @@
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
                     <Border x:Name="AdaptiveBadge" CornerRadius="10" Padding="8,2" Background="{StaticResource B.AccentSoft}" Margin="0,0,6,0"
-                            Visibility="{Binding AdaptiveLabel, Converter={StaticResource StrVis}}" ToolTip="The interviewer is interrupting or moving fast: answers are shorter. Ctrl+Alt+R resets.">
+                            Visibility="{Binding AdaptiveLabel, Converter={StaticResource StrVis}}" ToolTip="{v:Loc tt_adaptive}" Cursor="Hand" MouseLeftButtonUp="Adaptive_Click">
                         <TextBlock Text="{Binding AdaptiveLabel}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource B.Accent}"/>
                     </Border>
-                    <Border CornerRadius="10" Padding="8,2" Background="{StaticResource B.Surface2}" Margin="0,0,6,0" ToolTip="Next answer format (Ctrl+Alt+C)" Cursor="Hand" MouseLeftButtonUp="Presentation_Click">
+                    <Border CornerRadius="10" Padding="8,2" Background="{StaticResource B.Surface2}" Margin="0,0,6,0" ToolTip="{v:Loc tt_presentation}" Cursor="Hand" MouseLeftButtonUp="Presentation_Click">
                         <TextBlock x:Name="PresentationText" Text="{Binding PresentationLabel}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource B.TextDim}"/>
                     </Border>
                     <TextBlock Text="{Binding MinutesLeftLabel}" FontSize="10.5" Foreground="{StaticResource B.TextFaint}" VerticalAlignment="Center"
@@ -84,23 +84,23 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="StartBtn" Style="{StaticResource Btn.Primary}" Command="{Binding StartPauseCommand}" Padding="12,5" Margin="0,0,6,0" ToolTip="Start or pause listening to the interviewer (Ctrl+Alt+L). Paused time uses no live minutes.">
+                    <Button x:Name="StartBtn" Style="{StaticResource Btn.Primary}" Command="{Binding StartPauseCommand}" Padding="12,5" Margin="0,0,6,0" ToolTip="{v:Loc tt_start_pause}" AutomationProperties.Name="{Binding StartPauseLabel}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock x:Name="StartIcon" Style="{StaticResource T.Icon}" Text="&#xE768;" FontSize="12" Margin="0,0,6,0"/>
                             <TextBlock Text="{Binding StartPauseLabel}"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Command="{Binding StopCommand}" ToolTip="End the interview and save the report"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE71A;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Compact_Click" ToolTip="Compact / expanded view"><TextBlock x:Name="CompactIcon" Style="{StaticResource T.Icon}" Text="&#xE73F;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Home_Click" ToolTip="Home: profiles, interviews, reports, account"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE80F;"/></Button>
-                    <Button x:Name="ReportBtn" Style="{StaticResource Btn.Ghost}" Click="Report_Click" ToolTip="Open the last interview report"
+                    <Button Style="{StaticResource Btn.Ghost}" Command="{Binding StopCommand}" ToolTip="{v:Loc tt_stop}" AutomationProperties.Name="{v:Loc tt_stop}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE71A;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Compact_Click" ToolTip="{v:Loc tt_compact}" AutomationProperties.Name="{v:Loc tt_compact}"><TextBlock x:Name="CompactIcon" Style="{StaticResource T.Icon}" Text="&#xE73F;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Home_Click" ToolTip="{v:Loc tt_home}" AutomationProperties.Name="{v:Loc tt_home}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE80F;"/></Button>
+                    <Button x:Name="ReportBtn" Style="{StaticResource Btn.Ghost}" Click="Report_Click" ToolTip="{v:Loc tt_last_report}" AutomationProperties.Name="{v:Loc tt_last_report}"
                             Visibility="{Binding LastReportPath, Converter={StaticResource StrVis}}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE9F9;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Help_Click" ToolTip="How the Live Assistant works"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE897;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Diagnostics_Click" ToolTip="Diagnostics and latency"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE9D9;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Readiness_Click" ToolTip="Pre-interview check (audio, account, service)"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Settings_Click" ToolTip="Settings"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE713;"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Minimize_Click" ToolTip="Minimize"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE921;" FontSize="11"/></Button>
-                    <Button Style="{StaticResource Btn.Ghost}" Click="Close_Click" ToolTip="Close"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE8BB;" FontSize="11"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Help_Click" ToolTip="{v:Loc tt_help}" AutomationProperties.Name="{v:Loc tt_help}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE897;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Diagnostics_Click" ToolTip="{v:Loc tt_diagnostics}" AutomationProperties.Name="{v:Loc tt_diagnostics}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE9D9;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Readiness_Click" ToolTip="{v:Loc tt_preflight}" AutomationProperties.Name="{v:Loc tt_preflight}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Settings_Click" ToolTip="{v:Loc tt_settings}" AutomationProperties.Name="{v:Loc tt_settings}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE713;"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Minimize_Click" ToolTip="{v:Loc tt_minimize}" AutomationProperties.Name="{v:Loc tt_minimize}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE921;" FontSize="11"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Click="Close_Click" ToolTip="{v:Loc tt_close}" AutomationProperties.Name="{v:Loc tt_close}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE8BB;" FontSize="11"/></Button>
                 </StackPanel>
             </Grid>
 
@@ -116,7 +116,7 @@
                     <!-- Service / plan banner: only when live help is blocked (signed out, offline, limit reached, expired) -->
                     <Border Margin="0,0,0,8" Padding="10,5" CornerRadius="8" Background="{StaticResource B.Surface2}"
                             BorderBrush="{StaticResource B.Thinking}" BorderThickness="1" Cursor="Hand" MouseLeftButtonUp="Banner_Click"
-                            Visibility="{Binding ServiceBanner, Converter={StaticResource StrVis}}" ToolTip="Open Account">
+                            Visibility="{Binding ServiceBanner, Converter={StaticResource StrVis}}" ToolTip="{v:Loc tt_open_account}">
                         <TextBlock Text="{Binding ServiceBanner}" FontSize="12" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
                     </Border>
                 </StackPanel>
@@ -132,6 +132,11 @@
                         </DockPanel>
                         <TextBlock Text="{Binding Question}" FontSize="{Binding QuestionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"
                                    Visibility="{Binding Question, Converter={StaticResource StrVis}}"/>
+                        <!-- the interviewer's background before the actual ask: short, never the whole monologue -->
+                        <TextBlock x:Name="ContextLine" Margin="0,4,0,0" FontSize="11.5" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap" MaxHeight="34" TextTrimming="CharacterEllipsis"
+                                   ToolTip="{Binding ContextSummary}" Visibility="{Binding ContextSummary, Converter={StaticResource StrVis}}">
+                            <Run Text="{v:Loc live_context}" FontWeight="SemiBold"/><Run Text=": "/><Run Text="{Binding ContextSummary, Mode=OneWay}"/>
+                        </TextBlock>
                         <TextBlock Text="{Binding LWaiting}" FontSize="{Binding QuestionFontSize}" Foreground="{StaticResource B.TextFaint}"
                                    Visibility="{Binding Question, Converter={StaticResource StrVisInv}}"/>
                         <TextBlock Text="{Binding LiveTranscript}" Margin="0,8,0,0" FontSize="13" FontStyle="Italic" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap"
@@ -216,24 +221,24 @@
             <!-- ===== Answer actions ===== -->
             <DockPanel x:Name="ActionBar" Grid.Row="2" Margin="14,0,14,8" LastChildFill="False">
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
-                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding ShorterCommand}" Content="{Binding LShorter}" ToolTip="2–3 very short bullets"/>
-                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding TechnicalCommand}" Content="{Binding LTechnical}"/>
-                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding ExampleCommand}" Content="{Binding LExample}"/>
-                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding FullCommand}" Content="{Binding LFull}"/>
-                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding RegenerateCommand}" ToolTip="Regenerate with AI">
+                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding ShorterCommand}" Content="{Binding LShorter}" ToolTip="{v:Loc tt_shorter}"/>
+                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding TechnicalCommand}" Content="{Binding LTechnical}" ToolTip="{v:Loc tt_technical}"/>
+                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding ExampleCommand}" Content="{Binding LExample}" ToolTip="{v:Loc tt_example}"/>
+                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding FullCommand}" Content="{Binding LFull}" ToolTip="{v:Loc tt_full}"/>
+                    <Button Style="{StaticResource Btn.Chip}" Command="{Binding RegenerateCommand}" ToolTip="{v:Loc tt_regenerate}" AutomationProperties.Name="{v:Loc regenerate}">
                         <TextBlock Style="{StaticResource T.Icon}" Text="&#xE72C;" FontSize="12"/>
                     </Button>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                    <Button Style="{StaticResource Btn.Ghost}" Command="{Binding PreviousCommand}" ToolTip="Previous answer"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE76B;" FontSize="11"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Command="{Binding PreviousCommand}" ToolTip="{v:Loc tt_previous}" AutomationProperties.Name="{v:Loc tt_previous}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE76B;" FontSize="11"/></Button>
                     <TextBlock Text="{Binding HistoryLabel}" Foreground="{StaticResource B.TextFaint}" FontSize="11" VerticalAlignment="Center" Margin="2,0"/>
-                    <Button Style="{StaticResource Btn.Ghost}" Command="{Binding NextCommand}" ToolTip="Next answer"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE76C;" FontSize="11"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Command="{Binding NextCommand}" ToolTip="{v:Loc tt_next}" AutomationProperties.Name="{v:Loc tt_next}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE76C;" FontSize="11"/></Button>
                 </StackPanel>
             </DockPanel>
 
             <!-- ===== Manual question (always-available fallback) ===== -->
             <Grid x:Name="ManualBar" Grid.Row="3" Margin="14,0,14,12">
-                <TextBox x:Name="ManualInput" Style="{StaticResource Input}" KeyDown="ManualInput_KeyDown" Padding="10,7,40,7"/>
+                <TextBox x:Name="ManualInput" Style="{StaticResource Input}" KeyDown="ManualInput_KeyDown" Padding="10,7,40,7" AutomationProperties.Name="{Binding LTypeHint}"/>
                 <TextBlock Text="{Binding LTypeHint}" Foreground="{StaticResource B.TextFaint}" FontSize="13" Margin="12,0,0,0"
                            VerticalAlignment="Center" IsHitTestVisible="False">
                     <TextBlock.Style>
@@ -247,7 +252,7 @@
                         </Style>
                     </TextBlock.Style>
                 </TextBlock>
-                <Button Style="{StaticResource Btn.Ghost}" HorizontalAlignment="Right" Margin="0,0,4,0" Click="ManualSend_Click" ToolTip="Answer this question">
+                <Button Style="{StaticResource Btn.Ghost}" HorizontalAlignment="Right" Margin="0,0,4,0" Click="ManualSend_Click" ToolTip="{v:Loc tt_send}" AutomationProperties.Name="{v:Loc tt_send}">
                     <TextBlock Style="{StaticResource T.Icon}" Text="&#xE724;" Foreground="{StaticResource B.Accent}"/>
                 </Button>
             </Grid>
@@ -262,15 +267,15 @@
                     Background="{StaticResource B.Surface2}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" VerticalAlignment="Top"
                     Visibility="{Binding ShowLiveIntro, Converter={StaticResource BoolVis}}">
                 <StackPanel>
-                    <TextBlock Text="Before you start" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" Margin="0,0,0,10"/>
-                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,5" Text="1.  Join the interview in Chrome, Meet, Zoom or Teams."/>
-                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,5" Text="2.  Make sure you hear the interviewer through the selected playback device (Settings)."/>
-                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,5" Text="3.  Click Start listening (Ctrl+Alt+L)."/>
-                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,5" Text="4.  Your microphone is never captured — only what the interviewer says."/>
-                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,12" Text="5.  An answer appears automatically when the interviewer finishes a question. You can also type a question below."/>
+                    <TextBlock Text="{v:Loc live_intro_title}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" Margin="0,0,0,10"/>
+                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,5" Text="{v:Loc live_intro_1}"/>
+                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,5" Text="{v:Loc live_intro_2}"/>
+                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,5" Text="{v:Loc live_intro_3}"/>
+                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,5" Text="{v:Loc live_intro_4}"/>
+                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,12" Text="{v:Loc live_intro_5}"/>
                     <DockPanel LastChildFill="False">
-                        <CheckBox x:Name="IntroDontShow" Style="{StaticResource Check}" Content="Don't show again" VerticalAlignment="Center" Foreground="{StaticResource B.TextDim}"/>
-                        <Button DockPanel.Dock="Right" Style="{StaticResource Btn.Primary}" Content="Got it" Click="IntroClose_Click" Padding="18,6"/>
+                        <CheckBox x:Name="IntroDontShow" Style="{StaticResource Check}" Content="{v:Loc live_intro_dont_show}" VerticalAlignment="Center" Foreground="{StaticResource B.TextDim}"/>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource Btn.Primary}" Content="{v:Loc live_intro_got_it}" Click="IntroClose_Click" Padding="18,6"/>
                     </DockPanel>
                 </StackPanel>
             </Border>

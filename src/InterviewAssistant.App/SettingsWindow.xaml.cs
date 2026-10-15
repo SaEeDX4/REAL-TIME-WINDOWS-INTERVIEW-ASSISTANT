@@ -14,6 +14,8 @@ public partial class SettingsWindow : Window
     private readonly MainViewModel _vm;
     private readonly AppSettings _s;
     public bool EngineSettingsChanged { get; private set; }
+    /// <summary>Answer/transcription model, protocol or API key changed (developer builds) — needs a new engine.</summary>
+    public bool ModelSettingsChanged { get; private set; }
 
     public SettingsWindow(MainViewModel vm)
     {
@@ -85,10 +87,11 @@ public partial class SettingsWindow : Window
         foreach (var hk in new[] { HkToggle.Text, HkStart.Text, HkManual.Text })
             if (!HotkeyService.TryParse(hk, out _, out _)) { SaveStatus.Text = $"Invalid hotkey: {hk} (example: Ctrl+Alt+Space)"; return; }
 
-        if (BuildFlavor.Developer && !string.IsNullOrWhiteSpace(KeyBox.Password)) { SecretStore.SetApiKey(KeyBox.Password); EngineSettingsChanged = true; }
+        if (BuildFlavor.Developer && !string.IsNullOrWhiteSpace(KeyBox.Password)) { SecretStore.SetApiKey(KeyBox.Password); EngineSettingsChanged = ModelSettingsChanged = true; }
         var model = ModelBox.Text.Trim(); var stt = SttBox.Text.Trim(); var proto = ProtocolBox.SelectedItem as string ?? "auto";
-        if (model != _s.AnswerModel || stt != _s.TranscriptionModel || proto != _s.RealtimeProtocol ||
-            Math.Abs(VadSlider.Value - _s.VadSensitivity) > 0.001 || FastCacheBox.IsChecked != _s.UseFastCache) EngineSettingsChanged = true;
+        if (BuildFlavor.Developer && (model.Length > 0 && model != _s.AnswerModel || stt.Length > 0 && stt != _s.TranscriptionModel || proto != _s.RealtimeProtocol))
+            EngineSettingsChanged = ModelSettingsChanged = true;
+        if (Math.Abs(VadSlider.Value - _s.VadSensitivity) > 0.001 || FastCacheBox.IsChecked != _s.UseFastCache) EngineSettingsChanged = true;
         _s.AnswerModel = model.Length > 0 ? model : _s.AnswerModel;
         _s.TranscriptionModel = stt.Length > 0 ? stt : _s.TranscriptionModel;
         _s.RealtimeProtocol = proto;

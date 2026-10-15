@@ -74,7 +74,7 @@ public sealed class LoopbackRedirect : IDisposable
         }
         catch (Exception ex) when (ex is IOException or OperationCanceledException or SocketException) { return (0, "", null, null); }
 
-        if (target == null) { await RespondAsync(stream, 400, "Bad request."); return (400, "", null, null); }
+        if (target == null) { await RespondAsync(stream, 400, Core.Languages.Loc.T("browser_bad_request")); return (400, "", null, null); }
         var uri = new Uri("http://127.0.0.1" + target);
         var q = ParseQuery(uri.Query);
         if (uri.AbsolutePath.TrimEnd('/') != "/callback" || q.GetValueOrDefault("s") != State)
@@ -85,12 +85,12 @@ public sealed class LoopbackRedirect : IDisposable
         var error = q.GetValueOrDefault("error_description") ?? q.GetValueOrDefault("error");
         if (!string.IsNullOrEmpty(error))
         {
-            await RespondAsync(stream, 400, "Sign-in failed. You can close this tab and try again in the app.");
+            await RespondAsync(stream, 400, Core.Languages.Loc.T("browser_sign_in_failed"));
             return (400, "", null, error);
         }
         var code = q.GetValueOrDefault("code");
-        if (string.IsNullOrEmpty(code)) { await RespondAsync(stream, 400, "Missing authorization code."); return (400, "", null, null); }
-        await RespondAsync(stream, 200, "Signed in. You can close this tab and return to Interview Assistant.");
+        if (string.IsNullOrEmpty(code)) { await RespondAsync(stream, 400, Core.Languages.Loc.T("browser_missing_code")); return (400, "", null, null); }
+        await RespondAsync(stream, 200, Core.Languages.Loc.T("browser_signed_in"));
         return (200, "", code, null);
     }
 

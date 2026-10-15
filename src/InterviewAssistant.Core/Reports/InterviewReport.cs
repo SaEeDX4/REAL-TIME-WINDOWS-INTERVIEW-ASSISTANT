@@ -21,6 +21,9 @@ public sealed class ReportQuestion
     public long FirstBulletMs { get; init; }
     public int? FollowUpOf { get; init; }
     public bool ReferencesEarlier { get; init; }
+    /// <summary>Interviewer context before the question (summary).</summary>
+    public string Context { get; init; } = "";
+    public bool Typed { get; init; }
 }
 
 /// <summary>
@@ -54,6 +57,8 @@ public sealed class InterviewReport
     public List<string> FollowUpPreparation { get; init; } = new();
     public List<string> ThankYouThemes { get; init; } = new();
     public List<string> UnusedRelevantStories { get; init; } = new();
+    /// <summary>Turns that were not interview questions (non-speech, prompt echo, logistics, remarks to others) — counts only.</summary>
+    public int ExcludedTurns { get; init; }
 
     public string ToJson() => JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true, IncludeFields = true });
 }
@@ -63,11 +68,17 @@ public static class ReportBuilder
     public static InterviewReport Build(SessionMemory memory, KnowledgeBase kb, SessionMetrics? metrics, string sessionId, DateTime startedUtc, DateTime endedUtc,
         string reportLanguage = "en", PreparedPack? pack = null, int reconnects = 0, int duplicatesSuppressed = 0, string profileLabel = "", string targetLabel = "")
     {
+        // Defence in depth: the engine never records suppressed turns, but a record that is empty or reads like the
+        // recognizer's own vocabulary prompt must not count as a question or skew any statistic below.
+        var echo = new PromptEchoDetector(kb.Context.BuildTranscriptionPrompt(), kb.Context.TranscriptionTerms());
+        var valid = memory.Questions.Where(q => q.Original.Trim().Length > 0 && (q.Typed || !echo.Check(q.Original).IsEcho)).ToList();
+        int invalid = memory.Questions.Count - valid.Count;
+        if (invalid > 0) memory = Filtered(memory, valid);
         var qs = memory.Questions.Select(q => new ReportQuestion
         {
             Index = q.Index, OriginalWording = q.Original, DetectedLanguage = q.DetectedLanguage, AnswerLanguage = q.AnswerLanguage, Category = q.Category, Mode = q.Mode,
             SuggestionsShown = q.AnswerBullets.Count > 0 ? q.AnswerBullets.ToList() : q.CoachKeywords.ToList(), Presentation = q.Presentation, Source = q.Source,
-            FirstBulletMs = q.FirstBulletLatencyMs, FollowUpOf = q.FollowUpOf, ReferencesEarlier = q.ReferencesEarlierAnswer,
+            FirstBulletMs = q.FirstBulletLatencyMs, FollowUpOf = q.FollowUpOf, ReferencesEarlier = q.ReferencesEarlierAnswer, Context = q.Context, Typed = q.Typed,
         }).ToList();
 
         var storyLabel = kb.Stories.ToDictionary(s => s.Id, s => $"{s.Company}: {Short(s.Action, 10)}");
@@ -89,7 +100,8 @@ public static class ReportBuilder
         difficult.AddRange(memory.Questions.Where(q => q.Source is "Error" or "CacheFallback").Select(q => "No live AI answer available: " + Short(q.Original, 12)));
         difficult.AddRange(memory.Questions.Where(q => q.ReferencesEarlierAnswer).Select(q => "Interviewer referred back to an earlier answer: " + Short(q.Original, 12)));
 
-        var latencies = memory.Questions.Select(q => q.FirstBulletLatencyMs).Where(l => l >= 0).ToList();
+        // Latency statistics cover heard questions only (a typed question has no speech end to measure from).
+        var latencies = memory.Questions.Where(q => !q.Typed).Select(q => q.FirstBulletLatencyMs).Where(l => l >= 0).ToList();
         var issues = new List<string>();
         var undetected = memory.Questions.Count(q => q.DetectedLanguage == "und");
         if (undetected > 0) issues.Add($"{undetected} question(s) were too short to detect the language reliably.");
@@ -129,7 +141,21 @@ public static class ReportBuilder
             LatencyP50Ms = SessionMetrics.Percentile(latencies, 50), LatencyP95Ms = SessionMetrics.Percentile(latencies, 95),
             TranscriptionIssues = issues, StrengthsOfPreparation = strengths, PreparationWeaknesses = weaknesses, FollowUpPreparation = followUp,
             ThankYouThemes = themes, UnusedRelevantStories = unused,
+            ExcludedTurns = (metrics?.TotalSuppressed ?? 0) + invalid,
         };
+    }
+
+    /// <summary>A copy of the memory restricted to valid records, with story/metric/topic statistics recomputed from them.</summary>
+    private static SessionMemory Filtered(SessionMemory m, List<QuestionRecord> valid)
+    {
+        var f = new SessionMemory { Questions = valid.ToList(), Interruptions = m.Interruptions.ToList(), CompanyTopics = m.CompanyTopics.ToHashSet(), RollingSummary = m.RollingSummary };
+        foreach (var q in valid)
+        {
+            foreach (var s in q.StoryIds) f.StoryUse[s] = f.StoryUse.GetValueOrDefault(s) + 1;
+            foreach (var x in q.Metrics) f.MetricUse[x] = f.MetricUse.GetValueOrDefault(x) + 1;
+            if (q.Category.Length > 0) f.TopicCounts[q.Category] = f.TopicCounts.GetValueOrDefault(q.Category) + 1;
+        }
+        return f;
     }
 
     private static string Short(string s, int words) { var w = s.Split(' ', StringSplitOptions.RemoveEmptyEntries); return w.Length <= words ? s.TrimEnd('.') : string.Join(' ', w.Take(words)) + "…"; }

@@ -28,7 +28,10 @@ public sealed class ToastHost : StackPanel
         Margin = new Thickness(12);
     }
 
-    public void Show(string text, ToastKind kind = ToastKind.Info, int? milliseconds = null)
+    public void Show(string text, ToastKind kind = ToastKind.Info, int? milliseconds = null) => Show(text, null, kind, milliseconds);
+
+    /// <summary>Title line plus optional secondary text (e.g. "Connection lost" / "Prepared answers are still available").</summary>
+    public void Show(string text, string? detail, ToastKind kind = ToastKind.Info, int? milliseconds = null)
     {
         if (string.IsNullOrWhiteSpace(text)) return;
         var now = DateTime.UtcNow;
@@ -46,18 +49,28 @@ public sealed class ToastHost : StackPanel
         };
         var accent = (Brush)res[brushKey];
         var row = new DockPanel();
-        var icon = new TextBlock { Text = glyph, FontFamily = (FontFamily)res["F.Icons"], FontSize = 13, Foreground = accent, Margin = new Thickness(0, 1, 10, 0), VerticalAlignment = VerticalAlignment.Top };
-        DockPanel.SetDock(icon, Dock.Left);
-        row.Children.Add(icon);
-        row.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = (Brush)res["B.Text"], FontSize = 12.5, MaxWidth = 420 });
+        // Accent strip + icon chip: readable at a glance, never louder than the answer itself.
+        var chip = new Border
+        {
+            Width = 24, Height = 24, CornerRadius = new CornerRadius(12), Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Top,
+            Background = new SolidColorBrush(Color.FromArgb(0x26, ((SolidColorBrush)accent).Color.R, ((SolidColorBrush)accent).Color.G, ((SolidColorBrush)accent).Color.B)),
+            Child = new TextBlock { Text = glyph, FontFamily = (FontFamily)res["F.Icons"], FontSize = 11.5, Foreground = accent, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+        };
+        DockPanel.SetDock(chip, Dock.Left);
+        row.Children.Add(chip);
+        var texts = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        texts.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = (Brush)res["B.Text"], FontSize = 12.5, FontWeight = FontWeights.SemiBold, MaxWidth = 380 });
+        if (!string.IsNullOrWhiteSpace(detail))
+            texts.Children.Add(new TextBlock { Text = detail, TextWrapping = TextWrapping.Wrap, Foreground = (Brush)res["B.TextDim"], FontSize = 11.5, MaxWidth = 380, Margin = new Thickness(0, 2, 0, 0) });
+        row.Children.Add(texts);
         var card = new Border
         {
-            Child = row, Padding = new Thickness(14, 9, 16, 9), Margin = new Thickness(0, 6, 0, 0), CornerRadius = new CornerRadius(10),
-            Background = (Brush)res["B.Surface3"], BorderBrush = accent, BorderThickness = new Thickness(1, 1, 1, 1),
+            Child = row, Padding = new Thickness(12, 9, 16, 10), Margin = new Thickness(0, 6, 0, 0), CornerRadius = new CornerRadius(10),
+            Background = (Brush)res["B.Surface3"], BorderBrush = (Brush)res["B.Border"], BorderThickness = new Thickness(1),
             Opacity = 0, RenderTransform = new TranslateTransform(0, 8), Cursor = System.Windows.Input.Cursors.Hand,
-            ToolTip = "Click to dismiss", Effect = res["E.Shadow"] as System.Windows.Media.Effects.Effect,
+            ToolTip = InterviewAssistant.Core.Languages.Loc.T("toast_dismiss"), Effect = res["E.Shadow"] as System.Windows.Media.Effects.Effect,
         };
-        AutomationProperties.SetName(card, text);
+        AutomationProperties.SetName(card, string.IsNullOrWhiteSpace(detail) ? text : text + ". " + detail);
         AutomationProperties.SetLiveSetting(card, kind == ToastKind.Error ? AutomationLiveSetting.Assertive : AutomationLiveSetting.Polite);
         card.MouseLeftButtonUp += (_, _) => Dismiss(card);
 
@@ -68,7 +81,7 @@ public sealed class ToastHost : StackPanel
             new DoubleAnimation(0, TimeSpan.FromMilliseconds(220)) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } });
         System.Windows.Automation.Peers.UIElementAutomationPeer.CreatePeerForElement(card)?.RaiseAutomationEvent(System.Windows.Automation.Peers.AutomationEvents.LiveRegionChanged);
 
-        var duration = milliseconds ?? kind switch { ToastKind.Error => 7000, ToastKind.Warning => 5500, _ => 3200 };
+        var duration = milliseconds ?? kind switch { ToastKind.Error => 7000, ToastKind.Warning => 5500, _ => detail == null ? 3200 : 4500 };
         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(duration) };
         timer.Tick += (_, _) => { timer.Stop(); Dismiss(card); };
         timer.Start();

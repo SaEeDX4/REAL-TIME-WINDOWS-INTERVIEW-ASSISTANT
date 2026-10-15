@@ -39,6 +39,25 @@ public sealed class WorkspaceStore
 
     public string Root => _root;
 
+    /// <summary>The interview opened in the Live Assistant for THIS workspace (ids only, no content).</summary>
+    public (string? ProfileId, string? TargetId) GetActive()
+    {
+        try
+        {
+            var p = Path.Combine(_root, "active.json");
+            if (!File.Exists(p)) return (null, null);
+            var d = JsonSerializer.Deserialize<Dictionary<string, string?>>(File.ReadAllText(p));
+            string? Id(string k) => d != null && d.TryGetValue(k, out var v) && v != null && v.Length <= 64 && v.All(c => char.IsAsciiLetterOrDigit(c) || c == '-') ? v : null;
+            return (Id("profile"), Id("target"));
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { return (null, null); }
+    }
+
+    public void SetActive(string? profileId, string? targetId)
+    {
+        lock (_lock) File.WriteAllText(Path.Combine(_root, "active.json"), JsonSerializer.Serialize(new Dictionary<string, string?> { ["profile"] = profileId, ["target"] = targetId }));
+    }
+
     private static string SafeId(string id)
     {
         if (string.IsNullOrEmpty(id) || id.Length > 64 || !id.All(c => char.IsAsciiLetterOrDigit(c) || c == '-'))

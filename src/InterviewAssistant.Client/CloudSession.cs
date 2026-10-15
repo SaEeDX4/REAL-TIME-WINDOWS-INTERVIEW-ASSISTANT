@@ -105,13 +105,13 @@ public sealed class CloudSession : IAsyncDisposable
             if (hb.TodayRemainingSeconds >= 0) TodayRemainingSeconds = hb.TodayRemainingSeconds;
             RemainingChanged?.Invoke(hb.RemainingSeconds);
             if (!hb.Active) { End(hb.EndReason ?? "ended"); return; }
-            if (hb.RemainingSeconds is > 0 and <= 300) Warning?.Invoke($"{hb.RemainingSeconds / 60 + 1} live minutes left.");
+            if (hb.RemainingSeconds is > 0 and <= 300) Warning?.Invoke(Core.Languages.Loc.F("svc_minutes_left_warning", hb.RemainingSeconds / 60 + 1));
         }
         catch (BackendException ex) when (ex.Status is 404 or 409 or 403) { End(ex.Code); }
-        catch (BackendException ex)
+        catch (BackendException)
         {
             // Network blips: the server bills at most 2 intervals per heartbeat and expires the lease after 90 s.
-            if (++_consecutiveFailures >= 3) Warning?.Invoke("Connection to the service is unstable (" + ex.Code + ").");
+            if (++_consecutiveFailures >= 3) Warning?.Invoke(Core.Languages.Loc.T("svc_unstable"));
         }
     }
 

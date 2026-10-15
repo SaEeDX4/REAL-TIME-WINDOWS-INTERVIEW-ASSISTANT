@@ -55,8 +55,10 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
     public ObservableCollection<BulletVm> Bullets { get; } = new();
     /// <summary>Meaningful action results for the in-app notification area (never per click).</summary>
-    public event Action<string, Views.ToastKind>? Notify;
-    public void Toast(string text, Views.ToastKind kind = Views.ToastKind.Info) => Notify?.Invoke(text, kind);
+    public event Action<string, Views.ToastKind, string?>? Notify;
+    public void Toast(string text, Views.ToastKind kind = Views.ToastKind.Info, string? detail = null) => Notify?.Invoke(text, kind, detail);
+    /// <summary>A report was saved (Home refreshes its Reports list immediately).</summary>
+    public event Action<string>? ReportSaved;
 
     private bool _showLiveIntro; public bool ShowLiveIntro { get => _showLiveIntro; set => Set(ref _showLiveIntro, value); }
     public void DismissLiveIntro(bool dontShowAgain)
@@ -69,12 +71,14 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     {
         _ui = ui;
         Settings = AppSettings.Load();
+        Loc.Language = UiLanguage;
         Cloud = new CloudService(Settings);
         Updates = new UpdateService(Settings, Cloud.Options.UpdateUrl);
         _updateTimer = new DispatcherTimer(DispatcherPriority.Background, ui) { Interval = TimeSpan.FromMinutes(1) };
         _updateTimer.Tick += async (_, _) => await Updates.TickAsync(sessionActive: IsListening || IsPaused || _cloudSession != null);
         _updateTimer.Start();
-        Cloud.Changed += () => Post(() => { Raise(nameof(AccountLabel)); Raise(nameof(UsingCloud)); RaiseMinutes(); Raise(nameof(ServiceBanner)); });
+        Cloud.Changed += () => Post(() => { Raise(nameof(AccountLabel)); Raise(nameof(UsingCloud)); RaiseMinutes(); Raise(nameof(ServiceBanner)); OnConnectivity(); OpenWorkspaceForCurrentAccount(); });
+        Loc.LanguageChanged += () => Post(RefreshLanguage);
         _capture.FrameReady += OnAudioFrame;
         _capture.StatusChanged += s => Post(() => AudioStatus = s);
         _diagTimer = new DispatcherTimer(DispatcherPriority.Background, ui) { Interval = TimeSpan.FromSeconds(1) };
@@ -83,11 +87,11 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
         StartPauseCommand = new RelayCommand(async () => await ToggleListeningAsync());
         StopCommand = new RelayCommand(async () => await StopAsync(), () => IsListening || IsPaused);
-        ShorterCommand = new RelayCommand(() => Variant(AnswerStyle.VeryShort), HasQuestion);
-        TechnicalCommand = new RelayCommand(() => Variant(AnswerStyle.Technical), HasQuestion);
-        ExampleCommand = new RelayCommand(() => Variant(AnswerStyle.Example), HasQuestion);
-        FullCommand = new RelayCommand(() => Variant(AnswerStyle.Full), HasQuestion);
-        RegenerateCommand = new RelayCommand(() => Variant(AnswerStyle.Balanced), HasQuestion);
+        ShorterCommand = new RelayCommand(() => Variant(AnswerStyle.VeryShort), CanRework);
+        TechnicalCommand = new RelayCommand(() => Variant(AnswerStyle.Technical), CanRework);
+        ExampleCommand = new RelayCommand(() => Variant(AnswerStyle.Example), CanRework);
+        FullCommand = new RelayCommand(() => Variant(AnswerStyle.Full), CanRework);
+        RegenerateCommand = new RelayCommand(() => Variant(AnswerStyle.Balanced), CanRework);
         PreviousCommand = new RelayCommand(() => Navigate(-1), () => HistoryPosition > 0);
         NextCommand = new RelayCommand(() => Navigate(+1), () => _engine != null && HistoryPosition < _engine.History.Count - 1);
         ToggleCoachCommand = new RelayCommand(ToggleCoach);
@@ -101,8 +105,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>Effective UI language: setting, else Windows display language if supported, else English.</summary>
     public string UiLanguage => LanguageRegistry.Find(Settings.UiLanguage)?.Code ?? LanguageRegistry.Find(System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName)?.Code ?? "en";
-    public string L(string key) => UiStrings.Get(UiLanguage, key);
-    public FlowDirection UiFlowDirection => LanguageRegistry.IsRtl(UiLanguage) ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
+    public string L(string key) => Loc.T(key);
+    public FlowDirection UiFlowDirection => Loc.IsRtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
     public string LQuestion => L("question");
     public string LAnswer => IsCoachView ? L("coach") : L("answer");
     public string LWaiting => L("waiting");
@@ -113,11 +117,16 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public string LFull => L("full");
     public string LKeywords => L("keywords");
     public string LStructure => L("structure");
+    /// <summary>Re-renders every text that is computed in code (XAML-bound {v:Loc} texts refresh by themselves).</summary>
     public void RefreshLanguage()
     {
+        Loc.Language = UiLanguage;
         foreach (var n in new[] { nameof(UiLanguage), nameof(UiFlowDirection), nameof(LQuestion), nameof(LAnswer), nameof(LWaiting), nameof(LTypeHint), nameof(LShorter),
-                     nameof(LTechnical), nameof(LExample), nameof(LFull), nameof(LKeywords), nameof(LStructure), nameof(StartPauseLabel), nameof(AdaptiveLabel), nameof(PresentationLabel) }) Raise(n);
+                     nameof(LTechnical), nameof(LExample), nameof(LFull), nameof(LKeywords), nameof(LStructure), nameof(StartPauseLabel), nameof(AdaptiveLabel), nameof(PresentationLabel),
+                     nameof(AccountLabel), nameof(ServiceBanner), nameof(HistoryLabel), nameof(ActiveLabel) }) Raise(n);
+        RaiseMinutes();
         if (_engine != null) ApplyStatus(_engine.Status, _engine.StatusDetail);
+        if (_engine?.History.FirstOrDefault(a => a.Id == _displayedAnswerId) is { } shown) AnswerMeta = Meta(shown);
     }
 
     // ---------------- coach / adaptive ----------------
@@ -150,37 +159,51 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public bool UsingCloud => !BuildFlavor.Developer || (Settings.Mode == "cloud" && Cloud.IsConfigured);
     public string AccountLabel => Cloud.State switch
     {
-        CloudState.SignedIn when Cloud.Account is { } a => $"{a.Email} · {BillingLabel(a)}",
-        CloudState.NotConfigured => BuildFlavor.Developer ? "Developer mode" : "Service not configured",
-        CloudState.Connecting => "Connecting…",
-        CloudState.ServiceUnavailable => "Service unavailable",
-        CloudState.UpdateRequired => "Update required",
-        CloudState.SessionExpired => "Session expired — sign in",
-        CloudState.AccountDisabled => "Account disabled",
-        _ => "Not signed in",
+        CloudState.SignedIn when Cloud.Account is { } a => Loc.F("acct_signed_in_as", a.Email, BillingLabel(a)),
+        CloudState.NotConfigured => Loc.T(BuildFlavor.Developer ? "acct_developer_mode" : "acct_not_configured"),
+        CloudState.Connecting => Loc.T("acct_connecting"),
+        CloudState.ServiceUnavailable => Loc.T("acct_unavailable"),
+        CloudState.UpdateRequired => Loc.T("acct_update_required"),
+        CloudState.SessionExpired => Loc.T("acct_session_expired"),
+        CloudState.AccountDisabled => Loc.T("acct_disabled"),
+        _ => Loc.T("acct_signed_out"),
     };
 
     /// <summary>One-line plan text from the server's billing state (no entitlement logic here).</summary>
     public static string BillingLabel(AccountDto a) => a.BillingState switch
     {
-        Contracts.BillingStates.Trial => $"Trial · {a.Usage.LiveSecondsRemaining / 60} min left",
-        Contracts.BillingStates.TrialExhausted => "Trial used up",
+        Contracts.BillingStates.Trial => Loc.F("bill_trial", a.Usage.LiveSecondsRemaining / 60),
+        Contracts.BillingStates.TrialExhausted => Loc.T("bill_trial_used"),
         Contracts.BillingStates.Active => a.Entitlements.PlanName,
-        Contracts.BillingStates.Canceling => $"{a.Entitlements.PlanName} · ends {a.Subscription?.CurrentPeriodEndUtc?.ToLocalTime():d}",
-        Contracts.BillingStates.PastDue => $"{a.Entitlements.PlanName} · payment problem",
-        Contracts.BillingStates.Paused => "Subscription paused",
-        Contracts.BillingStates.Expired => "Subscription ended",
+        Contracts.BillingStates.Canceling => Loc.F("bill_ends", a.Entitlements.PlanName, a.Subscription?.CurrentPeriodEndUtc?.ToLocalTime().ToString("d", Loc.Culture)),
+        Contracts.BillingStates.PastDue => Loc.F("bill_payment_problem", a.Entitlements.PlanName),
+        Contracts.BillingStates.Paused => Loc.T("bill_paused"),
+        Contracts.BillingStates.Expired => Loc.T("bill_ended"),
         _ => a.Entitlements.PlanName,
     };
 
-    /// <summary>Overlay banner for states that block live help (empty when everything is fine).</summary>
+    /// <summary>Persistent banner for states that block live help (empty when everything is fine). An outage stays visible until it recovers.</summary>
     public string ServiceBanner => !UsingCloud ? "" : Cloud.State switch
     {
-        CloudState.ServiceUnavailable or CloudState.UpdateRequired or CloudState.AccountDisabled or CloudState.SessionExpired or CloudState.NotConfigured => Cloud.Message ?? AccountLabel,
+        CloudState.ServiceUnavailable => Loc.T("banner_offline"),
+        CloudState.UpdateRequired or CloudState.AccountDisabled or CloudState.SessionExpired or CloudState.NotConfigured => Cloud.Message ?? AccountLabel,
         CloudState.SignedIn when Cloud.Account?.BillingState is Contracts.BillingStates.TrialExhausted or Contracts.BillingStates.Expired or Contracts.BillingStates.Paused =>
-            BillingLabel(Cloud.Account!) + " — upgrade or manage billing in Home → Account.",
+            Loc.F("banner_upgrade", BillingLabel(Cloud.Account!)),
         _ => "",
     };
+
+    private bool _wasOffline;
+
+    /// <summary>One toast per connectivity transition (never repeated while the outage lasts; the banner stays).</summary>
+    private void OnConnectivity()
+    {
+        if (!UsingCloud) return;
+        var offline = Cloud.State == CloudState.ServiceUnavailable;
+        if (offline == _wasOffline) return;
+        _wasOffline = offline;
+        if (offline) Toast(Loc.T("toast_connection_lost"), Views.ToastKind.Warning, Loc.T("toast_connection_lost_detail"));
+        else if (Cloud.State == CloudState.SignedIn) Toast(Loc.T("toast_connection_restored"), Views.ToastKind.Success, Loc.T("toast_connection_restored_detail"));
+    }
     private int? _periodRemainingSeconds, _todayRemainingSeconds;
 
     /// <summary>Plan minutes left this billing period (never confused with the per-day safety limit).</summary>
@@ -194,8 +217,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         get
         {
             if (!UsingCloud || PeriodMinutesLeft is not int period) return "";
-            var label = PlanMinutes > 0 ? $"{period}/{PlanMinutes} min" : UiStrings.Format(UiLanguage, "minutes_left", period);
-            return TodayMinutesLeft is int today && today < period ? $"{label} · {today} today" : label;
+            var label = PlanMinutes > 0 ? Loc.F("min_label", period, PlanMinutes) : Loc.F("min_label_plain", period);
+            return TodayMinutesLeft is int today && today < period ? Loc.F("min_today", label, today) : label;
         }
     }
 
@@ -205,13 +228,13 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         {
             if (!UsingCloud || PeriodMinutesLeft is not int period) return "";
             var sb = new StringBuilder();
-            sb.Append(PlanMinutes > 0 ? $"{period} of {PlanMinutes} live minutes remaining this billing period." : $"{period} live minutes remaining this billing period.");
+            sb.Append(PlanMinutes > 0 ? Loc.F("min_tt_period", period, PlanMinutes) : Loc.F("min_tt_period_plain", period));
             if (TodayMinutesLeft is int today)
             {
                 var cap = Cloud.Account?.Usage.DailyLiveMinutesCap ?? 0;
-                sb.Append($"\n{today} minutes available today" + (cap > 0 ? $" (daily safety limit {cap} min, resets 00:00 UTC)." : "."));
+                sb.Append('\n').Append(Loc.F("min_tt_today", today)).Append(cap > 0 ? " " + Loc.F("min_tt_cap", cap) : ".");
             }
-            sb.Append("\nPaused time is never counted. Typed questions don't use live minutes.");
+            sb.Append('\n').Append(Loc.T("min_tt_paused"));
             return sb.ToString();
         }
     }
@@ -228,7 +251,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public ICommand PreviousCommand { get; }
     public ICommand NextCommand { get; }
 
-    private bool HasQuestion() => _engine?.Current != null && _provider != null;
+    /// <summary>Variants rework the DISPLAYED history item (never "the latest question" implicitly).</summary>
+    private bool CanRework() => _provider != null && _engine?.History.Any(a => a.Id == _displayedAnswerId) == true;
 
     // ---------------- bindable state ----------------
     private string _statusText = "READY"; public string StatusText { get => _statusText; set => Set(ref _statusText, value); }
@@ -248,7 +272,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public string StartPauseLabel => IsListening ? L("pause") : IsPaused ? L("resume") : L("start");
     private string _diagnostics = ""; public string Diagnostics { get => _diagnostics; set => Set(ref _diagnostics, value); }
     private int _historyPosition = -1; public int HistoryPosition { get => _historyPosition; set { if (Set(ref _historyPosition, value)) Raise(nameof(HistoryLabel)); } }
-    public string HistoryLabel => _engine == null || _engine.History.Count == 0 ? "" : $"{HistoryPosition + 1} / {_engine.History.Count}";
+    public string HistoryLabel => _engine == null || _engine.History.Count == 0 ? "" : Loc.F("history_label", HistoryPosition + 1, _engine.History.Count);
+    private string _contextSummary = ""; public string ContextSummary { get => _contextSummary; set => Set(ref _contextSummary, value); }
     private double? _fitFontSize;
     /// <summary>Base size from the font preset, reduced by auto-fit (never below 70 %) so every bullet is visible without scrolling.</summary>
     public double AnswerFontSize => _fitFontSize ?? Settings.AnswerFontSize;
@@ -281,9 +306,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     {
         try
         {
-            Workspace = new Workspace(Path.Combine(AppPaths.Roaming, "workspace"), new DpapiProtector());
-            var (kb, label) = Workspace.LoadActive(Settings.ActiveProfileId, Settings.ActiveTargetId);
-            UseKnowledge(kb, label);
+            OpenWorkspaceForCurrentAccount();
             if (Cloud.IsConfigured)
             {
                 _ = Cloud.RefreshAsync(CancellationToken.None);
@@ -297,8 +320,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
         {
             AppLog.Error("Workspace load failed", ex);
-            UseKnowledge(KnowledgeBase.Empty(), "No interview prepared");
-            return "Your local workspace could not be opened: " + ex.Message;
+            UseKnowledge(KnowledgeBase.Empty(), Loc.T("no_interview_prepared"));
+            return Loc.F("workspace_open_failed", ex.Message);
         }
         return null;
     }
@@ -315,16 +338,108 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Loads the built-in sample profile (fixture) — explicit user action or self-test only.</summary>
     public bool LoadSample(string? dir)
     {
-        var s = Workspace?.LoadSample(dir);
+        var s = Services.Workspace.LoadSample(dir);
         if (s == null) return false;
         UseKnowledge(s.Value.Kb, s.Value.Label);
         return true;
     }
 
-    /// <summary>(Re)creates providers + engine from current settings. Safe to call after Settings change while stopped.</summary>
+    // ---------------- account-scoped workspace ----------------
+
+    private string? _workspaceOwner;
+    /// <summary>The workspace was opened, switched or closed (sign-in, sign-out, account switch).</summary>
+    public event Action? WorkspaceChanged;
+    public string? ActiveProfileId { get; private set; }
+    public string? ActiveTargetId { get; private set; }
+    public bool HasWorkspace => Workspace != null;
+
+    /// <summary>Selects the interview used by the Live Assistant (stored per account workspace).</summary>
+    public void SetActive(string? profileId, string? targetId)
+    {
+        ActiveProfileId = profileId; ActiveTargetId = targetId;
+        Workspace?.Store.SetActive(profileId, targetId);
+    }
+
+    /// <summary>
+    /// Opens the workspace of the signed-in account (or the local one in developer mode / self-test). Signed out:
+    /// no workspace at all — no profile, interview, report or prepared answer of anybody is loaded or visible.
+    /// Never switches during an interview session (sign-out stops the session first).
+    /// </summary>
+    public void OpenWorkspaceForCurrentAccount()
+    {
+        string? owner = App.SelfTestOutput != null ? "selftest" : !UsingCloud ? "local" : Cloud.Auth?.Session?.UserId;
+        if (owner == _workspaceOwner && (Workspace != null || owner == null)) return;
+        if (SessionActive) return;
+        var baseDir = Path.Combine(AppPaths.Roaming, "workspace");
+        ClearUserState();
+        if (owner == null)
+        {
+            Workspace = null; _workspaceOwner = null; ActiveProfileId = ActiveTargetId = null;
+            UseKnowledge(KnowledgeBase.Empty(), Loc.T("signed_out_no_data"));
+            AppLog.Info("Workspace closed (signed out)");
+            WorkspaceChanged?.Invoke();
+            return;
+        }
+        string root;
+        if (owner == "selftest") root = Path.Combine(AppPaths.Local, "selftest-workspace-live");
+        else if (owner == "local") root = WorkspaceLocator.RootFor(baseDir, null);
+        else
+        {
+            if (WorkspaceLocator.AdoptLegacy(baseDir, owner)) AppLog.Info("Pre-RC2 local workspace adopted by the signed-in account");
+            root = WorkspaceLocator.RootFor(baseDir, owner);
+        }
+        Workspace = new Workspace(root, new DpapiProtector()) { Owner = owner == "local" || owner == "selftest" ? owner : WorkspaceLocator.AccountKey(owner) };
+        var (p, t) = Workspace.Store.GetActive();
+        if (p == null && Settings.ActiveProfileId is { } legacyP && Workspace.Store.GetProfile(legacyP) != null)
+        {
+            p = legacyP; t = Settings.ActiveTargetId;     // pre-RC2 selection lived in settings.json
+            Workspace.Store.SetActive(p, t);
+            Settings.ActiveProfileId = Settings.ActiveTargetId = null; Settings.Save();
+        }
+        ActiveProfileId = p; ActiveTargetId = t;
+        _workspaceOwner = owner;
+        var (kb, label) = Workspace.LoadActive(p, t);
+        UseKnowledge(kb, label);
+        AppLog.Info("Workspace opened for the current account");
+        WorkspaceChanged?.Invoke();
+    }
+
+    /// <summary>Removes everything user-specific from the screen and memory (answers, history, quota figures).</summary>
+    private void ClearUserState()
+    {
+        Bullets.Clear();
+        Question = ""; ContextSummary = ""; Note = null; AnswerMeta = ""; LiveTranscript = ""; Pending = "";
+        CoachKeywords = ""; CoachStructure = ""; CoachReminder = null; IsCoachView = false;
+        LastReportPath = null; HistoryPosition = -1; _displayedAnswerId = -1;
+        _periodRemainingSeconds = _todayRemainingSeconds = null;
+        _freshSessionOnStart = false;
+        RaiseMinutes(); Raise(nameof(HistoryLabel));
+    }
+
+    /// <summary>
+    /// Sign out: the interview (if any) is stopped and its report saved to THIS account's workspace, the backend lease
+    /// ends, tokens are revoked/cleared, and the account's data leaves the screen and memory.
+    /// </summary>
+    public async Task SignOutAsync()
+    {
+        if (SessionActive) await StopAsync();
+        await EndLeaseAsync();
+        await Cloud.SignOutAsync();
+        OpenWorkspaceForCurrentAccount();
+        Toast(Loc.T("toast_signed_out"), Views.ToastKind.Info, Loc.T("toast_signed_out_detail"));
+    }
+
+    /// <summary>A live interview session exists (listening or paused) — it continues until Stop.</summary>
+    public bool SessionActive => IsListening || IsPaused;
+
+    /// <summary>
+    /// (Re)creates providers + engine from current settings. Refused while a session is active: rebuilding would end
+    /// the interview (RC1 bug: changing a setting while paused replaced the session, history went 4/4 → 1/1).
+    /// </summary>
     public void BuildEngine()
     {
         if (Knowledge == null) return;
+        if (SessionActive && _engine != null) { AppLog.Warn("Engine rebuild refused: an interview session is active"); return; }
         if (_engine != null) _ = _engine.DisposeAsync().AsTask(); // releases the previous transcriber connection
         (_provider as IDisposable)?.Dispose();
         _transcriberOptions = TranscriberOptions();
@@ -349,14 +464,24 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _engine.Turn.Sensitivity = Settings.VadSensitivity;
         _engine.StatusChanged += (s, d) => Post(() => ApplyStatus(s, d));
         _engine.LiveTranscriptChanged += t => Post(() => LiveTranscript = t);
-        _engine.AnswerStarted += a => Post(() => ShowAnswer(a, isNew: true));
+        _engine.AnswerStarted += a => Post(() => OnAnswerStarted(a));
         _engine.BulletAdded += (a, _) => Post(() => { if (a.Id == _displayedAnswerId) { SyncBullets(a); Pending = ""; Raise(nameof(IsThinking)); } });
         _engine.PendingTextChanged += (a, p) => Post(() => { if (a.Id == _displayedAnswerId) Pending = p; });
-        _engine.AnswerCompleted += a => Post(() => { if (a.Id == _displayedAnswerId) { SyncBullets(a); Pending = ""; Note = a.Note; AnswerMeta = Meta(a); Raise(nameof(IsThinking)); } LiveTranscript = ""; });
+        _engine.AnswerCompleted += a => Post(() => { if (a.Id == _displayedAnswerId) { SyncBullets(a); Pending = ""; Note = a.Note; AnswerMeta = Meta(a); Raise(nameof(IsThinking)); } if (a.Kind != AnswerKind.Variant) LiveTranscript = ""; CommandManager.InvalidateRequerySuggested(); });
         _engine.LatencyMeasured += s => AppLog.Info($"Latency [{s.Source}] finalize {s.SpeechEndToFinalizedMs} ms, first bullet {s.FinalizedToFirstBulletMs} ms, total {s.FinalizedToCompleteMs} ms");
+        _engine.InterruptionDetected += _ => AppLog.Info("Pace: likely interruption (answers shortened)");
         _engine.Log += m => AppLog.Info(m);
         ApplyStatus(EngineStatus.Ready, null);
         Raise(nameof(Presentation)); Raise(nameof(PresentationLabel));
+    }
+
+    /// <summary>Applies the settings that may change during an interview without ending it (sensitivity, fast cache, coach default).</summary>
+    public void ApplyLiveSettings()
+    {
+        if (_engine == null) return;
+        _engine.Turn.Sensitivity = Settings.VadSensitivity;
+        _engine.Options.UseFastCache = Settings.UseFastCache;
+        _engine.AnswerLanguageOverride = Settings.AnswerLanguage != "same" && LanguageRegistry.IsSupported(Settings.AnswerLanguage) ? Settings.AnswerLanguage : null;
     }
 
     private void Post(Action a) => _ui.BeginInvoke(a, DispatcherPriority.Normal);
@@ -449,48 +574,58 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private DispatcherTimer? _accountTimer;
 
     /// <summary>Start / pause. Re-entrancy guarded: a double click can never start two leases.</summary>
-    public async Task ToggleListeningAsync()
+    public async Task ToggleListeningAsync(string? startToast = null)
     {
         if (_engine == null || _toggleBusy) return;
         _toggleBusy = true;
-        try { await ToggleListeningCoreAsync(); }
+        try { await ToggleListeningCoreAsync(startToast); }
         finally { _toggleBusy = false; }
     }
 
-    private async Task ToggleListeningCoreAsync()
+    private async Task ToggleListeningCoreAsync(string? startToast)
     {
         if (_engine == null) return;
         if (IsListening)
         {
             _engine.Pause(); IsListening = false; IsPaused = true;
             await EndLeaseAsync();   // paused time is never billed
-            Toast(UsingCloud ? "Listening paused — no live minutes are being used" : "Listening paused", Views.ToastKind.Info);
+            if (UsingCloud) Toast(Loc.T("toast_paused"), Views.ToastKind.Info, Loc.T("toast_paused_detail"));
+            else Toast(Loc.T("toast_paused_dev"), Views.ToastKind.Info);
             return;
         }
+        if (_freshSessionOnStart) { _freshSessionOnStart = false; BuildEngine(); if (_engine == null) return; }
         if (UsingCloud)
         {
-            if (!Cloud.IsConfigured) { ShowLocalNote("Live help needs the Interview Assistant service, which is not configured in this build. Typed questions still work with prepared answers."); return; }
-            if (!Cloud.IsSignedIn) { ShowLocalNote("Sign in (Home → Account) to start live listening. Typed questions still work with prepared answers."); return; }
+            if (!Cloud.IsConfigured) { ShowLocalNote(Loc.T("note_not_configured_listen")); return; }
+            if (!Cloud.IsSignedIn) { ShowLocalNote(Loc.T("note_sign_in_to_listen")); return; }
             if (!await BeginLeaseAsync()) return;
         }
-        else if (!SecretStore.HasKey) { ShowLocalNote("Developer build: add your OpenAI API key in Settings to enable live listening. Typed questions still work with prepared answers."); return; }
+        else if (!SecretStore.HasKey) { ShowLocalNote(Loc.T("note_dev_key")); return; }
         StartAudioPreview();
         if (_sessionStartedUtc == default) _sessionStartedUtc = DateTime.UtcNow;
         await _engine.StartListeningAsync();
         IsListening = true; IsPaused = false;
-        Toast("Listening to system audio — microphone off", Views.ToastKind.Success);
+        Toast(Loc.T(startToast ?? "toast_listening"), Views.ToastKind.Success, Loc.T("toast_listening_detail"));
     }
 
     public async Task StopAsync()
     {
         if (_engine == null) return;
+        var hadSession = SessionActive;
         await _engine.StopAsync();
         await EndLeaseAsync();
         IsListening = false; IsPaused = false;
         LiveTranscript = "";
         if (Settings.SaveSessionTranscript) SaveSession();
+        var count = _engine.Memory.Questions.Count;
         LastReportPath = SaveReport();
+        if (hadSession) Toast(LastReportPath != null ? Loc.F("toast_report_saved", count) : Loc.T("toast_no_report"), LastReportPath != null ? Views.ToastKind.Success : Views.ToastKind.Info);
+        // The next Start begins a NEW interview (fresh history, memory and numbering); until then the finished
+        // interview stays browsable on screen.
+        _freshSessionOnStart = count > 0;
     }
+
+    private bool _freshSessionOnStart;
 
     /// <summary>Starts the server lease for live listening and wires its events. False (with a readable note) when refused.</summary>
     private async Task<bool> BeginLeaseAsync()
@@ -511,12 +646,12 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         {
             ShowLocalNote(ex.Code switch
             {
-                "allowance_exhausted" => "You have used all live minutes on your plan for this period. Upgrade in Home → Account. Typed questions still work.",
-                "daily_live_cap" => "Today's live-minute limit is reached (it resets at 00:00 UTC). Typed questions still work.",
-                "concurrent_limit" => "An interview session is already running for your account on another PC. Stop it there first.",
-                "device_revoked" or "device_limit" => "This PC is not registered for your account (device limit). Manage devices in Home → Account.",
+                "allowance_exhausted" => Loc.T("lease_allowance"),
+                "daily_live_cap" => Loc.T("lease_daily_cap"),
+                "concurrent_limit" => Loc.T("lease_concurrent"),
+                "device_revoked" or "device_limit" => Loc.T("lease_device"),
                 "maintenance" => ex.Message,
-                _ => CloudService.Describe(ex) + " Typed questions still work with prepared answers.",
+                _ => Loc.F("lease_typed_still_work", CloudService.Describe(ex)),
             });
             if (ex.Status is 0 or >= 500) _ = Cloud.RefreshAsync(CancellationToken.None);
             return false;
@@ -543,7 +678,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     /// </summary>
     private async Task<Guid?> PublishTranscriptionContextAsync(CancellationToken ct)
     {
-        if (Knowledge == null || !Guid.TryParse(Settings.ActiveTargetId, out var targetId)) return null;
+        if (Knowledge == null || !Guid.TryParse(ActiveTargetId, out var targetId)) return null;
         var c = Knowledge.Context;
         var doc = new TranscriptionContextDocument(c.RoleTitle == "the role" ? "" : c.RoleTitle, c.CompanyName, c.TranscriptionTerms(), c.InterviewLanguage);
         try { await Cloud.Api!.PutTranscriptionContextAsync(targetId, doc, ct); return targetId; }
@@ -578,15 +713,15 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             return;
         }
         if (_engine != null && (IsListening || IsPaused)) { _engine.Pause(); IsListening = false; IsPaused = true; }
-        Note = reason switch
+        Note = Loc.T(reason switch
         {
-            "allowance_exhausted" => "Live minutes used up — listening paused. Prepared answers and manual questions still work.",
-            "max_duration" => "Maximum session length reached — press Resume to continue.",
-            "daily_cap" => "Daily live limit reached — listening paused.",
-            "account_disabled" => "This account has been disabled — listening stopped.",
-            "device_revoked" => "This PC was removed from your account — listening stopped.",
-            _ => "The live session ended. Press Resume to continue.",
-        };
+            "allowance_exhausted" => "lease_end_allowance",
+            "max_duration" => "lease_end_max_duration",
+            "daily_cap" => "lease_end_daily_cap",
+            "account_disabled" => "lease_end_disabled",
+            "device_revoked" => "lease_end_device",
+            _ => "lease_end_generic",
+        });
         await Cloud.RefreshAsync(CancellationToken.None);
     }
 
@@ -601,14 +736,16 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             var id = Guid.NewGuid().ToString("n");
             var lang = LanguageRegistry.Find(Settings.ReportLanguage)?.Code ?? UiLanguage;
             var started = _sessionStartedUtc == default ? DateTime.UtcNow : _sessionStartedUtc;
-            var pack = Settings.ActiveTargetId != null ? Workspace?.Store.GetPack(Settings.ActiveTargetId) : null;
+            var pack = ActiveTargetId != null ? Workspace?.Store.GetPack(ActiveTargetId) : null;
             var report = ReportBuilder.Build(_engine.Memory, Knowledge, _engine.Metrics, id, started, DateTime.UtcNow, lang, pack,
-                _engine.Metrics.Reconnects, _engine.Metrics.DuplicatesSuppressed, Knowledge.Context.CandidateName, ActiveLabel);
-            Workspace?.Store.SaveSession(new StoredSession { Id = id, ProfileId = Settings.ActiveProfileId ?? "", TargetId = Settings.ActiveTargetId ?? "", StartedUtc = started, EndedUtc = DateTime.UtcNow, ReportJson = report.ToJson() });
-            var path = Path.Combine(AppPaths.Sessions, $"report-{DateTime.Now:yyyyMMdd-HHmm}.html");
+                _engine.Metrics.Reconnects, _engine.Metrics.DuplicatesSuppressed, Knowledge.Profile.PreferredName is { Length: > 0 } pn ? pn : Knowledge.Context.CandidateName, ActiveLabel);
+            if (Workspace == null) return null;   // signed out: nothing is persisted anywhere
+            Workspace.Store.SaveSession(new StoredSession { Id = id, ProfileId = ActiveProfileId ?? "", TargetId = ActiveTargetId ?? "", StartedUtc = started, EndedUtc = DateTime.UtcNow, ReportJson = report.ToJson() });
+            var path = Path.Combine(AppPaths.Sessions, $"report-{DateTime.Now:yyyyMMdd-HHmmss}.html");
             File.WriteAllText(path, HtmlReportRenderer.Render(report, Branding.ProductName));
             _sessionStartedUtc = default;
-            AppLog.Info($"Report saved ({report.Questions.Count} questions)");
+            AppLog.Info($"Report saved ({report.Questions.Count} questions, {report.ExcludedTurns} non-interview turns excluded)");
+            ReportSaved?.Invoke(id);
             return path;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
@@ -624,7 +761,12 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         await _engine.SubmitManualQuestionAsync(text);
     }
 
-    private void Variant(AnswerStyle style) => _ = _engine?.RequestVariantAsync(style);
+    /// <summary>Reworks the answer that is ON SCREEN (e.g. item 5 of 8): same history position, same question, no new entry.</summary>
+    private void Variant(AnswerStyle style)
+    {
+        if (_engine == null || _displayedAnswerId < 0) return;
+        _ = _engine.RequestVariantAsync(_displayedAnswerId, style);
+    }
 
     private void Navigate(int delta)
     {
@@ -636,10 +778,26 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         ShowAnswer(h[idx], isNew: false);
     }
 
+    /// <summary>
+    /// New question → show it (latest position). Replacement of the item on screen (variant or continued question) →
+    /// update in place without moving. A replacement of an item the user is NOT looking at never pulls the view away.
+    /// </summary>
+    private void OnAnswerStarted(AnswerView a)
+    {
+        if (a.ReplacesAnswerId is int replaced)
+        {
+            if (replaced == _displayedAnswerId) ShowAnswer(a, isNew: false);
+            Raise(nameof(HistoryLabel));
+            return;
+        }
+        ShowAnswer(a, isNew: true);
+    }
+
     private void ShowAnswer(AnswerView a, bool isNew)
     {
         _displayedAnswerId = a.Id;
         Question = a.Question;
+        ContextSummary = a.ContextSummary;
         AnswerFlowDirection = LanguageRegistry.IsRtl(a.AnswerLanguage) ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
         Bullets.Clear();
         SyncBullets(a);
@@ -678,9 +836,15 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
     private string Meta(AnswerView a)
     {
-        var style = a.Style == AnswerStyle.Balanced ? "" : a.Style + " · ";
-        var src = a.Source switch { AnswerSource.Cache => "prepared", AnswerSource.CacheFallback => "prepared (fallback)", AnswerSource.Llm => "AI", _ => "" };
-        return Settings.ShowDiagnostics ? $"{style}{src} · {a.Mode.ToString().ToLowerInvariant()} · {a.Category.ToLowerInvariant()} · match {a.MatchScore:0.00}" : style.TrimEnd(' ', '·');
+        var style = a.Style switch
+        {
+            AnswerStyle.VeryShort => L("shorter"), AnswerStyle.Technical => L("technical"), AnswerStyle.Example => L("example"), AnswerStyle.Full => L("full"),
+            AnswerStyle.Concise => L("adaptive_concise"), AnswerStyle.Rapid => L("adaptive_rapid"), _ => "",
+        };
+        var src = a.Source switch { AnswerSource.Cache => L("meta_prepared"), AnswerSource.CacheFallback => L("meta_prepared_fallback"), AnswerSource.Llm => L("meta_ai"), AnswerSource.Guidance => L("meta_guidance"), _ => "" };
+        return Settings.ShowDiagnostics
+            ? $"{(style.Length > 0 ? style + " · " : "")}{src} · {a.Mode.ToString().ToLowerInvariant()} · {a.Category.ToLowerInvariant()} · {a.Confidence.ToString().ToLowerInvariant()} · match {a.MatchScore:0.00}"
+            : style;
     }
 
     private void ShowLocalNote(string text) { Note = text; }
@@ -728,6 +892,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         sb.AppendLine($"Audio: {_capture.CurrentDeviceName} [{AudioStatus}]  sent {m.AudioMsSent / 1000.0:0}s  transcriber {_transcriber?.Status}  reconnects {m.Reconnects}");
         sb.AppendLine($"Questions {m.Questions}  prepared {m.CacheAnswers}  AI {m.LlmAnswers}  fallback {m.FallbackAnswers}  dupes suppressed {m.DuplicatesSuppressed}  API errors {m.ApiErrors}  LLM requests {m.LlmRequests}");
         if (last != null) sb.AppendLine($"Last: speech end→question {last.SpeechEndToFinalizedMs} ms · match {last.MatchMs} ms · first token {last.FinalizedToFirstTokenMs} ms · first bullet {last.FinalizedToFirstBulletMs} ms · complete {last.FinalizedToCompleteMs} ms · speech end→first bullet {last.SpeechEndToFirstBulletMs} ms");
+        sb.AppendLine("Not answered: " + string.Join("  ", m.Suppression.Where(kv => kv.Value > 0).Select(kv => $"{kv.Key} {kv.Value}")).TrimEnd() + $"  variants {m.Variants}  guidance {m.GuidanceAnswers}");
         if (s.Count > 1) sb.AppendLine($"Finalize {P(x => x.SpeechEndToFinalizedMs)} · first bullet {P(x => x.FinalizedToFirstBulletMs)} · end-to-answer {P(x => x.SpeechEndToFirstBulletMs)}");
         sb.AppendLine($"CPU {cpu:0.0}%  memory {proc.WorkingSet64 / 1048576} MB  managed {GC.GetTotalMemory(false) / 1048576} MB  est. cost ${m.EstimatedCostUsd(Settings.PriceTranscribePerMinute, Settings.PriceInputPerMTok, Settings.PriceOutputPerMTok):0.000}");
         foreach (var line in AppLog.Recent.TakeLast(4)) sb.AppendLine(line);
@@ -757,8 +922,11 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _updateTimer.Stop();
         _accountTimer?.Stop();
         _capture.Dispose();
+        var hadSession = SessionActive;
         if (_engine != null) await _engine.DisposeAsync();
         await EndLeaseAsync();
+        // Closing the app during an interview still keeps its report (RC1 lost it).
+        if (hadSession) SaveReport();
         (_provider as IDisposable)?.Dispose();
     }
 }

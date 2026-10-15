@@ -241,7 +241,7 @@ public sealed class InterviewEngine : IAsyncDisposable
         if (!_heardAudio && !_noAudioWarned && Status is EngineStatus.Listening or EngineStatus.Quiet && silentMs > Options.NoAudioWarningSeconds * 1000L)
         {
             _noAudioWarned = true;
-            SetStatus(EngineStatus.NoAudio, "No interview audio detected. Check that Chrome/Meet/Zoom plays on the selected playback device.");
+            SetStatus(EngineStatus.NoAudio, Loc.T("detail_no_audio"));
         }
         else if (Status == EngineStatus.Listening && silentMs > Options.QuietAfterSeconds * 1000L)
             SetStatus(EngineStatus.Quiet);
@@ -557,7 +557,7 @@ public sealed class InterviewEngine : IAsyncDisposable
                     if (view.Bullets.Count == 0 && bank != null && match.Confidence >= MatchConfidence.Medium && languageOk && !personal)
                     {
                         EmitCached(view, bank, AnswerSource.CacheFallback);
-                        view.Note = "Prepared answer — " + message.Replace(" Prepared answers still work.", "");
+                        view.Note = Loc.T("note_prepared_fallback");
                         firstBullet = _clock.NowMs;
                         Metrics.IncFallback();
                     }
@@ -581,10 +581,10 @@ public sealed class InterviewEngine : IAsyncDisposable
             else
             {
                 view.Source = AnswerSource.Error;
-                view.Note = Options.DeveloperKeyMode ? "No prepared answer and no AI provider configured — add an API key in Settings" : "No prepared answer for this question, and AI answers are unavailable.";
+                view.Note = Loc.T(Options.DeveloperKeyMode ? "err_no_provider_dev" : "err_no_provider");
             }
         }
-        catch (OperationCanceledException) { view.Note ??= "Superseded"; }
+        catch (OperationCanceledException) { view.Note ??= Loc.T("note_superseded"); }
         finally
         {
             view.IsComplete = true;
@@ -707,7 +707,7 @@ public sealed class InterviewEngine : IAsyncDisposable
 
     private static string DefaultStructure(AnswerMode m) => m switch
     {
-        AnswerMode.Verified => "Situation → what I did → result", AnswerMode.Bridge => "Honest bridge → approach → closest proof", _ => "Direct answer → approach → measure",
+        AnswerMode.Verified => Loc.T("coach_structure_verified"), AnswerMode.Bridge => Loc.T("coach_structure_bridge"), _ => Loc.T("coach_structure_default"),
     };
 
     private long EmitCoach(AnswerView view, CoachOutput coach)

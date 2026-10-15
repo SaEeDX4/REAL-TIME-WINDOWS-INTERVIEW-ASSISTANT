@@ -21,7 +21,7 @@ public partial class MainWindow : Window
         Title = Branding.ProductName;
         _vm = new MainViewModel(Dispatcher);
         DataContext = _vm;
-        _vm.Notify += (text, kind) => Toasts.Show(text, kind);
+        _vm.Notify += (text, kind, detail) => Toasts.Show(text, detail, kind);
         _vm.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.IsListening))
@@ -243,31 +243,29 @@ public partial class MainWindow : Window
     }
     private void Readiness_Click(object sender, RoutedEventArgs e) => OpenReadiness(firstRun: false);
     private void Help_Click(object sender, RoutedEventArgs e) => _vm.ShowLiveIntro = !_vm.ShowLiveIntro;
+    private void Adaptive_Click(object sender, MouseButtonEventArgs e) { _vm.ResetAdaptive(); Toasts.Show(Core.Languages.Loc.T("toast_adaptive_reset"), Views.ToastKind.Info); }
     private void IntroClose_Click(object sender, RoutedEventArgs e) => _vm.DismissLiveIntro(IntroDontShow.IsChecked == true);
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
+    /// <summary>
+    /// Settings never end an interview: during a session the live-changeable settings apply immediately and the rest
+    /// (developer model choices) applies after Stop. Outside a session the engine is rebuilt with the new settings.
+    /// </summary>
     public void OpenSettings()
     {
-        var wasListening = _vm.IsListening;
         var dlg = new SettingsWindow(_vm) { Owner = this };
-        if (dlg.ShowDialog() == true)
+        if (dlg.ShowDialog() != true) return;
+        ApplyAppearance();
+        RegisterHotkeys();
+        _vm.RestartAudio();
+        if (!dlg.EngineSettingsChanged) return;
+        if (_vm.SessionActive)
         {
-            ApplyAppearance();
-            RegisterHotkeys();
-            _vm.RestartAudio();
-            if (dlg.EngineSettingsChanged)
-            {
-                _ = RebuildAsync(wasListening);
-            }
+            _vm.ApplyLiveSettings();
+            Toasts.Show(Core.Languages.Loc.T(dlg.ModelSettingsChanged ? "toast_settings_after_stop" : "toast_settings_applied_live"), Views.ToastKind.Info);
         }
-    }
-
-    private async Task RebuildAsync(bool resume)
-    {
-        await _vm.StopAsync();
-        _vm.BuildEngine();
-        if (resume) await _vm.ToggleListeningAsync();
+        else _vm.BuildEngine();
     }
 
     private ReadinessWindow? _readiness;

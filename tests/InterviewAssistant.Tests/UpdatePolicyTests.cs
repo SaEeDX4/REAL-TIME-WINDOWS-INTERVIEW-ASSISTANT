@@ -33,3 +33,17 @@ public class UpdatePolicyTests
     [InlineData("beta", "beta")] [InlineData("BETA", "beta")] [InlineData("stable", "stable")] [InlineData(null, "stable")] [InlineData("nightly", "stable")]
     public void ChannelsAreRestricted(string? input, string expected) => Assert.Equal(expected, UpdatePolicy.NormalizeChannel(input));
 }
+
+public class InstallLayoutTests
+{
+    [Fact]
+    public void InstalledVelopackLayout_IsInstalled_PortableIsNot()
+    {
+        var installed = Path.Combine("C:", "Users", "u", "AppData", "Local", "InterviewAssistant.Desktop", "current", "InterviewAssistant.exe");
+        var update = Path.Combine("C:", "Users", "u", "AppData", "Local", "InterviewAssistant.Desktop", "Update.exe");
+        Assert.True(InterviewAssistant.Core.Diagnostics.InstallLayout.IsInstalled(installed, p => p == update));
+        Assert.False(InterviewAssistant.Core.Diagnostics.InstallLayout.IsInstalled(installed, _ => false));          // "current" folder alone is not enough
+        Assert.False(InterviewAssistant.Core.Diagnostics.InstallLayout.IsInstalled(Path.Combine("D:", "Downloads", "InterviewAssistant", "InterviewAssistant.exe"), _ => true));
+        Assert.False(InterviewAssistant.Core.Diagnostics.InstallLayout.IsInstalled(null, _ => true));
+    }
+}

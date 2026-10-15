@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using InterviewAssistant.App.Services;
 using InterviewAssistant.App.Views;
 using InterviewAssistant.App.ViewModels;
@@ -18,7 +19,12 @@ using Microsoft.Win32;
 
 namespace InterviewAssistant.App;
 
-/// <summary>Dashboard: onboarding checklist, profiles (with fact review), interviews (targets + preparation), reports, account.</summary>
+/// <summary>
+/// Home: onboarding, the Candidate Knowledge Profile (facts with provenance + interview profile), interviews
+/// (targets + preparation), reports, account (plan, quota, devices, security, privacy, updates) and help/about.
+/// Everything shown belongs to the signed-in account's workspace; signed out, no user data is loaded or shown.
+/// All text comes from the localization tables and refreshes live when the UI language changes.
+/// </summary>
 public partial class HomeWindow : Window
 {
     private readonly MainViewModel _vm;
@@ -27,23 +33,47 @@ public partial class HomeWindow : Window
     private CandidateProfileRecord? _profile;
     private InterviewTarget? _target;
     private readonly ObservableCollection<FactRow> _facts = new();
+    private readonly Dictionary<string, TextBox> _personalBoxes = new();
     private CancellationTokenSource? _prepCts;
+    private string _page = "start";
 
     // Display records: ToString is the label so no picker can ever show "LangItem { Label = … }".
     private sealed record Item<T>(string Label, T Value) { public override string ToString() => Label; }
     private sealed record LangItem(string Label, string Code) { public override string ToString() => Label; }
 
+    private static string T(string key) => Loc.T(key);
+    private static string F(string key, params object?[] args) => Loc.F(key, args);
+
+    /// <summary>One fact in the review list: confirmation is a pending edit until Save profile.</summary>
     public sealed class FactRow : INotifyPropertyChanged
     {
         public required ProfileFact Fact { get; init; }
         public required FactStatus Initial { get; init; }
         private bool _confirmed;
-        public bool Confirmed { get => _confirmed; set { _confirmed = value; PropertyChanged?.Invoke(this, new(nameof(Confirmed))); } }
-        public string Text => Fact.Kind == FactKind.Role ? $"{Fact.Title} — {Fact.Company} ({Fact.Period})".Replace(" ()", "") : Fact.Text;
-        public string KindLabel => Fact.Kind.ToString().ToLowerInvariant() + (Fact.Status == FactStatus.AiInference ? " · AI inference" : "");
-        public string Source => Fact.Provenance is { } p ? $"Source: “{Trim(p.Snippet, 110)}” (line {p.LineStart})" : "Source: added manually";
+        public bool Confirmed { get => _confirmed; set { if (_confirmed == value) return; _confirmed = value; PropertyChanged?.Invoke(this, new(nameof(Confirmed))); } }
+        public string Text => Fact.Kind == FactKind.Role ? $"{Fact.Title} — {Fact.Company} ({Fact.Period})".Replace(" ()", "").Trim(' ', '—') : Fact.Text;
+        public string Meta
+        {
+            get
+            {
+                var kind = Loc.T("fact_kind_" + Fact.Kind.ToString().ToLowerInvariant());
+                if (Fact.Kind is FactKind.Personal or FactKind.Boundary && PersonalCategories.Find(Fact.Category) is { } c) kind = Loc.T($"pc_{c.Key}_label");
+                if (Fact.Status == FactStatus.AiInference) kind += " · " + Loc.T("fact_ai_inference");
+                var source = Fact.Source switch
+                {
+                    FactSource.ResumeImport => Loc.F("fact_source_resume", Fact.SourceName.Length > 0 ? Fact.SourceName : Loc.T("fact_source_document")),
+                    FactSource.Manual => Loc.T("fact_source_manual"),
+                    FactSource.Questionnaire => Loc.T("fact_source_questionnaire"),
+                    FactSource.Document => Loc.F("fact_source_resume", Fact.SourceName),
+                    _ => Fact.Provenance != null ? Loc.T("fact_source_document") : Loc.T("fact_source_unknown"),
+                };
+                var line = Fact.Provenance is { } p && p.Snippet.Length > 0 && Fact.Source != FactSource.Manual ? " · " + Loc.F("fact_line", p.LineStart) : "";
+                var when = (Fact.UpdatedUtc ?? Fact.CreatedUtc) is DateTime d ? " · " + d.ToLocalTime().ToString("d", Loc.Culture) : "";
+                return $"{kind} · {source}{line}{when}";
+            }
+        }
         public event PropertyChangedEventHandler? PropertyChanged;
-        private static string Trim(string s, int n) => s.Length <= n ? s : s[..n] + "…";
+        public void RaiseAll() => PropertyChanged?.Invoke(this, new(""));
     }
 
     public HomeWindow(MainViewModel vm, MainWindow main)
@@ -55,100 +85,76 @@ public partial class HomeWindow : Window
         FactList.ItemsSource = _facts;
         UiLanguageBox.ItemsSource = LanguageRegistry.All;
         UiLanguageBox.SelectedItem = LanguageRegistry.Find(_vm.UiLanguage);
-        var langs = LanguageRegistry.All.Select(l => new LangItem(l.DisplayName, l.Code)).ToList();
-        TargetLanguage.ItemsSource = new[] { new LangItem("Detect automatically", "auto") }.Concat(langs).ToList();
-        TargetAnswerLanguage.ItemsSource = new[] { new LangItem("Same as interview language", "same") }.Concat(langs).ToList();
+        BuildLanguagePickers();
         AckBox.IsChecked = _vm.Settings.AuthorizedUseAcknowledged;
         ChannelBox.SelectedIndex = _vm.Updates.Channel == "beta" ? 1 : 0;
+        BuildPersonalFields();
         _vm.Updates.Changed += OnUpdatesChanged;
         _vm.Cloud.Changed += OnCloudChanged;
-        Closed += (_, _) => { _vm.Cloud.Changed -= OnCloudChanged; _vm.Updates.Changed -= OnUpdatesChanged; _prepCts?.Cancel(); };
+        _vm.WorkspaceChanged += OnWorkspaceChanged;
+        _vm.ReportSaved += OnReportSaved;
+        Loc.LanguageChanged += OnLanguageChanged;
+        Closed += (_, _) =>
+        {
+            _vm.Cloud.Changed -= OnCloudChanged; _vm.Updates.Changed -= OnUpdatesChanged; _vm.WorkspaceChanged -= OnWorkspaceChanged;
+            _vm.ReportSaved -= OnReportSaved; Loc.LanguageChanged -= OnLanguageChanged; _prepCts?.Cancel();
+        };
         WindowPlacement.HookMaximizeToWorkArea(this);
         WindowPlacement.Restore(this, _vm.Settings.HomeLeft, _vm.Settings.HomeTop, _vm.Settings.HomeWidth, _vm.Settings.HomeHeight, _vm.Settings.HomeMaximized);
         StateChanged += (_, _) => OnWindowStateChanged();
         Closing += (_, _) => SavePlacement();
         _factView = System.Windows.Data.CollectionViewSource.GetDefaultView(_facts);
         _factView.Filter = o => o is FactRow r && (_factFilter == "all" || (_factFilter == "review") != r.Confirmed);
-        Localize();
+        _factView.SortDescriptions.Add(new SortDescription(nameof(FactRow.Confirmed), ListSortDirection.Ascending));
+        SetProfileTab("facts");
         RefreshAll();
-        ShowPage(_vm.Settings.AuthorizedUseAcknowledged && _vm.Settings.FirstRunCompleted ? "interviews" : "start");
+        ShowPage(!_vm.HasWorkspace && _vm.Cloud.IsConfigured ? "account" : _vm.Settings.AuthorizedUseAcknowledged && _vm.Settings.FirstRunCompleted ? "interviews" : "start");
     }
 
     private void OnUpdatesChanged() => Dispatcher.BeginInvoke(RefreshUpdates);
-
-    private void RefreshUpdates()
-    {
-        UpdateStatus.Text = _vm.Updates.Status.Length > 0 ? _vm.Updates.Status : $"Channel: {_vm.Updates.Channel}";
-        RestartUpdateBtn.Visibility = _vm.Updates.UpdateReady ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private void Channel_Changed(object sender, SelectionChangedEventArgs e)
-    {
-        if (ChannelBox.SelectedItem is not ComboBoxItem { Tag: string ch } || ch == _vm.Settings.UpdateChannel) return;
-        _vm.Settings.UpdateChannel = ch;
-        _vm.Settings.Save();
-        UpdateStatus.Text = "Channel changes apply after the app restarts.";
-    }
-
-    private void RestartUpdate_Click(object sender, RoutedEventArgs e)
-    {
-        if (!_vm.Updates.TryApplyAndRestart(_vm.IsListening || _vm.IsPaused))
-            Warn("Stop the interview session first — updates never install during a session.");
-    }
-
     private void OnCloudChanged() => Dispatcher.BeginInvoke(() => { RefreshAccount(); RefreshChecklist(); });
-
-    private string L(string key) => _vm.L(key);
-
-    private void Localize()
+    private void OnWorkspaceChanged() => Dispatcher.BeginInvoke(() => { _profile = null; _target = null; RefreshAll(); ShowPage(_page); });
+    private void OnReportSaved(string id) => Dispatcher.BeginInvoke(() => RefreshReports(id));
+    private void OnLanguageChanged() => Dispatcher.BeginInvoke(() =>
     {
-        FlowDirection = _vm.UiFlowDirection;
-        NavProfiles.Content = ProfilesTitle.Text = L("profiles");
-        NavInterviews.Content = InterviewsTitle.Text = L("interviews");
-        NavReports.Content = ReportsTitle.Text = L("reports");
-        NavAccount.Content = AccountTitle.Text = L("account");
-        NavSettings.Content = L("settings");
-        AckText.Text = L("authorized_use");
-        PrepareBtn.Content = L("prepare");
-        UseBtn.Content = L("start_interview");
-    }
+        // XAML texts refresh by binding; texts composed in code are rebuilt here.
+        BuildLanguagePickers();
+        BuildPersonalFields();
+        if (_profile != null) LoadPersonal(_profile);
+        foreach (var r in _facts) r.RaiseAll();
+        RefreshAll();
+        ShowPage(_page);
+    });
+
+    // ================= navigation =================
 
     internal void ShowPage(string tag)
     {
+        var signedOutGate = _vm.Cloud.IsConfigured && _vm.UsingCloud && !_vm.HasWorkspace;
+        if (signedOutGate && tag is "profiles" or "interviews" or "reports") tag = "account";
+        _page = tag;
         PageStart.Visibility = tag == "start" ? Visibility.Visible : Visibility.Collapsed;
         PageProfiles.Visibility = tag == "profiles" ? Visibility.Visible : Visibility.Collapsed;
         PageInterviews.Visibility = tag == "interviews" ? Visibility.Visible : Visibility.Collapsed;
         PageReports.Visibility = tag == "reports" ? Visibility.Visible : Visibility.Collapsed;
         PageAccount.Visibility = tag == "account" ? Visibility.Visible : Visibility.Collapsed;
         PageHelp.Visibility = tag == "help" ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var nav in new[] { NavProfiles, NavInterviews, NavReports }) nav.Visibility = signedOutGate ? Visibility.Collapsed : Visibility.Visible;
         if (tag == "account" && _vm.Cloud.IsSignedIn) _ = LoadAccountExtrasAsync();
         if (tag == "help") RefreshAbout();
-        // Where am I: highlight the current section.
+        if (tag == "reports") RefreshReports();
         foreach (var nav in new[] { NavStart, NavProfiles, NavInterviews, NavReports, NavAccount, NavHelp })
         {
             var active = (string)nav.Tag == tag;
-            nav.Background = active ? (System.Windows.Media.Brush)FindResource("B.Surface2") : System.Windows.Media.Brushes.Transparent;
-            nav.Foreground = (System.Windows.Media.Brush)FindResource(active ? "B.Text" : "B.TextDim");
+            nav.Background = active ? (Brush)FindResource("B.Surface2") : Brushes.Transparent;
+            nav.Foreground = (Brush)FindResource(active ? "B.Text" : "B.TextDim");
             nav.FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal;
         }
     }
 
-    private void RefreshAbout()
-    {
-        AboutText.Text = $"{Branding.ProductName}\n{BuildInfo.Summary}";
-        var signer = Environment.ProcessPath is { } exe ? Authenticode.TrustedSigner(exe) : null;
-        var env = _vm.Cloud.Config?.BillingEnvironment is { Length: > 0 } b ? (b == "sandbox" ? "Service: test billing (sandbox)" : "Service: live") : "Service: not connected";
-        AboutDetail.Text = $"{env} · {(signer != null ? "Code signed" : "Unsigned build — Windows SmartScreen may warn on install")} · {(_vm.Updates.IsInstalled ? "Installed copy" : "Portable copy")}";
-    }
-
-    private void OpenLogs_Click(object sender, RoutedEventArgs e)
-    {
-        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(AppPaths.Logs) { UseShellExecute = true }); }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException) { Notify("Could not open the log folder.", ToastKind.Error); }
-    }
-
     private void RefreshAll()
     {
+        HeaderSignOutBtn.Visibility = _vm.Cloud.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
         RefreshUpdates();
         RefreshProfiles();
         RefreshReports();
@@ -156,29 +162,97 @@ public partial class HomeWindow : Window
         RefreshChecklist();
     }
 
+    private void Nav_Click(object sender, RoutedEventArgs e) => ShowPage((string)((Button)sender).Tag);
+    private void AccountBadge_Click(object sender, RoutedEventArgs e) => ShowPage("account");
+    private void GoInterviews_Click(object sender, RoutedEventArgs e) => ShowPage("interviews");
+    private void GoInterviewProfile_Click(object sender, RoutedEventArgs e) { ShowPage("profiles"); SetProfileTab("personal"); }
+    private void Readiness_Click(object sender, RoutedEventArgs e) => _main.OpenReadiness(firstRun: false);
+    private void Settings_Click(object sender, RoutedEventArgs e) { _main.OpenSettings(); RefreshChecklist(); }
+
+    private void UiLanguage_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (UiLanguageBox.SelectedItem is not LanguageInfo l || l.Code == _vm.UiLanguage) return;
+        _vm.Settings.UiLanguage = l.Code;
+        _vm.Settings.Save();
+        _vm.RefreshLanguage();     // sets Loc.Language → every open window refreshes (no restart)
+    }
+
+    private void BuildLanguagePickers()
+    {
+        var langs = LanguageRegistry.All.Select(l => new LangItem(l.DisplayName, l.Code)).ToList();
+        var interview = (TargetLanguage.SelectedItem as LangItem)?.Code;
+        var answer = (TargetAnswerLanguage.SelectedItem as LangItem)?.Code;
+        TargetLanguage.ItemsSource = new[] { new LangItem(T("lang_detect"), "auto") }.Concat(langs).ToList();
+        TargetAnswerLanguage.ItemsSource = new[] { new LangItem(T("lang_same"), "same") }.Concat(langs).ToList();
+        TargetLanguage.SelectedItem = ((IEnumerable<LangItem>)TargetLanguage.ItemsSource).FirstOrDefault(l => l.Code == (interview ?? _target?.ExpectedLanguage ?? "auto"));
+        TargetAnswerLanguage.SelectedItem = ((IEnumerable<LangItem>)TargetAnswerLanguage.ItemsSource).FirstOrDefault(l => l.Code == (answer ?? _target?.AnswerLanguage ?? "same"));
+    }
+
+    // ================= help & about =================
+
+    private void RefreshAbout()
+    {
+        var signer = Environment.ProcessPath is { } exe ? Authenticode.TrustedSigner(exe) : null;
+        var env = _vm.Cloud.Config?.BillingEnvironment is { Length: > 0 } b ? T(b == "sandbox" ? "about_env_sandbox" : "about_env_live") : T("about_env_offline");
+        var rows = new (string Key, string Value)[]
+        {
+            ("about_product", Branding.ProductName),
+            ("about_version", BuildInfo.Version),
+            ("about_channel", BuildInfo.ChannelLabel),
+            ("about_build", BuildInfo.Commit),
+            ("about_install", T(BuildInfo.IsInstalled ? "about_installed" : "about_portable")),
+            ("about_signing", signer != null ? F("about_signed", signer) : T("about_unsigned")),
+            ("about_service", env),
+        };
+        AboutGrid.Children.Clear(); AboutGrid.RowDefinitions.Clear();
+        for (int i = 0; i < rows.Length; i++)
+        {
+            AboutGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var k = new TextBlock { Text = T(rows[i].Key), Foreground = (Brush)FindResource("B.TextDim"), FontSize = 12.5, Margin = new Thickness(0, 3, 12, 3) };
+            var v = new TextBlock { Text = rows[i].Value, Foreground = (Brush)FindResource("B.Text"), FontSize = 12.5, Margin = new Thickness(0, 3, 0, 3), TextWrapping = TextWrapping.Wrap };
+            if (rows[i].Key is "about_version" or "about_build") v.FlowDirection = FlowDirection.LeftToRight;   // numbers/ids read left-to-right in RTL too
+            Grid.SetRow(k, i); Grid.SetRow(v, i); Grid.SetColumn(v, 1);
+            AboutGrid.Children.Add(k); AboutGrid.Children.Add(v);
+        }
+    }
+
+    private void CopyBuildInfo_Click(object sender, RoutedEventArgs e)
+    {
+        var signer = Environment.ProcessPath is { } exe ? Authenticode.TrustedSigner(exe) : null;
+        Clipboard.SetText($"{Branding.ProductName} {BuildInfo.Version} ({BuildInfo.Channel}) build {BuildInfo.Commit} · {(BuildInfo.IsInstalled ? "installed" : "portable")} · {(signer != null ? "signed" : "unsigned")} · {Environment.OSVersion}");
+        Notify(T("toast_copied"), ToastKind.Success);
+    }
+
+    private void OpenLogs_Click(object sender, RoutedEventArgs e)
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(AppPaths.Logs) { UseShellExecute = true }); }
+        catch (Exception ex) when (ex is Win32Exception or IOException) { Notify(T("toast_logs_failed"), ToastKind.Error); }
+    }
+
     // ================= onboarding =================
 
     private void RefreshChecklist()
     {
         var profiles = Store?.Profiles() ?? Array.Empty<CandidateProfileRecord>();
-        var prepared = profiles.SelectMany(p => Store!.Targets(p.Id)).Count(t => t.Preparation == PreparationState.Prepared);
-        Step1Title.Text = (_vm.Settings.AuthorizedUseAcknowledged ? "✓ " : "1 · ") + "Authorized use";
+        var prepared = Store == null ? 0 : profiles.SelectMany(p => Store.Targets(p.Id)).Count(t => t.Preparation == PreparationState.Prepared);
+        Step1Title.Text = (_vm.Settings.AuthorizedUseAcknowledged ? "✓ " : "1 · ") + T("start_step1");
         var devMode = BuildFlavor.Developer && !_vm.UsingCloud;
         var accountOk = _vm.Cloud.IsSignedIn || (devMode && SecretStore.HasKey);
-        Step2Title.Text = (accountOk ? "✓ " : "2 · ") + L("account");
-        Step2Status.Text = devMode ? "Developer build: own OpenAI key" + (SecretStore.HasKey ? "" : " — add your key in Settings.")
-            : !_vm.Cloud.IsConfigured ? "This build is not connected to the Interview Assistant service."
-            : _vm.Cloud.IsSignedIn ? "Signed in: " + _vm.AccountLabel
-            : _vm.Cloud.Message ?? "Create a free account or sign in — live transcription and AI answers are included. No API keys needed.";
+        Step2Title.Text = (accountOk ? "✓ " : "2 · ") + T("account");
+        Step2Status.Text = devMode ? T(SecretStore.HasKey ? "start_dev_key" : "start_dev_no_key")
+            : !_vm.Cloud.IsConfigured ? T("acct_not_configured_long")
+            : _vm.Cloud.IsSignedIn ? F("start_signed_in", _vm.AccountLabel)
+            : _vm.Cloud.Message ?? T("start_account_hint");
         DeveloperModeBtn.Visibility = BuildFlavor.Developer ? Visibility.Visible : Visibility.Collapsed;
-        GoAccountBtn.Content = L("sign_in");
         GoAccountBtn.Visibility = _vm.Cloud.IsConfigured && !_vm.Cloud.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
-        Step3Title.Text = (profiles.Any(p => p.ConfirmedFacts.Any()) ? "✓ " : "3 · ") + L("profiles");
-        Step3Status.Text = profiles.Count == 0 ? "Import your résumé (PDF, DOCX or TXT), then confirm the facts the assistant may use."
-            : $"{profiles.Count} profile(s) · {profiles.Sum(p => p.ConfirmedFacts.Count())} confirmed facts · {profiles.Sum(p => p.PendingReviewCount)} awaiting review";
-        Step4Title.Text = (prepared > 0 ? "✓ " : "4 · ") + L("interviews");
-        Step4Status.Text = prepared == 0 ? "Add the job title, company and job description, then Prepare (builds 50–150 likely questions with answers from your confirmed facts)."
-            : $"{prepared} prepared interview(s). Active: {_vm.ActiveLabel}";
+        var stats = profiles.Select(p => p.Stats).ToList();
+        Step3Title.Text = (profiles.Any(p => p.ConfirmedFacts.Any()) ? "✓ " : "3 · ") + T("start_step3");
+        Step3Status.Text = !_vm.HasWorkspace ? T("start_sign_in_first")
+            : profiles.Count == 0 ? T("start_profile_hint")
+            : F("start_profile_status", profiles.Count, stats.Sum(s => s.Confirmed), stats.Sum(s => s.ToReview));
+        StartImportBtn.IsEnabled = StartInterviewProfileBtn.IsEnabled = StartAddInterviewBtn.IsEnabled = _vm.HasWorkspace;
+        Step4Title.Text = (prepared > 0 ? "✓ " : "4 · ") + T("start_step4");
+        Step4Status.Text = prepared == 0 ? T("start_interview_hint") : F("start_interview_status", prepared, _vm.ActiveLabel);
         DoneBtn.IsEnabled = _vm.Settings.AuthorizedUseAcknowledged;
     }
 
@@ -191,12 +265,13 @@ public partial class HomeWindow : Window
 
     private void DeveloperMode_Click(object sender, RoutedEventArgs e)
     {
-        if (!BuildFlavor.Developer) return;
+        if (!BuildFlavor.Developer || _vm.SessionActive) return;
         _vm.Settings.Mode = "developer";
         _vm.Settings.Save();
+        _vm.OpenWorkspaceForCurrentAccount();
         _vm.BuildEngine();
         _main.OpenSettings();
-        RefreshChecklist();
+        RefreshAll();
     }
 
     private void Done_Click(object sender, RoutedEventArgs e)
@@ -209,22 +284,8 @@ public partial class HomeWindow : Window
 
     private void GoAccount_Click(object sender, RoutedEventArgs e)
     {
-        if (_vm.Settings.Mode != "cloud") { _vm.Settings.Mode = "cloud"; _vm.Settings.Save(); _vm.BuildEngine(); }
+        if (_vm.Settings.Mode != "cloud" && !_vm.SessionActive) { _vm.Settings.Mode = "cloud"; _vm.Settings.Save(); _vm.OpenWorkspaceForCurrentAccount(); _vm.BuildEngine(); }
         ShowPage("account");
-    }
-    private void GoInterviews_Click(object sender, RoutedEventArgs e) => ShowPage("interviews");
-    private void Readiness_Click(object sender, RoutedEventArgs e) => _main.OpenReadiness(firstRun: false);
-    private void Nav_Click(object sender, RoutedEventArgs e) => ShowPage((string)((Button)sender).Tag);
-    private void Settings_Click(object sender, RoutedEventArgs e) { _main.OpenSettings(); Localize(); RefreshChecklist(); }
-
-    private void UiLanguage_Changed(object sender, SelectionChangedEventArgs e)
-    {
-        if (UiLanguageBox.SelectedItem is not LanguageInfo l || l.Code == _vm.UiLanguage) return;
-        _vm.Settings.UiLanguage = l.Code;
-        _vm.Settings.Save();
-        _vm.RefreshLanguage();
-        Localize();
-        RefreshChecklist();
     }
 
     // ================= profiles =================
@@ -232,8 +293,9 @@ public partial class HomeWindow : Window
     private void RefreshProfiles(string? selectId = null)
     {
         var list = Store?.Profiles() ?? Array.Empty<CandidateProfileRecord>();
-        ProfileList.ItemsSource = list.Select(p => new Item<string>($"{(p.PreferredName.Length > 0 ? p.PreferredName : p.Name.Length > 0 ? p.Name : "Unnamed")}  ·  {p.ConfirmedFacts.Count()} confirmed", p.Id)).ToList();
-        var id = selectId ?? _profile?.Id ?? _vm.Settings.ActiveProfileId ?? list.FirstOrDefault()?.Id;
+        ProfileList.ItemsSource = list.Select(p => new Item<string>(
+            $"{(p.PreferredName.Length > 0 ? p.PreferredName : p.Name.Length > 0 ? p.Name : T("profile_unnamed"))}  ·  {F("profile_confirmed_count", p.Stats.Confirmed)}", p.Id)).ToList();
+        var id = selectId ?? _profile?.Id ?? _vm.ActiveProfileId ?? list.FirstOrDefault()?.Id;
         ProfileList.SelectedItem = ((IEnumerable<Item<string>>)ProfileList.ItemsSource).FirstOrDefault(i => i.Value == id);
         if (ProfileList.SelectedItem == null) LoadProfile(null);
     }
@@ -250,24 +312,76 @@ public partial class HomeWindow : Window
         ProfileHeadline.Text = p?.Headline ?? "";
         _facts.Clear();
         if (p != null)
-            foreach (var f in p.Facts.Where(f => f.Kind != FactKind.Summary).OrderBy(f => f.Kind).ThenBy(f => f.Company))
-            {
-                var row = new FactRow { Fact = f, Initial = f.Status, Confirmed = f.Status == FactStatus.UserConfirmed };
-                row.PropertyChanged += (_, _) => UpdateFactSummary();
-                _facts.Add(row);
-            }
-        FactsHeader.Text = p == null ? "FACTS" : $"FACTS — {p.PendingReviewCount} AWAITING REVIEW";
+            foreach (var f in p.Facts.Where(f => f.IsReviewable && f.Kind is not (FactKind.Personal or FactKind.Boundary)).OrderBy(f => f.Kind).ThenBy(f => f.Company))
+                AddRow(f);
+        LoadPersonal(p);
         UpdateFactSummary();
         RefreshTargets();
+    }
+
+    private void AddRow(ProfileFact f)
+    {
+        var row = new FactRow { Fact = f, Initial = f.Status, Confirmed = f.Status == FactStatus.UserConfirmed };
+        row.PropertyChanged += (_, _) => { UpdateFactSummary(); ProfileDirty.Text = T("profile_unsaved"); };
+        _facts.Add(row);
+    }
+
+    private void ProfileTab_Click(object sender, RoutedEventArgs e) => SetProfileTab((string)((Button)sender).Tag);
+
+    private void SetProfileTab(string tab)
+    {
+        FactsPanel.Visibility = tab == "facts" ? Visibility.Visible : Visibility.Collapsed;
+        PersonalPanel.Visibility = tab == "personal" ? Visibility.Visible : Visibility.Collapsed;
+        TabFacts.Opacity = tab == "facts" ? 1 : 0.65;
+        TabPersonal.Opacity = tab == "personal" ? 1 : 0.65;
+        TabFacts.FontWeight = tab == "facts" ? FontWeights.SemiBold : FontWeights.Normal;
+        TabPersonal.FontWeight = tab == "personal" ? FontWeights.SemiBold : FontWeights.Normal;
+    }
+
+    /// <summary>The optional interview-profile questions, grouped by section (all localized; nothing required).</summary>
+    private void BuildPersonalFields()
+    {
+        var current = _personalBoxes.ToDictionary(kv => kv.Key, kv => kv.Value.Text);
+        PersonalFields.Children.Clear();
+        _personalBoxes.Clear();
+        foreach (var section in PersonalCategories.All.GroupBy(c => c.Section))
+        {
+            PersonalFields.Children.Add(new TextBlock { Text = T("pcs_" + section.Key), Style = (Style)FindResource("Section") });
+            foreach (var c in section)
+            {
+                PersonalFields.Children.Add(new TextBlock { Text = T($"pc_{c.Key}_label"), Foreground = (Brush)FindResource("B.Text"), FontSize = 13, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 2) });
+                PersonalFields.Children.Add(new TextBlock { Text = T($"pc_{c.Key}_prompt"), Style = (Style)FindResource("Hint"), Margin = new Thickness(0, 0, 0, 4) });
+                var box = new TextBox
+                {
+                    Style = (Style)FindResource("Input"), AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 34, MaxHeight = 110,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxLength = 600, Tag = c.Key,
+                };
+                System.Windows.Automation.AutomationProperties.SetName(box, T($"pc_{c.Key}_label"));
+                box.TextChanged += (_, _) => ProfileDirty.Text = T("profile_unsaved");
+                if (current.TryGetValue(c.Key, out var text)) box.Text = text;
+                _personalBoxes[c.Key] = box;
+                PersonalFields.Children.Add(box);
+            }
+        }
+    }
+
+    private void LoadPersonal(CandidateProfileRecord? p)
+    {
+        foreach (var (key, box) in _personalBoxes)
+        {
+            var kind = PersonalCategories.Find(key)!.Boundary ? FactKind.Boundary : FactKind.Personal;
+            box.Text = p?.Facts.FirstOrDefault(f => f.Kind == kind && f.Category == key && f.Status == FactStatus.UserConfirmed)?.Text ?? "";
+        }
+        ProfileDirty.Text = "";
     }
 
     private byte[]? PickFile(string title, out string fileName)
     {
         fileName = "";
-        var dlg = new OpenFileDialog { Title = title, Filter = "Documents (*.pdf;*.docx;*.txt;*.md)|*.pdf;*.docx;*.txt;*.md", CheckFileExists = true };
+        var dlg = new OpenFileDialog { Title = title, Filter = T("file_filter_documents") + " (*.pdf;*.docx;*.txt;*.md)|*.pdf;*.docx;*.txt;*.md", CheckFileExists = true };
         if (dlg.ShowDialog(this) != true) return null;
         var info = new FileInfo(dlg.FileName);
-        if (info.Length > 10 * 1024 * 1024) { Warn("That file is larger than 10 MB."); return null; }
+        if (info.Length > 10 * 1024 * 1024) { Warn(T("warn_file_too_large")); return null; }
         fileName = dlg.SafeFileName;
         return File.ReadAllBytes(dlg.FileName);
     }
@@ -275,27 +389,44 @@ public partial class HomeWindow : Window
     private void NewProfile_Click(object sender, RoutedEventArgs e) => ImportResume(newProfile: true);
     private void AddResume_Click(object sender, RoutedEventArgs e) => ImportResume(newProfile: _profile == null);
 
+    private bool ProfileLimitReached()
+    {
+        if (Store == null) return true;
+        if (_vm.Cloud.Account?.Entitlements is { } ent && Store.Profiles().Count >= ent.MaxProfiles)
+        {
+            Warn(F("warn_profile_limit", ent.MaxProfiles));
+            return true;
+        }
+        return false;
+    }
+
     private void ImportResume(bool newProfile)
     {
         if (Store == null) return;
-        if (newProfile && _vm.Cloud.Account?.Entitlements is { } ent && Store.Profiles().Count >= ent.MaxProfiles)
-        {
-            Warn($"Your plan includes {ent.MaxProfiles} profile(s). Add the document to an existing profile, delete one, or upgrade.");
-            return;
-        }
-        var bytes = PickFile("Import résumé", out var name);
+        if (newProfile && ProfileLimitReached()) return;
+        var bytes = PickFile(T("import_resume_title"), out var name);
         if (bytes == null) return;
         var (doc, error) = ProfileService.Upload(name, bytes, DocumentKind.Resume);
-        if (doc == null) { Warn(error ?? "The document could not be imported."); return; }
+        if (doc == null) { Warn(error ?? T("warn_import_failed")); return; }
         var profile = newProfile ? new CandidateProfileRecord() : _profile!;
         var parsed = ProfileService.AddResume(profile, doc);
         Store.SaveProfile(profile);
         AppLog.Info($"Résumé imported: {parsed.Facts.Count} facts, {parsed.Warnings.Count} warnings, flags {doc.SecurityFlags.Count}");
-        if (doc.SecurityFlags.Count > 0) Warn("Some text in this document looked like instructions to an AI. It was kept as plain data and will not change how the assistant behaves.");
+        if (doc.SecurityFlags.Count > 0) Warn(T("warn_injection_in_document"));
         RefreshProfiles(profile.Id);
-        ShowPage("profiles");
+        ShowPage("profiles"); SetProfileTab("facts");
         RefreshChecklist();
-        Notify(parsed.Facts.Count > 0 ? $"Résumé imported — {parsed.Facts.Count} facts ready to review" : "Résumé imported, but no facts were recognised — check the document", parsed.Facts.Count > 0 ? ToastKind.Success : ToastKind.Warning);
+        Notify(parsed.Facts.Count > 0 ? F("toast_resume_imported", parsed.Facts.Count) : T("toast_resume_no_facts"), parsed.Facts.Count > 0 ? ToastKind.Success : ToastKind.Warning);
+    }
+
+    private void NewEmptyProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (Store == null || ProfileLimitReached()) return;
+        var p = new CandidateProfileRecord { Name = T("profile_new_name") };
+        Store.SaveProfile(p);
+        RefreshProfiles(p.Id);
+        ProfileName.Focus(); ProfileName.SelectAll();
+        Notify(T("toast_profile_created"), ToastKind.Success);
     }
 
     private System.ComponentModel.ICollectionView? _factView;
@@ -308,27 +439,68 @@ public partial class HomeWindow : Window
         UpdateFactSummary();
     }
 
+    /// <summary>Header, footer and filters all use the same numbers (pending ticks included) — they can never disagree.</summary>
     private void UpdateFactSummary()
     {
         var confirmed = _facts.Count(f => f.Confirmed);
-        FactSummary.Text = _facts.Count == 0 ? "" : $"{confirmed} of {_facts.Count} confirmed · {_facts.Count - confirmed} to review";
+        var toReview = _facts.Count - confirmed;
+        FactsHeader.Text = _profile == null ? T("facts_header") : F("facts_header_count", toReview);
+        FactSummary.Text = _facts.Count == 0 ? "" : F("facts_summary", confirmed, _facts.Count, toReview);
+        FactsEmpty.Visibility = _profile != null && _facts.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         foreach (var (btn, tag) in new[] { (FilterAll, "all"), (FilterReview, "review"), (FilterConfirmed, "confirmed") })
+        {
             btn.Opacity = _factFilter == tag ? 1.0 : 0.65;
+            btn.FontWeight = _factFilter == tag ? FontWeights.SemiBold : FontWeights.Normal;
+        }
     }
 
     /// <summary>
-    /// AI-extracted résumé content becomes verified history only by explicit user action: confirm-all asks first, ticks the
-    /// boxes for review, and nothing is stored until Save profile. Individual facts can be unticked afterwards.
+    /// Résumé content becomes verified history only by explicit user action: Confirm all asks first, ticks the boxes,
+    /// and nothing is stored until Save profile. Any fact can be unticked or edited later.
     /// </summary>
     private void ConfirmAll_Click(object sender, RoutedEventArgs e)
     {
         var pending = _facts.Where(f => !f.Confirmed).ToList();
-        if (pending.Count == 0) { Notify("All facts are already confirmed.", ToastKind.Info); return; }
-        if (!Confirm($"Confirm all {pending.Count} extracted facts as accurate?\n\nConfirmed facts may be used as your real experience in answers. You can untick any fact before saving, and change it later."))
-            return;
+        if (pending.Count == 0) { Notify(T("toast_all_confirmed"), ToastKind.Info); return; }
+        if (!Confirm(F("confirm_all_question", pending.Count))) return;
         foreach (var f in pending) f.Confirmed = true;
+        _factView?.Refresh();
         UpdateFactSummary();
-        Notify($"{pending.Count} facts ticked — press Save profile to apply", ToastKind.Info);
+        Notify(F("toast_facts_ticked", pending.Count), ToastKind.Info, T("toast_facts_ticked_detail"));
+    }
+
+    private void AddFact_Click(object sender, RoutedEventArgs e)
+    {
+        if (_profile == null) return;
+        var result = FactEditor.Show(this, null);
+        if (result == null) return;
+        var f = ProfileService.AddManualFact(_profile, result.Kind, result.Text, company: result.Company, title: result.Title, period: result.Period, confirmed: result.Confirmed);
+        AddRow(f);
+        _factView?.Refresh();
+        UpdateFactSummary();
+        ProfileDirty.Text = T("profile_unsaved");
+    }
+
+    private void EditFact_Click(object sender, RoutedEventArgs e)
+    {
+        if (_profile == null || (sender as FrameworkElement)?.Tag is not FactRow row) return;
+        var result = FactEditor.Show(this, row);
+        if (result == null) return;
+        ProfileService.EditFact(_profile, row.Fact, result.Text, result.Confirmed, result.Company, result.Title, result.Period);
+        row.Confirmed = result.Confirmed;
+        row.RaiseAll();
+        UpdateFactSummary();
+        ProfileDirty.Text = T("profile_unsaved");
+    }
+
+    private void DeleteFact_Click(object sender, RoutedEventArgs e)
+    {
+        if (_profile == null || (sender as FrameworkElement)?.Tag is not FactRow row) return;
+        if (!Confirm(F("confirm_delete_fact", Short(row.Text, 80)))) return;
+        ProfileService.DeleteFact(_profile, row.Fact.Id);
+        _facts.Remove(row);
+        UpdateFactSummary();
+        ProfileDirty.Text = T("profile_unsaved");
     }
 
     private void SaveProfile_Click(object sender, RoutedEventArgs e)
@@ -337,53 +509,67 @@ public partial class HomeWindow : Window
         _profile.Name = ProfileName.Text.Trim();
         _profile.PreferredName = ProfilePreferred.Text.Trim();
         _profile.Headline = ProfileHeadline.Text.Trim();
+        var now = DateTime.UtcNow;
         foreach (var r in _facts)
-            r.Fact.Status = r.Confirmed ? FactStatus.UserConfirmed : r.Initial == FactStatus.UserConfirmed ? FactStatus.Rejected : r.Initial;
+        {
+            if (r.Confirmed) r.Fact.SetConfirmed(true, now);
+            else if (r.Fact.Status == FactStatus.UserConfirmed) r.Fact.SetConfirmed(false, now);   // un-confirmed: back to "to review", not deleted
+        }
+        foreach (var (key, box) in _personalBoxes) ProfileService.SetPersonal(_profile, key, box.Text);
         ProfileService.RebuildStories(_profile);
         Store.SaveProfile(_profile);
         foreach (var t in Store.Targets(_profile.Id).Where(t => t.Preparation == PreparationState.Prepared)) { t.Preparation = PreparationState.Stale; Store.SaveTarget(t); }
+        // Personal answers apply to the Live Assistant immediately (no re-preparation needed).
+        if (_vm.ActiveProfileId == _profile.Id && !_vm.SessionActive && _vm.Workspace != null)
+        {
+            var (kb, label) = _vm.Workspace.LoadActive(_vm.ActiveProfileId, _vm.ActiveTargetId);
+            _vm.UseKnowledge(kb, label);
+        }
         RefreshProfiles(_profile.Id);
         RefreshChecklist();
-        Notify($"Profile saved — {_profile.ConfirmedFacts.Count()} confirmed facts", ToastKind.Success);
+        ProfileDirty.Text = "";
+        Notify(T("toast_profile_saved"), ToastKind.Success, F("toast_profile_saved_detail", _profile.Stats.Confirmed));
     }
 
     private void ExportProfile_Click(object sender, RoutedEventArgs e)
     {
         if (_profile == null || Store == null) return;
-        var dlg = new SaveFileDialog { FileName = "interview-assistant-profile.zip", Filter = "ZIP archive (*.zip)|*.zip" };
+        var dlg = new SaveFileDialog { FileName = "interview-assistant-profile.zip", Filter = T("file_filter_zip") + " (*.zip)|*.zip" };
         if (dlg.ShowDialog(this) != true) return;
         using (var fs = File.Create(dlg.FileName)) Store.ExportProfile(_profile.Id, fs);
-        Notify("Profile exported", ToastKind.Success);
+        Notify(T("toast_profile_exported"), ToastKind.Success);
     }
 
     private void DeleteProfile_Click(object sender, RoutedEventArgs e)
     {
         if (_profile == null || Store == null) return;
-        if (!Confirm($"Delete the profile “{_profile.Name}”, its interviews, prepared packs and documents from this computer?")) return;
-        if (_vm.Settings.ActiveProfileId == _profile.Id) { _vm.Settings.ActiveProfileId = null; _vm.Settings.ActiveTargetId = null; _vm.Settings.Save(); }
+        if (_vm.SessionActive && _vm.ActiveProfileId == _profile.Id) { Warn(T("warn_stop_first")); return; }
+        if (!Confirm(F("confirm_delete_profile", _profile.Name))) return;
+        if (_vm.ActiveProfileId == _profile.Id) _vm.SetActive(null, null);
         Store.DeleteProfile(_profile.Id);
         _profile = null;
         RefreshProfiles();
         RefreshChecklist();
+        Notify(T("toast_profile_deleted"), ToastKind.Info);
     }
 
     // ================= interviews =================
 
     private void RefreshTargets(string? selectId = null)
     {
-        InterviewsProfile.Text = _profile == null ? "Create a profile first." : "For " + (_profile.PreferredName.Length > 0 ? _profile.PreferredName : _profile.Name);
+        InterviewsProfile.Text = _profile == null ? T("interviews_need_profile") : F("interviews_for", _profile.PreferredName.Length > 0 ? _profile.PreferredName : _profile.Name);
         var list = _profile == null || Store == null ? new List<InterviewTarget>() : Store.Targets(_profile.Id).ToList();
-        TargetList.ItemsSource = list.Select(t => new Item<string>($"{t.DisplayName}  ·  {StateLabel(t.Preparation)}{(t.Id == _vm.Settings.ActiveTargetId ? "  ·  active" : "")}", t.Id)).ToList();
-        var id = selectId ?? _target?.Id ?? _vm.Settings.ActiveTargetId;
+        TargetList.ItemsSource = list.Select(t => new Item<string>($"{t.DisplayName}  ·  {StateLabel(t.Preparation)}{(t.Id == _vm.ActiveTargetId ? "  ·  " + T("state_active") : "")}", t.Id)).ToList();
+        var id = selectId ?? _target?.Id ?? _vm.ActiveTargetId;
         TargetList.SelectedItem = ((IEnumerable<Item<string>>)TargetList.ItemsSource).FirstOrDefault(i => i.Value == id);
         if (TargetList.SelectedItem == null) LoadTarget(null);
     }
 
-    private static string StateLabel(PreparationState s) => s switch
+    private static string StateLabel(PreparationState s) => T(s switch
     {
-        PreparationState.Prepared => "prepared", PreparationState.Preparing => "preparing…", PreparationState.Stale => "needs re-prepare",
-        PreparationState.Failed => "failed", _ => "not prepared",
-    };
+        PreparationState.Prepared => "state_prepared", PreparationState.Preparing => "state_preparing", PreparationState.Stale => "state_stale",
+        PreparationState.Failed => "state_failed", _ => "state_not_prepared",
+    });
 
     private void TargetList_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
         LoadTarget(TargetList.SelectedItem is Item<string> i ? Store?.GetTarget(i.Value) : null);
@@ -400,13 +586,13 @@ public partial class HomeWindow : Window
         PrepProgress.Value = t?.Preparation == PreparationState.Prepared ? 1 : 0;
         PrepStatus.Text = t == null ? "" : StateLabel(t.Preparation) + (t.PreparationError != null ? " — " + t.PreparationError : "");
         var pack = t != null ? Store?.GetPack(t.Id) : null;
-        PrepSummary.Text = pack == null ? "" : $"{pack.Questions.Count} prepared questions · {pack.Stories.Count} stories · {pack.Gaps.Count} gaps to handle honestly · prepared {pack.CreatedUtc.ToLocalTime():g}";
+        PrepSummary.Text = pack == null ? "" : F("prep_summary", pack.Questions.Count, pack.Stories.Count, pack.Gaps.Count, pack.CreatedUtc.ToLocalTime().ToString("g", Loc.Culture));
         UseBtn.IsEnabled = t?.Preparation is PreparationState.Prepared or PreparationState.Stale;
     }
 
     private void NewTarget_Click(object sender, RoutedEventArgs e)
     {
-        if (_profile == null) { Warn("Create a profile first (import your résumé)."); return; }
+        if (_profile == null) { Warn(T("warn_create_profile_first")); return; }
         TargetList.SelectedItem = null;
         LoadTarget(null);
         TargetTitle.Focus();
@@ -414,17 +600,17 @@ public partial class HomeWindow : Window
 
     private void ImportJd_Click(object sender, RoutedEventArgs e)
     {
-        var bytes = PickFile("Import job description", out var name);
+        var bytes = PickFile(T("import_jd_title"), out var name);
         if (bytes == null) return;
         var (doc, error) = ProfileService.Upload(name, bytes, DocumentKind.JobDescription);
-        if (doc == null) { Warn(error ?? "The document could not be imported."); return; }
+        if (doc == null) { Warn(error ?? T("warn_import_failed")); return; }
         TargetJd.Text = doc.Text;
     }
 
     private InterviewTarget? SaveTargetFields()
     {
         if (_profile == null || Store == null) return null;
-        if (string.IsNullOrWhiteSpace(TargetTitle.Text)) { Warn("Enter the job title."); return null; }
+        if (string.IsNullOrWhiteSpace(TargetTitle.Text)) { Warn(T("warn_job_title")); return null; }
         var t = _target ?? new InterviewTarget { ProfileId = _profile.Id };
         var changed = t.JobTitle != TargetTitle.Text.Trim() || t.Company != TargetCompany.Text.Trim() || t.JobDescriptionText != TargetJd.Text;
         t.JobTitle = TargetTitle.Text.Trim();
@@ -442,11 +628,11 @@ public partial class HomeWindow : Window
     {
         var t = SaveTargetFields();
         if (t == null || _profile == null || Store == null || _vm.Workspace == null) return;
-        if (!_profile.ConfirmedFacts.Any() && !Confirm("No facts are confirmed in this profile yet, so answers will be generic (no personal claims). Continue?")) return;
+        if (!_profile.ConfirmedFacts.Any() && !Confirm(T("confirm_prepare_no_facts"))) return;
         if (_vm.UsingCloud)
         {
             // Preparations are a plan entitlement metered by the service (the work itself runs on this PC).
-            if (!_vm.Cloud.IsSignedIn) { Warn("Sign in (Account) to prepare an interview."); ShowPage("account"); return; }
+            if (!_vm.Cloud.IsSignedIn) { Warn(T("warn_sign_in_to_prepare")); ShowPage("account"); return; }
             try
             {
                 var job = await _vm.Cloud.Api!.StartPreparationAsync(CancellationToken.None);
@@ -454,7 +640,7 @@ public partial class HomeWindow : Window
             }
             catch (BackendException ex)
             {
-                Warn(ex.Code == "prep_limit" ? "No interview preparations remain this month on your plan. Upgrade in Account, or re-use an existing preparation." : CloudService.Describe(ex));
+                Warn(ex.Code == "prep_limit" ? T("warn_prep_limit") : CloudService.Describe(ex));
                 return;
             }
         }
@@ -462,26 +648,27 @@ public partial class HomeWindow : Window
         _prepCts = new CancellationTokenSource();
         PrepareBtn.IsEnabled = false;
         t.Preparation = PreparationState.Preparing; t.PreparationError = null; Store.SaveTarget(t);
-        var progress = new Progress<PreparationProgress>(p => { PrepProgress.Value = (double)p.Stage / p.TotalStages; PrepStatus.Text = $"{p.Stage}/{p.TotalStages} · {p.StageName}: {p.Detail}"; });
+        var progress = new Progress<PreparationProgress>(p => { PrepProgress.Value = (double)p.Stage / p.TotalStages; PrepStatus.Text = F("prep_progress", p.Stage, p.TotalStages); });
+        var store = Store;
         try
         {
             var profile = _profile;
             var pack = await Task.Run(() => new PreparationPipeline(_vm.Workspace.Assets).RunAsync(profile, t, null, progress, _prepCts.Token));
-            Store.SavePack(pack);
+            store.SavePack(pack);
             t.Preparation = PreparationState.Prepared; t.PreparedUtc = DateTime.UtcNow;
             AppLog.Info($"Prepared target: {pack.Questions.Count} questions");
-            Notify($"Preparation complete — {pack.Questions.Count} questions ready", ToastKind.Success);
+            Notify(T("toast_prep_complete"), ToastKind.Success, F("toast_prep_complete_detail", pack.Questions.Count));
         }
         catch (OperationCanceledException) { t.Preparation = PreparationState.NotPrepared; }
         catch (Exception ex) when (ex is InvalidOperationException or IOException or ArgumentException)
         {
-            t.Preparation = PreparationState.Failed; t.PreparationError = ex.Message;
+            t.Preparation = PreparationState.Failed; t.PreparationError = T("prep_failed_short");
             AppLog.Error("Preparation failed", ex);
-            Notify("Preparation failed — try again", ToastKind.Error);
+            Notify(T("toast_prep_failed"), ToastKind.Error);
         }
         finally
         {
-            Store.SaveTarget(t);
+            store.SaveTarget(t);
             PrepareBtn.IsEnabled = true;
             RefreshTargets(t.Id);
             RefreshChecklist();
@@ -491,44 +678,59 @@ public partial class HomeWindow : Window
     private void UseTarget_Click(object sender, RoutedEventArgs e)
     {
         if (_target == null || _profile == null || _vm.Workspace == null) return;
-        if (_vm.IsListening || _vm.IsPaused) { Warn("Stop the current session before switching interviews."); return; }
-        _vm.Settings.ActiveProfileId = _profile.Id;
-        _vm.Settings.ActiveTargetId = _target.Id;
-        _vm.Settings.Save();
+        if (_vm.SessionActive) { Warn(T("warn_stop_before_switch")); return; }
+        _vm.SetActive(_profile.Id, _target.Id);
         var (kb, label) = _vm.Workspace.LoadActive(_profile.Id, _target.Id);
         _vm.UseKnowledge(kb, label);
         RefreshTargets(_target.Id);
         RefreshChecklist();
         _main.Show();
         _main.Activate();
-        _main.ShowToast($"Live Assistant opened · {_target.DisplayName}", ToastKind.Success);
+        _main.ShowToast(F("toast_live_opened", _target.DisplayName), ToastKind.Success);
     }
 
     private void DeleteTarget_Click(object sender, RoutedEventArgs e)
     {
         if (_target == null || Store == null) return;
-        if (!Confirm($"Delete “{_target.DisplayName}” and its prepared answers?")) return;
-        if (_vm.Settings.ActiveTargetId == _target.Id) { _vm.Settings.ActiveTargetId = null; _vm.Settings.Save(); }
+        if (_vm.SessionActive && _vm.ActiveTargetId == _target.Id) { Warn(T("warn_stop_first")); return; }
+        if (!Confirm(F("confirm_delete_interview", _target.DisplayName))) return;
+        if (_vm.ActiveTargetId == _target.Id) _vm.SetActive(_vm.ActiveProfileId, null);
         Store.DeleteTarget(_target.Id);
         _target = null;
         RefreshTargets();
+        Notify(T("toast_interview_deleted"), ToastKind.Info);
     }
 
     // ================= reports =================
 
-    private void RefreshReports()
+    /// <summary>Newest first; called on page open and automatically right after Stop saves a report.</summary>
+    private void RefreshReports(string? selectId = null)
     {
         var sessions = Store?.Sessions() ?? Array.Empty<StoredSession>();
-        ReportList.ItemsSource = sessions.Where(s => s.ReportJson.Length > 0)
-            .Select(s => new Item<StoredSession>($"{s.StartedUtc.ToLocalTime():g}  ·  {LabelFor(s)}", s)).ToList();
+        var items = sessions.Where(s => s.ReportJson.Length > 0).OrderByDescending(s => s.EndedUtc ?? s.StartedUtc)
+            .Select(s => new Item<StoredSession>($"{s.StartedUtc.ToLocalTime().ToString("g", Loc.Culture)}  ·  {LabelFor(s)}", s)).ToList();
+        ReportList.ItemsSource = items;
+        ReportsEmpty.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        ReportList.SelectedItem = items.FirstOrDefault(i => i.Value.Id == selectId) ?? (selectId != null ? items.FirstOrDefault() : ReportList.SelectedItem);
+        if (ReportList.SelectedItem == null) ReportPreview.Visibility = Visibility.Collapsed;
     }
 
-    private string LabelFor(StoredSession s) => Store?.GetTarget(s.TargetId)?.DisplayName ?? "Interview";
+    private string LabelFor(StoredSession s) => Store?.GetTarget(s.TargetId)?.DisplayName ?? T("report_default_label");
 
     private InterviewReport? SelectedReport(out StoredSession? session)
     {
         session = (ReportList.SelectedItem as Item<StoredSession>)?.Value;
         return session == null ? null : ReportSerializer.FromJson(session.ReportJson);
+    }
+
+    private void ReportList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var r = SelectedReport(out var s);
+        if (r == null || s == null) { ReportPreview.Visibility = Visibility.Collapsed; return; }
+        ReportPreview.Visibility = Visibility.Visible;
+        ReportPreviewTitle.Text = HtmlReportRenderer.Header(r.ProfileLabel, r.TargetLabel);
+        ReportPreviewMeta.Text = F("report_preview_meta", r.StartedUtc.ToLocalTime().ToString("g", Loc.Culture), (int)(r.EndedUtc - r.StartedUtc).TotalMinutes, r.Questions.Count);
+        ReportPreviewQuestions.Text = string.Join("\n", r.Questions.Take(8).Select(q => $"Q{q.Index}. {Short(q.OriginalWording, 110)}")) + (r.Questions.Count > 8 ? "\n…" : "");
     }
 
     private void OpenReport_Click(object sender, RoutedEventArgs e)
@@ -540,6 +742,14 @@ public partial class HomeWindow : Window
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
     }
 
+    private void CopyReport_Click(object sender, RoutedEventArgs e)
+    {
+        var r = SelectedReport(out _);
+        if (r == null) return;
+        Clipboard.SetText(HtmlReportRenderer.RenderText(r, Branding.ProductName));
+        Notify(T("toast_report_copied"), ToastKind.Success);
+    }
+
     private void ExportReport_Click(object sender, RoutedEventArgs e)
     {
         var r = SelectedReport(out _);
@@ -547,15 +757,16 @@ public partial class HomeWindow : Window
         var dlg = new SaveFileDialog { FileName = "interview-report.html", Filter = "HTML (*.html)|*.html" };
         if (dlg.ShowDialog(this) != true) return;
         File.WriteAllText(dlg.FileName, HtmlReportRenderer.Render(r, Branding.ProductName));
-        Notify("Report exported", ToastKind.Success);
+        Notify(T("toast_report_exported"), ToastKind.Success);
     }
 
     private void DeleteReport_Click(object sender, RoutedEventArgs e)
     {
         if ((ReportList.SelectedItem as Item<StoredSession>)?.Value is not { } s || Store == null) return;
-        if (!Confirm("Delete this report?")) return;
+        if (!Confirm(T("confirm_delete_report"))) return;
         Store.DeleteSession(s.Id);
         RefreshReports();
+        Notify(T("toast_report_deleted"), ToastKind.Info);
     }
 
     // ================= account =================
@@ -565,26 +776,27 @@ public partial class HomeWindow : Window
     private void RefreshAccount()
     {
         var c = _vm.Cloud;
-        AccountBadge.Text = _vm.AccountLabel;
-        var signedIn = c.State == CloudState.SignedIn || (c.IsSignedIn && c.Account != null);
+        AccountBadge.Content = _vm.AccountLabel;
+        HeaderSignOutBtn.Visibility = c.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
         NotConfiguredPanel.Visibility = c.IsConfigured ? Visibility.Collapsed : Visibility.Visible;
         SignedOutPanel.Visibility = c.IsConfigured && !c.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
         SignedInPanel.Visibility = c.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
         AccountStatus.Text = c.State switch
         {
-            CloudState.SignedIn => "Signed in as " + c.Account?.Email,
-            CloudState.Connecting => "Connecting to the service…",
+            CloudState.SignedIn => F("acct_signed_in_email", c.Account?.Email),
+            CloudState.Connecting => T("acct_connecting_service"),
             _ => c.Message ?? "",
         };
-        AccountStatus.Foreground = (System.Windows.Media.Brush)FindResource(c.State is CloudState.ServiceUnavailable or CloudState.AccountDisabled or CloudState.UpdateRequired or CloudState.SessionExpired ? "B.Thinking" : "B.TextDim");
+        AccountStatus.Foreground = (Brush)FindResource(c.State is CloudState.ServiceUnavailable or CloudState.AccountDisabled or CloudState.UpdateRequired or CloudState.SessionExpired ? "B.Thinking" : "B.TextDim");
+        SetCreateMode(_createMode);
 
         // Sign-in options come from the service (publishable configuration only).
         ForgotBtn.Visibility = c.Options.EmailPassword ? Visibility.Visible : Visibility.Collapsed;
         ProviderButtons.Children.Clear();
         foreach (var p in c.Options.OAuthProviders)
         {
-            var b = new Button { Content = $"Continue with {ProviderName(p)}", Style = (Style)FindResource("Btn.Base"), Margin = new Thickness(0, 0, 8, 8), Tag = p };
-            b.Click += async (_, _) => await RunAuth(() => _vm.Cloud.SignInWithProviderAsync(p), "Continue in your browser…");
+            var b = new Button { Content = F("continue_with", ProviderName(p)), Style = (Style)FindResource("Btn.Base"), Margin = new Thickness(0, 0, 8, 8), Tag = p };
+            b.Click += async (_, _) => await RunAuth(() => _vm.Cloud.SignInWithProviderAsync(p), T("acct_continue_in_browser"));
             ProviderButtons.Children.Add(b);
         }
         SignUpLegal.Text = LegalSentence();
@@ -593,50 +805,76 @@ public partial class HomeWindow : Window
         {
             PlanText.Text = MainViewModel.BillingLabel(a);
             var e = a.Entitlements;
-            UsageText.Text = $"{a.Usage.LiveSecondsUsed / 60} of {e.LiveMinutesPerPeriod} live minutes used · {a.Usage.PrepJobsRemaining} preparations left this month · up to {e.MaxDevices} device(s), {e.MaxProfiles} profile(s)";
+            var trial = a.BillingState is BillingStates.Trial or BillingStates.TrialExhausted;
+            var plan = trial ? e.TrialMinutes : e.LiveMinutesPerPeriod;
+            var used = a.Usage.LiveSecondsUsed / 60;
+            var remaining = a.Usage.LiveSecondsRemaining / 60;
+            var rows = new List<(string, string)>
+            {
+                (T("usage_minutes_used"), F("usage_minutes_used_value", used, plan)),
+                (T("usage_remaining_period"), F("usage_remaining_period_value", remaining, a.Usage.PeriodEndUtc.ToLocalTime().ToString("d", Loc.Culture))),
+            };
+            if (a.Usage.LiveSecondsAvailableToday >= 0)
+                rows.Add((T("usage_available_today"), F("usage_available_today_value", Math.Min(a.Usage.LiveSecondsAvailableToday / 60, remaining), a.Usage.DailyLiveMinutesCap)));
+            rows.Add((T("usage_preparations"), F("usage_preparations_value", a.Usage.PrepJobsRemaining)));
+            rows.Add((T("usage_limits"), F("usage_limits_value", e.MaxDevices, e.MaxProfiles)));
+            FillGrid(UsageGrid, rows);
             BillingNotice.Text = a.BillingState switch
             {
-                BillingStates.PastDue => $"Your last payment failed. Update your payment method in Manage billing — Pro stays active until {a.Subscription?.GraceUntilUtc?.ToLocalTime():d}.",
-                BillingStates.Canceling => $"Your subscription is cancelled and ends on {a.Subscription?.CurrentPeriodEndUtc?.ToLocalTime():d}. You can resume it in Manage billing.",
-                BillingStates.Paused => "Your subscription is paused. Resume it in Manage billing.",
-                BillingStates.Expired => "Your subscription has ended. Upgrade to continue with Pro.",
-                BillingStates.TrialExhausted => "Your trial minutes are used up. Upgrade to Pro to continue live help.",
+                BillingStates.PastDue => F("bill_notice_past_due", a.Subscription?.GraceUntilUtc?.ToLocalTime().ToString("d", Loc.Culture)),
+                BillingStates.Canceling => F("bill_notice_canceling", a.Subscription?.CurrentPeriodEndUtc?.ToLocalTime().ToString("d", Loc.Culture)),
+                BillingStates.Paused => T("bill_notice_paused"),
+                BillingStates.Expired => T("bill_notice_expired"),
+                BillingStates.TrialExhausted => T("bill_notice_trial_used"),
                 _ => "",
             };
             var pro = c.Plans.FirstOrDefault(x => x.Purchasable);
             var paid = CloudService.IsPaidState(a.BillingState) || a.BillingState == BillingStates.Paused;
             UpgradeBtn.Visibility = pro != null && !paid ? Visibility.Visible : Visibility.Collapsed;
-            UpgradeBtn.Content = pro?.PriceDisplay is { } price ? $"{L("upgrade")}: {pro.Name} — {price}" : $"{L("upgrade")}: {pro?.Name}";
+            UpgradeBtn.Content = pro?.PriceDisplay is { } price ? F("upgrade_to_price", pro.Name, price) : F("upgrade_to", pro?.Name);
             UpgradeBtn.IsEnabled = !c.UpgradePending;
             ManageBillingBtn.Visibility = a.Subscription != null ? Visibility.Visible : Visibility.Collapsed;
-            UpgradeStatus.Text = c.UpgradePending ? "Waiting for payment confirmation from Paddle… this updates automatically after checkout." : "";
-            BillingTerms.Text = pro == null ? "" :
-                $"{pro.Name} is a subscription{(pro.PriceDisplay != null ? $" ({pro.PriceDisplay})" : "")} that renews automatically until cancelled. Payments, taxes and invoices are handled by Paddle (merchant of record). Cancel any time in Manage billing; access continues until the end of the paid period.";
+            UpgradeStatus.Text = c.UpgradePending ? T("upgrade_pending") : "";
+            BillingTerms.Text = pro == null ? "" : F("billing_terms", pro.Name, pro.PriceDisplay ?? "");
         }
         RefreshLegal();
+        RefreshUpdates();
+    }
+
+    private void FillGrid(Grid g, IReadOnlyList<(string Label, string Value)> rows)
+    {
+        g.Children.Clear(); g.RowDefinitions.Clear();
+        for (int i = 0; i < rows.Count; i++)
+        {
+            g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var k = new TextBlock { Text = rows[i].Label, Foreground = (Brush)FindResource("B.TextDim"), FontSize = 12.5, Margin = new Thickness(0, 2, 16, 2) };
+            var v = new TextBlock { Text = rows[i].Value, Foreground = (Brush)FindResource("B.Text"), FontSize = 12.5, Margin = new Thickness(0, 2, 0, 2), TextWrapping = TextWrapping.Wrap };
+            Grid.SetRow(k, i); Grid.SetRow(v, i); Grid.SetColumn(v, 1);
+            g.Children.Add(k); g.Children.Add(v);
+        }
     }
 
     private string LegalSentence()
     {
         var l = _vm.Cloud.Config?.Links;
-        var parts = new List<string>();
-        if (l?.Terms != null) parts.Add("Terms of Service");
-        if (l?.PrivacyPolicy != null) parts.Add("Privacy Policy");
-        return parts.Count == 0 ? "" : $"By creating an account you agree to the {string.Join(" and ", parts)} (links below).";
+        if (l?.Terms != null && l.PrivacyPolicy != null) return T("legal_agree_both");
+        if (l?.Terms != null) return T("legal_agree_terms");
+        if (l?.PrivacyPolicy != null) return T("legal_agree_privacy");
+        return "";
     }
 
     private void RefreshLegal()
     {
         LegalLinks.Children.Clear();
         var l = _vm.Cloud.Config?.Links;
-        foreach (var (label, url) in new[] { ("Privacy Policy", l?.PrivacyPolicy), ("Terms of Service", l?.Terms), ("Billing terms", l?.BillingTerms), ("Support", l?.Support) })
+        foreach (var (label, url) in new[] { (T("legal_privacy"), l?.PrivacyPolicy), (T("legal_terms"), l?.Terms), (T("legal_billing_terms"), l?.BillingTerms), (T("legal_support_link"), l?.Support) })
         {
             if (string.IsNullOrWhiteSpace(url)) continue;
             var b = new Button { Content = label, Style = (Style)FindResource("Btn.Ghost"), Margin = new Thickness(0, 0, 8, 4), ToolTip = url };
             b.Click += (_, _) => CloudService.OpenExternal(url);
             LegalLinks.Children.Add(b);
         }
-        SupportEmailText.Text = l?.SupportEmail is { Length: > 0 } mail ? "Support: " + mail : "";
+        SupportEmailText.Text = l?.SupportEmail is { Length: > 0 } mail ? F("legal_support_email", mail) : "";
         LegalHeader.Visibility = LegalLinks.Children.Count > 0 || SupportEmailText.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -649,10 +887,10 @@ public partial class HomeWindow : Window
     {
         _createMode = create;
         ConfirmPanel.Visibility = create ? Visibility.Visible : Visibility.Collapsed;
-        AuthSubmitBtn.Content = create ? "Create account" : L("sign_in");
+        AuthSubmitBtn.Content = T(create ? "create_account" : "sign_in");
         ModeSignInBtn.FontWeight = create ? FontWeights.Normal : FontWeights.SemiBold;
         ModeCreateBtn.FontWeight = create ? FontWeights.SemiBold : FontWeights.Normal;
-        AccountError.Text = ""; AccountInfo.Text = "";
+        ModeSignInBtn.Opacity = create ? 0.65 : 1; ModeCreateBtn.Opacity = create ? 1 : 0.65;
     }
 
     private async void Password_KeyDown(object sender, KeyEventArgs e)
@@ -671,20 +909,20 @@ public partial class HomeWindow : Window
         var email = EmailBox.Text.Trim();
         var pw = PasswordBox.Password;
         AccountError.Text = ""; AccountInfo.Text = "";
-        if (!ValidEmail(email)) { AccountError.Text = "Enter a valid e-mail address."; return; }
-        if (pw.Length == 0) { AccountError.Text = "Enter your password."; return; }
+        if (!ValidEmail(email)) { AccountError.Text = T("err_email_invalid"); return; }
+        if (pw.Length == 0) { AccountError.Text = T("err_password_empty"); return; }
         if (_createMode)
         {
-            if (pw.Length < 8) { AccountError.Text = "Choose a password with at least 8 characters."; return; }
-            if (pw != ConfirmBox.Password) { AccountError.Text = "The passwords do not match."; return; }
+            if (pw.Length < 8) { AccountError.Text = T("err_password_short"); return; }
+            if (pw != ConfirmBox.Password) { AccountError.Text = T("err_password_mismatch"); return; }
             await RunAuth(async () =>
             {
                 var (ok, confirm, error) = await _vm.Cloud.SignUpAsync(email, pw);
-                if (ok && confirm) Dispatcher.Invoke(() => { AccountInfo.Text = $"Almost done — we sent a confirmation link to {email}. Open it, then sign in here."; SetCreateMode(false); AccountInfo.Text = $"Almost done — we sent a confirmation link to {email}. Open it, then sign in here."; });
+                if (ok && confirm) Dispatcher.Invoke(() => { SetCreateMode(false); AccountInfo.Text = F("acct_confirm_email_sent", email); });
                 return (ok, error);
-            }, "Creating your account…");
+            }, T("acct_creating"));
         }
-        else await RunAuth(() => _vm.Cloud.SignInAsync(email, pw), "Signing in…");
+        else await RunAuth(() => _vm.Cloud.SignInAsync(email, pw), T("acct_signing_in"));
     }
 
     private async Task RunAuth(Func<Task<(bool Ok, string? Error)>> action, string busyText)
@@ -694,56 +932,56 @@ public partial class HomeWindow : Window
         try
         {
             var (ok, error) = await action();
-            if (!ok) AccountError.Text = error ?? "Sign-in failed.";
+            if (!ok) AccountError.Text = error ?? T("err_sign_in_failed");
             else
             {
                 PasswordBox.Clear(); ConfirmBox.Clear();
                 if (_vm.Cloud.IsSignedIn)
                 {
-                    if (!_vm.IsListening && !_vm.IsPaused) _vm.BuildEngine();
+                    _vm.OpenWorkspaceForCurrentAccount();   // this account's data only
+                    if (!_vm.SessionActive) _vm.BuildEngine();
                     await LoadAccountExtrasAsync();
                     ApplyAccountLimits();
+                    Notify(T("toast_signed_in"), ToastKind.Success, _vm.Cloud.Account?.Email);
                 }
             }
         }
-        finally { AuthSubmitBtn.IsEnabled = true; RefreshAccount(); RefreshChecklist(); }
+        finally { AuthSubmitBtn.IsEnabled = true; RefreshAll(); }
     }
 
     private async void Forgot_Click(object sender, RoutedEventArgs e)
     {
         var email = EmailBox.Text.Trim();
         AccountError.Text = ""; AccountInfo.Text = "";
-        if (!ValidEmail(email)) { AccountError.Text = "Enter your e-mail address first, then press Forgot password."; return; }
-        AccountInfo.Text = $"We sent a reset link to {email}. Open it on this PC — the app continues automatically (link valid for 15 minutes).";
-        var (ok, error) = await _vm.Cloud.ResetPasswordAsync(email, () => Task.FromResult(AskNewPassword()));
-        AccountInfo.Text = ok ? "Password changed. You are signed in." : "";
-        if (!ok) AccountError.Text = error ?? "Password reset failed.";
-        RefreshAccount(); RefreshChecklist();
+        if (!ValidEmail(email)) { AccountError.Text = T("err_email_first"); return; }
+        AccountInfo.Text = F("acct_reset_sent", email);
+        var (ok, error) = await _vm.Cloud.ResetPasswordAsync(email, () => Task.FromResult(Prompt.NewPassword(this)));
+        AccountInfo.Text = ok ? T("acct_password_reset_done") : "";
+        if (!ok) AccountError.Text = error ?? T("err_reset_failed");
+        if (ok) _vm.OpenWorkspaceForCurrentAccount();
+        RefreshAll();
     }
 
-    /// <summary>Small modal prompt for the new password after a reset link (owned, cancellable, closes with the app).</summary>
-    private string? AskNewPassword()
+    /// <summary>Sensitive actions ask for the current password again (or a fresh provider sign-in for OAuth accounts).</summary>
+    private async Task<bool> ReauthenticateAsync(string reasonKey)
     {
-        var box = new PasswordBox { Style = (Style)FindResource("PasswordInput"), Margin = new Thickness(0, 8, 0, 8) };
-        var ok = new Button { Content = "Set password", Style = (Style)FindResource("Btn.Primary"), IsDefault = true, HorizontalAlignment = HorizontalAlignment.Right };
-        var err = new TextBlock { Foreground = (System.Windows.Media.Brush)FindResource("B.Error"), TextWrapping = TextWrapping.Wrap };
-        var panel = new StackPanel { Margin = new Thickness(20) };
-        panel.Children.Add(new TextBlock { Text = "Choose a new password (at least 8 characters)", Foreground = (System.Windows.Media.Brush)FindResource("B.Text") });
-        panel.Children.Add(box); panel.Children.Add(err); panel.Children.Add(ok);
-        var dlg = new Window { Owner = this, Title = Branding.ProductName, Content = panel, SizeToContent = SizeToContent.WidthAndHeight, MinWidth = 360, WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize, Background = (System.Windows.Media.Brush)FindResource("B.Bg") };
-        string? result = null;
-        ok.Click += (_, _) => { if (box.Password.Length < 8) { err.Text = "At least 8 characters."; return; } result = box.Password; dlg.DialogResult = true; };
-        dlg.Loaded += (_, _) => box.Focus();
-        return dlg.ShowDialog() == true ? result : null;
+        AccountError.Text = "";
+        var password = Prompt.CurrentPassword(this, T(reasonKey), _vm.Cloud.Account?.Email ?? "");
+        if (password == null) return false;
+        var (ok, error) = await _vm.Cloud.ReauthenticateAsync(password);
+        if (!ok) { AccountError.Text = error ?? T("err_reauth_failed"); Notify(AccountError.Text, ToastKind.Error); }
+        return ok;
     }
 
     private async void ChangePassword_Click(object sender, RoutedEventArgs e)
     {
         AccountError.Text = ""; AccountInfo.Text = "";
-        if (NewPasswordBox.Password.Length < 8) { AccountError.Text = "Choose a password with at least 8 characters."; return; }
-        var (ok, error) = await _vm.Cloud.ChangePasswordAsync(NewPasswordBox.Password);
-        NewPasswordBox.Clear();
-        if (ok) AccountInfo.Text = "Password changed."; else AccountError.Text = error;
+        if (!await ReauthenticateAsync("reauth_reason_password")) return;
+        var pw = Prompt.NewPassword(this);
+        if (pw == null) return;
+        var (ok, error) = await _vm.Cloud.ChangePasswordAsync(pw);
+        if (ok) { AccountInfo.Text = T("acct_password_changed"); Notify(T("acct_password_changed"), ToastKind.Success); }
+        else AccountError.Text = error;
     }
 
     private async Task LoadAccountExtrasAsync()
@@ -754,7 +992,8 @@ public partial class HomeWindow : Window
         {
             var devices = await api.DevicesAsync(CancellationToken.None);
             DeviceList.ItemsSource = devices.Where(d => !d.Revoked)
-                .Select(d => new Item<DeviceDto>($"{d.Name} · v{d.ClientVersion} · last seen {d.LastSeenUtc.ToLocalTime():g}{(d.Id == _vm.Settings.CloudDeviceId ? " · this PC" : "")}", d)).ToList();
+                .Select(d => new Item<DeviceDto>(F("device_row", d.Name, d.ClientVersion, d.LastSeenUtc.ToLocalTime().ToString("g", Loc.Culture))
+                    + (d.Id == _vm.Settings.CloudDeviceId ? " · " + T("device_this_pc") : ""), d)).ToList();
         }
         catch (BackendException ex) { AccountError.Text = CloudService.Describe(ex); }
     }
@@ -773,7 +1012,7 @@ public partial class HomeWindow : Window
     {
         AccountError.Text = "";
         var (ok, error) = await action();
-        if (!ok) { AccountError.Text = error ?? "Something went wrong."; Notify(AccountError.Text, ToastKind.Error); }
+        if (!ok) { AccountError.Text = error ?? T("err_generic"); Notify(AccountError.Text, ToastKind.Error); }
         RefreshAccount();
     }
 
@@ -793,15 +1032,15 @@ public partial class HomeWindow : Window
         await LoadAccountExtrasAsync();
         ApplyAccountLimits();
         RefreshAccount();
-        if (_vm.Cloud.IsSignedIn) Notify("Billing status refreshed", ToastKind.Info);
+        if (_vm.Cloud.IsSignedIn) Notify(T("toast_billing_refreshed"), ToastKind.Info);
         else if (_vm.Cloud.Message is { Length: > 0 } m) Notify(m, ToastKind.Warning);
     }
 
     private async void RevokeDevice_Click(object sender, RoutedEventArgs e)
     {
         if ((DeviceList.SelectedItem as Item<DeviceDto>)?.Value is not { } d || _vm.Cloud.Api == null) return;
-        if (!Confirm($"Remove “{d.Name}” from your account? Any live session on it ends.")) return;
-        try { await _vm.Cloud.Api.RevokeDeviceAsync(d.Id, CancellationToken.None); Notify("Device removed", ToastKind.Success); }
+        if (!Confirm(F("confirm_remove_device", d.Name))) return;
+        try { await _vm.Cloud.Api.RevokeDeviceAsync(d.Id, CancellationToken.None); Notify(T("toast_device_removed"), ToastKind.Success); }
         catch (BackendException ex) { AccountError.Text = CloudService.Describe(ex); Notify(CloudService.Describe(ex), ToastKind.Error); }
         await LoadAccountExtrasAsync();
     }
@@ -809,14 +1048,14 @@ public partial class HomeWindow : Window
     private async void ExportAccount_Click(object sender, RoutedEventArgs e)
     {
         if (_vm.Cloud.Api == null) return;
+        if (!await ReauthenticateAsync("reauth_reason_export")) return;
         var dlg = new SaveFileDialog { FileName = "interview-assistant-account-export.json", Filter = "JSON (*.json)|*.json" };
         if (dlg.ShowDialog(this) != true) return;
         try
         {
             var json = await _vm.Cloud.Api.ExportAsync(CancellationToken.None);
             await File.WriteAllTextAsync(dlg.FileName, JsonSerializer.Serialize(json, new JsonSerializerOptions { WriteIndented = true }));
-            AccountInfo.Text = "Exported.";
-            Notify("Account data exported", ToastKind.Success);
+            Notify(T("toast_account_exported"), ToastKind.Success);
         }
         catch (BackendException ex) { AccountError.Text = CloudService.Describe(ex); }
     }
@@ -824,27 +1063,64 @@ public partial class HomeWindow : Window
     private async void DeleteAccount_Click(object sender, RoutedEventArgs e)
     {
         if (_vm.Cloud.Api == null) return;
-        if (!Confirm("Permanently delete your account and all data stored on the service? Cancel an active subscription in “Manage billing” first. Local data on this computer is not affected.")) return;
+        if (!Confirm(T("confirm_delete_account"))) return;
+        if (!await ReauthenticateAsync("reauth_reason_delete")) return;
         try
         {
+            if (_vm.SessionActive) await _vm.StopAsync();
             await _vm.Cloud.Api.DeleteAccountAsync(CancellationToken.None);
-            await _vm.Cloud.SignOutAsync();
-            AccountInfo.Text = "Your account was deleted.";
+            await _vm.SignOutAsync();
+            AccountInfo.Text = T("acct_deleted");
         }
         catch (BackendException ex) { AccountError.Text = CloudService.Describe(ex); }
-        RefreshAccount();
+        RefreshAll();
     }
 
     private async void SignOut_Click(object sender, RoutedEventArgs e)
     {
-        if (_vm.IsListening || _vm.IsPaused) await _vm.StopAsync();
-        await _vm.Cloud.SignOutAsync();
-        RefreshAccount(); RefreshChecklist();
-        Notify("Signed out", ToastKind.Info);
+        if (_vm.SessionActive && !Confirm(T("confirm_sign_out_session"))) return;
+        await _vm.SignOutAsync();
+        EmailBox.Text = "";
+        RefreshAll();
+        ShowPage("account");
+    }
+
+    private async void SwitchAccount_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm.SessionActive && !Confirm(T("confirm_sign_out_session"))) return;
+        await _vm.SignOutAsync();
+        EmailBox.Text = "";
+        SetCreateMode(false);
+        RefreshAll();
+        ShowPage("account");
+        EmailBox.Focus();
+    }
+
+    // ================= updates =================
+
+    private void RefreshUpdates()
+    {
+        BuildChannelText.Text = F("updates_this_build", BuildInfo.Version, BuildInfo.ChannelLabel);
+        UpdateStatus.Text = _vm.Updates.StatusText;
+        RestartUpdateBtn.Visibility = _vm.Updates.UpdateReady ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void Channel_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (ChannelBox.SelectedItem is not ComboBoxItem { Tag: string ch } || ch == _vm.Settings.UpdateChannel) return;
+        _vm.Settings.UpdateChannel = ch;
+        _vm.Settings.Save();
+        UpdateStatus.Text = T("updates_channel_restart");
+    }
+
+    private void RestartUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_vm.Updates.TryApplyAndRestart(_vm.SessionActive)) Warn(T("warn_update_session"));
     }
 
     // ================= helpers =================
 
+    private static string Short(string s, int n) => s.Length <= n ? s : s[..n] + "…";
     private void Warn(string message) => MessageBox.Show(this, message, Branding.ProductName, MessageBoxButton.OK, MessageBoxImage.Information);
     private bool Confirm(string message) => MessageBox.Show(this, message, Branding.ProductName, MessageBoxButton.OKCancel, MessageBoxImage.Question) == MessageBoxResult.OK;
     private void Header_MouseDown(object sender, MouseButtonEventArgs e)
@@ -862,7 +1138,7 @@ public partial class HomeWindow : Window
         var max = WindowState == WindowState.Maximized;
         HomeRoot.Margin = new Thickness(max ? 0 : 8);
         HomeRoot.CornerRadius = new CornerRadius(max ? 0 : 14);
-        MaxIcon.Text = max ? "\uE923" : "\uE922";
+        MaxIcon.Text = max ? "" : "";
     }
 
     private void SavePlacement()
@@ -874,5 +1150,5 @@ public partial class HomeWindow : Window
     }
 
     /// <summary>Notification inside Home (bottom-right).</summary>
-    public void Notify(string text, ToastKind kind = ToastKind.Success) => Toasts.Show(text, kind);
+    public void Notify(string text, ToastKind kind = ToastKind.Success, string? detail = null) => Toasts.Show(text, detail, kind);
 }

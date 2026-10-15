@@ -19,7 +19,12 @@ public sealed class UpdateService
     private DateTimeOffset? _lastCheck;
     private UpdateInfo? _pending;
 
+    /// <summary>English status (logs/self-test). The UI shows <see cref="StatusText"/> in the user's language.</summary>
     public string Status { get; private set; } = "";
+    private string _statusKey = "upd_none";
+    private object?[] _statusArgs = Array.Empty<object?>();
+    public string StatusText => Core.Languages.Loc.F(_statusKey, _statusArgs);
+    private void SetStatus(string english, string key, params object?[] args) { Status = english; _statusKey = key; _statusArgs = args; }
     public bool IsInstalled => _mgr?.IsInstalled == true;
     public bool UpdateReady => _pending != null;
     public string? PendingVersion => _pending?.TargetFullRelease.Version.ToString();
@@ -31,17 +36,17 @@ public sealed class UpdateService
     public UpdateService(AppSettings settings, string feedUrl)
     {
         _settings = settings;
-        if (string.IsNullOrWhiteSpace(feedUrl)) { Status = "Automatic updates are not enabled for this build."; return; }
-        if (!feedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) { Status = "Automatic updates are disabled: the update feed must use https."; return; }
+        if (string.IsNullOrWhiteSpace(feedUrl)) { SetStatus("Automatic updates are not enabled for this build.", "upd_not_enabled"); return; }
+        if (!feedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) { SetStatus("Automatic updates are disabled: the update feed must use https.", "upd_not_https"); return; }
         _signer = Environment.ProcessPath is { } exe ? Authenticode.TrustedSigner(exe) : null;
         if (_signer == null)
         {
-            Status = "Automatic updates are disabled: this build is not code-signed.";
+            SetStatus("Automatic updates are disabled: this build is not code-signed.", "upd_unsigned");
             AppLog.Info("Updates disabled: running executable has no valid Authenticode signature");
             return;
         }
         _mgr = Create(feedUrl, Channel);
-        if (!_mgr.IsInstalled) Status = "Updates apply to installed copies only (this copy runs from a folder).";
+        if (!_mgr.IsInstalled) SetStatus("Updates apply to installed copies only (this copy runs from a folder).", "upd_portable");
     }
 
     /// <summary>The downloaded package must be signed by the same publisher as the running app.</summary>
@@ -81,17 +86,17 @@ public sealed class UpdateService
         try
         {
             var info = await _mgr.CheckForUpdatesAsync();
-            if (info == null) { Status = $"Up to date ({_mgr.CurrentVersion}, {Channel})."; Changed?.Invoke(); return; }
+            if (info == null) { SetStatus($"Up to date ({_mgr.CurrentVersion}, {Channel}).", "upd_up_to_date", _mgr.CurrentVersion?.ToString()); Changed?.Invoke(); return; }
             await _mgr.DownloadUpdatesAsync(info);
-            if (!PackageTrusted(info)) { Status = "An update was found but its signature could not be verified; it was not installed."; Changed?.Invoke(); return; }
+            if (!PackageTrusted(info)) { SetStatus("An update was found but its signature could not be verified; it was not installed.", "upd_untrusted"); Changed?.Invoke(); return; }
             _pending = info;
-            Status = $"Version {PendingVersion} is ready — it installs when you close the app.";
+            SetStatus($"Version {PendingVersion} is ready — it installs when you close the app.", "upd_ready", PendingVersion);
             AppLog.Info("Update downloaded: " + PendingVersion);
             Changed?.Invoke();
         }
         catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException or TaskCanceledException)
         {
-            Status = "Update check failed; will retry later.";
+            SetStatus("Update check failed; will retry later.", "upd_failed");
             AppLog.Warn("Update check failed: " + ex.GetType().Name);
         }
     }
