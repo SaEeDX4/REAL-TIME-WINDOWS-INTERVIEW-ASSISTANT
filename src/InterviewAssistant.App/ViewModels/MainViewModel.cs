@@ -964,7 +964,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         StatusBrush = (Brush)res[brush];
         StatusPulse = pulse;
         // Engine detail (e.g. which device to check) wins; otherwise a calm explanation of the state.
-        StatusDetail = detail ?? sub;
+        StatusDetail = Loc.Relocalize(detail) ?? sub;   // engine messages re-rendered in the current UI language
         if (s == EngineStatus.ApiError && _engine != null && _engine.IsListening == false) IsListening = false;
     }
 
