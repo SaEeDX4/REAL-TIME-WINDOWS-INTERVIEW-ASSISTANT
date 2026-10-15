@@ -746,8 +746,9 @@ public partial class HomeWindow : Window
     {
         var r = SelectedReport(out var s);
         if (r == null || s == null) return;
-        var path = Path.Combine(AppPaths.Sessions, $"report-{s.Id[..8]}.html");
-        File.WriteAllText(path, HtmlReportRenderer.Render(r, Branding.ProductName));
+        if (_vm.Workspace == null) return;
+        // Viewer copy in this account's private folder (not Documents); removed when the workspace closes.
+        var path = _vm.Workspace.WriteViewerCopy(s.Id, HtmlReportRenderer.Render(r, Branding.ProductName));
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
     }
 
@@ -774,6 +775,7 @@ public partial class HomeWindow : Window
         if ((ReportList.SelectedItem as Item<StoredSession>)?.Value is not { } s || Store == null) return;
         if (!Confirm(T("confirm_delete_report"))) return;
         Store.DeleteSession(s.Id);
+        _vm.Workspace?.DeleteViewerCopy(s.Id);
         RefreshReports();
         Notify(T("toast_report_deleted"), ToastKind.Info);
     }
@@ -1081,8 +1083,19 @@ public partial class HomeWindow : Window
         {
             if (_vm.SessionActive) await _vm.StopAsync();
             await _vm.Cloud.Api.DeleteAccountAsync(CancellationToken.None);
+            var localRoot = _vm.Workspace?.Store.Root;
+            var viewer = _vm.Workspace?.ViewerDir;
             await _vm.SignOutAsync();
             AccountInfo.Text = T("acct_deleted");
+            // The service data is gone; this PC's copy of the account's profiles, interviews and reports is the
+            // user's to keep or remove.
+            if (localRoot != null && Confirm(T("confirm_delete_local_data")))
+            {
+                foreach (var dir in new[] { localRoot, viewer })
+                    try { if (dir != null && Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { AppLog.Error("Local data removal failed", ex); }
+                Notify(T("toast_local_data_deleted"), ToastKind.Info);
+            }
         }
         catch (BackendException ex) { AccountError.Text = CloudService.Describe(ex); }
         RefreshAll();
