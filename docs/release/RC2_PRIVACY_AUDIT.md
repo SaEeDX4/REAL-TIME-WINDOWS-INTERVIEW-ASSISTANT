@@ -1,4 +1,4 @@
-# 2.1.0-rc.2 / 2.1.0-rc.3 — privacy audit
+# 2.1.0-rc.2 / rc.3 / rc.4 — privacy audit
 
 ## What is stored where (after RC2)
 
@@ -54,3 +54,16 @@ never presented as experience (truth boundary in `ProfileService.ToEngineProfile
   interest) and must be disclosed in the privacy policy (legal text outside this repository).
 * **Payment records** (`billing_transactions`) keep Paddle transaction/subscription ids, origin, billing period and
   a paid/unpaid flag — no amounts, card or address data. They are retained for refund/chargeback handling.
+
+## rc.4
+
+Re-reviewed for 2.1.0-rc.4: no new data leaves the PC, no new server-side storage, no new third party.
+
+- **Acoustic provenance per heard question** (`HeardEvidence`): frame counts, durations in milliseconds, pitch-pair
+  counts and the support label. It is not audio, cannot reproduce speech and contains no voice characteristics
+  usable to identify a person (no spectra, no pitch values, no embeddings). It stays in the local DPAPI workspace
+  with the session and the report. **No biometric voiceprints** are computed or stored; panel handling relies on
+  names in the text, not on speaker recognition.
+- Logs: the engine logs verdict kinds, reasons and sizes (never transcript text); account errors log codes and
+  correlation ids (never request bodies, tokens or profile content).
+- Password reset no longer reveals whether an e-mail address has an account.

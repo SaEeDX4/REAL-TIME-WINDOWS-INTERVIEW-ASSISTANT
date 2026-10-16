@@ -1,4 +1,4 @@
-# 2.1.0-rc.2 / 2.1.0-rc.3 — security audit
+# 2.1.0-rc.2 / rc.3 / rc.4 — security audit
 
 RC2 findings below; **rc.3 additions** (relay, identity deletion, refunds/chargebacks, review of those changes) in
 the section "rc.3" at the end.
@@ -75,3 +75,18 @@ Supabase redirect allow-list, secure password change, anonymous sign-ins, e-mail
 
 Independent review of the rc.3 changes (11 findings, all fixed): see "rc.3 self-review" in
 [RC3_LAUNCH_BLOCKERS.md](RC3_LAUNCH_BLOCKERS.md).
+
+## rc.4
+
+Re-reviewed for 2.1.0-rc.4. **No backend, contract, migration or authentication-flow change on the server.** Client
+changes with a security angle:
+
+| # | Area | Change | Review |
+|---|---|---|---|
+| S24 | Account enumeration | Password reset shows one neutral sentence for any address; "user not found" responses (`user_not_found`, `email_not_found`, `identity_not_found`, HTTP 404) are treated as accepted; rate limits and network errors still surface | `CloudAuthTests`: same message and outcome for known and unknown e-mail across three "not found" shapes |
+| S25 | Error copy | Inline section errors never show correlation ids or raw server messages (5xx shows "temporarily unavailable"); ids go to the log only | `ErrorStateTests` |
+| S26 | Prompt injection / leakage | Unchanged guards (LeakGuard, prompt-internals filter) still apply to every streamed bullet; the new personal-grounding check runs after them and can only remove text | existing prompt-injection tests pass |
+| S27 | Local data | New per-question acoustic provenance contains only counts and durations (no audio, no voice features usable for identification); stored in the same DPAPI-encrypted workspace | `Rc4ReportDefenseTests` (JSON round trip) |
+
+Secret scan (`check-release.ps1`) passes; no secrets added. Paddle remains in **sandbox**. The minimum client version
+was not raised (rc.3 clients keep working).

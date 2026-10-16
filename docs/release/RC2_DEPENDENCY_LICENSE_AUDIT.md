@@ -1,4 +1,4 @@
-# 2.1.0-rc.2 / 2.1.0-rc.3 — dependency & license audit
+# 2.1.0-rc.2 / rc.3 / rc.4 — dependency & license audit
 
 rc.3: no new shipped dependencies (the relay uses only ASP.NET Core and System.Net.WebSockets on the backend). The
 test-only audio fixtures are generated in the repository and dedicated to the public domain (CC0); they are not
@@ -103,3 +103,10 @@ Velopack (install hooks and updates) are each used by production code paths (`Au
 
 `RC2_COMMERCIALIZATION_READINESS.md` "Dependency licenses": full license texts and the .NET runtime notices now ship
 with the package; remaining items are the verify list above (none blocks redistribution under the licenses as found).
+
+## rc.4
+
+Re-reviewed for 2.1.0-rc.4: **no package added, removed or upgraded** (only the app version changed in the project
+files). New test-only assets: 16 additional generated audio fixtures in `tests/fixtures/audio/` (CC0, produced by
+`scripts/generate-audio-fixtures.py` from eSpeak NG output and first-principles synthesis; not shipped). The shipped
+`licenses/` folder and `THIRD_PARTY_NOTICES.md` are unchanged.
