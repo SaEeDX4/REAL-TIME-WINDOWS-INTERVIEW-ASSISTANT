@@ -55,7 +55,8 @@ public sealed class BackendClient
     // ---- account ----
     public Task<AccountDto> MeAsync(CancellationToken ct) => Send<AccountDto>(HttpMethod.Get, "me", null, ct);
     public Task<JsonElement> ExportAsync(CancellationToken ct) => Send<JsonElement>(HttpMethod.Get, "me/export", null, ct);
-    public Task DeleteAccountAsync(CancellationToken ct) => Send<JsonElement?>(HttpMethod.Delete, "me", null, ct);
+    /// <summary>Deletes the account, its data and its sign-in identity (null if an older service answered without details).</summary>
+    public Task<DeleteAccountResponse?> DeleteAccountAsync(CancellationToken ct) => Send<DeleteAccountResponse?>(HttpMethod.Delete, "me", null, ct);
     public Task<UrlResponse> CheckoutAsync(string planCode, CancellationToken ct) => Send<UrlResponse>(HttpMethod.Post, "billing/checkout", new CheckoutRequest(planCode), ct);
     public Task<UrlResponse> PortalAsync(CancellationToken ct) => Send<UrlResponse>(HttpMethod.Post, "billing/portal", null, ct);
 

@@ -12,6 +12,7 @@ public sealed class AppDbContext : DbContext
     public DbSet<InterviewSession> Sessions => Set<InterviewSession>();
     public DbSet<UsageEntry> Usage => Set<UsageEntry>();
     public DbSet<WebhookEvent> WebhookEvents => Set<WebhookEvent>();
+    public DbSet<BillingAdjustment> BillingAdjustments => Set<BillingAdjustment>();
     public DbSet<UserDocument> Documents => Set<UserDocument>();
     public DbSet<PreparationJob> PreparationJobs => Set<PreparationJob>();
     public DbSet<ConfigEntry> Config => Set<ConfigEntry>();
@@ -63,6 +64,14 @@ public sealed class AppDbContext : DbContext
         {
             e.ToTable("webhook_events"); e.HasKey(x => x.EventId); e.Property(x => x.EventId).HasMaxLength(100);
             e.Property(x => x.EventType).HasMaxLength(64); e.Property(x => x.Provider).HasMaxLength(32); e.HasIndex(x => x.ReceivedUtc);
+        });
+        b.Entity<BillingAdjustment>(e =>
+        {
+            e.ToTable("billing_adjustments"); e.HasKey(x => x.Id); e.Property(x => x.Id).HasMaxLength(100);
+            e.Property(x => x.ProviderSubscriptionId).HasMaxLength(100); e.Property(x => x.ProviderCustomerId).HasMaxLength(100);
+            e.Property(x => x.TransactionId).HasMaxLength(100); e.Property(x => x.Action).HasMaxLength(32);
+            e.Property(x => x.Type).HasMaxLength(16); e.Property(x => x.Status).HasMaxLength(32);
+            e.HasIndex(x => x.ProviderSubscriptionId); e.HasIndex(x => x.TransactionId);
         });
         b.Entity<UserDocument>(e =>
         {

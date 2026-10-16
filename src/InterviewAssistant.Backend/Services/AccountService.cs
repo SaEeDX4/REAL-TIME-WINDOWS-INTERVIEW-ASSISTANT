@@ -88,7 +88,9 @@ public sealed class AccountService
 {
     private readonly AppDbContext _db;
     private readonly TimeProvider _time;
-    public AccountService(AppDbContext db, TimeProvider time) { _db = db; _time = time; }
+    private readonly IdentityDeletionService _identity;
+    private readonly RealtimeRelayRegistry _relays;
+    public AccountService(AppDbContext db, TimeProvider time, IdentityDeletionService identity, RealtimeRelayRegistry relays) { _db = db; _time = time; _identity = identity; _relays = relays; }
 
     /// <summary>GDPR-style export: account, subscription state, devices, documents, usage (JSON).</summary>
     public async Task<object> ExportAsync(UserAccount u, CancellationToken ct) => new
@@ -108,15 +110,18 @@ public sealed class AccountService
     /// live-session operations, so a concurrent heartbeat cannot re-insert usage and a failure leaves nothing half-deleted.
     /// A subscription that can still charge or resume (active without scheduled cancellation, trialing, past_due, paused)
     /// blocks deletion. Retained: the tombstone (id + timestamps), audit entries, webhook receipts (hashes only) and
-    /// billing records held by Paddle as merchant of record. The sign-in identity lives in the auth provider.
+    /// billing records held by Paddle as merchant of record. After the commit the sign-in identity (e-mail, password,
+    /// linked OAuth identities) is deleted from the auth provider; if that fails or is not configured yet, the deletion
+    /// is queued and the sweeper completes it automatically.
     /// </summary>
-    public async Task DeleteAsync(UserAccount u, CancellationToken ct)
+    public async Task<DeleteAccountResponse> DeleteAsync(UserAccount u, CancellationToken ct)
     {
         await using var tx = await _db.Database.BeginTransactionAsync(ct);
         await _db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock({BitConverter.ToInt64(u.Id.ToByteArray(), 0)})", ct);
         var blocking = await _db.Subscriptions.AnyAsync(s => s.UserId == u.Id &&
             ((s.Status == "active" && !s.CancelAtPeriodEnd) || s.Status == "trialing" || s.Status == "past_due" || s.Status == "paused"), ct);
         if (blocking) throw ApiException.Conflict("subscription_active", "Cancel your subscription in the billing portal before deleting the account.");
+        var live = await _db.Sessions.Where(x => x.UserId == u.Id && x.Status == "active").Select(x => x.Id).ToListAsync(ct);
         await _db.Documents.Where(x => x.UserId == u.Id).ExecuteDeleteAsync(ct);
         await _db.Sessions.Where(x => x.UserId == u.Id).ExecuteDeleteAsync(ct);
         await _db.Devices.Where(x => x.UserId == u.Id).ExecuteDeleteAsync(ct);
@@ -124,8 +129,12 @@ public sealed class AccountService
         await _db.PreparationJobs.Where(x => x.UserId == u.Id).ExecuteDeleteAsync(ct);
         await _db.Subscriptions.Where(x => x.UserId == u.Id).ExecuteDeleteAsync(ct);
         u.Status = "deleted"; u.Email = ""; u.PrivacyJson = "{}"; u.FeatureFlagsJson = "{}"; u.UpdatedUtc = _time.GetUtcNow().UtcDateTime;
+        u.IdentityDeletionPendingSinceUtc = u.UpdatedUtc;
         _db.Audit.Add(new AuditEntry { ActorUserId = u.Id, SubjectUserId = u.Id, Action = "account_deleted", AtUtc = u.UpdatedUtc });
         await _db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
+        foreach (var id in live) _relays.Close(id);
+        var identity = await _identity.CompleteAsync(u, ct);
+        return new DeleteAccountResponse(identity == IdentityDeletion.Deleted ? "deleted" : "pending");
     }
 }

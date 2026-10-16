@@ -9,6 +9,10 @@ public sealed class UserAccount
     public string FeatureFlagsJson { get; set; } = "{}";
     public DateTime CreatedUtc { get; set; }
     public DateTime UpdatedUtc { get; set; }
+    /// <summary>Set when the account is deleted and its sign-in identity still has to be removed from the auth provider.</summary>
+    public DateTime? IdentityDeletionPendingSinceUtc { get; set; }
+    public DateTime? IdentityDeletedUtc { get; set; }
+    public int IdentityDeletionAttempts { get; set; }
 }
 
 public sealed class Subscription
@@ -25,6 +29,29 @@ public sealed class Subscription
     public bool CancelAtPeriodEnd { get; set; }
     public DateTime? GraceUntilUtc { get; set; }
     public DateTime? LastEventOccurredUtc { get; set; } // ordering guard for out-of-order webhooks
+    /// <summary>The latest completed payment (transaction) of this subscription and when it was billed.</summary>
+    public string? CurrentTransactionId { get; set; }
+    public DateTime? CurrentTransactionBilledUtc { get; set; }
+    /// <summary>
+    /// Paid access withdrawn because the current payment was fully refunded or charged back (derived from
+    /// <see cref="BillingAdjustment"/> rows; cleared by a newer payment or a reversed chargeback).
+    /// </summary>
+    public DateTime? AccessRevokedUtc { get; set; }
+    public string? RevocationReason { get; set; }       // refund | chargeback
+    public DateTime UpdatedUtc { get; set; }
+}
+
+/// <summary>A Paddle adjustment (refund, credit, chargeback, chargeback reversal), latest known state per adjustment id.</summary>
+public sealed class BillingAdjustment
+{
+    public string Id { get; set; } = "";                 // adj_…
+    public string? ProviderSubscriptionId { get; set; }
+    public string? ProviderCustomerId { get; set; }
+    public string TransactionId { get; set; } = "";
+    public string Action { get; set; } = "";             // refund | credit | chargeback | chargeback_reverse | chargeback_warning | credit_reverse
+    public string Type { get; set; } = "";               // full | partial
+    public string Status { get; set; } = "";             // pending_approval | approved | rejected | reversed
+    public DateTime OccurredUtc { get; set; }            // of the event that produced this state (ordering guard)
     public DateTime UpdatedUtc { get; set; }
 }
 

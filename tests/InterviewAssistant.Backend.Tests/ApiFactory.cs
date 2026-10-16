@@ -35,6 +35,9 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public StubHandler OpenAi { get; } = new();
     public StubHandler Paddle { get; } = new();
     public FakeRealtimeUpstream Upstream { get; } = new();
+    /// <summary>The auth provider's admin API (sign-in identity deletion).</summary>
+    public StubHandler Supabase { get; } = new() { Respond = _ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}") } };
+    public const string ServiceRoleKey = "sb_secret_test_service_role_key"; // fake-credential: test fixture
 
     public static string PgHost => Environment.GetEnvironmentVariable("IA_TEST_PG") ?? "Host=localhost;Username=ia_test;Password=ia_test";
     private string ConnectionString => $"{PgHost};Database={Database}";
@@ -57,6 +60,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         b.UseSetting("Product:PublicBaseUrl", "https://api.example.test");
         b.UseSetting("Product:PrivacyPolicyUrl", "https://example.test/privacy");
         b.UseSetting("Relay:LeaseCheckSeconds", "1");
+        b.UseSetting("Auth:ServiceRoleKey", ServiceRoleKey);
         b.ConfigureTestServices(s =>
         {
             s.AddSingleton<TimeProvider>(Time);
@@ -65,6 +69,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             s.AddHttpClient<IRealtimeSecretIssuer, OpenAiRealtimeSecretIssuer>("openai-secrets").ConfigurePrimaryHttpMessageHandler(() => OpenAi);
             s.AddHttpClient<IBillingProvider, PaddleBillingProvider>("paddle").ConfigurePrimaryHttpMessageHandler(() => Paddle);
             s.AddSingleton<IRealtimeUpstreamConnector>(Upstream);
+            s.AddHttpClient<IIdentityAdmin, SupabaseIdentityAdmin>("supabase-admin").ConfigurePrimaryHttpMessageHandler(() => Supabase);
         });
         Customize(b);
     }

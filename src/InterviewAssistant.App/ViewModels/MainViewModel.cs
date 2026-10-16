@@ -181,6 +181,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         Contracts.BillingStates.PastDue => Loc.F("bill_payment_problem", a.Entitlements.PlanName),
         Contracts.BillingStates.Paused => Loc.T("bill_paused"),
         Contracts.BillingStates.Expired => Loc.T("bill_ended"),
+        Contracts.BillingStates.Revoked => Loc.T("bill_revoked"),
         _ => a.Entitlements.PlanName,
     };
 
@@ -189,7 +190,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     {
         CloudState.ServiceUnavailable => Loc.T("banner_offline"),
         CloudState.UpdateRequired or CloudState.AccountDisabled or CloudState.SessionExpired or CloudState.NotConfigured => Loc.Relocalize(Cloud.Message) ?? AccountLabel,
-        CloudState.SignedIn when Cloud.Account?.BillingState is Contracts.BillingStates.TrialExhausted or Contracts.BillingStates.Expired or Contracts.BillingStates.Paused =>
+        CloudState.SignedIn when Cloud.Account?.BillingState is Contracts.BillingStates.TrialExhausted or Contracts.BillingStates.Expired or Contracts.BillingStates.Paused or Contracts.BillingStates.Revoked =>
             Loc.F("banner_upgrade", BillingLabel(Cloud.Account!)),
         _ => "",
     };

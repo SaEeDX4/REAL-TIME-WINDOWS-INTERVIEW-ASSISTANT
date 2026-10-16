@@ -73,6 +73,8 @@ builder.Services.AddScoped<ConfigService>();
 builder.Services.AddScoped<DocumentService>();
 builder.Services.AddScoped<AccountService>();
 builder.Services.AddScoped<BillingWebhookProcessor>();
+builder.Services.AddHttpClient<IIdentityAdmin, SupabaseIdentityAdmin>("supabase-admin", c => c.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddScoped<IdentityDeletionService>();
 builder.Services.Configure<RelayOptions>(cfg.GetSection("Relay"));
 builder.Services.AddSingleton<RealtimeRelayRegistry>();
 builder.Services.AddSingleton<IRealtimeUpstreamConnector, OpenAiRealtimeUpstreamConnector>();
@@ -183,6 +185,8 @@ await app.Services.GetRequiredService<JwksProvider>().RefreshAsync(CancellationT
     var a = app.Services.GetRequiredService<IOptions<AuthOptions>>().Value;
     var p = app.Services.GetRequiredService<IOptions<PaddleOptions>>().Value;
     var plans = app.Services.GetRequiredService<IOptions<PlanCatalog>>().Value;
+    if (a.ServiceRoleKey.Length == 0)
+        startupLog.LogWarning("Auth__ServiceRoleKey is not set: deleted accounts keep their sign-in identity until it is configured (deletions are queued and then completed automatically)");
     startupLog.LogInformation("Starting in {Environment}: auth {AuthMode} (desktop sign-in {SignIn}), billing {Billing} (checkout page {Checkout}), plans {Plans}",
         app.Environment.EnvironmentName, a.JwksUrl.Length > 0 ? "JWKS" : "HS256", a.PublishableKey.Length > 0 ? "configured" : "NOT CONFIGURED (set Auth__PublishableKey)",
         p.Environment, p.ClientToken.Length > 0 ? "configured" : "NOT CONFIGURED (set Paddle__ClientToken)", string.Join(", ", plans.Plans.Select(x => x.Code)));

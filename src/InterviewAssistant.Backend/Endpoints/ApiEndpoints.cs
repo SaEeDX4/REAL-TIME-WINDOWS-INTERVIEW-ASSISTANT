@@ -61,8 +61,7 @@ public static class ApiEndpoints
         authed.MapDelete("/me", async (HttpContext http, AccountService acc, TimeProvider time, CancellationToken ct) =>
         {
             UserService.RequireRecentAuthentication(http.User, time.GetUtcNow(), RecentAuthWindow);
-            await acc.DeleteAsync((await Resolve(http)).User, ct);
-            return Results.NoContent();
+            return Results.Ok(await acc.DeleteAsync((await Resolve(http)).User, ct));
         });
 
         // ---------------- devices ----------------
@@ -270,10 +269,13 @@ public static class AdminEndpoints
             cache.Remove("cfg");
             return Results.Ok(await c.GetAsync(ct));
         });
-        admin.MapGet("/health", async (AppDbContext db, CancellationToken ct) => Results.Ok(new
+        admin.MapGet("/health", async (AppDbContext db, IIdentityAdmin identity, IdentityDeletionService deletions, RealtimeRelayRegistry relays, CancellationToken ct) => Results.Ok(new
         {
             db = await db.Database.CanConnectAsync(ct),
             activeSessions = await db.Sessions.CountAsync(s => s.Status == "active", ct),
+            liveRelays = relays.ActiveCount,
+            identityDeletionConfigured = identity.Configured,
+            identityDeletionsPending = await deletions.PendingCountAsync(ct),
             failedWebhooks24h = await db.WebhookEvents.CountAsync(w => w.Status == "failed" && w.ReceivedUtc > DateTime.UtcNow.AddDays(-1), ct),
         }));
     }

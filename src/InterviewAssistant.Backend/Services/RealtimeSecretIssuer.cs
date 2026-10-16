@@ -15,8 +15,8 @@ public interface IRealtimeSecretIssuer
 
 /// <summary>
 /// Mints short-lived OpenAI Realtime client secrets (POST /v1/realtime/client_secrets) with the session configuration
-/// baked in. The permanent API key never leaves the server; the desktop connects to OpenAI directly with the ephemeral
-/// secret (lowest latency) and must renew it through an active lease.
+/// baked in. Neither the permanent API key nor the ephemeral secret leaves the server: the secret is used only by the
+/// live transcription relay (<see cref="RealtimeRelay"/>) for one upstream connection of an active lease.
 /// </summary>
 public sealed class OpenAiRealtimeSecretIssuer : IRealtimeSecretIssuer
 {

@@ -54,6 +54,55 @@ namespace InterviewAssistant.Backend.Data.Migrations
                     b.ToTable("audit_log", (string)null);
                 });
 
+            modelBuilder.Entity("InterviewAssistant.Backend.Data.BillingAdjustment", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("OccurredUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProviderCustomerId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ProviderSubscriptionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("TransactionId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProviderSubscriptionId");
+
+                    b.HasIndex("TransactionId");
+
+                    b.ToTable("billing_adjustments", (string)null);
+                });
+
             modelBuilder.Entity("InterviewAssistant.Backend.Data.ConfigEntry", b =>
                 {
                     b.Property<string>("Key")
@@ -210,6 +259,9 @@ namespace InterviewAssistant.Backend.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("AccessRevokedUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("CancelAtPeriodEnd")
                         .HasColumnType("boolean");
 
@@ -218,6 +270,12 @@ namespace InterviewAssistant.Backend.Data.Migrations
 
                     b.Property<DateTime?>("CurrentPeriodStartUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("CurrentTransactionBilledUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CurrentTransactionId")
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("GraceUntilUtc")
                         .HasColumnType("timestamp with time zone");
@@ -242,6 +300,9 @@ namespace InterviewAssistant.Backend.Data.Migrations
                     b.Property<string>("ProviderSubscriptionId")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("RevocationReason")
+                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -325,6 +386,15 @@ namespace InterviewAssistant.Backend.Data.Migrations
                     b.Property<string>("FeatureFlagsJson")
                         .IsRequired()
                         .HasColumnType("jsonb");
+
+                    b.Property<DateTime?>("IdentityDeletedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("IdentityDeletionAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("IdentityDeletionPendingSinceUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PrivacyJson")
                         .IsRequired()

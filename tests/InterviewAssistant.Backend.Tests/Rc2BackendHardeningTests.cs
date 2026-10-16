@@ -183,7 +183,7 @@ public class Rc2BackendHardeningTests : IClassFixture<ApiFactory>
 
         var fresh = ClientWithAuthAt(id, _f.Time.GetUtcNow().AddMinutes(-1)); // just re-entered the password
         (await fresh.GetAsync("/api/v1/me/export")).EnsureSuccessStatusCode();
-        Assert.Equal(HttpStatusCode.NoContent, (await fresh.DeleteAsync("/api/v1/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await fresh.DeleteAsync("/api/v1/me")).StatusCode);
     }
 
     [Fact]

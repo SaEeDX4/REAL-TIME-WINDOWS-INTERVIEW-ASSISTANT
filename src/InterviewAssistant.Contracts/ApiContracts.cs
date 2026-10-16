@@ -16,7 +16,9 @@ public sealed record Entitlements(
 public static class BillingStates
 {
     public const string Trial = "trial", TrialExhausted = "trial_exhausted", Active = "active", Canceling = "canceling",
-        PastDue = "past_due", Paused = "paused", Expired = "expired";
+        PastDue = "past_due", Paused = "paused", Expired = "expired",
+        /// <summary>The payment for the current period was refunded or charged back: paid access ended.</summary>
+        Revoked = "revoked";
 }
 
 /// <summary>
@@ -30,6 +32,9 @@ public sealed record AccountDto(Guid UserId, string Email, string Status, Entitl
     SubscriptionDto? Subscription, DateTime CreatedUtc, string BillingState);
 
 public sealed record SubscriptionDto(string PlanCode, string Status, DateTime? CurrentPeriodEndUtc, bool CancelAtPeriodEnd, DateTime? GraceUntilUtc);
+
+/// <param name="Identity">"deleted": the sign-in identity was removed too; "pending": it is queued and removed automatically.</param>
+public sealed record DeleteAccountResponse(string Identity);
 
 public sealed record RegisterDeviceRequest(string InstallationId, string Name, string Platform, string ClientVersion);
 public sealed record DeviceDto(Guid Id, string Name, string Platform, string ClientVersion, DateTime LastSeenUtc, bool Revoked, bool IsCurrent);

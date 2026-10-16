@@ -33,10 +33,10 @@ public sealed class EntitlementService
 
     public static bool CurrentPeriodValid(Subscription sub, DateTime now) => sub.CurrentPeriodEndUtc is not { } end || end + RenewalGrace > now;
 
-    public static bool PaidAccess(Subscription sub, DateTime now) =>
+    public static bool PaidAccess(Subscription sub, DateTime now) => sub.AccessRevokedUtc == null && (
         (sub.Status is "active" or "trialing" && CurrentPeriodValid(sub, now))
         || (sub.Status == "past_due" && sub.GraceUntilUtc > now)
-        || (sub.Status == "canceled" && sub.CancelAtPeriodEnd && sub.CurrentPeriodEndUtc > now);
+        || (sub.Status == "canceled" && sub.CancelAtPeriodEnd && sub.CurrentPeriodEndUtc > now));
 
     public async Task<(EffectivePlan Plan, Subscription? Sub)> ResolveAsync(UserAccount user, CancellationToken ct)
     {
@@ -60,6 +60,7 @@ public sealed class EntitlementService
     {
         if (sub != null && !string.IsNullOrEmpty(sub.Status) && sub.Status != "none")
         {
+            if (sub.AccessRevokedUtc != null) return BillingStates.Revoked;
             if (sub.Status is "active" or "trialing")
                 return !CurrentPeriodValid(sub, now) ? BillingStates.Expired : sub.CancelAtPeriodEnd ? BillingStates.Canceling : BillingStates.Active;
             if (sub.Status == "past_due") return sub.GraceUntilUtc > now ? BillingStates.PastDue : BillingStates.Expired;

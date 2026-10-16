@@ -264,6 +264,11 @@ public sealed class SessionSweeper : BackgroundService
                 using var scope = _scopes.CreateScope();
                 var n = await scope.ServiceProvider.GetRequiredService<SessionService>().ExpireStaleAsync(ct);
                 if (n > 0) _log.LogInformation("Expired {Count} stale sessions", n);
+                if (tick % 10 == 0) // every 5 minutes: finish queued sign-in identity deletions
+                {
+                    var removed = await scope.ServiceProvider.GetRequiredService<IdentityDeletionService>().RetryPendingAsync(ct);
+                    if (removed > 0) _log.LogInformation("Removed {Count} queued sign-in identities", removed);
+                }
                 if (tick++ % 120 == 0) // hourly: enforce report retention
                 {
                     var purged = await scope.ServiceProvider.GetRequiredService<DocumentService>().PurgeExpiredReportsAsync(ct);

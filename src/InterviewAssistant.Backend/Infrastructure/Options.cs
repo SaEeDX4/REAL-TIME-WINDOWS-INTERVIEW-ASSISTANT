@@ -16,6 +16,12 @@ public sealed class AuthOptions
     /// <summary>OAuth providers enabled in Supabase that the desktop may offer (e.g. "google"). Empty = e-mail only.</summary>
     public List<string> OAuthProviders { get; set; } = new();
     public bool EmailPassword { get; set; } = true;
+    /// <summary>
+    /// Server-only Supabase secret key (sb_secret_… or the legacy service_role key) used solely to delete a user's sign-in
+    /// identity when they delete their account. Never sent to clients or logged. Without it, deletions are queued and
+    /// completed automatically once it is configured.
+    /// </summary>
+    public string ServiceRoleKey { get; set; } = "";
 
     public string EffectiveSupabaseUrl =>
         SupabaseUrl.Length > 0 ? SupabaseUrl.TrimEnd('/') : Issuer.EndsWith("/auth/v1", StringComparison.Ordinal) ? Issuer[..^"/auth/v1".Length] : "";

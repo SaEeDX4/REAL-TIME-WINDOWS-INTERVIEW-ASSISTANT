@@ -434,7 +434,7 @@
  "acct_password_reset_done": "Password changed. You are signed in.",
  "acct_password_changed": "Password changed.",
  "acct_password_not_changed": "Password not changed.",
- "acct_deleted": "Your account was deleted.",
+ "acct_deleted": "Your account and your sign-in were deleted.",
  "toast_signed_in": "Signed in",
  "usage_minutes_used": "Live minutes used",
  "usage_minutes_used_value": "{0} of {1} min",
@@ -484,7 +484,7 @@
  "err_reauth_wrong_password": "The password is not correct.",
  "err_reauth_unavailable": "Sign in again to continue.",
  "toast_account_exported": "Account data exported",
- "confirm_delete_account": "Permanently delete your account and its data on the service (profiles, documents, interviews, usage, devices)? Cancel an active subscription in Manage billing first. Invoices stay with Paddle, our payment provider; to also remove your sign-in e-mail, contact support. You can choose next whether to delete the copy on this PC.",
+ "confirm_delete_account": "Permanently delete your account, its data on the service (profiles, documents, interviews, usage, devices) and your sign-in (e-mail address and password or linked Google/Microsoft/GitHub/Apple sign-in)? Cancel an active subscription in Manage billing first. Invoices stay with Paddle, our payment provider, as tax law requires. You can choose next whether to delete the copy on this PC.",
  "confirm_delete_local_data": "Also delete this account's profiles, interviews and reports stored on this PC?",
  "toast_local_data_deleted": "Data on this PC was deleted",
  "confirm_sign_out_session": "An interview is in progress. Sign out now? The interview is stopped and its report is saved first.",
@@ -737,5 +737,8 @@
  "rpt_thank_them": "Thank them for the conversation about {0} at {1}.",
  "rpt_reference_learned": "Reference what you learned about: {0}",
  "rpt_interruption": "after Q{0}: likely fast follow-up (confidence {1}, {2} s of ~{3} s)",
- "rpt_latency": "P50 {0} ms · P95 {1} ms (question → first suggestion)"
+ "rpt_latency": "P50 {0} ms · P95 {1} ms (question → first suggestion)",
+ "bill_revoked": "Pro ended — payment refunded",
+ "bill_notice_revoked": "The payment for this period was refunded or disputed, so Pro access has ended. Upgrade to continue with Pro.",
+ "acct_deleted_identity_pending": "Your account was deleted. Your sign-in will be removed automatically within a few minutes."
 }

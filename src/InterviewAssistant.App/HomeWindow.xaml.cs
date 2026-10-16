@@ -861,6 +861,7 @@ public partial class HomeWindow : Window
                 BillingStates.Canceling => F("bill_notice_canceling", a.Subscription?.CurrentPeriodEndUtc?.ToLocalTime().ToString("d", Loc.Culture)),
                 BillingStates.Paused => T("bill_notice_paused"),
                 BillingStates.Expired => T("bill_notice_expired"),
+                BillingStates.Revoked => T("bill_notice_revoked"),
                 BillingStates.TrialExhausted => T("bill_notice_trial_used"),
                 _ => "",
             };
@@ -1136,11 +1137,12 @@ public partial class HomeWindow : Window
         try
         {
             if (_vm.SessionActive) await _vm.StopAsync();
-            await _vm.Cloud.Api.DeleteAccountAsync(CancellationToken.None);
+            var deleted = await _vm.Cloud.Api.DeleteAccountAsync(CancellationToken.None);
             var localRoot = _vm.Workspace?.Store.Root;
             var viewer = _vm.Workspace?.ViewerDir;
             await _vm.SignOutAsync();
-            AccountInfo.Text = T("acct_deleted");
+            // The service removes the sign-in too; if the auth provider was unreachable it finishes that automatically.
+            AccountInfo.Text = T(deleted?.Identity == "pending" ? "acct_deleted_identity_pending" : "acct_deleted");
             // The service data is gone; this PC's copy of the account's profiles, interviews and reports is the
             // user's to keep or remove.
             if (localRoot != null && Confirm(T("confirm_delete_local_data")))
