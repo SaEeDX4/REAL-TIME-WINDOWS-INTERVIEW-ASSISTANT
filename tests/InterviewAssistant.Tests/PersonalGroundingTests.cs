@@ -58,6 +58,20 @@ public class PersonalGroundingTests
     }
 
     [Fact]
+    public async Task Engine_FactsInAnotherLanguage_AreNotComparedWordForWord()
+    {
+        // German facts, English answer: a word-by-word check would drop every translated bullet.
+        var s = new InterviewSimulator(Rc2EngineAcceptanceTests.WithPersonal(("hobby", "Wandern und Fotografie in den Bergen")),
+            options: new EngineOptions { AutoTick = false, UseFastCache = false });
+        s.P.Responder = _ => new[] { "MODE: VERIFIED\n", "• In my free time I enjoy hiking and photography in the mountains." };
+        await s.StartAsync();
+        await s.E.SubmitManualQuestionAsync(Q);
+        await s.SettleAsync();
+        var a = Assert.Single(s.E.History);
+        Assert.Equal(new[] { "In my free time I enjoy hiking and photography in the mountains." }, a.Bullets);
+    }
+
+    [Fact]
     public async Task Engine_KeepsAGroundedRephrasing_AndDropsOnlyTheEmbellishment()
     {
         var s = new InterviewSimulator(Rc2EngineAcceptanceTests.WithPersonal(("hobby", "Hiking and photography")),

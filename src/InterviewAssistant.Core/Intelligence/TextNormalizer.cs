@@ -92,6 +92,21 @@ public static class TextNormalizer
         return (double)inter / (a.Count + b.Count - inter);
     }
 
+    /// <summary>"?" in any script the recognizers write: ASCII, full-width (Chinese) and Arabic/Persian "؟".</summary>
+    public static bool IsQuestionMark(char c) => c is '?' or '？' or '؟';
+
+    /// <summary>The sentence ends with a question mark of any script (closing quotes and brackets ignored).</summary>
+    public static bool EndsWithQuestionMark(string text)
+    {
+        var t = text.TrimEnd(' ', '"', '\'', '”', '’', '»', ')', '」', '』');
+        return t.Length > 0 && IsQuestionMark(t[^1]);
+    }
+
+    public static int QuestionMarkCount(string text) => text.Count(IsQuestionMark);
+
+    /// <summary>True when every letter is Latin script (word counts and the English question rules apply).</summary>
+    public static bool IsLatinScript(string text) => text.All(c => !char.IsLetter(c) || c <= '\u024F' || c is >= '\u1E00' and <= '\u1EFF');
+
     public static int WordCount(string text) => Regex.Matches(text, @"[A-Za-z0-9’'\-]+").Count;
 
     public static string StripBullet(string line)

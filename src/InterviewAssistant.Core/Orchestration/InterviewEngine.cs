@@ -121,6 +121,9 @@ public sealed class InterviewEngine : IAsyncDisposable
     }
 
     public event Action<EngineStatus, string?>? StatusChanged;
+    /// <summary>The live transcription connection itself (connected / reconnecting / failed), independent of the status
+    /// line, which answers and other states overwrite.</summary>
+    public event Action<ConnectionStatus>? TranscriberConnectionChanged;
     public event Action<string>? LiveTranscriptChanged;
     public event Action<AnswerView>? AnswerStarted;          // new answer card (question visible immediately)
     public event Action<AnswerView, string>? BulletAdded;    // append-only
@@ -323,6 +326,7 @@ public sealed class InterviewEngine : IAsyncDisposable
                 break;
         }
         Log?.Invoke($"Transcriber: {s} {detail}");
+        TranscriberConnectionChanged?.Invoke(s);
     }
 
     // ---------------- question handling ----------------
@@ -372,7 +376,8 @@ public sealed class InterviewEngine : IAsyncDisposable
     /// <summary>
     /// Trust boundary for live partial transcripts (called on every partial delta): shown only when the sound heard for the
     /// current segment so far behaves like a voice that could have said the words, and the words are not the prompt or a
-    /// prompt-flavoured sentence over little speech. With no audio analysed (tests without capture) partials are shown.
+    /// prompt-flavoured sentence over little speech. Without analysed audio nothing can be trusted: the words appear when
+    /// the turn is final.
     /// </summary>
     private bool TrustPartial(string partial)
     {
@@ -853,6 +858,10 @@ public sealed class InterviewEngine : IAsyncDisposable
         @"\b(sk-[A-Za-z0-9_-]{12,}|pdl_[A-Za-z0-9_]{8,}|eyJ[A-Za-z0-9_-]{20,}\.|system prompt|my instructions (are|say)|TRUTH RULES|CANDIDATE EVIDENCE|INTERVIEWER CONTEXT|ANSWER PLAN|OUTPUT FORMAT|api[_ ]?key\s*[:=])",
         System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
 
+    /// <summary>Word-by-word grounding needs facts in the answer's language (German facts, English answer: prompt rule only).</summary>
+    private static bool FactsAreEnglish(IReadOnlyList<string> facts) =>
+        LanguageDetector.Detect(string.Join(". ", facts)).Code is "en" or "und";
+
     /// <summary>Validates one streamed bullet before display. Returns true when something was shown.</summary>
     private bool AcceptBullet(AnswerView view, BulletStreamParser parser, string bullet, AnswerStyle style)
     {
@@ -867,7 +876,7 @@ public sealed class InterviewEngine : IAsyncDisposable
             return false;
         }
         // Personal answers say only what the candidate confirmed: no added traits, feelings, benefits or links.
-        if (view.GroundingFacts != null && view.AnswerLanguage == "en")
+        if (view.GroundingFacts != null && view.AnswerLanguage == "en" && FactsAreEnglish(view.GroundingFacts))
         {
             var extra = PersonalGrounding.Unsupported(bullet, view.GroundingFacts, view.Question);
             if (extra.Count > 0)

@@ -39,3 +39,18 @@ the test that now guards it. rc.3 (`dc67e80`) artifacts are unchanged; rc.4 is a
 | Pre-interview "NOT READY" on warnings | Any warning failed the verdict; the audio check gave up before capture had started | Only failures block; warnings give "READY — WITH WARNINGS"; 3 s capture grace, passes on audio or a successful transcription test | `UiFoundationTests` |
 | No feedback on network loss | Connection state changes were silent | Debounced "Connection lost — reconnecting…" / "Connection restored" toasts (3 s threshold, ≤ 1 pair per 10 s, no "restored" without "lost") | `UiPagesTests` (fake clock) |
 | "résumé" in English UI | Mixed spelling | English UI and docs say "resume" | `UiFoundationTests` |
+
+## Found by the independent rc.4 code review (all fixed before packaging)
+
+| Defect | Root cause | Fix | Guard |
+|---|---|---|---|
+| Live questions in Chinese, Arabic and Persian were dropped silently (pre-existing, not an rc.4 regression) | Word counts only see Latin letters, and only an ASCII "?" counted; recognizers write "？" and "؟" | Question marks of every script; the one-word rule applies to Latin script only; Chinese sentences split on 。！？ | `NonLatinQuestionTests` (engine answers zh/ar/fa) |
+| "Connection restored" could appear while the relay was still down or had failed | Relay up/down was inferred from the status line, which "Answering" and errors overwrite | Driven by the transcriber's own connection events; a failed session closes the outage silently | `RelayConnectionToastTests` |
+| One mistyped address locked "Forgot password" for 15 minutes | Enumeration-safe reset waits for a link that never comes; the button stayed disabled | A request for another address replaces the pending one; the same address re-shows the notice | code review, manual check K |
+| A second quick reset request revealed that an account exists | Supabase's per-address e-mail limit only applies to existing accounts | Treated like "accepted"; the general request limit is still reported | `CloudAuthTests` |
+| Unsaved edits dropped without a word when the account changed by itself (session expired/revoked) | Workspace change cleared the editors | A warning toast says the edits were discarded (they cannot be saved to another account) | code review |
+| Developer builds: Settings "dirty" from first layout | Editable combo boxes receive their text when templated | Only typing with keyboard focus inside counts | code review |
+| A fast real talker's short question could be "Weak" and, with an interview word, rejected | No slack in the Strong/Weak boundary; "-es"/"-ed" endings over-counted | Same 2-syllable slack as the impossibility test; silent endings not counted | `SyllableEstimateTests` |
+| "Discard" for one editor then "Stay" for another discarded the first anyway | Decisions applied as they were asked | All decisions collected first, applied only if none is "Stay" | `NavigationGuardOrderTests` |
+| Interruptions measured at a doubtful question stayed in the report | Report filter did not cover interruptions | Excluded with the doubtful question | `Rc4ReportDefenseTests` |
+| German interview-profile facts with an English answer showed the raw German facts | Word-by-word grounding compared English bullets with German facts | Grounding check only when the facts are in the answer language | `PersonalGroundingTests` |

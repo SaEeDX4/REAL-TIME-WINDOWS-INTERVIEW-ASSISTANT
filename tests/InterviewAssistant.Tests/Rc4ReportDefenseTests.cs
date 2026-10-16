@@ -50,6 +50,17 @@ public class Rc4ReportDefenseTests
     }
 
     [Fact]
+    public void AnInterruptionMeasuredAtADoubtfulQuestion_IsNotReported()
+    {
+        var m = new SessionMemory();
+        m.Add(Heard("What would you do in your first ninety days?", RealQuestion, "PLANNING"));
+        m.Add(Heard("What is your experience with FinTech products?", AlertTone, "FINTECH"));
+        m.Interruptions.Add(new InterruptionEvent { AfterQuestionIndex = 1, Confidence = 0.8, ElapsedMs = 2000, ExpectedMs = 20000 });
+        var r = Build(m);
+        Assert.Empty(r.Interruptions);
+    }
+
+    [Fact]
     public void ContextHallucinationOverAShortVoice_IsListedAsSuch()
     {
         // A voice-like knock (360 ms voiced) cannot have said a 13-syllable interview question.

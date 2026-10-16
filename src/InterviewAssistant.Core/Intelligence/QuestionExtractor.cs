@@ -31,12 +31,12 @@ public static class QuestionExtractor
 {
     public const int MaxContextChars = 900, MaxSummaryChars = 220, MaxCoreWords = 80;
 
-    private static readonly Regex SentenceSplit = new(@"(?<=[.?!…])\s+(?=[\p{Lu}\p{Lo}""“'(\d])|(?<=[?])\s+|\s+[—–]\s+(?=[\p{L}])|;\s+", RegexOptions.Compiled);
+    private static readonly Regex SentenceSplit = new(@"(?<=[.?!…])\s+(?=[\p{Lu}\p{Lo}""“'(\d])|(?<=[?؟])\s+|(?<=[。！？])\s*(?=\S)|\s+[—–]\s+(?=[\p{L}])|;\s+", RegexOptions.Compiled);
     private static readonly Regex RestartCue = new(@"\b(sorry,? let me (rephrase|put (it|that) (differently|another way)|ask (it|that) differently)|let me rephrase|let me put (it|that) (differently|another way)|what i('m| am) (really )?asking is|in other words|to put it (differently|another way)|actually,? let me ask)\b[\s,:—-]*", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex Discourse = new(@"^((so|okay|ok|well|right|alright|now|then|anyway)[,.]?\s+)+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex ConstraintCue = new(@"\b(limited|limit|constraint|capacity|budget|deadline|quarter|weeks?|months?|only|can't|cannot|won't|must|regulat|complian|legal|risk|worried|concern|pressure|blocked|dependency|headcount|cost|small team|no (budget|team|data))\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex AskStart = new(@"\b(so,? )?(if you|what|how|why|which|would you|could you|can you|do you|tell me|walk me|talk me|describe|explain|give me)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex SubSplit = new(@"(?:,\s*|\s+)(?:and|also|plus)\s+(?=(?:how|what|which|why|when|who|would|could|can|do|did|where)\b)|(?<=\?)\s+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex SubSplit = new(@"(?:,\s*|\s+)(?:and|also|plus)\s+(?=(?:how|what|which|why|when|who|would|could|can|do|did|where)\b)|(?<=[?؟])\s+|(?<=？)\s*(?=\S)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     /// <summary>Splits a transcript into sentences (also on dashes/semicolons used as pauses by the recognizer).</summary>
     public static List<string> Sentences(string text)
@@ -70,7 +70,7 @@ public static class QuestionExtractor
         double confidence;
         if (lastQ >= 0)
         {
-            confidence = sentences[lastQ].EndsWith('?') ? 1.0 : 0.85;
+            confidence = TextNormalizer.EndsWithQuestionMark(sentences[lastQ]) ? 1.0 : 0.85;
             // Adjacent question sentences belong to the same ask ("What would you change first? And how would you measure it?").
             for (int i = lastQ - 1; i >= 0; i--)
             {

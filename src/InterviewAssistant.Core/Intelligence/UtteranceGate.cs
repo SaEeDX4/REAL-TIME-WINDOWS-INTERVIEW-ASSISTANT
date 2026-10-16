@@ -203,14 +203,14 @@ public sealed class UtteranceGate
     private static bool HasRealAskBeyondLogistics(string s)
     {
         var rest = Logistics.Replace(s, " ");
-        return TextNormalizer.WordCount(rest) >= 4 && (QuestionStart.IsMatch(rest.TrimStart(' ', ',', '.', '—', '-')) || Request.IsMatch(rest) || rest.Contains('?') && TextNormalizer.WordCount(rest) >= 4);
+        return TextNormalizer.WordCount(rest) >= 4 && (QuestionStart.IsMatch(rest.TrimStart(' ', ',', '.', '—', '-')) || Request.IsMatch(rest) || TextNormalizer.QuestionMarkCount(rest) > 0 && TextNormalizer.WordCount(rest) >= 4);
     }
 
     public static bool IsQuestionSentence(string s)
     {
         var t = s.Trim();
         if (t.Length == 0) return false;
-        if (t.EndsWith('?')) return true;
+        if (TextNormalizer.EndsWithQuestionMark(t)) return true;
         if (EllipticalFollowUp.IsMatch(t)) return true;
         if (Exclamative.IsMatch(t)) return false;   // "What a day." / "How interesting that is." are reactions, not asks
         return QuestionStart.IsMatch(t) && TextNormalizer.WordCount(t) >= 3 || Request.IsMatch(t) || ConditionalAsk.IsMatch(t);

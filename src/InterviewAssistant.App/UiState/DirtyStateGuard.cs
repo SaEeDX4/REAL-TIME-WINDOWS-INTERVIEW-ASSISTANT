@@ -138,21 +138,26 @@ public sealed class NavigationGuard
         _asking = true;
         try
         {
+            // Ask about every affected editor first; nothing is saved or discarded unless the user lets the action go
+            // ahead for all of them ("Stay" on the second must not leave the first already discarded).
+            var decisions = new List<(DirtyStateGuard Guard, LeaveDecision Decision)>();
             foreach (var g in affected)
             {
                 var decision = await _ask(g, reason);
-                switch (decision)
+                if (decision == LeaveDecision.Stay) return false;
+                decisions.Add((g, decision));
+            }
+            foreach (var (g, decision) in decisions)
+            {
+                if (decision == LeaveDecision.Save)
                 {
-                    case LeaveDecision.Stay:
-                        return false;
-                    case LeaveDecision.Save:
-                        if (g.Save == null || !g.Save()) return false;
-                        g.MarkClean();
-                        break;
-                    default:
-                        g.Discard?.Invoke();
-                        g.MarkClean();
-                        break;
+                    if (g.Save == null || !g.Save()) return false;
+                    g.MarkClean();
+                }
+                else
+                {
+                    g.Discard?.Invoke();
+                    g.MarkClean();
                 }
             }
             return true;

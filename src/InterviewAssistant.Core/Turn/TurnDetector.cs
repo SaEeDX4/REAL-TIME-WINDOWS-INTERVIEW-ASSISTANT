@@ -268,9 +268,9 @@ public sealed class TurnDetector
         var t = text.Trim();
         if (t.Length == 0) return DefaultMs;
         if (TrailingIncomplete.IsMatch(t)) return IncompleteMs;
-        if (AnnouncedMultiPart.IsMatch(t) && t.Count(c => c == '?') <= 1) return IncompleteMs;
-        var lastSentence = Regex.Split(t, @"(?<=[.?!])\s+").LastOrDefault() ?? t;
-        if (t.EndsWith('?')) return QuestionCompleteMs;
+        if (AnnouncedMultiPart.IsMatch(t) && TextNormalizer.QuestionMarkCount(t) <= 1) return IncompleteMs;
+        var lastSentence = Regex.Split(t, @"(?<=[.?!？؟])\s+|(?<=[。！？])").LastOrDefault(x => x.Length > 0) ?? t;
+        if (TextNormalizer.EndsWithQuestionMark(t)) return QuestionCompleteMs;
         if (QuestionStart.IsMatch(lastSentence) && t.EndsWith('.')) return (QuestionCompleteMs + DefaultMs) / 2;
         return DefaultMs;
     }
@@ -297,14 +297,15 @@ public sealed class TurnDetector
         var t = text.Trim();
         if (t.Length == 0) return true;
         if (Pleasantry.IsMatch(t)) return true;
-        if (TextNormalizer.WordCount(t) < 2)
+        // Word counts are only meaningful for Latin script: a whole Chinese, Arabic or Persian question counts as < 2 "words".
+        if (TextNormalizer.IsLatinScript(t) && TextNormalizer.WordCount(t) < 2)
         {
             // One word is a real follow-up when it is asked ("Metrics?", "Timeline?") or is an interrogative a recognizer
             // wrote with falling punctuation ("Why.", "How", "Really."); acknowledgements and fillers are not ("Okay?",
             // "Hm?", "Sorry?" — the last asks the interviewer to repeat, not the candidate to answer).
-            var word = t.TrimEnd('?', '.', '!', '…', ' ');
+            var word = t.TrimEnd('?', '？', '؟', '.', '!', '…', ' ');
             if (word.Length == 0 || Pleasantry.IsMatch(word) || Filler.IsMatch(word)) return true;
-            return !(t.EndsWith('?') || OneWordAsk.IsMatch(word));
+            return !(TextNormalizer.EndsWithQuestionMark(t) || OneWordAsk.IsMatch(word));
         }
         return false;
     }

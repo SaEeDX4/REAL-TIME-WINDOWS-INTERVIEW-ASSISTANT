@@ -104,3 +104,56 @@ public class ErrorStateTests
         }
     }
 }
+
+public class NavigationGuardOrderTests
+{
+    [Fact]
+    public async Task DiscardForTheFirstEditor_ThenStayForTheSecond_DiscardsNothing()
+    {
+        var answers = new Queue<LeaveDecision>(new[] { LeaveDecision.Discard, LeaveDecision.Stay });
+        var nav = new NavigationGuard((_, _) => Task.FromResult(answers.Dequeue()));
+        var profile = nav.Register(new DirtyStateGuard("profile"));
+        var interview = nav.Register(new DirtyStateGuard("interview"));
+        int discarded = 0;
+        profile.Discard = () => discarded++;
+        interview.Discard = () => discarded++;
+        profile.MarkDirty(); interview.MarkDirty();
+        Assert.False(await nav.CanProceedAsync(ChangeReason.SignOut));
+        Assert.Equal(0, discarded);
+        Assert.True(profile.IsDirty && interview.IsDirty);
+    }
+}
+
+public class RelayConnectionToastTests
+{
+    private static ConnectionToast Run(params InterviewAssistant.Core.Providers.ConnectionStatus[] events)
+    {
+        var now = DateTimeOffset.UnixEpoch;
+        var gate = new ConnectionToastGate(() => now);
+        bool up = true;
+        var last = ConnectionToast.None;
+        foreach (var e in events)
+        {
+            if (RelayConnection.Transition(up, e) is { } t) { up = t.Up; var r = gate.Report(up, t.Silent); if (r != ConnectionToast.None) last = r; }
+            now = now.AddSeconds(5);
+            var p = gate.Poll(); if (p != ConnectionToast.None) last = p;
+        }
+        return last;
+    }
+
+    [Fact]
+    public void ReconnectThenConnected_SaysRestored() =>
+        Assert.Equal(ConnectionToast.Restored, Run(InterviewAssistant.Core.Providers.ConnectionStatus.Reconnecting, InterviewAssistant.Core.Providers.ConnectionStatus.Connected));
+
+    [Fact]
+    public void ReconnectThenFailed_NeverSaysRestored() =>
+        Assert.Equal(ConnectionToast.Lost, Run(InterviewAssistant.Core.Providers.ConnectionStatus.Reconnecting, InterviewAssistant.Core.Providers.ConnectionStatus.Failed));
+
+    [Fact]
+    public void AnswerOrErrorStatusDuringTheOutage_DoesNotCountAsRestored()
+    {
+        // Only transcriber events move the state; the status line (Answering, ApiError) is not an input at all.
+        Assert.Null(RelayConnection.Transition(false, InterviewAssistant.Core.Providers.ConnectionStatus.Reconnecting));
+        Assert.Null(RelayConnection.Transition(true, InterviewAssistant.Core.Providers.ConnectionStatus.Connected));
+    }
+}

@@ -811,5 +811,6 @@
  "err_report_open": "Impossibile aprire il report. Usa «Salva come HTML…» e apri il file manualmente.",
  "err_report_copy": "Impossibile copiare il report. Un altro programma potrebbe usare gli appunti: riprova.",
  "err_report_save": "Impossibile salvare il report. Verifica che la cartella sia scrivibile e abbia spazio libero, poi riprova.",
- "err_report_delete": "Impossibile eliminare il report. Riprova."
+ "err_report_delete": "Impossibile eliminare il report. Riprova.",
+ "toast_edits_discarded_account": "Le modifiche non salvate al profilo o al colloquio sono state annullate perché l'account connesso è cambiato."
 }

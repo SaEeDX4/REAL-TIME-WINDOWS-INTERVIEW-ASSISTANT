@@ -177,7 +177,10 @@ public partial class HomeWindow : Window
     });
     private void OnWorkspaceChanged() => Dispatcher.BeginInvoke(() =>
     {
-        // Another account's workspace: nothing of the previous one stays on screen (the sign-out itself was confirmed).
+        // Another account's workspace: nothing of the previous one stays on screen. An explicit sign-out was confirmed
+        // through the guard; when the account changed by itself (session expired or revoked) the edits cannot be saved to
+        // it any more — the user is told instead of losing them silently.
+        if (_profileGuard.IsDirty || _targetGuard.IsDirty) Notify(T("toast_edits_discarded_account"), ToastKind.Warning);
         _profileGuard.MarkClean(); _targetGuard.MarkClean();
         _profile = null; _target = null;
         RefreshAll(); ShowPage(_page);
@@ -1393,7 +1396,7 @@ public partial class HomeWindow : Window
     {
         _authBusy = busy;
         AuthSubmitBtn.IsEnabled = ModeSignInBtn.IsEnabled = ModeCreateBtn.IsEnabled = !busy;
-        ForgotBtn.IsEnabled = !busy && !_resetPending;
+        ForgotBtn.IsEnabled = !busy;
         EmailBox.IsReadOnly = busy;
         foreach (var b in ProviderButtons.Children.OfType<Button>()) b.IsEnabled = !busy;
         AuthSubmitBtn.Content = busy && busyText != null ? busyText : T(_createMode ? "create_account" : "sign_in");
@@ -1472,7 +1475,9 @@ public partial class HomeWindow : Window
         finally { SetAuthBusy(false); RefreshAll(); }
     }
 
-    private bool _resetPending;
+    // The pending reset waits up to 15 minutes for the link. A new request (e.g. a corrected address) replaces it.
+    private CancellationTokenSource? _resetCts;
+    private string? _resetEmail;
 
     /// <summary>
     /// Password reset. Enumeration-safe: the same neutral notice appears for every syntactically valid address, whether
@@ -1480,23 +1485,29 @@ public partial class HomeWindow : Window
     /// </summary>
     private async void Forgot_Click(object sender, RoutedEventArgs e)
     {
-        if (_authBusy || _resetPending) return;
+        if (_authBusy) return;
         var email = EmailBox.Text.Trim();
         AuthMessage.Clear();
         if (!ValidEmail(email)) { FieldError(EmailBox, T("err_email_first")); return; }
-        _resetPending = true;
-        ForgotBtn.IsEnabled = false;
+        void Requested() => AuthMessage.Show(PasswordResetCopy.Requested, MessageKind.Info, T("acct_reset_requested_hint"));
+        // Same address again while its link is awaited: nothing new to send. Another address: the old wait ends.
+        if (_resetCts != null && string.Equals(_resetEmail, email, StringComparison.OrdinalIgnoreCase)) { Requested(); return; }
+        _resetCts?.Cancel();
+        var cts = _resetCts = new CancellationTokenSource();
+        _resetEmail = email;
         try
         {
             var (ok, error) = await _vm.Cloud.ResetPasswordAsync(email, () => Prompt.NewPasswordAsync(this),
-                requested: () => Dispatcher.Invoke(() => AuthMessage.Show(PasswordResetCopy.Requested, MessageKind.Info, T("acct_reset_requested_hint"))));
+                requested: () => Dispatcher.Invoke(Requested), ct: cts.Token);
+            if (cts.IsCancellationRequested) return;   // replaced by a newer request
             if (ok) { AuthMessage.Show(T("acct_password_reset_done"), MessageKind.Success); _vm.OpenWorkspaceForCurrentAccount(); }
             else AuthMessage.Show(error ?? T("err_reset_failed"), MessageKind.Error);
         }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
         finally
         {
-            _resetPending = false;
-            ForgotBtn.IsEnabled = !_authBusy;
+            if (ReferenceEquals(_resetCts, cts)) { _resetCts = null; _resetEmail = null; }
+            cts.Dispose();
             RefreshAll();
         }
     }

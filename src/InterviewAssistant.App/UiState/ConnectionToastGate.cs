@@ -64,3 +64,19 @@ public sealed class ConnectionToastGate
         return ConnectionToast.Lost;
     }
 }
+
+/// <summary>Maps the live relay's own connection state onto the toast gate (not the status line, which answers overwrite).</summary>
+public static class RelayConnection
+{
+    /// <summary>
+    /// New up/down state for a transcriber event, or null when nothing changes. Reconnecting = down; Connected = up
+    /// (may show "restored"); Failed/Disconnected while down = the session ended: up again, silently (never "restored").
+    /// </summary>
+    public static (bool Up, bool Silent)? Transition(bool currentlyUp, Core.Providers.ConnectionStatus status) => status switch
+    {
+        Core.Providers.ConnectionStatus.Reconnecting when currentlyUp => (false, false),
+        Core.Providers.ConnectionStatus.Connected when !currentlyUp => (true, false),
+        Core.Providers.ConnectionStatus.Failed or Core.Providers.ConnectionStatus.Disconnected when !currentlyUp => (true, true),
+        _ => null,
+    };
+}

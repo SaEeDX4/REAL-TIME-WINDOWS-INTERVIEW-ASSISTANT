@@ -811,5 +811,6 @@
  "err_report_open": "Der Bericht konnte nicht geöffnet werden. Verwenden Sie „Als HTML speichern…“ und öffnen Sie die Datei selbst.",
  "err_report_copy": "Der Bericht konnte nicht kopiert werden. Möglicherweise verwendet ein anderes Programm die Zwischenablage – versuchen Sie es erneut.",
  "err_report_save": "Der Bericht konnte nicht gespeichert werden. Prüfen Sie, ob der Ordner beschreibbar ist und genug Speicherplatz hat, und versuchen Sie es erneut.",
- "err_report_delete": "Der Bericht konnte nicht gelöscht werden. Versuchen Sie es erneut."
+ "err_report_delete": "Der Bericht konnte nicht gelöscht werden. Versuchen Sie es erneut.",
+ "toast_edits_discarded_account": "Nicht gespeicherte Änderungen am Profil oder Interview wurden verworfen, weil sich das angemeldete Konto geändert hat."
 }

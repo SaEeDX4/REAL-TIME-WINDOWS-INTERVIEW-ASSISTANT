@@ -216,11 +216,11 @@ public sealed class CloudService
     /// Enumeration-safe: <paramref name="requested"/> runs once the request is accepted — for an existing and for an
     /// unknown address alike — so the UI shows the same neutral notice either way.
     /// </remarks>
-    public async Task<(bool Ok, string? Error)> ResetPasswordAsync(string email, Func<Task<string?>> askNewPassword, Action? requested = null)
+    public async Task<(bool Ok, string? Error)> ResetPasswordAsync(string email, Func<Task<string?>> askNewPassword, Action? requested = null, CancellationToken ct = default)
     {
         var r = await AuthAction(async () =>
         {
-            await Auth!.RecoverPasswordAsync(email, TimeSpan.FromMinutes(15), CancellationToken.None, requested);
+            await Auth!.RecoverPasswordAsync(email, TimeSpan.FromMinutes(15), ct, requested);
             var pw = await askNewPassword() ?? throw new AuthException("cancelled", Loc.T("acct_password_not_changed"));
             await Auth.UpdatePasswordAsync(pw, CancellationToken.None);
         }, "Password reset");

@@ -811,5 +811,6 @@
  "err_report_open": "无法打开报告。请使用“另存为 HTML…”，然后自行打开该文件。",
  "err_report_copy": "无法复制报告。其他程序可能正在使用剪贴板——请重试。",
  "err_report_save": "无法保存报告。请确认文件夹可写入且有可用空间，然后重试。",
- "err_report_delete": "无法删除报告。请重试。"
+ "err_report_delete": "无法删除报告。请重试。",
+ "toast_edits_discarded_account": "由于登录的账户已更改，未保存的个人资料或面试修改已被放弃。"
 }

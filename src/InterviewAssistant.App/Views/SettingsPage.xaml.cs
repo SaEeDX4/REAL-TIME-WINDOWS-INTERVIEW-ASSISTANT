@@ -33,8 +33,10 @@ public partial class SettingsPage : UserControl
         // Building the controls raises change events (a slider with Minimum 0.6 coerces its value, check boxes and
         // text boxes get their defaults): none of that is a user edit.
         using (Guard.Suspend()) InitializeComponent();
-        ModelBox.AddHandler(TextBoxBase.TextChangedEvent, new TextChangedEventHandler((_, _) => Guard.MarkDirty()));
-        SttBox.AddHandler(TextBoxBase.TextChangedEvent, new TextChangedEventHandler((_, _) => Guard.MarkDirty()));
+        // Editable combo boxes get their inner text when the template is applied (first layout, theme change): only
+        // typing by the user (keyboard focus inside) is an edit.
+        ModelBox.AddHandler(TextBoxBase.TextChangedEvent, new TextChangedEventHandler((_, _) => { if (ModelBox.IsKeyboardFocusWithin) Guard.MarkDirty(); }));
+        SttBox.AddHandler(TextBoxBase.TextChangedEvent, new TextChangedEventHandler((_, _) => { if (SttBox.IsKeyboardFocusWithin) Guard.MarkDirty(); }));
         foreach (var box in new Control[] { HkToggle, HkStart, HkManual }) Field.ClearOnEdit(box);
         Guard.Save = Save;
         Guard.Discard = RevertPreview;

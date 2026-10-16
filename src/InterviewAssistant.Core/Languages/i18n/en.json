@@ -811,5 +811,6 @@
  "err_report_open": "Couldn't open the report. Use Save as HTML… and open the file yourself.",
  "err_report_copy": "Couldn't copy the report. Another program may be using the clipboard — try again.",
  "err_report_save": "Couldn't save the report. Check that the folder is writable and has free space, then try again.",
- "err_report_delete": "Couldn't delete the report. Try again."
+ "err_report_delete": "Couldn't delete the report. Try again.",
+ "toast_edits_discarded_account": "Unsaved profile or interview edits were discarded because the signed-in account changed."
 }

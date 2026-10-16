@@ -26,7 +26,8 @@ public enum AcousticSupport
 ///  - at least <see cref="MinVoicedMsPerSyllable"/> ms voiced per syllable (≈ 3× faster than fast speech), and no more than
 ///    <see cref="MaxSyllablesPerActiveSecond"/> syllables per second of sound — otherwise the transcript is impossible
 ///    for the audio (<see cref="AcousticSupport.Implausible"/>);
-///  - below <see cref="StrongVoicedMsPerSyllable"/> ms per syllable the support is only <see cref="AcousticSupport.Weak"/>.
+///  - below <see cref="StrongVoicedMsPerSyllable"/> ms per syllable (after the same slack) the support is only
+///    <see cref="AcousticSupport.Weak"/>.
 /// The syllable count is a deliberate under-estimate (vowel groups for Latin scripts; one per word or per CJK character
 /// otherwise), so real speech is never judged impossible because of counting.
 /// </summary>
@@ -47,7 +48,8 @@ public static class SpeechPlausibility
         int budget = Math.Max(0, syllables - SlackSyllables);
         if (evidence.VoicedMs < budget * MinVoicedMsPerSyllable) return AcousticSupport.Implausible;
         if (budget > MaxSyllablesPerActiveSecond * evidence.ActiveMs / 1000.0) return AcousticSupport.Implausible;
-        return evidence.VoicedMs >= syllables * StrongVoicedMsPerSyllable ? AcousticSupport.Strong : AcousticSupport.Weak;
+        // The same slack as above: a fast talker, or an utterance whose edge fell outside the window, is still "Strong".
+        return evidence.VoicedMs >= budget * StrongVoicedMsPerSyllable ? AcousticSupport.Strong : AcousticSupport.Weak;
     }
 
     private static readonly Regex Word = new(@"[\p{L}\p{N}]+", RegexOptions.Compiled);
@@ -65,7 +67,10 @@ public static class SpeechPlausibility
             if (w.All(c => c < 0x250))   // Latin script: vowel groups, silent final "e" not counted
             {
                 var groups = VowelGroup.Matches(w).Count;
-                if (groups > 1 && w.EndsWith('e') && !w.EndsWith("le")) groups--;
+                var lw = w.ToLowerInvariant();
+                if (groups > 1 && lw.EndsWith('e') && !lw.EndsWith("le")) groups--;                       // make, use
+                else if (groups > 1 && lw.Length > 3 && lw.EndsWith("es") && !"sxzcg".Contains(lw[^3]) && !lw.EndsWith("hes")) groups--;   // makes, times (not boxes, wishes)
+                else if (groups > 1 && lw.Length > 3 && lw.EndsWith("ed") && !"td".Contains(lw[^3])) groups--;   // used, asked (not wanted, ended)
                 total += Math.Max(1, groups);
             }
             else total += 1;          // other scripts: one per word (an under-estimate)

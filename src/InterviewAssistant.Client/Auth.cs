@@ -149,8 +149,10 @@ public sealed class SupabaseAuth
     }
 
     /// <summary>Error codes that would tell the caller that no account exists for an address (treated as "accepted").</summary>
+    /// <remarks>The per-address e-mail rate limit applies only to existing accounts, so it would reveal one too (the first
+    /// link of the minute was sent); the general request rate limit is still reported.</remarks>
     public static bool RevealsAccountExistence(string? code) =>
-        code is "user_not_found" or "email_not_found" or "identity_not_found" or "http_404";
+        code is "user_not_found" or "email_not_found" or "identity_not_found" or "http_404" or "over_email_send_rate_limit";
 
     /// <summary>Sets a new password for the signed-in user (used right after recovery, or from Account).</summary>
     public async Task UpdatePasswordAsync(string newPassword, CancellationToken ct)

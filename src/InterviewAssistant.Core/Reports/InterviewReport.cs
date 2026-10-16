@@ -99,6 +99,12 @@ public static class ReportBuilder
         }
         if (uncertain.Count > 0) valid = valid.Except(uncertain.Select(u => u.Q)).ToList();
         if (invalid > 0 || uncertain.Count > 0) memory = Filtered(memory, valid);
+        // An "interruption" is measured when the next question starts: a doubtful question cannot count as one either.
+        if (uncertain.Count > 0)
+        {
+            var doubtfulIdx = uncertain.Select(u => u.Q.Index).ToHashSet();
+            memory.Interruptions.RemoveAll(i => doubtfulIdx.Contains(i.AfterQuestionIndex + 1));
+        }
         string L(string key) => ReportLabels.Get(reportLanguage, key);
         ReportQuestion ToReport(QuestionRecord q, string reason = "") => new()
         {

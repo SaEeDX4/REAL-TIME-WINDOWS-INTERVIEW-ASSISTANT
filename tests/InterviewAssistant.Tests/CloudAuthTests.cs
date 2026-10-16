@@ -325,13 +325,23 @@ public class CloudAuthTests
     }
 
     [Fact]
-    public async Task PasswordReset_StillReportsRateLimits()
+    public async Task PasswordReset_StillReportsTheGeneralRateLimit()
     {
-        var auth = new SupabaseAuth(new HttpClient(new Stub((_, _) => Err(HttpStatusCode.TooManyRequests, "over_email_send_rate_limit", "x"))), Opt, new MemoryStore());
+        var auth = new SupabaseAuth(new HttpClient(new Stub((_, _) => Err(HttpStatusCode.TooManyRequests, "over_request_rate_limit", "x"))), Opt, new MemoryStore());
         var accepted = false;
         var ex = await Assert.ThrowsAsync<AuthException>(() => auth.RecoverPasswordAsync("a@b.test", TimeSpan.FromSeconds(1), default, () => accepted = true));
-        Assert.Equal("over_email_send_rate_limit", ex.Code);
+        Assert.Equal("over_request_rate_limit", ex.Code);
         Assert.False(accepted);
+    }
+
+    [Fact]
+    public void PerAddressEmailRateLimit_IsTreatedAsAccepted_BecauseOnlyExistingAccountsHitIt()
+    {
+        // Supabase limits reset e-mails per address only for addresses that have an account: surfacing it would tell a
+        // second, quick request whether the account exists. The first link of that minute was sent.
+        Assert.True(SupabaseAuth.RevealsAccountExistence("over_email_send_rate_limit"));
+        Assert.False(SupabaseAuth.RevealsAccountExistence("over_request_rate_limit"));
+        Assert.False(SupabaseAuth.RevealsAccountExistence("validation_failed"));
     }
 
     [Fact]

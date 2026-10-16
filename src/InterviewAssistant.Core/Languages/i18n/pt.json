@@ -811,5 +811,6 @@
  "err_report_open": "Não foi possível abrir o relatório. Use “Salvar como HTML…” e abra o arquivo você mesmo.",
  "err_report_copy": "Não foi possível copiar o relatório. Outro programa pode estar usando a área de transferência — tente novamente.",
  "err_report_save": "Não foi possível salvar o relatório. Verifique se a pasta permite gravação e tem espaço livre e tente novamente.",
- "err_report_delete": "Não foi possível excluir o relatório. Tente novamente."
+ "err_report_delete": "Não foi possível excluir o relatório. Tente novamente.",
+ "toast_edits_discarded_account": "As alterações não salvas do perfil ou da entrevista foram descartadas porque a conta conectada mudou."
 }

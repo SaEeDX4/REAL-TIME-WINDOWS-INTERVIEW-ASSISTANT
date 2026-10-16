@@ -123,3 +123,34 @@ public class ImperativeAskTests
     [InlineData("That would explain the drop in retention last quarter.")]
     public void StatementContainingTheVerb_IsNotAnAsk(string text) => Assert.NotEqual(UtteranceKind.Question, Gate().Evaluate(text).Kind);
 }
+
+/// <summary>RC4 review: the syllable estimate must not over-count silent endings, and fast real speech stays "Strong".</summary>
+public class SyllableEstimateTests
+{
+    [Theory]
+    [InlineData("makes", 1)] [InlineData("used", 1)] [InlineData("asked", 1)] [InlineData("times", 1)]
+    [InlineData("wanted", 2)] [InlineData("boxes", 2)] [InlineData("wishes", 2)] [InlineData("product", 2)]
+    [InlineData("What is your experience with FinTech products?", 12)]
+    public void Syllables_AreALowerBound(string text, int max) => Assert.True(SpeechPlausibility.Syllables(text) <= max, $"{text}: {SpeechPlausibility.Syllables(text)}");
+
+    [Theory]
+    [InlineData("Which interview stage?")]
+    [InlineData("Why product?")]
+    [InlineData("And the wallet?")]
+    public void FastShortRealQuestion_IsStrong(string text)
+    {
+        // ~110 ms voiced per syllable incl. clipped edges: 340 ms voiced, a judged moving pitch.
+        var fast = new SpeechEvidence(12, 1200, 600, 340, 0, PitchPairs: 12, SteadyPairs: 3, WindowMs: 1200);
+        Assert.Equal(AcousticSupport.Strong, SpeechPlausibility.Assess(text, fast));
+    }
+
+    [Fact]
+    public void ContextHallucinationOverAShortVoiceLikeSound_IsStillRejected()
+    {
+        var knock = new SpeechEvidence(19, 1900, 620, 360, 40, PitchPairs: 11, SteadyPairs: 2, WindowMs: 1900);
+        var support = SpeechPlausibility.Assess("What is your experience with FinTech products?", knock);
+        Assert.True(support is AcousticSupport.Weak or AcousticSupport.Implausible, support.ToString());
+        var gate = new UtteranceGate(new PromptEchoDetector("Job interview for a Product Owner role. Terms: FinTech, blockchain."));
+        Assert.False(gate.Evaluate("What is your experience with FinTech products?", knock).Answerable);
+    }
+}

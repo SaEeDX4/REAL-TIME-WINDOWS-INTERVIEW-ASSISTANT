@@ -811,5 +811,6 @@
  "err_report_open": "No se pudo abrir el informe. Usa «Guardar como HTML…» y abre el archivo tú mismo.",
  "err_report_copy": "No se pudo copiar el informe. Puede que otro programa esté usando el portapapeles; inténtalo de nuevo.",
  "err_report_save": "No se pudo guardar el informe. Comprueba que la carpeta admite escritura y tiene espacio libre, e inténtalo de nuevo.",
- "err_report_delete": "No se pudo eliminar el informe. Inténtalo de nuevo."
+ "err_report_delete": "No se pudo eliminar el informe. Inténtalo de nuevo.",
+ "toast_edits_discarded_account": "Se descartaron los cambios sin guardar del perfil o de la entrevista porque cambió la cuenta con la sesión iniciada."
 }

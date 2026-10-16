@@ -222,6 +222,18 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
     private void ReportConnection(bool silent = false) => ShowConnectionToast(_connectionGate.Report(_serviceUp && _relayUp && _networkUp, silent));
 
+    /// <summary>
+    /// The live relay's own state drives the connection notices — not the status line, which an answer ("Answering") or
+    /// an error overwrites while the connection is still down. Reconnecting = down; Connected = up ("restored" if a
+    /// "lost" was shown); Failed = the session ended: the outage is closed silently, never reported as restored.
+    /// </summary>
+    private void OnRelayConnection(Core.Providers.ConnectionStatus c)
+    {
+        if (RelayConnection.Transition(_relayUp, c) is not { } t) return;
+        _relayUp = t.Up;
+        ReportConnection(silent: t.Silent);
+    }
+
     private void PollConnection() { if (_connectionGate.NeedsPolling) ShowConnectionToast(_connectionGate.Poll()); }
 
     private void ShowConnectionToast(ConnectionToast t)
@@ -559,6 +571,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _engine.AdaptiveChanged += lvl => Post(() => Adaptive = lvl);
         _engine.Turn.Sensitivity = Settings.VadSensitivity;
         _engine.StatusChanged += (s, d) => Post(() => ApplyStatus(s, d));
+        _engine.TranscriberConnectionChanged += c => Post(() => OnRelayConnection(c));
         _engine.LiveTranscriptChanged += t => Post(() => LiveTranscript = t);
         _engine.AnswerStarted += a => Post(() => OnAnswerStarted(a));
         _engine.BulletAdded += (a, _) => Post(() => { if (a.Id == _displayedAnswerId) { SyncBullets(a); Pending = ""; Raise(nameof(IsThinking)); } });
@@ -1077,15 +1090,9 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         StatusPulse = pulse;
         // Engine detail (e.g. which device to check) wins; otherwise a calm explanation of the state.
         StatusDetail = Loc.Relocalize(detail) ?? sub;   // engine messages re-rendered in the current UI language
-        // Live relay: down while the transcriber reconnects. Once listening ends the relay no longer matters: the outage
-        // is forgotten without a "restored" notification for a connection that was not restored.
-        var relayUp = s != EngineStatus.Reconnecting;
-        var relayIdle = s is EngineStatus.Stopped or EngineStatus.Paused or EngineStatus.Ready;
-        if (relayUp != _relayUp)
-        {
-            _relayUp = relayUp;
-            ReportConnection(silent: relayIdle);
-        }
+        // Once listening ends the relay no longer matters: an outage is forgotten without a "restored" notification for a
+        // connection that was not restored. (Up/down itself comes from the transcriber, see OnRelayConnection.)
+        if (s is EngineStatus.Stopped or EngineStatus.Paused or EngineStatus.Ready && !_relayUp) { _relayUp = true; ReportConnection(silent: true); }
         if (s == EngineStatus.ApiError && _engine != null && _engine.IsListening == false) IsListening = false;
     }
 

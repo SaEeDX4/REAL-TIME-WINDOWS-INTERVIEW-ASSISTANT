@@ -811,5 +811,6 @@
  "err_report_open": "Impossible d'ouvrir le rapport. Utilisez « Enregistrer en HTML… » et ouvrez le fichier vous-même.",
  "err_report_copy": "Impossible de copier le rapport. Un autre programme utilise peut-être le presse-papiers — réessayez.",
  "err_report_save": "Impossible d'enregistrer le rapport. Vérifiez que le dossier est accessible en écriture et dispose d'espace libre, puis réessayez.",
- "err_report_delete": "Impossible de supprimer le rapport. Réessayez."
+ "err_report_delete": "Impossible de supprimer le rapport. Réessayez.",
+ "toast_edits_discarded_account": "Les modifications non enregistrées du profil ou de l'entretien ont été abandonnées, car le compte connecté a changé."
 }
