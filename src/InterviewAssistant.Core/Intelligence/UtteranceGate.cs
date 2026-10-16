@@ -90,8 +90,13 @@ public sealed class UtteranceGate
         @"^(and |but |so |okay,? |ok,? |now,? |then,? |also,? )?(how|what|what's|why|when|where|which|who|whom|whose|can|could|would|will|do|does|did|have|has|is|are|was|were|should|shall|may|might|any)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    // Asks that are asks wherever they appear ("…so tell me how you did it", "I'd love to hear about…").
     private static readonly Regex Request = new(
-        @"\b(tell (me|us)|walk (me|us)|talk (me|us) through|take (me|us) through|run (me|us) through|describe|explain|give (me|us)|share (with|an?|your|some)|elaborate|expand on|go deeper|help (me|us) understand|let's (talk|hear) about|i'?d (like|love) (to )?(hear|know|understand|learn)|i('m| am) (curious|interested) (about|to|in)|i want to (hear|know|understand)|what about|how about|thoughts on|your (view|take|thoughts|opinion) on|convince (me|us)|pitch (me|us)|sell (me|us)|imagine|suppose|say you|let's say|please)\b",
+        @"\b(tell (me|us)|walk (me|us)|talk (me|us) through|take (me|us) through|run (me|us) through|help (me|us) understand|let's (talk|hear) about|i'?d (like|love) (to )?(hear|know|understand|learn)|i('m| am) (curious|interested) (about|to|in)|i want to (hear|know|understand)|what about|how about|thoughts on|your (view|take|thoughts|opinion) on|convince (me|us)|pitch (me|us)|sell (me|us)|let's say|say you)\b" +
+        // Imperative verbs only count as an ask in imperative position: at the start of the sentence (after a discourse
+        // marker), after "please", or after "can/could/would you" / "I want you to" — "hard to explain in the app" is not.
+        @"|(^|[,;:]\s*|\b(please|(can|could|would|will) you( please)?|(i|we) (want|need|would like|'d like) you to)\s+)(please\s+)?(describe|explain|give (me|us)|share|elaborate|expand on|go deeper|imagine|suppose)\b" +
+        @"|^((so|okay|ok|now|well|right|and),?\s+)+(please\s+)?(describe|explain|give (me|us)|share|elaborate|expand on|go deeper|imagine|suppose)\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     /// <summary>

@@ -144,7 +144,8 @@ public sealed class InterviewEngine : IAsyncDisposable
         _evidence = EvidenceIndex.For(kb);
         _validator = new FactValidator(kb.Profile, kb.Context, _evidence);
         _gate = UtteranceGate.For(kb);
-        _turn = new TurnDetector(_clock) { Aliases = kb.Context.Aliases, TermNormalizer = kb.Context.NormalizeTerms, SegmentFilter = KeepSegment, PartialFilter = TrustPartial };
+        _turn = new TurnDetector(_clock) { Aliases = kb.Context.Aliases, TermNormalizer = kb.Context.NormalizeTerms, SegmentFilter = KeepSegment, PartialFilter = TrustPartial,
+            DisplayTailChars = Math.Max(1000, Options.LiveTextMaxChars * 2) };
         _turn.LiveTextChanged += t =>
         {
             _liveText = t; _liveDirty = true;

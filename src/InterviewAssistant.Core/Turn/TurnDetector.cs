@@ -47,8 +47,8 @@ public sealed class TurnDetector
     private long _speechStoppedAt = -1, _lastSegmentAt = -1, _settleDeadline = -1;
     private int _awaitingSegments;
     private int _nextTurnId;
-    private (int Id, string Text, long SpeechStoppedAt)? _lastFinal;
-    private (int Id, string Text)? _reopened;
+    private (int Id, string Text, long SpeechStoppedAt, Audio.SpeechEvidence Evidence)? _lastFinal;
+    private (int Id, string Text, Audio.SpeechEvidence Evidence)? _reopened;
 
     public TurnState State { get; private set; } = TurnState.Idle;
     public IReadOnlyList<Knowledge.TermAlias>? Aliases { get; set; }
@@ -113,7 +113,7 @@ public sealed class TurnDetector
         bool continuation = false;
         if (_segments.Count == 0 && _partials.Count == 0 && _reopened == null && _lastFinal is { } last && _clock.NowMs - last.SpeechStoppedAt <= ContinuationWindowMs)
         {
-            _reopened = (last.Id, last.Text);
+            _reopened = (last.Id, last.Text, last.Evidence);
             continuation = true;
         }
         SetState(TurnState.SpeechStarted);
@@ -339,18 +339,21 @@ public sealed class TurnDetector
                 text = TextNormalizer.WordCount(text) >= TextNormalizer.WordCount(prev.Text) ? text : prev.Text;
             else
                 text = prev.Text.TrimEnd() + " " + text;            // continued: one multi-part question
-            if (string.Equals(text, prev.Text, StringComparison.Ordinal)) { RememberFinal(prev.Id, text, speechEnd); SetState(TurnState.Listening); return; }
+            // The continued turn's words were spoken across both turns' audio: judge them against both.
+            evidence = prev.Evidence + evidence;
+            if (string.Equals(text, prev.Text, StringComparison.Ordinal)) { RememberFinal(prev.Id, text, speechEnd, evidence); SetState(TurnState.Listening); return; }
             revises = prev.Id;
         }
 
         var id = revises ?? ++_nextTurnId;
-        RememberFinal(id, text, speechEnd);
+        RememberFinal(id, text, speechEnd, evidence);
         SetState(TurnState.QuestionFinalized);
         TurnFinalized?.Invoke(new FinalizedTurn(text, speechEnd, now, count, id, revises, evidence, startMs));
         SetState(TurnState.Listening);
     }
 
-    private void RememberFinal(int id, string text, long speechEnd) => _lastFinal = (id, text, speechEnd >= 0 ? speechEnd : _clock.NowMs);
+    private void RememberFinal(int id, string text, long speechEnd, Audio.SpeechEvidence evidence) =>
+        _lastFinal = (id, text, speechEnd >= 0 ? speechEnd : _clock.NowMs, evidence);
 
     private static bool SameText(string a, string b) => TextNormalizer.Fingerprint(a) == TextNormalizer.Fingerprint(b);
 
@@ -400,19 +403,38 @@ public sealed class TurnDetector
         return _segmentsText;
     }
 
-    /// <summary>What may be shown as live text: accepted segments plus the partials that passed <see cref="PartialFilter"/>.</summary>
+    /// <summary>
+    /// Longest live text a consumer shows (only its tail is ever displayed). <see cref="DisplayText"/> builds at most this
+    /// much, so a minute-long partial does not allocate the whole transcript on every delta.
+    /// </summary>
+    public int DisplayTailChars { get; set; } = int.MaxValue;
+
+    /// <summary>What may be shown as live text: accepted segments plus the partials that passed <see cref="PartialFilter"/>
+    /// (the last <see cref="DisplayTailChars"/> characters of it).</summary>
     public string DisplayText()
     {
         var segments = SegmentsText();
-        if (_partials.Count == 0) return segments;
-        var sb = new StringBuilder(segments);
+        var parts = new List<string>();
+        if (segments.Length > 0) parts.Add(segments);
         foreach (var (id, p) in _partials)
         {
             if (p.Length == 0 || !_partialTrusted.GetValueOrDefault(id, PartialFilter == null)) continue;
-            if (sb.Length > 0) sb.Append(' ');
-            sb.Append(p.ToString().Trim());
+            int take = Math.Min(p.Length, DisplayTailChars);
+            parts.Add((take < p.Length ? p.ToString(p.Length - take, take) : p.ToString()).Trim());
         }
-        return sb.ToString();
+        if (parts.Count == 1 && parts[0].Length <= DisplayTailChars) return parts[0];
+        // Walk back from the newest part until the tail is full.
+        var tail = new List<string>();
+        int len = 0;
+        for (int i = parts.Count - 1; i >= 0 && len < DisplayTailChars; i--)
+        {
+            var part = parts[i];
+            int room = DisplayTailChars - len;
+            tail.Add(part.Length > room ? part[^room..] : part);
+            len += Math.Min(part.Length, room) + 1;
+        }
+        tail.Reverse();
+        return string.Join(' ', tail);
     }
 
     /// <summary>Number of segments elided from the middle of the current turn (diagnostics).</summary>

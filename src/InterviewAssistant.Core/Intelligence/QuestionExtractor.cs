@@ -102,8 +102,12 @@ public static class QuestionExtractor
         var contextSentences = new List<string>();
         if (restartPrefix.Length > 0) contextSentences.AddRange(Sentences(restartPrefix).Where(s => !UtteranceGate.IsQuestionSentence(s)));
         contextSentences.AddRange(sentences.Take(first).Where(s => gate.AddressedTo(s) == UtteranceGate.Addressee.Candidate));
+        // A sentence that only restates the ask (the interviewer said it twice, or a revised segment repeated it) is the
+        // question, not context: it must never show up again as its own context line.
+        contextSentences.RemoveAll(c => RestatesAsk(c, core));
         var inTurn = string.Join(" ", contextSentences);
-        var allContext = Join(earlierContext, inTurn);
+        var earlier = string.Join(" ", Sentences(earlierContext).Where(c => earlierContext.Trim().Length > 0 && !RestatesAsk(c, core)));
+        var allContext = Join(earlier, inTurn);
 
         var subs = SubSplit.Split(core).Where(p => p.Length > 0)
             .Select(p => Capitalize(p.Trim().TrimEnd(',')))
@@ -135,6 +139,16 @@ public static class QuestionExtractor
         var ordered = sentences.Where(picked.Contains).Distinct().ToList();
         var text = string.Join(" ", ordered.Count > 0 ? ordered : picked);
         return Trim(text, MaxSummaryChars);
+    }
+
+    /// <summary>The sentence says (nearly) the same as the core question: same content words, or a subset of them.</summary>
+    internal static bool RestatesAsk(string sentence, string core)
+    {
+        var a = TextNormalizer.Tokenize(sentence).ToHashSet();
+        var b = TextNormalizer.Tokenize(core).ToHashSet();
+        if (a.Count == 0 || b.Count == 0) return string.Equals(sentence.Trim().TrimEnd('?', '.', '!'), core.Trim().TrimEnd('?', '.', '!'), StringComparison.OrdinalIgnoreCase);
+        if (a.Count >= 2 && a.IsSubsetOf(b)) return true;
+        return TextNormalizer.Jaccard(a, b) >= 0.75;
     }
 
     private static string Join(string a, string b) => a.Length == 0 ? b : b.Length == 0 ? a : a.TrimEnd() + " " + b.TrimStart();

@@ -22,7 +22,7 @@ public class Rc2EngineAcceptanceTests
     // The prompt the recognizer would echo for this target (what the live session biases recognition with).
     private static string EchoPrompt => TestKnowledge.Load().Context.BuildTranscriptionPrompt();
 
-    private static async Task<InterviewSimulator> StartAsync(KnowledgeBase? kb = null, bool provider = true, bool cache = true)
+    internal static async Task<InterviewSimulator> StartAsync(KnowledgeBase? kb = null, bool provider = true, bool cache = true)
     {
         var s = new InterviewSimulator(kb, withProvider: provider, options: new EngineOptions { AutoTick = false, UseFastCache = cache });
         await s.StartAsync();
@@ -183,39 +183,6 @@ public class Rc2EngineAcceptanceTests
         var s = await StartAsync();
         await AskAsync(s, "How would you prioritise the whole backlog for the next two quarters across all the teams — sorry, let me put it differently: what would you cut first if Engineering capacity halved?");
         Assert.Equal("What would you cut first if Engineering capacity halved?", Assert.Single(s.E.History).Question);
-    }
-
-    [Fact]
-    public async Task FiveMinuteMonologue_StaysResponsiveBoundedAndAnswersTheFinalQuestion()
-    {
-        var s = await StartAsync();
-        // One continuous 5-minute segment streamed as ~3,000 partial deltas, then the question.
-        var sentence = "We have been growing the reward program and the token distribution is strong but retention is weak. ";
-        var maxHandlerMs = 0.0;
-        var live = 0;
-        s.E.LiveTranscriptChanged += t => { live++; Assert.True(t.Length <= s.E.Options.LiveTextMaxChars + 1); };
-        s.Voice(300_000);                                                // five minutes of audible interviewer speech
-        s.T.Start();
-        var sw = new System.Diagnostics.Stopwatch();
-        for (int i = 0; i < 3000; i++)
-        {
-            sw.Restart();
-            var off = i * 7 % (sentence.Length - 7);
-            s.T.Partial("mono", sentence.Substring(off, 7));
-            maxHandlerMs = Math.Max(maxHandlerMs, sw.Elapsed.TotalMilliseconds);
-            if (i % 10 == 0) await s.RunAsync(1000);  // 1 s of virtual time per 10 deltas = 5 minutes (≈10 words/s of deltas)
-        }
-        var monologue = string.Concat(Enumerable.Repeat(sentence, 180)) + "So what would you change first to improve retention?";
-        s.T.Stop();
-        await s.RunAsync(400);
-        s.T.Complete(monologue, "mono");
-        await s.RunAsync(3000); await s.SettleAsync();
-        _out.WriteLine($"max partial handler {maxHandlerMs:0.00} ms, live text updates {live} over 300 s");
-        var a = Assert.Single(s.E.History);
-        Assert.Equal("What would you change first to improve retention?", a.Question);
-        Assert.True(maxHandlerMs < 50, $"partial handler took {maxHandlerMs} ms");
-        Assert.True(live <= 300 * 1000 / s.E.Options.LiveTextIntervalMs + 5, $"{live} live updates");
-        Assert.True(s.E.Turn.CurrentText().Length == 0);
     }
 
     [Fact]
@@ -608,3 +575,56 @@ public class Rc2EngineAcceptanceTests
     }
 }
 
+/// <summary>
+/// Handler-latency measurements need the CPU to themselves: run with the soak tests, outside the parallel suite, so a
+/// wall-clock budget measures the engine and not the other test classes running beside it.
+/// </summary>
+[Collection("Soak")]
+public class Rc2EngineTimingTests
+{
+    private readonly ITestOutputHelper _out;
+    public Rc2EngineTimingTests(ITestOutputHelper o) => _out = o;
+
+    [Fact]
+    public async Task FiveMinuteMonologue_StaysResponsiveBoundedAndAnswersTheFinalQuestion()
+    {
+        var s = await Rc2EngineAcceptanceTests.StartAsync();
+        // One continuous 5-minute segment streamed as ~3,000 partial deltas, then the question.
+        var sentence = "We have been growing the reward program and the token distribution is strong but retention is weak. ";
+        var maxHandlerMs = 0.0;
+        int maxAt = -1, gcPaused = 0;
+        var steady = new List<double>();
+        var live = 0;
+        s.E.LiveTranscriptChanged += t => { live++; Assert.True(t.Length <= s.E.Options.LiveTextMaxChars + 1); };
+        s.Voice(300_000);                                                // five minutes of audible interviewer speech
+        s.T.Start();
+        var sw = new System.Diagnostics.Stopwatch();
+        for (int i = 0; i < 3000; i++)
+        {
+            var gen2 = GC.CollectionCount(2);
+            sw.Restart();
+            var off = i * 7 % (sentence.Length - 7);
+            s.T.Partial("mono", sentence.Substring(off, 7));
+            var ms = sw.Elapsed.TotalMilliseconds;
+            // A blocking full GC is process-wide (other tests allocate in parallel): reported, not charged to the handler.
+            if (GC.CollectionCount(2) != gen2) { gcPaused++; continue; }
+            if (ms > maxHandlerMs) { maxHandlerMs = ms; maxAt = i; }
+            if (i >= 10) steady.Add(ms);
+            if (i % 10 == 0) await s.RunAsync(1000);  // 1 s of virtual time per 10 deltas = 5 minutes (≈10 words/s of deltas)
+        }
+        var monologue = string.Concat(Enumerable.Repeat(sentence, 180)) + "So what would you change first to improve retention?";
+        s.T.Stop();
+        await s.RunAsync(400);
+        s.T.Complete(monologue, "mono");
+        await s.RunAsync(3000); await s.SettleAsync();
+        steady.Sort();
+        _out.WriteLine($"max partial handler {maxHandlerMs:0.00} ms (delta #{maxAt}), steady-state p50 {steady[steady.Count / 2]:0.000} ms / p99 {steady[steady.Count * 99 / 100]:0.000} ms, {gcPaused} delta(s) during a full GC excluded, live text updates {live} over 300 s");
+        var a = Assert.Single(s.E.History);
+        Assert.Equal("What would you change first to improve retention?", a.Question);
+        Assert.True(maxHandlerMs < 50, $"partial handler took {maxHandlerMs} ms");
+        Assert.True(steady[steady.Count * 99 / 100] < 10, $"partial handler p99 {steady[steady.Count * 99 / 100]} ms");
+        Assert.True(gcPaused <= 5, $"{gcPaused} full GCs during 3,000 deltas");
+        Assert.True(live <= 300 * 1000 / s.E.Options.LiveTextIntervalMs + 5, $"{live} live updates");
+        Assert.True(s.E.Turn.CurrentText().Length == 0);
+    }
+}

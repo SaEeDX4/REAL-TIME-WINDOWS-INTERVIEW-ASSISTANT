@@ -65,3 +65,32 @@ public class ShortTurnTests
         Assert.False(shortWhy.PitchJudged);
     }
 }
+
+public class DuplicateContextTests
+{
+    private static UtteranceGate Gate() => new(new PromptEchoDetector("Job interview"));
+
+    [Fact]
+    public void QuestionSaidTwice_IsNotItsOwnContextLine()
+    {
+        var x = QuestionExtractor.Extract("How would you increase adoption of the rewards program. Our adoption is flat this quarter. So how would you increase adoption of the rewards program?", "", null, Gate());
+        Assert.DoesNotContain("increase adoption", x.ContextSummary, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("adoption is flat", x.ContextSummary);
+    }
+
+    [Fact]
+    public void EarlierContextThatRepeatsTheQuestion_IsDropped_RealContextKept()
+    {
+        var earlier = "We launched the VIP program in March. How would you diagnose the slow adoption";
+        var x = QuestionExtractor.Extract("How would you diagnose the slow adoption?", earlier, null, Gate());
+        Assert.Contains("VIP program", x.ContextSummary);
+        Assert.DoesNotContain("diagnose", x.ContextSummary);
+    }
+
+    [Fact]
+    public void RelatedButDifferentSentence_StaysContext()
+    {
+        var x = QuestionExtractor.Extract("Adoption of the rewards program has been slow since launch. How would you increase adoption?", "", null, Gate());
+        Assert.Contains("slow since launch", x.ContextSummary);
+    }
+}
