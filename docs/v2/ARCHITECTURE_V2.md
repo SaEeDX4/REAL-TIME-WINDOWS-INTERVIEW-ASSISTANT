@@ -30,7 +30,7 @@ tests/*                            unit, engine, backend integration, security, 
 
 **Answers**: desktop matches the selected target's local prepared bank first (no network). Otherwise `POST /api/v1/answers/stream` (SSE) → backend checks the lease + rate limits → OpenAI with the server key → streams deltas back. The permanent OpenAI key exists only on the server.
 
-**Preparation**: résumé/JD/materials are parsed locally (PDF via PdfPig, DOCX via OpenXML zip parsing, TXT) → structured facts with provenance → user confirms facts → `PreparationPipeline` builds a per-target pack (match map, gaps, terminology, stories, 50–150 question bank, coach keywords, truth policy, questions to ask) with a deterministic local generator, optionally enriched by the backend LLM endpoint.
+**Preparation**: resume/JD/materials are parsed locally (PDF via PdfPig, DOCX via OpenXML zip parsing, TXT) → structured facts with provenance → user confirms facts → `PreparationPipeline` builds a per-target pack (match map, gaps, terminology, stories, 50–150 question bank, coach keywords, truth policy, questions to ask) with a deterministic local generator, optionally enriched by the backend LLM endpoint.
 
 **Billing**: `POST /api/v1/billing/checkout` → Paddle transaction → hosted checkout URL opened in browser. Paddle webhooks (`ts:rawBody` HMAC-SHA256) → idempotent event store → subscription + entitlements updated. Customer portal via Paddle portal sessions. Server entitlements are authoritative.
 

@@ -1,4 +1,4 @@
-INTERVIEW ASSISTANT — USER GUIDE (2.1.0-rc.3)
+INTERVIEW ASSISTANT — USER GUIDE (2.1.0-rc.4)
 =============================================
 
 GETTING STARTED

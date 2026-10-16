@@ -4,8 +4,10 @@
 .DESCRIPTION
   - The app project version is a semantic version; a release candidate (x.y.z-rc.N) is never built as Stable.
   - docs/release/RELEASE_NOTES-v<version>.md exists, names the version and is not a placeholder.
-  - For a release candidate N >= 2, every mandatory audit document of the RC2 audit set (kept current for later
-    candidates) exists and is substantive; from N >= 3 the candidate's own launch-blocker report RC<N>_LAUNCH_BLOCKERS.md too.
+  - For a release candidate N = 2..3, every mandatory audit document of the RC2 audit set exists and is substantive
+    (for rc.3 updated for it), plus RC3_LAUNCH_BLOCKERS.md. From N >= 4 the candidate's own audit set RC<N>_*.md (root
+    causes, engine, UI/UX, localization, data integrity, error states, accessibility, performance, manual regression,
+    commercialization readiness) plus the standing RC2 security, privacy and dependency audits re-reviewed for rc.N.
   - No provider keys, webhook secrets, signed JWTs (e.g. a service-role key), database URLs with passwords or private keys are committed (test fixtures are marked "fake-credential: test fixture").
 #>
 param([Parameter(Mandatory)][string]$Version)
@@ -32,12 +34,27 @@ elseif (-not ((Get-Content $notes -Raw).Contains($Version))) { $failures += "$no
 
 if ($Version -match '-rc\.(\d+)$' -and [int]$Matches[1] -ge 2) {
     $n = [int]$Matches[1]
-    foreach ($d in "ROOT_CAUSES", "ENGINE_AUDIT", "PERFORMANCE_AUDIT", "SECURITY_AUDIT", "PRIVACY_AUDIT", "LOCALIZATION_AUDIT",
-                   "UI_UX_AUDIT", "DATA_INTEGRITY_AUDIT", "COMMERCIALIZATION_READINESS", "MANUAL_REGRESSION", "DEPENDENCY_LICENSE_AUDIT") {
-        $r = Test-Doc "docs/release/RC2_$d.md" 800; if ($r) { $failures += $r }
-        elseif ($n -ge 3 -and -not ((Get-Content "docs/release/RC2_$d.md" -Raw).Contains("rc.$n"))) { $failures += "docs/release/RC2_$d.md was not updated for rc.$n" }
+    if ($n -le 3) {
+        # rc.2 / rc.3: the RC2 audit set, kept current for rc.3, plus rc.3's launch-blocker report.
+        foreach ($d in "ROOT_CAUSES", "ENGINE_AUDIT", "PERFORMANCE_AUDIT", "SECURITY_AUDIT", "PRIVACY_AUDIT", "LOCALIZATION_AUDIT",
+                       "UI_UX_AUDIT", "DATA_INTEGRITY_AUDIT", "COMMERCIALIZATION_READINESS", "MANUAL_REGRESSION", "DEPENDENCY_LICENSE_AUDIT") {
+            $r = Test-Doc "docs/release/RC2_$d.md" 800; if ($r) { $failures += $r }
+            elseif ($n -ge 3 -and -not ((Get-Content "docs/release/RC2_$d.md" -Raw).Contains("rc.$n"))) { $failures += "docs/release/RC2_$d.md was not updated for rc.$n" }
+        }
+        if ($n -ge 3) { $r = Test-Doc "docs/release/RC${n}_LAUNCH_BLOCKERS.md" 800; if ($r) { $failures += $r } }
+    } else {
+        # rc.4 and later: the candidate's own audit set ...
+        foreach ($d in "ROOT_CAUSES", "ENGINE_AUDIT", "UI_UX_AUDIT", "LOCALIZATION_AUDIT", "DATA_INTEGRITY_AUDIT", "ERROR_STATE_AUDIT",
+                       "ACCESSIBILITY_AUDIT", "PERFORMANCE_AUDIT", "MANUAL_REGRESSION", "COMMERCIALIZATION_READINESS") {
+            $r = Test-Doc "docs/release/RC${n}_$d.md" 800; if ($r) { $failures += $r }
+            elseif (-not ((Get-Content "docs/release/RC${n}_$d.md" -Raw).Contains("rc.$n"))) { $failures += "docs/release/RC${n}_$d.md does not name rc.$n" }
+        }
+        # ... and the standing security, privacy and dependency audits, re-reviewed for this candidate.
+        foreach ($d in "SECURITY_AUDIT", "PRIVACY_AUDIT", "DEPENDENCY_LICENSE_AUDIT") {
+            $r = Test-Doc "docs/release/RC2_$d.md" 800; if ($r) { $failures += $r }
+            elseif (-not ((Get-Content "docs/release/RC2_$d.md" -Raw).Contains("rc.$n"))) { $failures += "docs/release/RC2_$d.md was not re-reviewed for rc.$n" }
+        }
     }
-    if ($n -ge 3) { $r = Test-Doc "docs/release/RC${n}_LAUNCH_BLOCKERS.md" 800; if ($r) { $failures += $r } }
 }
 
 $secrets = git grep -nE "sk-(proj-)?[A-Za-z0-9_-]{32,}|pdl_(live|sdbx)_apikey_[A-Za-z0-9]{20,}|pdl_ntfset_[A-Za-z0-9]{20,}|-----BEGIN (RSA |EC )?PRIVATE KEY-----|eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}|postgres(ql)?://[^:/ ]+:[^@ ]+@|sb_secret_[A-Za-z0-9_-]{20,}" |

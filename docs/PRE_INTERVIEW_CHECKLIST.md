@@ -8,7 +8,7 @@ Install with `InterviewAssistant.Desktop-stable-Setup.exe`, or download the port
 | 1 | Launch | Start *Interview Assistant* (unsigned builds: SmartScreen *More info → Run anyway*) | Live window opens; *Home → Get started* appears on first run |
 | 2 | Offline self-test (optional, 20 s) | In PowerShell in the folder: `.\InterviewAssistant.exe --selftest result.json; Start-Sleep 25; Get-Content result.json` | `"passed": true` |
 | 3 | Account | *Home → Account* → sign in (or *developer mode*: Settings → paste your OpenAI key → **Test**) | Plan and minutes shown (or "✓ Answer service OK") |
-| 3b | Preparation | *Home → Profiles* → import résumé → confirm facts; *Interviews* → add job → **Prepare** → **Start interview** | "prepared" with 50–150 questions; live window shows the interview name |
+| 3b | Preparation | *Home → Profiles* → import resume → confirm facts; *Interviews* → add job → **Prepare** → **Start interview** | "prepared" with 50–150 questions; live window shows the interview name |
 | 4 | Audio | *Settings* → device = your headset → Save. Pre-interview check → **Test audio**, play a YouTube talk in Chrome | Shows endpoint, sample rate, channels, peak/RMS moving, **✓ AUDIO DETECTED** |
 | 5 | Transcription | **Test transcription**, keep the YouTube talk playing | Spoken words appear as text, **✓ TRANSCRIPTION WORKS** |
 | 6 | AI | **Test AI** | 3 bullets for the test question + first-bullet latency (target < 2 s) |

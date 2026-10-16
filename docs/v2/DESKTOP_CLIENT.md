@@ -20,7 +20,7 @@
 - `InstallationIdentity`: random id, no hardware fingerprint.
 
 ## UI
-- **Home** (`HomeWindow`): onboarding checklist (authorized-use acknowledgement, account or developer mode, profile, interview, readiness), Profiles (résumé import with security flags, fact review — only confirmed facts are used), Interviews (title/company/languages/JD, Prepare with stage progress, use for live), Reports (open/export/delete), Account (sign-in, plan & minutes, upgrade/portal via browser, devices, export, delete, sign out), UI language.
+- **Home** (`HomeWindow`): onboarding checklist (authorized-use acknowledgement, account or developer mode, profile, interview, readiness), Profiles (resume import with security flags, fact review — only confirmed facts are used), Interviews (title/company/languages/JD, Prepare with stage progress, use for live), Reports (open/export/delete), Account (sign-in, plan & minutes, upgrade/portal via browser, devices, export, delete, sign out), UI language.
 - **Live overlay**: Coach card (3 keywords + structure, Ctrl+Alt+C), adaptive badge (Concise/Rapid, Ctrl+Alt+R resets), minutes left, auto-fit (font shrinks to ≥70 % so all bullets are visible without scrolling), answer text right-to-left for Arabic/Persian answers, UI right-to-left for ar/fa UI language, report button after Stop.
 - **Localisation**: `UiStrings` (40 keys × 10 languages; machine drafts pending native review).
 

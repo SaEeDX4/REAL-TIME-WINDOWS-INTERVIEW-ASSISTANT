@@ -5,7 +5,7 @@ This document describes implemented behaviour only. A public privacy policy must
 ## Data locations
 | Data | Where | Protection |
 |---|---|---|
-| Résumés, job descriptions, profiles, facts, stories, prepared packs | Desktop `%LOCALAPPDATA%` workspace | DPAPI (current Windows user) |
+| Resumes, job descriptions, profiles, facts, stories, prepared packs | Desktop `%LOCALAPPDATA%` workspace | DPAPI (current Windows user) |
 | Same documents when cloud sync is used | `user_documents` (jsonb) | Per-user isolation on every query (`UsersCannotSeeOrModifyEachOthersDocuments`); TLS in transit; DB encryption at rest is a hosting setting |
 | Interview transcripts & reports | Desktop by default; reports may be synced | Reports expire after the plan's retention and are purged hourly |
 | Audio | **Not stored.** Streamed to OpenAI Realtime for transcription only | — |

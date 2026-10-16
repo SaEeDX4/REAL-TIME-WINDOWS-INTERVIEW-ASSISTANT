@@ -4,14 +4,14 @@ namespace InterviewAssistant.App.Services;
 
 /// <summary>
 /// Product version, release channel and build commit from the assembly's informational version
-/// ("2.1.0-rc.3+abc1234…", set by CI with -p:Version and -p:SourceRevisionId).
+/// ("2.1.0-rc.4+abc1234…", set by CI with -p:Version and -p:SourceRevisionId).
 /// </summary>
 public static class BuildInfo
 {
     private static readonly string Informational =
         typeof(BuildInfo).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.0.0";
 
-    /// <summary>Semantic version without build metadata, e.g. "2.1.0-rc.3".</summary>
+    /// <summary>Semantic version without build metadata, e.g. "2.1.0-rc.4".</summary>
     public static string Version => Informational.Split('+')[0];
 
     /// <summary>Short commit id, or "local" for a developer build without CI metadata.</summary>

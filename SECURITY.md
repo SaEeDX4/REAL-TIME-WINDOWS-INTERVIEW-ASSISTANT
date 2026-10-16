@@ -11,4 +11,4 @@
 | Logs | `%LOCALAPPDATA%\InterviewAssistant\logs` — status/latency lines; question text is logged only for duplicate-suppression events. Delete the folder any time. |
 | Process | Runs as invoker (no admin). No hooks into Chrome, no injection, no hidden windows. |
 
-Data sent to OpenAI: interviewer audio (transcription) and, for non-cached questions, the question plus a compact context (résumé facts, short notes). Review OpenAI's data-usage policy for your account.
+Data sent to OpenAI: interviewer audio (transcription) and, for non-cached questions, the question plus a compact context (resume facts, short notes). Review OpenAI's data-usage policy for your account.

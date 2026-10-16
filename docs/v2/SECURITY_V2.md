@@ -1,6 +1,6 @@
 # Security V2 — Threat Model & Controls
 
-Assets: account identity, subscription/entitlements, résumés & interview data (PII), OpenAI server key, Paddle secrets, service budget.
+Assets: account identity, subscription/entitlements, resumes & interview data (PII), OpenAI server key, Paddle secrets, service budget.
 Trust boundaries: desktop (untrusted, user-controlled) ↔ backend (trusted) ↔ providers (OpenAI, Paddle, Supabase).
 
 | Threat | Control | Status |
@@ -18,7 +18,7 @@ Trust boundaries: desktop (untrusted, user-controlled) ↔ backend (trusted) ↔
 | Concurrent account sharing | Max concurrent sessions + device limit per plan | BUILT + tests |
 | Account enumeration | Auth handled by Supabase; API never reveals whether an email exists; 404 for foreign ids | BUILT |
 | Secret leakage | No provider key on desktop; log redaction (`sk-`, `ek_`, bearer tokens, emails); secret-scan test; CI secret scanning | BUILT + tests |
-| PII in logs | Résumé/JD content never logged; structured logs carry ids only | BUILT |
+| PII in logs | Resume/JD content never logged; structured logs carry ids only | BUILT |
 | Raw audio retention | Never written to disk; in-memory bounded queue only | DONE (prototype, unchanged) |
 | Sign-in code interception | PKCE S256 (RFC 7636 vector tested); loopback bound to 127.0.0.1 only, random port, state check, one-shot, request size/time bounds, `no-store` + CSP on the page | BUILT + tests |
 | Phishing via external links | Desktop only opens `https` URLs (checkout/portal/OAuth) in the system browser; card data entered only on Paddle pages | BUILT |

@@ -2,7 +2,7 @@
 
 ## Observability
 - Every response carries `X-Correlation-Id` (generated or accepted from the client). Errors return `{code, message, correlationId}`; the desktop shows the id in "Copy diagnostics".
-- Logs: structured, request bodies are never logged; secrets/tokens are redacted (`Middleware.Redact`). Résumé/document content is never logged.
+- Logs: structured, request bodies are never logged; secrets/tokens are redacted (`Middleware.Redact`). Resume/document content is never logged.
 - Recommended: ship container stdout to the host's log service; alert on 5xx rate, `/health/ready` failures and OpenAI/Paddle error codes.
 
 ## Admin API (`/api/v1/admin/*`, restricted to `Auth:AdminUserIds`, every call audited in `audit_log`)

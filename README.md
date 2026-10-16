@@ -13,7 +13,7 @@ Interviewer speaks
 ```
 
 ## How it works
-1. **Profile** — import your résumé (PDF/DOCX/TXT). Review the extracted facts; only facts you confirm are ever presented as your experience.
+1. **Profile** — import your resume (PDF/DOCX/TXT). Review the extracted facts; only facts you confirm are ever presented as your experience.
 2. **Interview** — add the job title, company and job description, choose the interview and answer language, press **Prepare**. A 50–150 question bank with answers, stories and honest gap handling is built for that interview.
 3. **Live** — start listening. Answers adapt when the interviewer interrupts (Concise/Rapid), avoid repeating the same story, and follow the interviewer's language (10 languages, right-to-left for Arabic and Persian).
 4. **Report** — after Stop, an honest report of the questions asked and the suggestions shown (no scores, no hiring predictions).

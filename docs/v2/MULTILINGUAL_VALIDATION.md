@@ -6,7 +6,7 @@ Launch languages: en, es, fr, de, pt, it, ar (RTL), fa (RTL), zh (Simplified), h
 |---|---|
 | Language registry, RTL flags, answer-language resolution (same-as-interviewer / override / locked fallback) | **TESTED** (unit) |
 | Per-question language detection (script + function words + morphology) for all 10 | **TESTED**: 10 single-sentence cases + 60 fixture questions (`MultilingualLiveEvaluationTests.FixtureCovers…`) |
-| Résumé/JD parsing with localised section headings | **TESTED** for en, de; headings implemented for all 10 — **NOT YET VALIDATED** with real CVs in es/fr/pt/it/ar/fa/zh/hi |
+| Resume/JD parsing with localised section headings | **TESTED** for en, de; headings implemented for all 10 — **NOT YET VALIDATED** with real CVs in es/fr/pt/it/ar/fa/zh/hi |
 | Memory across language switches; "already mentioned" in 10 languages | **TESTED** (unit) |
 | Prepared answers never shown in a different language than required | **TESTED** |
 | Coach parser for Latin/Arabic/Persian/Han scripts | **TESTED** |

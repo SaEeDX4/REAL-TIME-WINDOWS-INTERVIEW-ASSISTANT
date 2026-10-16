@@ -20,7 +20,7 @@ Live overlay (separate always-on-top window, opened by "Start interview")
 - No focus stealing; remembers position/size per monitor; DPI-aware; RTL mirrors layout for Arabic/Persian.
 
 ## Onboarding steps
-Welcome + authorized-use acknowledgement → Sign in (browser) → Plan/trial → Profile (name, languages) → Upload résumé → Review facts (confirm) → Add target (paste JD) → Prepare (progress) → Audio test → Ready.
+Welcome + authorized-use acknowledgement → Sign in (browser) → Plan/trial → Profile (name, languages) → Upload resume → Review facts (confirm) → Add target (paste JD) → Prepare (progress) → Audio test → Ready.
 
 ## Design tokens
 Existing dark token set (Bg/Surface/Surface2/Border/Text/Accent/Listening/Thinking/Error) plus Light theme variants; radii 8/12; spacing 4/8/12/16/24; type ramp 11/13/15/17/20/24.
