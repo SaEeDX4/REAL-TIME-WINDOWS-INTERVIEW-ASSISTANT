@@ -13,7 +13,7 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
     private HotkeyService? _hotkeys;
-    private bool _closingHandled;
+    private bool _closingHandled, _closeRequested;
 
     public MainWindow()
     {
@@ -178,7 +178,7 @@ public partial class MainWindow : Window
 
     private void Settings_Click(object sender, RoutedEventArgs e) => OpenSettings();
     private void Home_Click(object sender, RoutedEventArgs e) => OpenHome();
-    private void Banner_Click(object sender, RoutedEventArgs e) { OpenHome(); _home?.ShowPage("account"); }
+    private void Banner_Click(object sender, RoutedEventArgs e) { OpenHome(); _home?.Navigate("account"); }
     private void Presentation_Click(object sender, RoutedEventArgs e) => _vm.ToggleCoach();
 
     private void Report_Click(object sender, RoutedEventArgs e)
@@ -192,11 +192,19 @@ public partial class MainWindow : Window
     /// <summary>Dashboard: onboarding, profiles, interviews (targets + preparation), reports, account. Non-modal.</summary>
     public void OpenHome()
     {
-        if (_home is { IsLoaded: true }) { _home.Activate(); return; }
+        if (_home is { IsLoaded: true })
+        {
+            if (_home.WindowState == WindowState.Minimized) _home.WindowState = WindowState.Normal;
+            _home.Activate();
+            return;
+        }
         _home = new HomeWindow(_vm, this) { Owner = this };
         _home.Closed += (_, _) => _home = null;
         _home.Show();
     }
+
+    /// <summary>The open Home window, if any (self-test).</summary>
+    internal HomeWindow? Home => _home;
 
     // ---------------- auto-fit: all bullets visible without scrolling ----------------
 
@@ -249,24 +257,38 @@ public partial class MainWindow : Window
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
     /// <summary>
-    /// Settings never end an interview: during a session the live-changeable settings apply immediately and the rest
-    /// (developer model choices) applies after Stop. Outside a session the engine is rebuilt with the new settings.
+    /// Settings live in Home (a page, not a separate window): brings Home forward on the Settings page, optionally
+    /// scrolled to a section ("audio", "answers", "listening", "window", "hotkeys", "privacy").
     /// </summary>
-    public void OpenSettings()
+    public void OpenSettings(string? section = null)
     {
-        var dlg = new SettingsWindow(_vm) { Owner = this };
-        if (dlg.ShowDialog() != true) return;
+        OpenHome();
+        _home?.ShowSettings(section);
+    }
+
+    /// <summary>Raised after saved settings were applied (the pre-interview check re-runs its checks).</summary>
+    public event Action? SettingsApplied;
+
+    /// <summary>
+    /// Applies saved settings. Settings never end an interview: during a session the live-changeable settings apply
+    /// immediately and the rest (developer model choices) applies after Stop. Outside a session the engine is rebuilt.
+    /// </summary>
+    public void ApplySettings(bool engineChanged, bool modelChanged)
+    {
         ApplyAppearance();
         RegisterHotkeys();
         _vm.RestartAudio();
-        if (!dlg.EngineSettingsChanged) return;
-        if (_vm.SessionActive)
+        if (engineChanged)
         {
-            _vm.ApplyLiveSettings();
-            if (dlg.ModelSettingsChanged) _vm.RebuildAfterSession();   // applied on the next Start even if this session had no questions
-            Toasts.Show(Core.Languages.Loc.T(dlg.ModelSettingsChanged ? "toast_settings_after_stop" : "toast_settings_applied_live"), Views.ToastKind.Info);
+            if (_vm.SessionActive)
+            {
+                _vm.ApplyLiveSettings();
+                if (modelChanged) _vm.RebuildAfterSession();   // applied on the next Start even if this session had no questions
+                Toasts.Show(Core.Languages.Loc.T(modelChanged ? "toast_settings_after_stop" : "toast_settings_applied_live"), Views.ToastKind.Info);
+            }
+            else _vm.BuildEngine();
         }
-        else _vm.BuildEngine();
+        SettingsApplied?.Invoke();
     }
 
     private ReadinessWindow? _readiness;
@@ -291,6 +313,10 @@ public partial class MainWindow : Window
     {
         if (_closingHandled) return;
         e.Cancel = true; // finish async cleanup (stop audio, close WebSocket) then close for real
+        if (_closeRequested) return;
+        _closeRequested = true;
+        // Unsaved edits in Home (profile, interview, settings) are asked about before anything closes.
+        if (_home is { IsLoaded: true } home && !await home.ConfirmCloseAsync()) { _closeRequested = false; return; }
         _closingHandled = true;
         AppLog.Info("Close requested");
         foreach (var w in OwnedWindows.Cast<Window>().ToList()) w.Close();

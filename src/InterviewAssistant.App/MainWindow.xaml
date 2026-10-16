@@ -89,7 +89,7 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="StartBtn" Style="{StaticResource Btn.Primary}" Command="{Binding StartPauseCommand}" Padding="12,5" Margin="0,0,6,0" ToolTip="{v:Loc tt_start_pause}" AutomationProperties.Name="{Binding StartPauseLabel}">
+                    <Button x:Name="StartBtn" Style="{StaticResource Btn.Primary}" Command="{Binding StartPauseCommand}" Padding="12,4" Margin="0,0,6,0" ToolTip="{v:Loc tt_start_pause}" AutomationProperties.Name="{Binding StartPauseLabel}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock x:Name="StartIcon" Style="{StaticResource T.Icon}" Text="&#xE768;" FontSize="12" Margin="0,0,6,0"/>
                             <TextBlock Text="{Binding StartPauseLabel}" MaxWidth="140" TextTrimming="CharacterEllipsis"/>
@@ -248,21 +248,11 @@
 
             <!-- ===== Manual question (always-available fallback) ===== -->
             <Grid x:Name="ManualBar" Grid.Row="3" Margin="14,0,14,12">
-                <TextBox x:Name="ManualInput" Style="{StaticResource Input}" KeyDown="ManualInput_KeyDown" Padding="10,7,40,7" AutomationProperties.Name="{Binding LTypeHint}"/>
-                <TextBlock Text="{Binding LTypeHint}" Foreground="{StaticResource B.TextFaint}" FontSize="13" Margin="12,0,0,0"
-                           VerticalAlignment="Center" IsHitTestVisible="False">
-                    <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding Text, ElementName=ManualInput}" Value="">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </TextBlock.Style>
-                </TextBlock>
-                <Button Style="{StaticResource Btn.Ghost}" HorizontalAlignment="Right" Margin="0,0,4,0" Click="ManualSend_Click" ToolTip="{v:Loc tt_send}" AutomationProperties.Name="{v:Loc tt_send}">
+                <!-- shared input: the placeholder sits inside the field with the text's inset and hides while focused or filled;
+                     the end padding keeps typed text clear of the send button -->
+                <TextBox x:Name="ManualInput" KeyDown="ManualInput_KeyDown" Padding="10,6,44,6" v:Watermark.Text="{Binding LTypeHint}"
+                         AutomationProperties.Name="{Binding LTypeHint}"/>
+                <Button Style="{StaticResource Btn.Ghost}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0" Click="ManualSend_Click" ToolTip="{v:Loc tt_send}" AutomationProperties.Name="{v:Loc tt_send}">
                     <TextBlock Style="{StaticResource T.Icon}" Text="&#xE724;" Foreground="{StaticResource B.Accent}"/>
                 </Button>
             </Grid>
@@ -293,6 +283,8 @@
 
             <!-- notifications: bottom of the window, over the action/typing area — never over the answer text -->
             <v:ToastHost x:Name="Toasts" Grid.Row="2" Grid.RowSpan="3" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="12,0,12,10" Panel.ZIndex="10"/>
+            <!-- in-app dialogs: dim the whole window content -->
+            <v:DialogHost x:Name="Dialogs" Grid.RowSpan="5" CornerRadius="13"/>
         </Grid>
     </Border>
     </Grid>

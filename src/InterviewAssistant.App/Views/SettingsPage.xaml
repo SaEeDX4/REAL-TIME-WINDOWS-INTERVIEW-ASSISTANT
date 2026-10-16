@@ -1,0 +1,126 @@
+<UserControl x:Class="InterviewAssistant.App.Views.SettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="clr-namespace:InterviewAssistant.App.Views">
+    <UserControl.Resources>
+        <v:LevelToWidth x:Key="LevelW" Max="200"/>
+        <Style x:Key="Section" TargetType="TextBlock" BasedOn="{StaticResource T.Label}">
+            <Setter Property="Margin" Value="{StaticResource S.SectionMargin}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="AutomationProperties.HeadingLevel" Value="Level2"/>
+        </Style>
+        <Style x:Key="Hint" TargetType="TextBlock" BasedOn="{StaticResource T.Body}">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{StaticResource B.TextFaint}"/>
+            <Setter Property="Margin" Value="{StaticResource S.HintMargin}"/>
+        </Style>
+        <Style x:Key="RowLabel" TargetType="TextBlock" BasedOn="{StaticResource T.Body}">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,12,0"/>
+        </Style>
+    </UserControl.Resources>
+
+    <StackPanel MaxWidth="{StaticResource S.PageMaxWidth}" HorizontalAlignment="Left">
+        <TextBlock Text="{v:Loc settings}" FontFamily="{StaticResource F.Display}" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource B.Text}"
+                   Margin="0,0,0,4" AutomationProperties.HeadingLevel="Level1"/>
+        <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_save_hint}"/>
+
+        <!-- section shortcuts (also the deep-link targets used by the Live Assistant gear and the pre-interview check) -->
+        <WrapPanel Margin="0,12,0,0" AutomationProperties.Name="{v:Loc settings}">
+            <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,6" Content="{v:Loc set_nav_audio}" Tag="audio" Click="SectionChip_Click"/>
+            <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,6" Content="{v:Loc set_nav_answers}" Tag="answers" Click="SectionChip_Click"/>
+            <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,6" Content="{v:Loc set_nav_listening}" Tag="listening" Click="SectionChip_Click"/>
+            <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,6" Content="{v:Loc set_nav_window}" Tag="window" Click="SectionChip_Click"/>
+            <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,6" Content="{v:Loc set_nav_hotkeys}" Tag="hotkeys" Click="SectionChip_Click"/>
+            <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,6" Content="{v:Loc set_nav_privacy}" Tag="privacy" Click="SectionChip_Click"/>
+        </WrapPanel>
+
+        <!-- developer builds only -->
+        <StackPanel x:Name="DeveloperKeyPanel">
+            <TextBlock Text="{v:Loc set_dev_key}" Style="{StaticResource Section}"/>
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <PasswordBox x:Name="KeyBox" AutomationProperties.Name="{v:Loc set_dev_key}" FlowDirection="LeftToRight" PasswordChanged="Changed"/>
+                <Button Grid.Column="1" Style="{StaticResource Btn.Form}" Content="{v:Loc set_test}" Click="TestKey_Click" Margin="8,0,0,0"/>
+                <Button Grid.Column="2" Style="{StaticResource Btn.Ghost}" Content="{v:Loc set_remove}" Click="RemoveKey_Click" Margin="4,0,0,0"/>
+            </Grid>
+            <TextBlock x:Name="KeyStatus" Style="{StaticResource Hint}"/>
+            <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_dev_key_hint}"/>
+        </StackPanel>
+
+        <!-- ===== Audio ===== -->
+        <TextBlock x:Name="SecAudio" Text="{v:Loc set_audio}" Style="{StaticResource Section}"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <ComboBox x:Name="DeviceBox" SelectionChanged="DeviceBox_SelectionChanged" AutomationProperties.Name="{v:Loc set_audio}"/>
+            <Button Grid.Column="1" Style="{StaticResource Btn.Form}" Click="RefreshDevices_Click" ToolTip="{v:Loc set_refresh_devices}" AutomationProperties.Name="{v:Loc set_refresh_devices}" Margin="8,0,0,0">
+                <TextBlock Style="{StaticResource T.Icon}" Text="&#xE72C;"/>
+            </Button>
+        </Grid>
+        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+            <TextBlock Text="{v:Loc set_level}" Foreground="{StaticResource B.TextDim}" FontSize="12" VerticalAlignment="Center" MinWidth="40" Margin="0,0,8,0"/>
+            <Border Width="200" Height="6" CornerRadius="3" Background="{StaticResource B.Surface3}" VerticalAlignment="Center" AutomationProperties.Name="{v:Loc set_level}">
+                <Border HorizontalAlignment="Left" CornerRadius="3" Background="{StaticResource B.Listening}" Width="{Binding AudioLevel, Converter={StaticResource LevelW}}"/>
+            </Border>
+        </StackPanel>
+        <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_audio_hint}"/>
+
+        <!-- ===== Answers ===== -->
+        <TextBlock x:Name="SecAnswers" Text="{v:Loc set_answers}" Style="{StaticResource Section}"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" MinWidth="150" MaxWidth="280"/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+            <TextBlock x:Name="ModelLabel" Text="{v:Loc set_answer_model}" Style="{StaticResource RowLabel}"/>
+            <ComboBox x:Name="ModelBox" Grid.Column="1" IsEditable="True" Margin="0,4" AutomationProperties.Name="{v:Loc set_answer_model}" FlowDirection="LeftToRight"/>
+            <TextBlock x:Name="SttLabel" Grid.Row="1" Text="{v:Loc set_stt_model}" Style="{StaticResource RowLabel}"/>
+            <ComboBox x:Name="SttBox" Grid.Row="1" Grid.Column="1" IsEditable="True" Margin="0,4" AutomationProperties.Name="{v:Loc set_stt_model}" FlowDirection="LeftToRight"/>
+            <TextBlock x:Name="ProtocolLabel" Grid.Row="2" Text="{v:Loc set_protocol}" Style="{StaticResource RowLabel}"/>
+            <ComboBox x:Name="ProtocolBox" Grid.Row="2" Grid.Column="1" Margin="0,4" AutomationProperties.Name="{v:Loc set_protocol}" SelectionChanged="Changed"/>
+            <TextBlock Grid.Row="3" Text="{v:Loc set_font_size}" Style="{StaticResource RowLabel}"/>
+            <ComboBox x:Name="FontBox" Grid.Row="3" Grid.Column="1" Margin="0,4" AutomationProperties.Name="{v:Loc set_font_size}" SelectionChanged="Changed"/>
+        </Grid>
+        <CheckBox x:Name="FastCacheBox" Style="{StaticResource Check}" Content="{v:Loc set_fast_cache}" Margin="0,10,0,0" Checked="Changed" Unchecked="Changed"/>
+
+        <!-- ===== Listening ===== -->
+        <TextBlock x:Name="SecListening" Text="{v:Loc set_listening}" Style="{StaticResource Section}"/>
+        <TextBlock Text="{v:Loc set_end_wait}" Style="{StaticResource T.Body}"/>
+        <DockPanel Margin="0,4,0,0">
+            <TextBlock DockPanel.Dock="Left" Text="{v:Loc set_faster}" FontSize="11" Foreground="{StaticResource B.TextFaint}" VerticalAlignment="Center" MinWidth="46" Margin="0,0,8,0"/>
+            <TextBlock DockPanel.Dock="Right" Text="{v:Loc set_waits_longer}" FontSize="11" Foreground="{StaticResource B.TextFaint}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            <Slider x:Name="VadSlider" Minimum="0.6" Maximum="1.8" TickFrequency="0.1" IsSnapToTickEnabled="True" AutomationProperties.Name="{v:Loc set_end_wait}" ValueChanged="SliderChanged"/>
+        </DockPanel>
+        <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_end_wait_hint}"/>
+
+        <!-- ===== Window ===== -->
+        <TextBlock x:Name="SecWindow" Text="{v:Loc set_window}" Style="{StaticResource Section}"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" MinWidth="150" MaxWidth="280"/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <TextBlock Text="{v:Loc set_opacity}" Style="{StaticResource RowLabel}"/>
+            <Slider x:Name="OpacitySlider" Grid.Column="1" Minimum="0.75" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True" AutomationProperties.Name="{v:Loc set_opacity}"
+                    VerticalAlignment="Center" ValueChanged="SliderChanged"/>
+        </Grid>
+        <CheckBox x:Name="TopmostBox" Style="{StaticResource Check}" Content="{v:Loc set_topmost}" Margin="0,8,0,0" Checked="Changed" Unchecked="Changed"/>
+
+        <!-- ===== Hotkeys ===== -->
+        <TextBlock x:Name="SecHotkeys" Text="{v:Loc set_hotkeys}" Style="{StaticResource Section}"/>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" MinWidth="150" MaxWidth="280"/><ColumnDefinition/></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+            <TextBlock Text="{v:Loc set_hk_toggle}" Style="{StaticResource RowLabel}"/>
+            <TextBox x:Name="HkToggle" Grid.Column="1" Margin="0,4,0,0" AutomationProperties.Name="{v:Loc set_hk_toggle}" FlowDirection="LeftToRight" TextChanged="Changed"/>
+            <v:InlineMessage x:Name="HkToggleError" Grid.Row="1" Grid.Column="1" Margin="0,4,0,0"/>
+            <TextBlock Grid.Row="2" Text="{v:Loc set_hk_start}" Style="{StaticResource RowLabel}"/>
+            <TextBox x:Name="HkStart" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" AutomationProperties.Name="{v:Loc set_hk_start}" FlowDirection="LeftToRight" TextChanged="Changed"/>
+            <v:InlineMessage x:Name="HkStartError" Grid.Row="3" Grid.Column="1" Margin="0,4,0,0"/>
+            <TextBlock Grid.Row="4" Text="{v:Loc set_hk_manual}" Style="{StaticResource RowLabel}"/>
+            <TextBox x:Name="HkManual" Grid.Row="4" Grid.Column="1" Margin="0,8,0,0" AutomationProperties.Name="{v:Loc set_hk_manual}" FlowDirection="LeftToRight" TextChanged="Changed"/>
+            <v:InlineMessage x:Name="HkManualError" Grid.Row="5" Grid.Column="1" Margin="0,4,0,0"/>
+        </Grid>
+        <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_hotkeys_hint}"/>
+
+        <!-- ===== Privacy ===== -->
+        <TextBlock x:Name="SecPrivacy" Text="{v:Loc privacy}" Style="{StaticResource Section}"/>
+        <CheckBox x:Name="SaveTranscriptBox" Style="{StaticResource Check}" Content="{v:Loc set_save_transcript}" Checked="Changed" Unchecked="Changed"/>
+        <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_save_transcript_hint}" Margin="0,4,0,16"/>
+    </StackPanel>
+</UserControl>

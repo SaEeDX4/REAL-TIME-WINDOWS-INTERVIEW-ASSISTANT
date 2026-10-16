@@ -19,6 +19,10 @@
     <ProjectReference Include="..\..\src\InterviewAssistant.Client\InterviewAssistant.Client.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <!-- WPF-free presentation logic of the desktop app (dirty-state guard, account sections, readiness verdict) -->
+    <Compile Include="..\..\src\InterviewAssistant.App\UiState\*.cs" LinkBase="AppUiState" />
+  </ItemGroup>
+  <ItemGroup>
     <None Include="..\..\samples\shervin-teroxx\**\*" LinkBase="knowledge" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\samples\**\*" LinkBase="samples" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\knowledge\**\*" LinkBase="generic-knowledge" CopyToOutputDirectory="PreserveNewest" />

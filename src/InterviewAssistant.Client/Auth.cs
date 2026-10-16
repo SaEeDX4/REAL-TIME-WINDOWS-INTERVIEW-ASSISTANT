@@ -124,8 +124,11 @@ public sealed class SupabaseAuth
     /// <summary>
     /// Password reset with PKCE: Supabase e-mails a link that returns to this PC's loopback listener with a one-time code;
     /// the code becomes a short session in which <see cref="UpdatePasswordAsync"/> sets the new password.
+    /// Enumeration-safe: an address without an account behaves exactly like an existing one (the request is reported as
+    /// accepted through <paramref name="requestAccepted"/> and the listener waits for a link that never comes), so the
+    /// app can never reveal whether an account exists. Rate limits, invalid addresses and network errors are still reported.
     /// </summary>
-    public async Task<AuthSession> RecoverPasswordAsync(string email, TimeSpan timeout, CancellationToken ct)
+    public async Task<AuthSession> RecoverPasswordAsync(string email, TimeSpan timeout, CancellationToken ct, Action? requestAccepted = null)
     {
         RequireReady();
         var verifier = Pkce.CreateVerifier();
@@ -133,10 +136,21 @@ public sealed class SupabaseAuth
         using (var req = Request(HttpMethod.Post, $"{AuthBase}/recover?redirect_to={Uri.EscapeDataString(loop.RedirectUri)}",
                    new { email = email.Trim(), code_challenge = Pkce.Challenge(verifier), code_challenge_method = "s256" }))
         using (var resp = await Send(req, ct))
-            if (!resp.IsSuccessStatusCode) throw await Fail(resp, Core.Languages.Loc.T("auth_reset_send_failed"));
+        {
+            if (!resp.IsSuccessStatusCode)
+            {
+                var error = await Fail(resp, Core.Languages.Loc.T("auth_reset_send_failed"));
+                if (!RevealsAccountExistence(error.Code)) throw error;
+            }
+        }
+        requestAccepted?.Invoke();
         var code = await loop.WaitForCodeAsync(timeout, ct);
         return await ExchangeCodeAsync(code, verifier, ct);
     }
+
+    /// <summary>Error codes that would tell the caller that no account exists for an address (treated as "accepted").</summary>
+    public static bool RevealsAccountExistence(string? code) =>
+        code is "user_not_found" or "email_not_found" or "identity_not_found" or "http_404";
 
     /// <summary>Sets a new password for the signed-in user (used right after recovery, or from Account).</summary>
     public async Task UpdatePasswordAsync(string newPassword, CancellationToken ct)
