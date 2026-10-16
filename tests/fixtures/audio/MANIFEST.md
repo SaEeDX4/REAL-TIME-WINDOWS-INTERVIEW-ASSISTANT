@@ -281,6 +281,17 @@ removes more music but pushes the synthetic 210 Hz speech below its 1 000 ms tes
 ≈ 25 extra autocorrelation lags per analysed hop and a ~170-bin dot product; `Analysis_IsCheapEnoughForTheCaptureThread`
 still passes.
 
+## rc.4: pitch steadiness and plausibility
+
+rc.3 left 18 of 30 non-speech fixtures voice-like. rc.4 adds, in `AcousticAnalyzer`, **pitch pairs**: two consecutive
+in-voice-range periodic hops exactly one hop (20 ms) apart, classed *steady* (pitch changed < 0.6 %) or *jumping*
+(> 2.5 %). A held pitch — an alert tone, a buzz, a note, a chord pad — is steady for most pairs (76–94 % in these
+fixtures); speech moves (≤ 51 % with ≥ 10 pairs). `SpeechEvidence.VoiceLike` therefore requires, once ≥ 10 pairs were
+measured, steadiness < 65 %; tonal dominance is judged only with ≥ 100 ms of tonal sound. Pitch jumps are reported but
+not used (creaky real voices jump). On top, `SpeechPlausibility` compares the words with the voiced time, so a
+voice-like but short sound cannot carry a full interview sentence. Result: 3 of 30 non-speech fixtures remain
+voice-like (quiet knock, sung melody ×2), all 30 speech fixtures stay voice-like.
+
 ## Limitations — what these fixtures still cannot represent
 
 - **Real voices.** eSpeak NG is a formant synthesizer: perfectly regular glottal pulses (no jitter/shimmer, no
@@ -296,5 +307,5 @@ still passes.
   ideal mixing; no laptop-speaker → microphone path, no Bluetooth headset codecs (SBC/mSBC 8–16 kHz).
 - **Overlap.** Each fixture is a single event; speech over music, a chime during a question, or two talkers are not
   represented.
-- **Music** is three short fragments; real music (vocals, distortion guitars, synth bass, dense mixes) varies far more
-  — expect most music with a bass line or vocals to look voiced to this layer, as the known look-alikes do.
+- **Music** is three short fragments; real music (vocals, distortion guitars, synth bass, dense mixes) varies far more.
+  Instrumental fragments are rejected by their steady pitch (rc.4); expect sung vocals to look like a voice.
