@@ -134,6 +134,36 @@ public sealed class SessionService
         return new HeartbeatResponse(Math.Max(0, remaining), s.Status == "active", s.EndReason, Math.Max(0, before.Period - billable), Math.Max(0, before.Today - billable));
     }
 
+    /// <summary>
+    /// Removes a device from the account and ends its live leases — billed like a stop (time since the last heartbeat,
+    /// bounded by the timeout), so revoking and re-adding a device can never be used to skip metering.
+    /// </summary>
+    public Task RevokeDeviceAsync(UserAccount user, EffectivePlan plan, Guid deviceId, CancellationToken ct) =>
+        UserLockedAsync(user.Id, async () =>
+        {
+            var d = await _db.Devices.FirstOrDefaultAsync(x => x.Id == deviceId && x.UserId == user.Id, ct) ?? throw ApiException.NotFound();
+            var now = _time.GetUtcNow().UtcDateTime;
+            d.RevokedUtc = now;
+            foreach (var s in await _db.Sessions.Where(s => s.UserId == user.Id && s.DeviceId == deviceId && s.Status == "active").ToListAsync(ct))
+            { await BillTailAsync(user, plan, s, now, ct); End(s, "stopped", "device_revoked", now); }
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }, ct);
+
+    /// <summary>Ends every live lease of an account (admin suspension), billing each like a stop.</summary>
+    public async Task EndAllAsync(UserAccount user, string reason, CancellationToken ct)
+    {
+        var (plan, _) = await _entitlements.ResolveAsync(user, ct);
+        await UserLockedAsync(user.Id, async () =>
+        {
+            var now = _time.GetUtcNow().UtcDateTime;
+            foreach (var s in await _db.Sessions.Where(s => s.UserId == user.Id && s.Status == "active").ToListAsync(ct))
+            { await BillTailAsync(user, plan, s, now, ct); End(s, "stopped", reason, now); }
+            await _db.SaveChangesAsync(ct);
+            return true;
+        }, ct);
+    }
+
     /// <summary>Kept for clients that ask for a fresh endpoint before reconnecting: returns the relay, never a provider secret.</summary>
     public async Task<RealtimeCredential> RenewSecretAsync(UserAccount user, EffectivePlan plan, Guid sessionId, CancellationToken ct)
     {
@@ -146,45 +176,50 @@ public sealed class SessionService
 
     /// <summary>
     /// Authorises one relay connection: the lease must be this user's, active, recently heartbeaten, on an active device
-    /// and have allowance left. Mints the upstream credential (counted against the per-lease cap); it is used only by
-    /// the relay and is never sent to the client.
+    /// and have allowance left. The connection becomes the lease's only relay (<see cref="InterviewSession.RelayConnectionId"/>;
+    /// an older one on any replica stops at its next check) and counts against the per-lease cap. The upstream
+    /// credential is minted afterwards, outside the user lock, and is used only by the relay — never sent to the client.
     /// </summary>
-    public Task<RealtimeCredential> OpenRelayAsync(UserAccount user, EffectivePlan plan, Guid sessionId, string prompt, string? language, CancellationToken ct) =>
-        UserLockedAsync(user.Id, async () =>
+    public async Task<(RealtimeCredential Upstream, Guid ConnectionId)> OpenRelayAsync(UserAccount user, EffectivePlan plan, Guid sessionId, string prompt, string? language, CancellationToken ct)
+    {
+        var connectionId = Guid.NewGuid();
+        await UserLockedAsync(user.Id, async () =>
         {
             var s = await _db.Sessions.FirstOrDefaultAsync(x => x.Id == sessionId && x.UserId == user.Id, ct) ?? throw ApiException.NotFound();
             if (!RelayMayRun(s, _time.GetUtcNow().UtcDateTime)) throw ApiException.Conflict("session_ended", "Your live session has ended. Press Resume.");
             await _devices.RequireActiveAsync(user.Id, s.DeviceId, ct);
             if (await _usage.RemainingLiveSecondsAsync(user.Id, plan, ct) <= 0) throw ApiException.Payment("allowance_exhausted", "No live minutes remain.");
             if (s.SecretsIssued > MaxSecretsPerSession) throw ApiException.TooMany("secret_rate", "Too many live connections for this session.");
-            var cfg = await _config.GetAsync(ct);
-            var cred = await _issuer.IssueAsync(TranscriptionModels(cfg), prompt, language, ct);
             s.SecretsIssued++;
+            s.RelayConnectionId = connectionId;
             await _db.SaveChangesAsync(ct);
-            return cred;
+            return true;
         }, ct);
+        var cfg = await _config.GetAsync(ct);
+        return (await _issuer.IssueAsync(TranscriptionModels(cfg), prompt, language, ct), connectionId);
+    }
 
-    /// <summary>Re-read by a running relay every few seconds.</summary>
-    public async Task<bool> RelayLeaseActiveAsync(Guid userId, Guid sessionId, CancellationToken ct)
+    /// <summary>Re-read by a running relay every few seconds: still active, inside its billable window, and still this connection's lease.</summary>
+    public async Task<bool> RelayLeaseActiveAsync(Guid userId, Guid sessionId, Guid connectionId, CancellationToken ct)
     {
         var s = await _db.Sessions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == sessionId && x.UserId == userId, ct);
-        return s != null && RelayMayRun(s, _time.GetUtcNow().UtcDateTime);
+        return s != null && s.RelayConnectionId == connectionId && RelayMayRun(s, _time.GetUtcNow().UtcDateTime);
     }
 
     /// <summary>
     /// A relay may carry audio only inside time that will be billed: while the lease is active, and for no longer after
-    /// the last heartbeat than both the remaining allowance and the heartbeat timeout (less a margin for the relay's
-    /// check interval). Heartbeats and the expiry sweeper bill exactly that window.
+    /// the last heartbeat than the remaining allowance and the heartbeat timeout, less a margin that covers the relay's
+    /// check interval. Heartbeats and the expiry sweeper bill exactly that window.
     /// </summary>
     private bool RelayMayRun(InterviewSession s, DateTime now)
     {
         if (s.Status != "active") return false;
         var sinceHeartbeat = (now - s.LastHeartbeatUtc).TotalSeconds;
-        var window = Math.Min(s.AllowanceAtHeartbeatSeconds, _safety.HeartbeatTimeoutSeconds - RelayCheckMarginSeconds);
+        var window = Math.Min(s.AllowanceAtHeartbeatSeconds, _safety.HeartbeatTimeoutSeconds) - RelayCheckMarginSeconds;
         return sinceHeartbeat < window;
     }
 
-    /// <summary>Twice the relay's lease check interval, so a relay always closes before unbilled time could start.</summary>
+    /// <summary>More than twice the longest relay check interval (<see cref="RelayOptions.MaxLeaseCheckSeconds"/>).</summary>
     public const int RelayCheckMarginSeconds = 5;
 
     public Task StopAsync(UserAccount user, EffectivePlan plan, Guid sessionId, CancellationToken ct) =>
@@ -273,6 +308,7 @@ public sealed class SessionSweeper : BackgroundService
                 {
                     var purged = await scope.ServiceProvider.GetRequiredService<DocumentService>().PurgeExpiredReportsAsync(ct);
                     if (purged > 0) _log.LogInformation("Purged {Count} reports past retention", purged);
+                    await DeletedAccountMarkers.PurgeExpiredAsync(scope.ServiceProvider.GetRequiredService<AppDbContext>(), scope.ServiceProvider.GetRequiredService<TimeProvider>().GetUtcNow().UtcDateTime, ct);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException) { _log.LogError(ex, "Session sweep failed"); }

@@ -15,8 +15,7 @@ public sealed class DeviceService
 {
     private readonly AppDbContext _db;
     private readonly TimeProvider _time;
-    private readonly RealtimeRelayRegistry _relays;
-    public DeviceService(AppDbContext db, TimeProvider time, RealtimeRelayRegistry relays) { _db = db; _time = time; _relays = relays; }
+    public DeviceService(AppDbContext db, TimeProvider time) { _db = db; _time = time; }
 
     public static string Hash(string installationId) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(installationId.Trim()))).ToLowerInvariant();
 
@@ -48,16 +47,6 @@ public sealed class DeviceService
     public async Task<List<DeviceDto>> ListAsync(Guid userId, Guid? current, CancellationToken ct) =>
         (await _db.Devices.AsNoTracking().Where(d => d.UserId == userId).OrderByDescending(d => d.LastSeenUtc).ToListAsync(ct)).Select(d => ToDto(d, current)).ToList();
 
-    public async Task RevokeAsync(Guid userId, Guid deviceId, CancellationToken ct)
-    {
-        var d = await _db.Devices.FirstOrDefaultAsync(x => x.Id == deviceId && x.UserId == userId, ct) ?? throw ApiException.NotFound();
-        var now = _time.GetUtcNow().UtcDateTime;
-        d.RevokedUtc = now;
-        var ended = await _db.Sessions.Where(s => s.DeviceId == deviceId && s.Status == "active").ToListAsync(ct);
-        foreach (var s in ended) { s.Status = "stopped"; s.EndReason = "device_revoked"; s.EndedUtc = now; }
-        await _db.SaveChangesAsync(ct);
-        foreach (var s in ended) _relays.Close(s.Id);
-    }
 
     public async Task<Device> RequireActiveAsync(Guid userId, Guid deviceId, CancellationToken ct)
     {

@@ -103,6 +103,43 @@ namespace InterviewAssistant.Backend.Data.Migrations
                     b.ToTable("billing_adjustments", (string)null);
                 });
 
+            modelBuilder.Entity("InterviewAssistant.Backend.Data.BillingTransaction", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("BilledUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<bool>("Paid")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("PeriodEndUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("PeriodStartUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProviderSubscriptionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProviderSubscriptionId");
+
+                    b.ToTable("billing_transactions", (string)null);
+                });
+
             modelBuilder.Entity("InterviewAssistant.Backend.Data.ConfigEntry", b =>
                 {
                     b.Property<string>("Key")
@@ -122,6 +159,22 @@ namespace InterviewAssistant.Backend.Data.Migrations
                     b.HasKey("Key");
 
                     b.ToTable("runtime_config", (string)null);
+                });
+
+            modelBuilder.Entity("InterviewAssistant.Backend.Data.DeletedAccountMarker", b =>
+                {
+                    b.Property<string>("EmailHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("DeletedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("EmailHash");
+
+                    b.HasIndex("DeletedUtc");
+
+                    b.ToTable("deleted_account_markers", (string)null);
                 });
 
             modelBuilder.Entity("InterviewAssistant.Backend.Data.Device", b =>
@@ -200,6 +253,9 @@ namespace InterviewAssistant.Backend.Data.Migrations
                     b.Property<int>("MeteredSeconds")
                         .HasColumnType("integer");
 
+                    b.Property<Guid?>("RelayConnectionId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("SecretsIssued")
                         .HasColumnType("integer");
 
@@ -270,12 +326,6 @@ namespace InterviewAssistant.Backend.Data.Migrations
 
                     b.Property<DateTime?>("CurrentPeriodStartUtc")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("CurrentTransactionBilledUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CurrentTransactionId")
-                        .HasColumnType("text");
 
                     b.Property<DateTime?>("GraceUntilUtc")
                         .HasColumnType("timestamp with time zone");
@@ -404,6 +454,9 @@ namespace InterviewAssistant.Backend.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
+
+                    b.Property<bool>("TrialForfeited")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime>("UpdatedUtc")
                         .HasColumnType("timestamp with time zone");

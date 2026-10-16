@@ -36,6 +36,10 @@ public sealed class RealtimeTranscriberOptions
     public bool ServerConfiguredSession { get; set; }
     /// <summary>Extra request headers for the WebSocket handshake (e.g. client version and correlation id for the relay).</summary>
     public Dictionary<string, string> Headers { get; } = new();
+    /// <summary>Server-configured sessions: the bearer was rejected (401) once; the next credential should be refreshed.</summary>
+    public Action? CredentialRejected { get; set; }
+    /// <summary>Server-configured sessions: the service refused the connection with this HTTP status (402/403/404/409/426/429).</summary>
+    public Action<int>? ConnectionRefused { get; set; }
 }
 
 /// <summary>
@@ -127,6 +131,7 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
             if (string.IsNullOrWhiteSpace(key)) { SetStatus(ConnectionStatus.Failed, _opt.ServerConfiguredSession ? "Live session not active" : "No API key configured"); return; }
             SetStatus(ReconnectCount == 0 && backoff.Attempt == 0 ? ConnectionStatus.Connecting : ConnectionStatus.Reconnecting, null);
             using var ws = new ClientWebSocket();
+            ws.Options.CollectHttpResponseDetails = true;
             ws.Options.SetRequestHeader("Authorization", "Bearer " + key);
             if (_useBeta) ws.Options.SetRequestHeader("OpenAI-Beta", "realtime=v1");
             foreach (var (name, value) in _opt.Headers) ws.Options.SetRequestHeader(name, value);
@@ -141,6 +146,7 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
                 if (!_opt.ServerConfiguredSession) await SendJsonAsync(ws, BuildSessionUpdate(), ct).ConfigureAwait(false);
                 SetStatus(ConnectionStatus.Connected, ActiveModel + (_useBeta ? " (beta protocol)" : ""));
                 backoff.Reset();
+                _authRetried = false;
                 var started = DateTime.UtcNow;
                 using var sessionCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 var receive = ReceiveLoopAsync(ws, sessionCts);
@@ -152,7 +158,29 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
                 fatal = _fatal;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested) { break; }
-            catch (WebSocketException ex) { failure = DescribeConnectError(ex); fatal = failure.Contains("401") || failure.Contains("403"); }
+            catch (WebSocketException ex)
+            {
+                failure = DescribeConnectError(ex);
+                fatal = failure.Contains("401") || failure.Contains("403");
+                var status = (int)ws.HttpStatusCode;
+                if (_opt.ServerConfiguredSession && status != 0)
+                {
+                    if (status == 401 && !_authRetried)
+                    {
+                        // An access token that expired a moment ago: refresh it once before giving up.
+                        _authRetried = true; fatal = false; failure = "401 — refreshing the sign-in";
+                        _opt.CredentialRejected?.Invoke();
+                    }
+                    else if (status is 402 or 403 or 404 or 409 or 426 or 429)
+                    {
+                        // The service refused the live session (ended, out of minutes, device removed, update required,
+                        // too many connections): the app decides; never retry blindly while the lease is billed.
+                        failure = $"{status} — live session refused";
+                        fatal = status is 403 or 426 or 429;
+                        _opt.ConnectionRefused?.Invoke(status);
+                    }
+                }
+            }
             catch (Exception ex) { failure = ex.Message; }
             finally
             {
@@ -171,6 +199,7 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
         }
     }
 
+    private bool _authRetried;
     private string? _lastServerError;
     private bool _fatal;
     private bool _rotateRequested;

@@ -172,6 +172,66 @@ public class RealtimeRelayTests : IClassFixture<ApiFactory>
         finally { _f.Upstream.Fail = false; }
     }
 
+    private async Task<int> LiveSecondsUsed(Guid user)
+    {
+        using var scope = _f.Services.CreateScope();
+        return await scope.ServiceProvider.GetRequiredService<AppDbContext>().Usage.Where(u => u.UserId == user && u.Kind == UsageService.LiveSeconds).SumAsync(u => (int?)u.Quantity) ?? 0;
+    }
+
+    [Fact]
+    public async Task RevokingYourOwnDevice_EndsTheLeaseBilledLikeAStop()
+    {
+        // A modified client that never heartbeats and then removes its own device must still pay for the time used.
+        var (user, c, device, lease) = await StartLease();
+        using var ws = await _f.OpenRelay(user, lease.SessionId);
+        _f.Time.Advance(TimeSpan.FromSeconds(60));
+        (await c.DeleteAsync($"/api/v1/devices/{device.Id}")).EnsureSuccessStatusCode();
+        await AssertClosedForLeaseEnd(ws);
+        Assert.Equal(60, await LiveSecondsUsed(user));
+    }
+
+    [Fact]
+    public async Task AdminSuspension_EndsTheLeaseBilledLikeAStop()
+    {
+        var (user, _, _, lease) = await StartLease();
+        using var ws = await _f.OpenRelay(user, lease.SessionId);
+        _f.Time.Advance(TimeSpan.FromSeconds(45));
+        var admin = _f.ClientFor(ApiFactory.AdminId);
+        (await admin.PostAsync($"/api/v1/admin/users/{user}/disable", null)).EnsureSuccessStatusCode();
+        await AssertClosedForLeaseEnd(ws);
+        Assert.Equal(45, await LiveSecondsUsed(user));
+    }
+
+    [Fact]
+    public async Task ANewerRelayConnectionOnAnotherReplica_StopsTheOlderOne()
+    {
+        var (user, _, _, lease) = await StartLease();
+        using var ws = await _f.OpenRelay(user, lease.SessionId);
+        // Another replica accepted a newer connection for the same lease: it is recorded on the lease row.
+        using (var scope = _f.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var s = await db.Sessions.FirstAsync(x => x.Id == lease.SessionId);
+            s.RelayConnectionId = Guid.NewGuid();
+            await db.SaveChangesAsync();
+        }
+        await AssertClosedForLeaseEnd(ws);
+    }
+
+    [Fact]
+    public async Task OnlyARebuiltAudioMessageReachesTheProvider_NeverTheClientsBytes()
+    {
+        var (user, _, _, lease) = await StartLease();
+        using var ws = await _f.OpenRelay(user, lease.SessionId);
+        var upstream = _f.Upstream.Last;
+        await ws.SendText("{\"type\":\"session.update\",\"type\":\"input_audio_buffer.append\",\"audio\":\"AAAA\"}");   // duplicate key
+        await ws.SendText(Append + " {\"type\":\"session.update\"}");                                                    // trailing content
+        await ws.SendText("{\"type\":\"input_audio_buffer.append\",\"audio\":\"not base64!\"}");
+        await ws.SendText("{\"type\":\"input_audio_buffer.append\",\"audio\":\"AAAA\",\"session\":{\"model\":\"x\"}}");  // extra field
+        var got = await upstream.Socket.Receive(Wait);
+        Assert.Equal(Append, got!.Text);   // the first three were dropped; the fourth arrives rebuilt without "session"
+    }
+
     [Fact]
     public void OnlyAudioBufferMessagesAreForwarded()
     {
@@ -184,5 +244,8 @@ public class RealtimeRelayTests : IClassFixture<ApiFactory>
         Assert.False(Ok("[]"));
         Assert.False(Ok("{\"type\":1}"));
         Assert.False(Ok("{"));
+        Assert.False(Ok("{\"type\":\"session.update\",\"type\":\"input_audio_buffer.commit\"}"));
+        Assert.False(Ok("{\"type\":\"input_audio_buffer.commit\"} {}"));
+        Assert.False(Ok("{\"type\":\"input_audio_buffer.append\"}"));
     }
 }

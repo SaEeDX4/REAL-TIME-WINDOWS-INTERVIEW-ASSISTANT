@@ -58,6 +58,9 @@ public sealed class UserService
         {
             var now = _time.GetUtcNow().UtcDateTime;
             u = new UserAccount { Id = id, Email = p.FindFirstValue(ClaimTypes.Email) ?? p.FindFirstValue("email") ?? "", CreatedUtc = now, UpdatedUtc = now };
+            // Deleting an account and signing up again with the same e-mail does not grant a second trial.
+            if (DeletedAccountMarkers.Hash(u.Email) is { } h && await _db.DeletedAccountMarkers.AnyAsync(m => m.EmailHash == h && m.DeletedUtc > now - DeletedAccountMarkers.Retention, ct))
+                u.TrialForfeited = true;
             _db.Users.Add(u);
             try { await _db.SaveChangesAsync(ct); }
             catch (DbUpdateException) { _db.ChangeTracker.Clear(); u = await _db.Users.FirstAsync(x => x.Id == id, ct); } // concurrent first requests

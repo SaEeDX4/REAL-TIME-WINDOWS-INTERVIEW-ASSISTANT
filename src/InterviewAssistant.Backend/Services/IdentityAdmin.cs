@@ -40,11 +40,14 @@ public sealed class SupabaseIdentityAdmin : IIdentityAdmin
         try
         {
             using var resp = await _http.SendAsync(req, ct);
-            if (resp.IsSuccessStatusCode || resp.StatusCode == HttpStatusCode.NotFound) return true;
+            if (resp.IsSuccessStatusCode) return true;
+            // Only the auth service's own "user not found" means the identity is already gone; any other 404 (wrong URL,
+            // proxy) must stay a failure so the deletion is retried and visible to operators.
+            if (resp.StatusCode == HttpStatusCode.NotFound && (await resp.Content.ReadAsStringAsync(ct)).Contains("\"user_not_found\"", StringComparison.Ordinal)) return true;
             _log.LogWarning("Sign-in identity deletion for user {UserId} failed with HTTP {Status}", userId, (int)resp.StatusCode);
             return false;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             _log.LogWarning("Sign-in identity deletion for user {UserId} failed: {Error}", userId, ex.GetType().Name);
             return false;
@@ -62,24 +65,36 @@ public sealed class IdentityDeletionService
     public IdentityDeletionService(AppDbContext db, IIdentityAdmin admin, TimeProvider time, ILogger<IdentityDeletionService> log) { _db = db; _admin = admin; _time = time; _log = log; }
 
     /// <summary>Attempts the deletion for one account whose data was already deleted; records the outcome.</summary>
+    /// <summary>
+    /// Attempts the deletion for one account whose data was already deleted; records the outcome. Never throws for a
+    /// provider or storage problem — the deletion then stays queued (the account data is already gone either way).
+    /// </summary>
     public async Task<IdentityDeletion> CompleteAsync(UserAccount u, CancellationToken ct)
     {
         if (u.IdentityDeletedUtc != null) return IdentityDeletion.Deleted;
         if (!_admin.Configured) return IdentityDeletion.NotConfigured;
-        u.IdentityDeletionAttempts++;
-        var ok = await _admin.DeleteUserAsync(u.Id, ct);
-        if (ok) { u.IdentityDeletedUtc = _time.GetUtcNow().UtcDateTime; u.IdentityDeletionPendingSinceUtc = null; }
-        await _db.SaveChangesAsync(ct);
-        if (ok) _log.LogInformation("Sign-in identity of deleted account {UserId} removed", u.Id);
-        return ok ? IdentityDeletion.Deleted : IdentityDeletion.Pending;
+        try
+        {
+            u.IdentityDeletionAttempts++;
+            var ok = await _admin.DeleteUserAsync(u.Id, ct);
+            if (ok) { u.IdentityDeletedUtc = _time.GetUtcNow().UtcDateTime; u.IdentityDeletionPendingSinceUtc = null; }
+            await _db.SaveChangesAsync(ct);
+            if (ok) _log.LogInformation("Sign-in identity of deleted account {UserId} removed", u.Id);
+            return ok ? IdentityDeletion.Deleted : IdentityDeletion.Pending;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _log.LogWarning("Recording the sign-in identity deletion for user {UserId} failed ({Error}); it stays queued", u.Id, ex.GetType().Name);
+            return IdentityDeletion.Pending;
+        }
     }
 
-    /// <summary>Retries pending deletions (bounded batch; called by the background sweeper).</summary>
+    /// <summary>Retries pending deletions (bounded batch, least-tried first so one failing row cannot block the rest).</summary>
     public async Task<int> RetryPendingAsync(CancellationToken ct)
     {
         if (!_admin.Configured) return 0;
         var pending = await _db.Users.Where(u => u.Status == "deleted" && u.IdentityDeletionPendingSinceUtc != null && u.IdentityDeletedUtc == null)
-            .OrderBy(u => u.IdentityDeletionPendingSinceUtc).Take(50).ToListAsync(ct);
+            .OrderBy(u => u.IdentityDeletionAttempts).ThenBy(u => u.IdentityDeletionPendingSinceUtc).Take(50).ToListAsync(ct);
         int done = 0;
         foreach (var u in pending) if (await CompleteAsync(u, ct) == IdentityDeletion.Deleted) done++;
         return done;

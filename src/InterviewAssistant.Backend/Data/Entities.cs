@@ -13,6 +13,18 @@ public sealed class UserAccount
     public DateTime? IdentityDeletionPendingSinceUtc { get; set; }
     public DateTime? IdentityDeletedUtc { get; set; }
     public int IdentityDeletionAttempts { get; set; }
+    /// <summary>The e-mail belonged to an account deleted within the last year: no new trial allowance.</summary>
+    public bool TrialForfeited { get; set; }
+}
+
+/// <summary>
+/// Pseudonymous marker kept after an account deletion (SHA-256 of the normalised e-mail, no other data) so deleting and
+/// signing up again does not grant a new trial. Purged after 365 days.
+/// </summary>
+public sealed class DeletedAccountMarker
+{
+    public string EmailHash { get; set; } = "";
+    public DateTime DeletedUtc { get; set; }
 }
 
 public sealed class Subscription
@@ -29,15 +41,26 @@ public sealed class Subscription
     public bool CancelAtPeriodEnd { get; set; }
     public DateTime? GraceUntilUtc { get; set; }
     public DateTime? LastEventOccurredUtc { get; set; } // ordering guard for out-of-order webhooks
-    /// <summary>The latest completed payment (transaction) of this subscription and when it was billed.</summary>
-    public string? CurrentTransactionId { get; set; }
-    public DateTime? CurrentTransactionBilledUtc { get; set; }
     /// <summary>
-    /// Paid access withdrawn because the current payment was fully refunded or charged back (derived from
-    /// <see cref="BillingAdjustment"/> rows; cleared by a newer payment or a reversed chargeback).
+    /// Paid access withdrawn because every payment covering the current time was fully refunded or charged back
+    /// (derived from <see cref="BillingTransaction"/> and <see cref="BillingAdjustment"/> rows).
     /// </summary>
     public DateTime? AccessRevokedUtc { get; set; }
     public string? RevocationReason { get; set; }       // refund | chargeback
+    public DateTime UpdatedUtc { get; set; }
+}
+
+/// <summary>A completed Paddle payment: which subscription and which billing period it paid for.</summary>
+public sealed class BillingTransaction
+{
+    public string Id { get; set; } = "";                 // txn_…
+    public string? ProviderSubscriptionId { get; set; }
+    public string Origin { get; set; } = "";             // web | subscription_recurring | subscription_payment_method_change | …
+    /// <summary>Money was collected (grand total &gt; 0, and not a payment-method change).</summary>
+    public bool Paid { get; set; }
+    public DateTime BilledUtc { get; set; }
+    public DateTime? PeriodStartUtc { get; set; }
+    public DateTime? PeriodEndUtc { get; set; }
     public DateTime UpdatedUtc { get; set; }
 }
 
@@ -85,6 +108,8 @@ public sealed class InterviewSession
     public int SecretsIssued { get; set; }
     /// <summary>Live seconds the account had left after the last heartbeat; the relay closes when they are used up.</summary>
     public int AllowanceAtHeartbeatSeconds { get; set; }
+    /// <summary>The one relay connection allowed to carry this lease's audio (a newer connection, on any replica, wins).</summary>
+    public Guid? RelayConnectionId { get; set; }
 }
 
 public sealed class UsageEntry

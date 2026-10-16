@@ -37,7 +37,7 @@ public sealed class BackendClient
     public string ClientVersion => _version;
 
     /// <summary>The signed-in user's access token (used to authenticate the live transcription relay).</summary>
-    public Task<string?> AccessTokenAsync(CancellationToken ct) => _token(false, ct);
+    public Task<string?> AccessTokenAsync(CancellationToken ct, bool forceRefresh = false) => _token(forceRefresh, ct);
 
     /// <summary>Absolute ws(s):// address of a relay path returned by the service (relative to the API base address).</summary>
     public Uri WebSocketUri(string relativePath, string? language)

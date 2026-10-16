@@ -56,6 +56,8 @@ public sealed class RelayOptions
 {
     /// <summary>How often a relay re-reads its lease from the database (covers leases ended on another replica).</summary>
     public int LeaseCheckSeconds { get; set; } = 2;
+    /// <summary>Upper bound for <see cref="LeaseCheckSeconds"/>, kept below the billing margin of <see cref="SessionService.RelayCheckMarginSeconds"/>.</summary>
+    public const int MaxLeaseCheckSeconds = 2;
     /// <summary>Largest client message accepted (an audio append of ~2.7 s of 24 kHz PCM16 in base64).</summary>
     public int MaxClientMessageBytes { get; set; } = 256 * 1024;
 }
@@ -80,17 +82,50 @@ public sealed class RealtimeRelay
     public RealtimeRelay(IRealtimeUpstreamConnector upstream, RealtimeRelayRegistry registry, IOptions<RelayOptions> opt, ILogger<RealtimeRelay> log)
     { _upstream = upstream; _registry = registry; _opt = opt.Value; _log = log; }
 
-    public static bool IsAllowedClientMessage(ReadOnlySpan<byte> json)
+    private static readonly JsonDocumentOptions StrictJson = new() { AllowDuplicateProperties = false, MaxDepth = 4 };
+
+    /// <summary>
+    /// Validates a client message and returns a <b>rebuilt</b> copy holding only <c>type</c> (and <c>audio</c> for an
+    /// append) — the client's own bytes are never forwarded, so duplicate keys, trailing content or extra fields can
+    /// never reach the provider. Null when the message is not an allowed audio-buffer message.
+    /// </summary>
+    public static byte[]? RebuildClientMessage(ReadOnlyMemory<byte> json)
     {
         try
         {
-            var reader = new Utf8JsonReader(json);
-            using var doc = JsonDocument.ParseValue(ref reader);
-            return doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("type", out var t)
-                   && t.ValueKind == JsonValueKind.String && AllowedClientTypes.Contains(t.GetString()!);
+            using var doc = JsonDocument.Parse(json, StrictJson);   // rejects trailing content, duplicate keys, invalid UTF-8
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("type", out var t) || t.ValueKind != JsonValueKind.String) return null;
+            var type = t.GetString()!;
+            if (!AllowedClientTypes.Contains(type)) return null;
+            string? audio = null;
+            if (type == "input_audio_buffer.append")
+            {
+                if (!root.TryGetProperty("audio", out var a) || a.ValueKind != JsonValueKind.String) return null;
+                audio = a.GetString();
+                if (string.IsNullOrEmpty(audio) || !IsBase64(audio)) return null;
+            }
+            using var ms = new MemoryStream(json.Length + 16);
+            using (var w = new Utf8JsonWriter(ms))
+            {
+                w.WriteStartObject();
+                w.WriteString("type", type);
+                if (audio != null) w.WriteString("audio", audio);
+                w.WriteEndObject();
+            }
+            return ms.ToArray();
         }
-        catch (JsonException) { return false; }
+        catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException) { return null; }
     }
+
+    private static bool IsBase64(string s)
+    {
+        if (s.Length % 4 != 0) return false;
+        foreach (var c in s) if (!(char.IsAsciiLetterOrDigit(c) || c is '+' or '/' or '=')) return false;
+        return true;
+    }
+
+    public static bool IsAllowedClientMessage(ReadOnlySpan<byte> json) => RebuildClientMessage(json.ToArray()) != null;
 
     /// <param name="leaseActive">Reads the lease state from the database (called every <see cref="RelayOptions.LeaseCheckSeconds"/>).</param>
     public async Task RunAsync(HttpContext http, Guid sessionId, RealtimeCredential upstreamCredential, Func<CancellationToken, Task<bool>> leaseActive)
@@ -141,8 +176,8 @@ public sealed class RealtimeRelay
     {
         while (!ct.IsCancellationRequested)
         {
-            await Task.Delay(TimeSpan.FromSeconds(Math.Max(1, _opt.LeaseCheckSeconds)), ct);
-            if (!await leaseActive(ct)) return;
+            if (!await leaseActive(ct)) return;   // first check right away: a lease that ended while connecting upstream
+            await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(_opt.LeaseCheckSeconds, 1, RelayOptions.MaxLeaseCheckSeconds)), ct);
         }
     }
 
@@ -162,13 +197,15 @@ public sealed class RealtimeRelay
                 if (filter && message.Length + r.Count > _opt.MaxClientMessageBytes) tooLarge = true;
                 else if (!tooLarge) message.Write(buffer, 0, r.Count);
             } while (!r.EndOfMessage);
-            if (filter && (tooLarge || r.MessageType != WebSocketMessageType.Text || !IsAllowedClientMessage(message.GetBuffer().AsSpan(0, (int)message.Length))))
+            ReadOnlyMemory<byte> outgoing = message.GetBuffer().AsMemory(0, (int)message.Length);
+            if (filter)
             {
-                onDrop?.Invoke();
-                continue;
+                var rebuilt = tooLarge || r.MessageType != WebSocketMessageType.Text ? null : RebuildClientMessage(outgoing);
+                if (rebuilt == null) { onDrop?.Invoke(); continue; }
+                outgoing = rebuilt;
             }
             if (sendLock != null) await sendLock.WaitAsync(ct);
-            try { await to.SendAsync(message.GetBuffer().AsMemory(0, (int)message.Length), r.MessageType, true, ct); }
+            try { await to.SendAsync(outgoing, r.MessageType, true, ct); }
             finally { sendLock?.Release(); }
             onForward?.Invoke();
         }

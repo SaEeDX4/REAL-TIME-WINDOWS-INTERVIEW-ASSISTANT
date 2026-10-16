@@ -76,11 +76,59 @@ public class Rc3AccountAndRefundTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task A404ThatIsNotTheAuthServicesUserNotFound_StaysQueued()
+    {
+        var (id, c) = await NewUser();
+        var original = _f.Supabase.Respond;
+        _f.Supabase.Respond = _ => new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("<html>Not Found</html>") };   // wrong URL / proxy
+        try { Assert.Equal("pending", (await (await c.DeleteAsync("/api/v1/me")).Read<DeleteAccountResponse>()).Identity); }
+        finally { _f.Supabase.Respond = original; }
+        Assert.Null((await User(id)).IdentityDeletedUtc);
+    }
+
+    [Fact]
+    public async Task AnUnexpectedErrorAfterTheDataIsDeleted_IsNeverReportedAsAFailedDeletion()
+    {
+        var (id, c) = await NewUser();
+        var original = _f.Supabase.Respond;
+        _f.Supabase.Respond = _ => throw new InvalidOperationException("misconfigured");
+        try
+        {
+            var r = await c.DeleteAsync("/api/v1/me");
+            Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+            Assert.Equal("pending", (await r.Read<DeleteAccountResponse>()).Identity);
+        }
+        finally { _f.Supabase.Respond = original; }
+        Assert.Equal("deleted", (await User(id)).Status);
+    }
+
+    [Fact]
+    public async Task DeletingAndSigningUpAgainWithTheSameEmail_GivesNoSecondTrial()
+    {
+        var email = $"again-{Guid.NewGuid():n}@example.test";
+        var first = Guid.NewGuid();
+        var c1 = _f.CreateClient();
+        c1.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _f.Token(first, email));
+        Assert.Equal(30 * 60, (await Me(c1)).Usage.LiveSecondsRemaining);
+        (await c1.DeleteAsync("/api/v1/me")).EnsureSuccessStatusCode();
+
+        var second = Guid.NewGuid();   // the hard-deleted e-mail signs up again as a new auth user
+        var c2 = _f.CreateClient();
+        c2.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _f.Token(second, email.ToUpperInvariant()));
+        var me = await Me(c2);
+        Assert.Equal(0, me.Usage.LiveSecondsRemaining);
+        Assert.Equal(BillingStates.TrialExhausted, me.BillingState);
+        var other = _f.CreateClient();   // a different e-mail still gets its trial
+        other.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _f.Token(Guid.NewGuid(), $"new-{Guid.NewGuid():n}@example.test"));
+        Assert.Equal(30 * 60, (await Me(other)).Usage.LiveSecondsRemaining);
+    }
+
+    [Fact]
     public async Task IdentityAlreadyGoneAtTheProvider_CountsAsDeleted()
     {
         var (id, c) = await NewUser();
         var original = _f.Supabase.Respond;
-        _f.Supabase.Respond = _ => new HttpResponseMessage(HttpStatusCode.NotFound);
+        _f.Supabase.Respond = _ => new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("{\"code\":404,\"error_code\":\"user_not_found\",\"msg\":\"User not found\"}") };
         try { Assert.Equal("deleted", (await (await c.DeleteAsync("/api/v1/me")).Read<DeleteAccountResponse>()).Identity); }
         finally { _f.Supabase.Respond = original; }
         Assert.NotNull((await User(id)).IdentityDeletedUtc);
@@ -112,15 +160,23 @@ public class Rc3AccountAndRefundTests : IClassFixture<ApiFactory>
 
     // ---------------- refunds and chargebacks ----------------
 
+    private static readonly DateTimeOffset PeriodStart = DateTimeOffset.Parse("2026-10-01T00:00:00Z"), PeriodEnd = DateTimeOffset.Parse("2026-11-01T00:00:00Z");
+
     private static object Transaction(Guid user, string txn, string sub, DateTimeOffset billed) => new
     {
-        id = txn, status = "completed", subscription_id = sub, customer_id = "ctm_" + user.ToString("n")[..8],
+        id = txn, status = "completed", origin = "web", subscription_id = sub, customer_id = "ctm_" + user.ToString("n")[..8],
         custom_data = new { user_id = user.ToString() }, billed_at = billed.ToString("o"),
+        billing_period = new { starts_at = PeriodStart.ToString("o"), ends_at = PeriodEnd.ToString("o") },
+        details = new { totals = new { grand_total = "1999" } },
     };
 
-    private static object Renewal(Guid user, string txn, string sub, DateTimeOffset billed) => new
+    /// <summary>A later payment without custom_data (renewal, re-charge, payment-method change), for the given period.</summary>
+    private static object Renewal(Guid user, string txn, string sub, DateTimeOffset billed, DateTimeOffset? start = null, DateTimeOffset? end = null,
+        string origin = "subscription_recurring", string total = "1999") => new
     {
-        id = txn, status = "completed", subscription_id = sub, customer_id = "ctm_" + user.ToString("n")[..8], billed_at = billed.ToString("o"),
+        id = txn, status = "completed", origin, subscription_id = sub, customer_id = "ctm_" + user.ToString("n")[..8], billed_at = billed.ToString("o"),
+        billing_period = new { starts_at = (start ?? PeriodStart).ToString("o"), ends_at = (end ?? PeriodEnd).ToString("o") },
+        details = new { totals = new { grand_total = total } },
     };
 
     private static object Adjustment(string id, string txn, string sub, string action, string status, string type = "full") => new
@@ -163,7 +219,7 @@ public class Rc3AccountAndRefundTests : IClassFixture<ApiFactory>
         await Send("subscription.updated", Helpers.SubscriptionData(id, "active", sub: sub), t.AddMinutes(2));
         Assert.Equal(BillingStates.Revoked, (await Me(c)).BillingState);
 
-        // The customer pays again (renewal transaction without custom_data): access returns.
+        // The customer pays again for the current period (transaction without custom_data): access returns.
         await Send("transaction.completed", Renewal(id, "txn_new_" + id.ToString("n")[..6], sub, t.AddMinutes(3)), t.AddMinutes(3));
         me = await Me(c);
         Assert.Equal(BillingStates.Active, me.BillingState);
@@ -210,11 +266,25 @@ public class Rc3AccountAndRefundTests : IClassFixture<ApiFactory>
         Assert.Equal(BillingStates.Active, (await Me(c)).BillingState);
         await Send("adjustment.updated", Adjustment(adj, txn, sub, "refund", "approved"), t.AddMinutes(1));
         Assert.Equal(BillingStates.Active, (await Me(c)).BillingState);
-        // A late renewal-era payment older than the current one never replaces it.
-        await Send("transaction.completed", Renewal(id, "txn_old_" + id.ToString("n")[..6], sub, t.AddDays(-40)), t.AddMinutes(3));
-        using var scope = _f.Services.CreateScope();
-        var s = await scope.ServiceProvider.GetRequiredService<AppDbContext>().Subscriptions.AsNoTracking().FirstAsync(x => x.UserId == id);
-        Assert.Equal(txn, s.CurrentTransactionId);
+    }
+
+    [Fact]
+    public async Task PaymentMethodChange_DoesNotHideAChargebackOfTheRealPayment()
+    {
+        var (id, c, sub, txn) = await PaidUser();
+        var t = _f.Time.GetUtcNow();
+        await Send("transaction.completed", Renewal(id, "txn_pm_" + id.ToString("n")[..6], sub, t, origin: "subscription_payment_method_change", total: "0"), t);
+        await Send("adjustment.created", Adjustment("adj_pm_" + id.ToString("n")[..6], txn, sub, "chargeback", "approved"), t.AddMinutes(1));
+        Assert.Equal(BillingStates.Revoked, (await Me(c)).BillingState);
+    }
+
+    [Fact]
+    public async Task RefundOfAPaymentNotOnRecord_LeavesAccessAlone()
+    {
+        // e.g. a payment made before this service recorded payments: logged for manual review, never guessed.
+        var (id, c, sub, _) = await PaidUser();
+        await Send("adjustment.created", Adjustment("adj_u_" + id.ToString("n")[..6], "txn_unknown_" + id.ToString("n")[..6], sub, "refund", "approved"), _f.Time.GetUtcNow());
+        Assert.Equal(BillingStates.Active, (await Me(c)).BillingState);
     }
 
     [Fact]
@@ -236,9 +306,10 @@ public class Rc3AccountAndRefundTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task RefundOfAnOlderPayment_DoesNotRevokeTheCurrentPeriod()
     {
-        var (id, c, sub, oldTxn) = await PaidUser();
+        var (id, c, sub, _) = await PaidUser();
         var t = _f.Time.GetUtcNow();
-        await Send("transaction.completed", Renewal(id, "txn_cur_" + id.ToString("n")[..6], sub, t.AddMinutes(1)), t.AddMinutes(1));
+        var oldTxn = "txn_prev_" + id.ToString("n")[..6];   // last month's payment
+        await Send("transaction.completed", Renewal(id, oldTxn, sub, t.AddDays(-36), PeriodStart.AddMonths(-1), PeriodStart), t.AddMinutes(1));
         await Send("adjustment.created", Adjustment("adj_old_" + id.ToString("n")[..6], oldTxn, sub, "refund", "approved"), t.AddMinutes(2));
         Assert.Equal(BillingStates.Active, (await Me(c)).BillingState);
     }
@@ -248,8 +319,10 @@ public class Rc3AccountAndRefundTests : IClassFixture<ApiFactory>
     {
         var (id, c) = await NewUser();
         var sub = "sub_late_" + id.ToString("n");
+        var txn = "txn_e_" + id.ToString("n")[..6];
         var t = _f.Time.GetUtcNow();
-        await Send("adjustment.created", Adjustment("adj_e_" + id.ToString("n")[..6], "txn_e_" + id.ToString("n")[..6], sub, "chargeback", "approved"), t);
+        await Send("transaction.completed", Renewal(id, txn, sub, t.AddMinutes(-1)), t.AddMinutes(-1));   // no custom_data: user unknown yet
+        await Send("adjustment.created", Adjustment("adj_e_" + id.ToString("n")[..6], txn, sub, "chargeback", "approved"), t);
         await Send("subscription.created", Helpers.SubscriptionData(id, "active", sub: sub), t.AddMinutes(1));
         Assert.Equal(BillingStates.Revoked, (await Me(c)).BillingState);
     }

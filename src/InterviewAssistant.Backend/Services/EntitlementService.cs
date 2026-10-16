@@ -6,7 +6,8 @@ using Microsoft.Extensions.Options;
 
 namespace InterviewAssistant.Backend.Services;
 
-public sealed record EffectivePlan(PlanDefinition Plan, string Status, DateTime PeriodStartUtc, DateTime PeriodEndUtc, bool IsTrial);
+/// <param name="TrialForfeited">A trial for an e-mail whose earlier account was deleted: no live minutes.</param>
+public sealed record EffectivePlan(PlanDefinition Plan, string Status, DateTime PeriodStartUtc, DateTime PeriodEndUtc, bool IsTrial, bool TrialForfeited = false);
 
 /// <summary>
 /// Server-authoritative entitlements. Paid plan applies while the subscription is trialing/active, canceled-at-period-end
@@ -52,7 +53,7 @@ public sealed class EntitlementService
         }
         // Default/trial plan: lifetime allowance counted from account creation (paid usage counts too, so a lapsed
         // subscriber does not regain trial minutes).
-        return (new EffectivePlan(_plans.Get(_plans.DefaultPlanCode), sub?.Status ?? "none", user.CreatedUtc, TrialHorizonUtc, true), sub);
+        return (new EffectivePlan(_plans.Get(_plans.DefaultPlanCode), sub?.Status ?? "none", user.CreatedUtc, TrialHorizonUtc, true, user.TrialForfeited), sub);
     }
 
     /// <summary>Customer-facing state (see <see cref="BillingStates"/>).</summary>
@@ -78,5 +79,5 @@ public sealed class EntitlementService
     public static Entitlements CatalogDto(PlanDefinition p) => new(p.Code, p.Name, "catalog", p.MaxProfiles, p.PrepJobsPerMonth,
         p.Purchasable ? p.LiveMinutesPerPeriod : p.TrialMinutes, p.MaxConcurrentSessions, p.MaxDevices, p.ReportRetentionDays, p.CoachMode, p.TrialMinutes);
 
-    public static int LiveSecondsAllowance(EffectivePlan e) => (e.IsTrial ? e.Plan.TrialMinutes : e.Plan.LiveMinutesPerPeriod) * 60;
+    public static int LiveSecondsAllowance(EffectivePlan e) => e.IsTrial && e.TrialForfeited ? 0 : (e.IsTrial ? e.Plan.TrialMinutes : e.Plan.LiveMinutesPerPeriod) * 60;
 }

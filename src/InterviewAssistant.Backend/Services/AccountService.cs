@@ -128,13 +128,35 @@ public sealed class AccountService
         await _db.Usage.Where(x => x.UserId == u.Id).ExecuteDeleteAsync(ct);
         await _db.PreparationJobs.Where(x => x.UserId == u.Id).ExecuteDeleteAsync(ct);
         await _db.Subscriptions.Where(x => x.UserId == u.Id).ExecuteDeleteAsync(ct);
+        if (DeletedAccountMarkers.Hash(u.Email) is { } emailHash && !await _db.DeletedAccountMarkers.AnyAsync(m => m.EmailHash == emailHash, ct))
+            _db.DeletedAccountMarkers.Add(new DeletedAccountMarker { EmailHash = emailHash, DeletedUtc = _time.GetUtcNow().UtcDateTime });
         u.Status = "deleted"; u.Email = ""; u.PrivacyJson = "{}"; u.FeatureFlagsJson = "{}"; u.UpdatedUtc = _time.GetUtcNow().UtcDateTime;
         u.IdentityDeletionPendingSinceUtc = u.UpdatedUtc;
         _db.Audit.Add(new AuditEntry { ActorUserId = u.Id, SubjectUserId = u.Id, Action = "account_deleted", AtUtc = u.UpdatedUtc });
         await _db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         foreach (var id in live) _relays.Close(id);
-        var identity = await _identity.CompleteAsync(u, ct);
+        // The data deletion is committed: from here on nothing may turn this into an error for the client.
+        var identity = await _identity.CompleteAsync(u, CancellationToken.None);
         return new DeleteAccountResponse(identity == IdentityDeletion.Deleted ? "deleted" : "pending");
+    }
+}
+
+/// <summary>Trial-abuse guard after account deletion: a pseudonymous e-mail hash only, kept 365 days.</summary>
+public static class DeletedAccountMarkers
+{
+    public static readonly TimeSpan Retention = TimeSpan.FromDays(365);
+
+    public static string? Hash(string? email)
+    {
+        var normalized = email?.Trim().ToLowerInvariant();
+        if (string.IsNullOrEmpty(normalized) || !normalized.Contains('@')) return null;
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("ia-deleted-account:" + normalized))).ToLowerInvariant();
+    }
+
+    public static Task<int> PurgeExpiredAsync(AppDbContext db, DateTime now, CancellationToken ct)
+    {
+        var cutoff = now - Retention;
+        return db.DeletedAccountMarkers.Where(m => m.DeletedUtc < cutoff).ExecuteDeleteAsync(ct);
     }
 }

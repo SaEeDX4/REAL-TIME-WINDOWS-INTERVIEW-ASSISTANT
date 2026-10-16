@@ -80,7 +80,16 @@ public sealed class CloudSession : IAsyncDisposable
     /// Bearer for the next relay connection: the user's access token while the lease is active, null once it ended
     /// (the transcriber then stops instead of reconnecting). The relay itself re-checks the lease on every connection.
     /// </summary>
-    public async Task<string?> NextConnectionCredentialAsync(CancellationToken ct) => Active ? await _api.AccessTokenAsync(ct) : null;
+    public async Task<string?> NextConnectionCredentialAsync(CancellationToken ct)
+    {
+        if (!Active) return null;
+        var force = Interlocked.Exchange(ref _refreshToken, 0) == 1;
+        return await _api.AccessTokenAsync(ct, force);
+    }
+
+    private int _refreshToken;
+    /// <summary>The relay rejected the token (expired): the next connection uses a refreshed one.</summary>
+    public void ForceTokenRefresh() => Interlocked.Exchange(ref _refreshToken, 1);
 
     /// <summary>One heartbeat (metering + lease state). Public for deterministic tests.</summary>
     public async Task HeartbeatOnceAsync(CancellationToken ct)

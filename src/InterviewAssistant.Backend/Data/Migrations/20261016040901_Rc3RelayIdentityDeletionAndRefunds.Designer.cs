@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace InterviewAssistant.Backend.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261016034340_Rc3RealtimeRelay")]
-    partial class Rc3RealtimeRelay
+    [Migration("20261016040901_Rc3RelayIdentityDeletionAndRefunds")]
+    partial class Rc3RelayIdentityDeletionAndRefunds
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -57,6 +57,92 @@ namespace InterviewAssistant.Backend.Data.Migrations
                     b.ToTable("audit_log", (string)null);
                 });
 
+            modelBuilder.Entity("InterviewAssistant.Backend.Data.BillingAdjustment", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTime>("OccurredUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProviderCustomerId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("ProviderSubscriptionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("TransactionId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProviderSubscriptionId");
+
+                    b.HasIndex("TransactionId");
+
+                    b.ToTable("billing_adjustments", (string)null);
+                });
+
+            modelBuilder.Entity("InterviewAssistant.Backend.Data.BillingTransaction", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("BilledUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<bool>("Paid")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("PeriodEndUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("PeriodStartUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProviderSubscriptionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProviderSubscriptionId");
+
+                    b.ToTable("billing_transactions", (string)null);
+                });
+
             modelBuilder.Entity("InterviewAssistant.Backend.Data.ConfigEntry", b =>
                 {
                     b.Property<string>("Key")
@@ -76,6 +162,22 @@ namespace InterviewAssistant.Backend.Data.Migrations
                     b.HasKey("Key");
 
                     b.ToTable("runtime_config", (string)null);
+                });
+
+            modelBuilder.Entity("InterviewAssistant.Backend.Data.DeletedAccountMarker", b =>
+                {
+                    b.Property<string>("EmailHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("DeletedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("EmailHash");
+
+                    b.HasIndex("DeletedUtc");
+
+                    b.ToTable("deleted_account_markers", (string)null);
                 });
 
             modelBuilder.Entity("InterviewAssistant.Backend.Data.Device", b =>
@@ -154,6 +256,9 @@ namespace InterviewAssistant.Backend.Data.Migrations
                     b.Property<int>("MeteredSeconds")
                         .HasColumnType("integer");
 
+                    b.Property<Guid?>("RelayConnectionId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("SecretsIssued")
                         .HasColumnType("integer");
 
@@ -213,6 +318,9 @@ namespace InterviewAssistant.Backend.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("AccessRevokedUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<bool>("CancelAtPeriodEnd")
                         .HasColumnType("boolean");
 
@@ -245,6 +353,9 @@ namespace InterviewAssistant.Backend.Data.Migrations
                     b.Property<string>("ProviderSubscriptionId")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("RevocationReason")
+                        .HasColumnType("text");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -329,6 +440,15 @@ namespace InterviewAssistant.Backend.Data.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb");
 
+                    b.Property<DateTime?>("IdentityDeletedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("IdentityDeletionAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("IdentityDeletionPendingSinceUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("PrivacyJson")
                         .IsRequired()
                         .HasColumnType("jsonb");
@@ -337,6 +457,9 @@ namespace InterviewAssistant.Backend.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
+
+                    b.Property<bool>("TrialForfeited")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime>("UpdatedUtc")
                         .HasColumnType("timestamp with time zone");

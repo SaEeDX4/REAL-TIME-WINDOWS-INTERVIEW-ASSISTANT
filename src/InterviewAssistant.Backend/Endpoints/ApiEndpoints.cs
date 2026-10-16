@@ -69,8 +69,8 @@ public static class ApiEndpoints
         { var c = await Resolve(http); return Results.Ok(await d.RegisterAsync(c.User, c.Plan, req, ct)); });
         authed.MapGet("/devices", async (HttpContext http, Guid? current, DeviceService d, CancellationToken ct) =>
             Results.Ok(await d.ListAsync((await Resolve(http)).User.Id, current, ct)));
-        authed.MapDelete("/devices/{id:guid}", async (HttpContext http, Guid id, DeviceService d, CancellationToken ct) =>
-        { await d.RevokeAsync((await Resolve(http)).User.Id, id, ct); return Results.NoContent(); });
+        authed.MapDelete("/devices/{id:guid}", async (HttpContext http, Guid id, SessionService sessions, CancellationToken ct) =>
+        { var c = await Resolve(http); await sessions.RevokeDeviceAsync(c.User, c.Plan, id, ct); return Results.NoContent(); });
 
         // ---------------- profiles / targets / reports (sync) ----------------
         foreach (var kind in DocumentService.Kinds)
@@ -115,12 +115,12 @@ public static class ApiEndpoints
             var target = await db.Sessions.Where(x => x.Id == id && x.UserId == c.User.Id).Select(x => x.TargetId).FirstOrDefaultAsync(http.RequestAborted);
             var lang = language is { Length: > 0 and <= 12 } l && l.All(ch => char.IsAsciiLetter(ch) || ch == '-') ? l : null;
             var prompt = await TranscriptionPrompt.BuildAsync(db, c.User.Id, target, safety.Value.MaxTranscriptionPromptChars, http.RequestAborted);
-            var upstream = await s.OpenRelayAsync(c.User, c.Plan, id, prompt, lang, http.RequestAborted);
+            var (upstream, connectionId) = await s.OpenRelayAsync(c.User, c.Plan, id, prompt, lang, http.RequestAborted);
             var userId = c.User.Id;
             await relay.RunAsync(http, id, upstream, async ct =>
             {
                 using var scope = scopes.CreateScope();
-                return await scope.ServiceProvider.GetRequiredService<SessionService>().RelayLeaseActiveAsync(userId, id, ct);
+                return await scope.ServiceProvider.GetRequiredService<SessionService>().RelayLeaseActiveAsync(userId, id, connectionId, ct);
             });
             return Results.Empty;
         }).RequireRateLimiting("credentials");
@@ -256,8 +256,8 @@ public static class AdminEndpoints
                 documentCounts = await db.Documents.AsNoTracking().Where(d => d.UserId == id).GroupBy(d => d.Kind).Select(g => new { kind = g.Key, count = g.Count() }).ToListAsync(ct),
             });
         });
-        admin.MapPost("/users/{id:guid}/disable", async (Guid id, AppDbContext db, TimeProvider time, RealtimeRelayRegistry relays, CancellationToken ct) => await SetStatus(db, time, relays, id, "disabled", ct));
-        admin.MapPost("/users/{id:guid}/enable", async (Guid id, AppDbContext db, TimeProvider time, RealtimeRelayRegistry relays, CancellationToken ct) => await SetStatus(db, time, relays, id, "active", ct));
+        admin.MapPost("/users/{id:guid}/disable", async (Guid id, AppDbContext db, TimeProvider time, SessionService sessions, CancellationToken ct) => await SetStatus(db, time, sessions, id, "disabled", ct));
+        admin.MapPost("/users/{id:guid}/enable", async (Guid id, AppDbContext db, TimeProvider time, SessionService sessions, CancellationToken ct) => await SetStatus(db, time, sessions, id, "active", ct));
         admin.MapGet("/sessions/active", async (AppDbContext db, CancellationToken ct) =>
             Results.Ok(await db.Sessions.AsNoTracking().Where(s => s.Status == "active").Select(s => new { s.Id, s.UserId, s.DeviceId, s.StartedUtc, s.LastHeartbeatUtc, s.MeteredSeconds }).ToListAsync(ct)));
         admin.MapGet("/config", async (ConfigService c, AppDbContext db, CancellationToken ct) => Results.Ok(new { effective = await c.GetAsync(ct), overrides = await db.Config.AsNoTracking().ToListAsync(ct) }));
@@ -280,16 +280,14 @@ public static class AdminEndpoints
         }));
     }
 
-    private static async Task<IResult> SetStatus(AppDbContext db, TimeProvider time, RealtimeRelayRegistry relays, Guid id, string status, CancellationToken ct)
+    private static async Task<IResult> SetStatus(AppDbContext db, TimeProvider time, SessionService sessions, Guid id, string status, CancellationToken ct)
     {
         var u = await db.Users.FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw ApiException.NotFound();
         if (u.Status == "deleted") throw ApiException.Conflict("deleted", "Account was deleted.");
-        var now = time.GetUtcNow().UtcDateTime;
-        u.Status = status; u.UpdatedUtc = now;
-        var ended = status == "disabled" ? await db.Sessions.Where(s => s.UserId == id && s.Status == "active").ToListAsync(ct) : new List<InterviewSession>();
-        foreach (var s in ended) { s.Status = "stopped"; s.EndReason = "account_disabled"; s.EndedUtc = now; }
+        u.Status = status; u.UpdatedUtc = time.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(ct);
-        foreach (var s in ended) relays.Close(s.Id);
+        // Live leases end (billed like a stop) and their relays close; heartbeats of a disabled account are refused anyway.
+        if (status == "disabled") await sessions.EndAllAsync(u, "account_disabled", ct);
         return Results.Ok(new { u.Id, u.Status });
     }
 }

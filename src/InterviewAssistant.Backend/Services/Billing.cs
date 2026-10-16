@@ -262,8 +262,6 @@ public sealed class BillingWebhookProcessor
             // Not recorded as processed: once the price is mapped, Paddle's retry applies the subscription.
             throw new ApiException(503, "price_not_mapped", "The subscription's price is not configured on the service yet.");
         }
-        if (subId != null && sub.ProviderSubscriptionId != null && subId != sub.ProviderSubscriptionId)
-        { sub.CurrentTransactionId = null; sub.CurrentTransactionBilledUtc = null; }   // a different subscription: its own payments decide
         sub.ProviderSubscriptionId = subId ?? sub.ProviderSubscriptionId;
         sub.ProviderCustomerId = customerId ?? sub.ProviderCustomerId;
         if (plan != null) sub.PlanCode = plan.Code;
@@ -281,30 +279,39 @@ public sealed class BillingWebhookProcessor
     }
 
     /// <summary>
-    /// transaction.completed: links the customer (first purchase carries custom_data.user_id; renewals are matched by
-    /// subscription id) and records the subscription's latest payment, which decides whether a refund or chargeback
-    /// affects current access. Older payments arriving late never replace a newer one.
+    /// transaction.completed: links the customer (the first purchase carries custom_data.user_id) and records the payment
+    /// — its subscription, the billing period it paid for and whether money was collected — which decides whether a
+    /// later refund or chargeback affects current access. Stored even when the subscription is not known yet.
     /// </summary>
     private async Task<(Outcome, string)> LinkCustomerAsync(JsonNode data, DateTime occurred, CancellationToken ct)
     {
         var subId = Str(At(data, "subscription_id"));
+        var txnId = Str(At(data, "id"));
+        if (txnId is { Length: > 0 and <= 100 })
+        {
+            var txn = await _db.BillingTransactions.FirstOrDefaultAsync(t => t.Id == txnId, ct);
+            if (txn == null) { txn = new BillingTransaction { Id = txnId }; _db.BillingTransactions.Add(txn); }
+            var origin = Str(At(data, "origin")) ?? "";
+            var total = Str(At(data, "details", "totals", "grand_total"));
+            txn.ProviderSubscriptionId = subId ?? txn.ProviderSubscriptionId;
+            txn.Origin = origin.Length > 64 ? origin[..64] : origin;
+            // A payment-method change is a zero-value transaction; a missing total is treated as a payment.
+            txn.Paid = origin != "subscription_payment_method_change" && (total == null || (decimal.TryParse(total, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var amount) && amount > 0));
+            txn.BilledUtc = ParseDate(At(data, "billed_at")) ?? occurred;
+            txn.PeriodStartUtc = ParseDate(At(data, "billing_period", "starts_at"));
+            txn.PeriodEndUtc = ParseDate(At(data, "billing_period", "ends_at"));
+            txn.UpdatedUtc = _time.GetUtcNow().UtcDateTime;
+        }
+
         Subscription? sub = null;
         if (await KnownUserAsync(At(data, "custom_data"), ct) is { } uid) sub = await _db.Subscriptions.FirstOrDefaultAsync(s => s.UserId == uid, ct) ?? AddSub(uid);
         else if (subId != null) sub = await _db.Subscriptions.FirstOrDefaultAsync(s => s.ProviderSubscriptionId == subId, ct);
-        if (sub == null) return (Outcome.Ignored, "no valid custom_data.user_id or known subscription");
+        if (sub == null) return (Outcome.Ignored, "no matching user (payment recorded for later refunds/chargebacks)");
         sub.ProviderCustomerId = Str(At(data, "customer_id")) ?? sub.ProviderCustomerId;
-        var txnId = Str(At(data, "id"));
-        var billed = ParseDate(At(data, "billed_at")) ?? occurred;
-        var newer = sub.CurrentTransactionBilledUtc == null || billed >= sub.CurrentTransactionBilledUtc;
-        if (newer)
-        {
-            if (subId != null && sub.ProviderSubscriptionId != null && subId != sub.ProviderSubscriptionId) { sub.CurrentTransactionId = null; sub.CurrentTransactionBilledUtc = null; }
-            sub.ProviderSubscriptionId = subId ?? sub.ProviderSubscriptionId;
-            if (txnId != null && (subId == null || subId == sub.ProviderSubscriptionId)) { sub.CurrentTransactionId = txnId; sub.CurrentTransactionBilledUtc = billed; }
-        }
+        sub.ProviderSubscriptionId ??= subId;   // subscription.* events decide which subscription is current
         sub.UpdatedUtc = _time.GetUtcNow().UtcDateTime;
         await RecomputeRevocationAsync(sub, ct);
-        return (Outcome.Processed, $"payment recorded for user {sub.UserId}{(newer ? "" : " (older than the current payment)")}");
+        return (Outcome.Processed, $"payment recorded for user {sub.UserId}");
     }
 
     /// <summary>
@@ -323,7 +330,8 @@ public sealed class BillingWebhookProcessor
         if (row == null) { row = new BillingAdjustment { Id = id }; _db.BillingAdjustments.Add(row); }
         static string Cut(string? s, int n) => s == null ? "" : s.Length > n ? s[..n] : s;
         row.TransactionId = Cut(txn, 100);
-        row.ProviderSubscriptionId = Str(At(data, "subscription_id")) ?? row.ProviderSubscriptionId;
+        row.ProviderSubscriptionId = Str(At(data, "subscription_id")) ?? row.ProviderSubscriptionId
+            ?? await _db.BillingTransactions.Where(t => t.Id == row.TransactionId).Select(t => t.ProviderSubscriptionId).FirstOrDefaultAsync(ct);
         row.ProviderCustomerId = Str(At(data, "customer_id")) ?? row.ProviderCustomerId;
         row.Action = Cut(Str(At(data, "action")), 32);
         row.Type = Cut(Str(At(data, "type")), 16);
@@ -346,24 +354,36 @@ public sealed class BillingWebhookProcessor
     private static bool Revokes(BillingAdjustment a) => a.Status == "approved" && ((a.Action == "refund" && a.Type == "full") || a.Action == "chargeback");
 
     /// <summary>
-    /// Paid access is revoked while the subscription's current payment (or, before any payment is on record, any of its
-    /// payments) has an approved full refund or chargeback that no later approved chargeback reversal undid. A newer
-    /// payment or a different subscription becoming current clears it.
+    /// Paid access is revoked while every recorded payment of the subscription whose billing period covers the current
+    /// time has an approved full refund or chargeback that no later approved chargeback reversal undid. A refund of an
+    /// older period, a one-off or zero-value transaction, or a new payment for the current period leaves access alone.
+    /// A refund of a payment that is not on record (e.g. made before this service recorded payments) is logged for
+    /// manual review instead of guessing.
     /// </summary>
     private async Task RecomputeRevocationAsync(Subscription sub, CancellationToken ct)
     {
-        if (sub.ProviderSubscriptionId == null && sub.CurrentTransactionId == null) { sub.AccessRevokedUtc = null; sub.RevocationReason = null; return; }
-        await _db.BillingAdjustments.Where(a => (sub.ProviderSubscriptionId != null && a.ProviderSubscriptionId == sub.ProviderSubscriptionId)
-            || (sub.CurrentTransactionId != null && a.TransactionId == sub.CurrentTransactionId)).LoadAsync(ct);
-        var relevant = _db.BillingAdjustments.Local.Where(a => sub.CurrentTransactionId != null
-            ? a.TransactionId == sub.CurrentTransactionId
-            : a.ProviderSubscriptionId == sub.ProviderSubscriptionId).ToList();
-        var revoking = relevant.Where(Revokes)
-            .Where(r => !relevant.Any(x => x.Action == "chargeback_reverse" && x.Status == "approved" && x.TransactionId == r.TransactionId && x.OccurredUtc >= r.OccurredUtc))
+        if (sub.ProviderSubscriptionId == null) { sub.AccessRevokedUtc = null; sub.RevocationReason = null; return; }
+        var now = _time.GetUtcNow().UtcDateTime;
+        await _db.BillingTransactions.Where(t => t.ProviderSubscriptionId == sub.ProviderSubscriptionId).LoadAsync(ct);
+        var txns = _db.BillingTransactions.Local.Where(t => t.ProviderSubscriptionId == sub.ProviderSubscriptionId).ToList();
+        var txnIds = txns.Select(t => t.Id).ToList();
+        await _db.BillingAdjustments.Where(a => a.ProviderSubscriptionId == sub.ProviderSubscriptionId || txnIds.Contains(a.TransactionId)).LoadAsync(ct);
+        var adjustments = _db.BillingAdjustments.Local.Where(a => a.ProviderSubscriptionId == sub.ProviderSubscriptionId || txnIds.Contains(a.TransactionId)).ToList();
+
+        BillingAdjustment? Revoking(string txnId) => adjustments.Where(a => a.TransactionId == txnId && Revokes(a))
+            .Where(r => !adjustments.Any(x => x.Action == "chargeback_reverse" && x.Status == "approved" && x.TransactionId == txnId && x.OccurredUtc >= r.OccurredUtc))
             .OrderBy(r => r.OccurredUtc).FirstOrDefault();
-        if (revoking == null) { sub.AccessRevokedUtc = null; sub.RevocationReason = null; return; }
-        if (sub.AccessRevokedUtc == null) sub.AccessRevokedUtc = revoking.OccurredUtc;
-        sub.RevocationReason = revoking.Action;
+
+        foreach (var orphan in adjustments.Where(a => Revokes(a) && !txnIds.Contains(a.TransactionId)))
+            _log.LogWarning("Paddle {Action} {AdjustmentId} for transaction {TransactionId} of subscription {SubscriptionId}: the payment is not on record — review access manually",
+                orphan.Action, orphan.Id, orphan.TransactionId, sub.ProviderSubscriptionId);
+
+        var covering = txns.Where(t => t.Paid && t.PeriodStartUtc <= now && now < t.PeriodEndUtc).ToList();
+        var revoking = covering.Count > 0 ? covering.Select(t => Revoking(t.Id)).ToList() : new List<BillingAdjustment?>();
+        if (revoking.Count == 0 || revoking.Any(r => r == null)) { sub.AccessRevokedUtc = null; sub.RevocationReason = null; return; }
+        var first = revoking.OrderBy(r => r!.OccurredUtc).First()!;
+        sub.AccessRevokedUtc ??= first.OccurredUtc;
+        sub.RevocationReason = first.Action;
     }
 
     private Subscription AddSub(Guid uid)

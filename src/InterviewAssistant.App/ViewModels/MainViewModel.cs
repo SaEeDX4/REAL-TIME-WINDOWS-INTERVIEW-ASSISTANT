@@ -513,6 +513,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             // Live lease while listening; the lease-free "manual" purpose for typed questions while paused or stopped.
             _provider = new CloudAnswerProvider(Cloud.Api!, () => _cloudSession is { Active: true } s ? s.Id : null, deviceId: () => Settings.CloudDeviceId);
             _transcriberOptions.ServerConfiguredSession = true;   // the server configures the upstream session for each relay connection
+            _transcriberOptions.CredentialRejected = () => _cloudSession?.ForceTokenRefresh();
+            _transcriberOptions.ConnectionRefused = status => Post(async () => await OnRelayRefusedAsync(status));
             _transcriber = new OpenAiRealtimeTranscriber(RelayCredentialAsync, _transcriberOptions);
         }
         else
@@ -763,6 +765,25 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             catch (BackendException ex) when (ex.Status == 404) { }
             catch (BackendException ex) { AppLog.Warn($"Interview context not removed from the service ({ex.Code})"); }
         }
+    }
+
+    /// <summary>
+    /// The relay refused a (re)connection. Ended/expired/out of minutes: one heartbeat now lets the server say why, and
+    /// the normal lease-ended handling follows. Too many connections or an update is required: stop billing at once.
+    /// </summary>
+    private async Task OnRelayRefusedAsync(int status)
+    {
+        AppLog.Warn($"Live transcription connection refused ({status})");
+        var lease = _cloudSession;
+        if (lease == null || !IsListening) return;
+        if (status is 426 or 429)
+        {
+            if (_engine != null) { _engine.Pause(); IsListening = false; IsPaused = true; await _engine.SuspendTranscriptionAsync(); }
+            await EndLeaseAsync();
+            Note = Loc.T(status == 426 ? "err_update_required_long" : "lease_end_generic");
+            return;
+        }
+        await lease.HeartbeatOnceAsync(CancellationToken.None);
     }
 
     private volatile bool _leaseRestarting;

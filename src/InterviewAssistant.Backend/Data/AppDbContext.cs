@@ -13,6 +13,8 @@ public sealed class AppDbContext : DbContext
     public DbSet<UsageEntry> Usage => Set<UsageEntry>();
     public DbSet<WebhookEvent> WebhookEvents => Set<WebhookEvent>();
     public DbSet<BillingAdjustment> BillingAdjustments => Set<BillingAdjustment>();
+    public DbSet<BillingTransaction> BillingTransactions => Set<BillingTransaction>();
+    public DbSet<DeletedAccountMarker> DeletedAccountMarkers => Set<DeletedAccountMarker>();
     public DbSet<UserDocument> Documents => Set<UserDocument>();
     public DbSet<PreparationJob> PreparationJobs => Set<PreparationJob>();
     public DbSet<ConfigEntry> Config => Set<ConfigEntry>();
@@ -72,6 +74,17 @@ public sealed class AppDbContext : DbContext
             e.Property(x => x.TransactionId).HasMaxLength(100); e.Property(x => x.Action).HasMaxLength(32);
             e.Property(x => x.Type).HasMaxLength(16); e.Property(x => x.Status).HasMaxLength(32);
             e.HasIndex(x => x.ProviderSubscriptionId); e.HasIndex(x => x.TransactionId);
+        });
+        b.Entity<BillingTransaction>(e =>
+        {
+            e.ToTable("billing_transactions"); e.HasKey(x => x.Id); e.Property(x => x.Id).HasMaxLength(100);
+            e.Property(x => x.ProviderSubscriptionId).HasMaxLength(100); e.Property(x => x.Origin).HasMaxLength(64);
+            e.HasIndex(x => x.ProviderSubscriptionId);
+        });
+        b.Entity<DeletedAccountMarker>(e =>
+        {
+            e.ToTable("deleted_account_markers"); e.HasKey(x => x.EmailHash); e.Property(x => x.EmailHash).HasMaxLength(64);
+            e.HasIndex(x => x.DeletedUtc);
         });
         b.Entity<UserDocument>(e =>
         {
