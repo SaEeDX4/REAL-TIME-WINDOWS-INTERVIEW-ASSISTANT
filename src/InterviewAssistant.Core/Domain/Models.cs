@@ -90,12 +90,19 @@ public sealed class ProfileFact
 }
 
 /// <summary>Counts for the profile header, list footer and filters — ONE derivation used everywhere (no drift).</summary>
-public sealed record FactStats(int Total, int Confirmed, int ToReview)
+/// <param name="Confirmed">All confirmed facts: experience facts plus interview-profile answers.</param>
+/// <param name="ConfirmedProfileAnswers">Confirmed interview-profile answers (personal topics and boundaries), which the
+/// Experience list does not show — counts shown to the user name both parts, so adding a hobby never makes one number
+/// silently disagree with another.</param>
+public sealed record FactStats(int Total, int Confirmed, int ToReview, int ConfirmedProfileAnswers = 0)
 {
+    public int ConfirmedExperience => Confirmed - ConfirmedProfileAnswers;
+
     public static FactStats Of(IEnumerable<ProfileFact> facts)
     {
         var list = facts.Where(f => f.IsReviewable).ToList();
-        return new FactStats(list.Count, list.Count(f => f.IsVerifiedClaim), list.Count(f => f.AwaitingReview));
+        return new FactStats(list.Count, list.Count(f => f.IsVerifiedClaim), list.Count(f => f.AwaitingReview),
+            list.Count(f => f.IsVerifiedClaim && f.Kind is FactKind.Personal or FactKind.Boundary));
     }
 }
 

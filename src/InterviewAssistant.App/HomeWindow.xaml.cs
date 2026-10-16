@@ -428,7 +428,7 @@ public partial class HomeWindow : Window
         Step3Title.Text = (profiles.Any(p => p.ConfirmedFacts.Any()) ? "✓ " : "3 · ") + T("start_step3");
         Step3Status.Text = !_vm.HasWorkspace ? T("start_sign_in_first")
             : profiles.Count == 0 ? T("start_profile_hint")
-            : F("start_profile_status", profiles.Count, stats.Sum(s => s.Confirmed), stats.Sum(s => s.ToReview));
+            : F("start_profile_status", profiles.Count, stats.Sum(s => s.ConfirmedExperience), stats.Sum(s => s.ConfirmedProfileAnswers), stats.Sum(s => s.ToReview));
         StartImportBtn.IsEnabled = StartInterviewProfileBtn.IsEnabled = StartAddInterviewBtn.IsEnabled = _vm.HasWorkspace;
         Step4Title.Text = (prepared > 0 ? "✓ " : "4 · ") + T("start_step4");
         Step4Status.Text = prepared == 0 ? T("start_interview_hint") : F("start_interview_status", prepared, _vm.ActiveLabel);
@@ -477,7 +477,7 @@ public partial class HomeWindow : Window
     {
         var list = Store?.Profiles() ?? Array.Empty<CandidateProfileRecord>();
         var items = list.Select(p => new Item<string>(
-            $"{(p.PreferredName.Length > 0 ? p.PreferredName : p.Name.Length > 0 ? p.Name : T("profile_unnamed"))}  ·  {F("profile_confirmed_count", p.Stats.Confirmed)}", p.Id)).ToList();
+            $"{(p.PreferredName.Length > 0 ? p.PreferredName : p.Name.Length > 0 ? p.Name : T("profile_unnamed"))}  ·  {F("profile_confirmed_count", p.Stats.ConfirmedExperience, p.Stats.ConfirmedProfileAnswers)}", p.Id)).ToList();
         var id = selectId ?? _profile?.Id ?? _vm.ActiveProfileId ?? list.FirstOrDefault()?.Id;
         using (SuppressSelection())
         {
@@ -801,7 +801,7 @@ public partial class HomeWindow : Window
         RefreshProfiles(saved.Id);       // labels and counts; the saved record stays on screen
         RefreshTargets(_target?.Id);     // preparation states may have become stale
         RefreshChecklist();
-        Notify(T("toast_profile_saved"), ToastKind.Success, F("toast_profile_saved_detail", saved.Stats.Confirmed));
+        Notify(T("toast_profile_saved"), ToastKind.Success, F("toast_profile_saved_detail", saved.Stats.ConfirmedExperience, saved.Stats.ConfirmedProfileAnswers));
         return true;
     }
 

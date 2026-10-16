@@ -73,3 +73,38 @@ public class PersonalGroundingTests
         Assert.Contains("Do NOT add reasons, feelings, benefits, personality traits", prompt);
     }
 }
+
+/// <summary>RC4: confirming a hobby must not make one count say 44 and another 45 without saying why.</summary>
+public class FactCountSemanticsTests
+{
+    [Fact]
+    public void AddingAHobby_IsCountedAsAnInterviewProfileAnswer_NotAsAnExperienceFact()
+    {
+        var p = new InterviewAssistant.Core.Domain.CandidateProfileRecord();
+        for (int i = 0; i < 44; i++)
+        {
+            var f = new InterviewAssistant.Core.Domain.ProfileFact { Kind = InterviewAssistant.Core.Domain.FactKind.Achievement, Text = "Fact " + i };
+            f.SetConfirmed(true, DateTime.UtcNow);
+            p.Facts.Add(f);
+        }
+        Assert.Equal(44, p.Stats.ConfirmedExperience);
+        InterviewAssistant.Core.Domain.ProfileService.SetPersonal(p, "hobby", "Hiking and photography");
+        Assert.Equal(45, p.Stats.Confirmed);
+        Assert.Equal(44, p.Stats.ConfirmedExperience);
+        Assert.Equal(1, p.Stats.ConfirmedProfileAnswers);
+        var text = InterviewAssistant.Core.Languages.Loc.Format("en", "toast_profile_saved_detail", p.Stats.ConfirmedExperience, p.Stats.ConfirmedProfileAnswers);
+        Assert.StartsWith("44 confirmed experience facts + 1 interview-profile answers.", text);
+    }
+
+    [Fact]
+    public void SplitCountKeys_HaveTheirPlaceholdersInEveryLanguage()
+    {
+        foreach (var l in InterviewAssistant.Core.Languages.LanguageRegistry.All)
+        {
+            var start = InterviewAssistant.Core.Languages.Loc.Format(l.Code, "start_profile_status", 1, 44, 1, 3);
+            Assert.Contains("44", start); Assert.Contains("3", start);
+            var row = InterviewAssistant.Core.Languages.Loc.Format(l.Code, "profile_confirmed_count", 44, 1);
+            Assert.Contains("44", row); Assert.Contains("1", row);
+        }
+    }
+}
