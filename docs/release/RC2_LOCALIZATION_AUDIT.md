@@ -63,3 +63,11 @@ Complete Devanagari table (734/734), common software loanwords in Devanagari (�
 | L5 | Low | Diagnostics panel (developer-oriented counters) and log lines remain English | By design (support data) | — | Customers can open Diagnostics from the header; it is labelled technical. |
 | L6 | Low | Tooltips mention the default hotkeys even after the user changes them | — | — | Open: tooltips are static strings. |
 | L7 | Low | Long German/French labels | Trimming/wrapping and wider default window (UI audit) | self-test layout checks (English only) | Not visually verified in every language on every resolution. |
+
+## rc.3
+
+Keys: 742 per language (rc.2: 734). New or changed in all 10 languages: `bill_revoked`, `bill_notice_revoked`,
+`acct_deleted_identity_pending`, `acct_deleted` (now mentions the sign-in), `confirm_delete_account` (no longer says
+"contact support"; names the sign-in methods removed). Billing-portal names inside sentences match each language's
+button label (e.g. pt-BR "Gerenciar cobrança", fa «مدیریت پرداخت»). `LocalizationCoverageTests` pass for every
+language. Native-speaker review remains recommended (external).

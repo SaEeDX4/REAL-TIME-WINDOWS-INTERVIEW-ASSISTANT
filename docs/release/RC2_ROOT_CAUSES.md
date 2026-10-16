@@ -35,3 +35,12 @@ when enabling it for realtime transcription
 [community thread](https://community.openai.com/t/how-to-enable-gpt-4o-transcribe-diarize-for-realtime-transcription/1373561)).
 The product therefore does **not** claim to know who is speaking. It uses the conservative directedness
 rules in row 5 and never stores speaker biometrics.
+
+## rc.3 additions
+
+| # | Symptom | Root cause (traced in code) | Fix | Regression tests |
+|---|---|---|---|---|
+| R3-1 | Live transcription could continue after the billable lease ended (pause, exhaustion, expiry) | The desktop received an ephemeral provider secret and held its own socket to the provider; the server had no way to close it | Server-side relay bound to the lease and its billable window (`RealtimeRelay`, `SessionService.RelayMayRun`) | `RealtimeRelayTests`, `RelayEndToEndTests` |
+| R3-2 | After Pause → Resume the real transcriber never reconnected | `InterviewEngine.StartListeningAsync` cancels the previous run token; `OpenAiRealtimeTranscriber.StartAsync` returned early because its (finished) loop task was non-null. Engine tests used a fake transcriber that always "starts" | Loop restarts when finished or cancelled; cloud Pause closes transcription explicitly | `TranscriberLoop_RestartsAfterItsTokenWasCancelled`, `RelayEndToEndTests` |
+| R3-3 | Device revocation and admin suspension ended leases without billing | Those paths set the lease status directly instead of going through the billed end path | `SessionService.RevokeDeviceAsync` / `EndAllAsync` bill the tail under the user lock | `RevokingYourOwnDevice_…`, `AdminSuspension_…` |
+| R3-4 | Chimes and alert tones looked like 0.5–0.9 s of voiced speech | (a) the last 20 ms hop of each 100 ms frame used a truncated window; (b) pitch search accepted bell partials above the voice range through their sub-harmonic periods; (c) sustained ringing notes counted as voiced | Full last window; sub-multiple period test; spectral-stability "sustained" class | `RecordedStyleAudioTests`, `AcousticAnalyzerTests` |

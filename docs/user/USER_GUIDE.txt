@@ -1,4 +1,4 @@
-INTERVIEW ASSISTANT — USER GUIDE (2.1.0-rc.2)
+INTERVIEW ASSISTANT — USER GUIDE (2.1.0-rc.3)
 =============================================
 
 GETTING STARTED
@@ -45,6 +45,15 @@ ACCOUNT, LANGUAGE AND PRIVACY
   answer languages, which you choose per interview.
 - Signing out hides all of your profiles, interviews and reports; another account on the same
   PC never sees them. Exporting your data or deleting your account asks for your password.
+- Deleting your account removes your data on the service and your sign-in (e-mail address,
+  password and linked Google/Microsoft/GitHub/Apple sign-in). Cancel an active subscription
+  in Manage billing first. Invoices stay with Paddle, the payment provider.
+- Live audio is streamed through the Interview Assistant service to the transcription
+  provider; your PC never holds a provider key. Live transcription stops as soon as your
+  live minutes stop (Pause, Stop, minutes used up, device removed).
+- If a payment is fully refunded or charged back, Pro access ends ("Pro ended — payment
+  refunded"); a new payment restores it.
+- Log files older than 14 days are deleted automatically.
 - Reports are stored encrypted for your account. The interview transcript is saved to
   Documents only if you turn it on in Settings.
 

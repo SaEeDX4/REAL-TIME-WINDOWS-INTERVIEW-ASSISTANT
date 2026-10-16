@@ -1,4 +1,4 @@
-# 2.1.0-rc.2 — data-integrity audit
+# 2.1.0-rc.2 / 2.1.0-rc.3 — data-integrity audit
 
 | # | Area | Sev | Finding | Root cause | Fix | Test | Remaining risk |
 |---|---|---|---|---|---|---|---|
@@ -26,4 +26,9 @@
 | D22 | Account page | Medium | Plan, usage and devices of the previous account could stay on screen | Controls updated only when account data was present | Cleared whenever no account data is loaded; late device responses for another account ignored (796de96) | — | — |
 | D23 | Preparation | Low | Unexpected errors left an interview "preparing" | Only three exception types were handled | Any failure ends as failed with a readable reason (796de96) | — | — |
 | D24 | Legacy adoption | Low | A partially failed pre-RC2 adoption could later be completed by another account | Adoption marker written after the moves | Unchanged | — | Rare (requires a file-move failure); NEEDS WORK: write the owner marker before moving. |
-
+| D25 | Identity deletion (rc.3) | Medium | Account data deleted but the auth identity kept | No admin call | After commit; pending marker set inside the deletion transaction, so a crash between commit and the call is retried by the sweeper (0aaabc4) | `ProviderOutage_QueuesTheIdentityDeletion_AndTheSweeperCompletesIt` | — |
+| D26 | Refunds/chargebacks (rc.3) | Medium | Out-of-order or duplicate adjustment events could flip access | No adjustment handling | Per-adjustment latest state with ordering guard; access derived from all stored adjustments, never toggled by a single event; event-id idempotency (0aaabc4) | `OutOfOrderDeliveries_NeverWinOverNewerAdjustmentState`, `DuplicateAdjustmentDeliveries_AreProcessedOnce` | — |
+| D27 | Payments (rc.3) | Medium | A refund of an older payment could revoke current access; a zero-value payment-method change could mask a chargeback | "Latest transaction" model | Every payment recorded with its billing period; revocation only when all payments covering now are refunded/charged back (9f35da4) | `RefundOfAnOlderPayment_…`, `PaymentMethodChange_DoesNotHideAChargeback…` | Refunds of payments made before rc.3 are logged for manual review. |
+| D28 | Live metering (rc.3) | High | Transcription could continue outside billed time | Client-held provider socket | Relay bounded by lease state and billable window (dc64148) | `RealtimeRelayTests` | — |
+| D29 | Lease billing (rc.3) | High | Device revocation / admin suspension ended leases unbilled | Separate code path | Billed end path under the user lock (9f35da4) | `RevokingYourOwnDevice_…`, `AdminSuspension_…` | — |
+| D30 | Identity deletion (rc.3) | Medium | Pre-rc.3 deleted accounts never queued; a post-commit error reported failure | — | Migration backfill; post-commit errors yield "pending" (9f35da4) | `AnUnexpectedErrorAfterTheDataIsDeleted_…` | — |

@@ -45,3 +45,11 @@ resolution/DPI on real hardware — listed in the manual checklist.
 | Window restore on a secondary monitor with a different DPI | Low | Dialogs are fitted per monitor; the main windows use the primary work area for restore |
 | Diagnostics panel is English | Low | Support data |
 | Screen-reader walkthrough and per-resolution visual checks | — | Manual checklist (not automatable on CI) |
+
+## rc.3
+
+| Surface | Change | Check |
+|---|---|---|
+| Account page | New billing state "revoked" with its own label and notice; the upgrade banner appears for it like for an ended subscription | build + localization tests |
+| Delete account | Dialog lists what is deleted including the sign-in; result message distinguishes "deleted" from "sign-in removal finishing automatically" | localization tests, manual checklist |
+| Live window | Pause/Resume reconnect; a refused live connection (too many connections, update required) pauses listening with a readable note instead of a silent failure | `RelayEndToEndTests`, manual checklist X/AA |

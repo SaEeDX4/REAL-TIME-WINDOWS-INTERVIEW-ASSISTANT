@@ -1,4 +1,8 @@
-# 2.1.0-rc.2 — dependency & license audit
+# 2.1.0-rc.2 / 2.1.0-rc.3 — dependency & license audit
+
+rc.3: no new shipped dependencies (the relay uses only ASP.NET Core and System.Net.WebSockets on the backend). The
+test-only audio fixtures are generated in the repository and dedicated to the public domain (CC0); they are not
+shipped. The full license texts in `licenses/` ship with the rc.3 package.
 
 Scope: everything redistributed to customers in the Windows desktop package (portable ZIP and the Velopack
 installer), plus the backend and build/test tooling for completeness. Question answered per component: may it be

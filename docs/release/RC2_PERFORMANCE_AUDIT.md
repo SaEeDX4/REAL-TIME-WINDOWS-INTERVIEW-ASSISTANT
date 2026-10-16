@@ -45,3 +45,11 @@ after turns (end-of-question timing unchanged); the prepared/high-confidence pat
 * Cold start, idle CPU, UI frame times and language-switch time on real consumer PCs (CI smoke test records startup
   time ≈ 1.1 s to first window and ≈ 240 MB working set on the Windows runner, self-contained single-file build).
 * Real-network latency (the provider's first-token time dominates generated answers).
+
+## rc.3
+
+| Item | Result | Evidence | Open |
+|---|---|---|---|
+| Live relay | One extra hop desktop → backend → provider for audio and transcription events; per client message the relay parses and rebuilds ≤ 256 KB of JSON (not micro-benchmarked; one 100 ms frame is ≈ 6.4 KB); ≈ 64 KB/s backend bandwidth per live session; one database read per relay every 2 s | `RealtimeRelayTests`, `RelayEndToEndTests` (functional) | End-to-end latency on a consumer connection against the production region is **not measured** (manual check W). |
+| Acoustic analyser (rc.3 fixes) | Extra autocorrelation at shorter periods and a spectral-stability check per 20 ms hop; the existing per-frame budget test still passes; local decision pipeline p50 4.6–5.6 ms, p95 8.4–9.2 ms, max 13.7–16.6 ms per question (198 runs, wall clock, unloaded) | `LocalDecisionPipeline_…` (budget p95 < 25 ms) | The test is wall-clock and failed once in this cycle while an unrelated build ran in parallel on the same machine; it passed on every isolated rerun. |
+| Transcriber reconnects | Pause closes the relay connection; Resume reconnects (one WebSocket handshake + upstream secret mint, ≈ 1 RTT to the backend + one provider call) | `RelayEndToEndTests` | — |
