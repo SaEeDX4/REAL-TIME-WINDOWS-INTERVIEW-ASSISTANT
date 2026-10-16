@@ -172,7 +172,36 @@
                                     <TextBlock Text="{Binding CoachReminder}" TextWrapping="Wrap" Margin="0,10,0,0" Foreground="{StaticResource B.TextDim}" FontSize="13"
                                                Visibility="{Binding CoachReminder, Converter={StaticResource StrVis}}"/>
                                 </StackPanel>
-                                <ItemsControl x:Name="BulletList" ItemsSource="{Binding Bullets}" Focusable="False" Visibility="{Binding IsCoachView, Converter={StaticResource BoolVisInv}}">
+                                <!-- Profile gap (personal question the profile has no answer for): guidance in a distinct amber card with its
+                                     own title, never presented as the candidate's answer. Normal answers: no card chrome at all. -->
+                                <Border x:Name="AnswerCard" Visibility="{Binding IsCoachView, Converter={StaticResource BoolVisInv}}">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Padding" Value="0"/>
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsProfileGap}" Value="True">
+                                                    <Setter Property="BorderBrush" Value="{StaticResource B.Thinking}"/>
+                                                    <Setter Property="BorderThickness" Value="3,1,1,1"/>
+                                                    <Setter Property="Background" Value="{StaticResource B.ThinkingSoft}"/>
+                                                    <Setter Property="CornerRadius" Value="{StaticResource R.Control}"/>
+                                                    <Setter Property="Padding" Value="14,12,14,4"/>
+                                                    <Setter Property="AutomationProperties.Name" Value="{Binding [live_gap_title], Source={x:Static v:LocSource.Instance}}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel>
+                                        <DockPanel x:Name="ProfileGapHeader" Margin="0,0,0,10" FlowDirection="{v:LocFlow}" Visibility="{Binding IsProfileGap, Converter={StaticResource BoolVis}}">
+                                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource T.Icon}" Text="&#xE946;" FontSize="16" Foreground="{StaticResource B.Thinking}" VerticalAlignment="Top" Margin="0,2,10,0"/>
+                                            <StackPanel>
+                                                <TextBlock Text="{v:Loc live_gap_title}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"
+                                                           AutomationProperties.HeadingLevel="Level2"/>
+                                                <TextBlock Text="{v:Loc live_gap_subtitle}" Style="{StaticResource T.Body}" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </DockPanel>
+                                <ItemsControl x:Name="BulletList" ItemsSource="{Binding Bullets}" Focusable="False">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
                                             <Grid Margin="{Binding DataContext.BulletMargin, RelativeSource={RelativeSource AncestorType=Window}}" Opacity="0">
@@ -203,6 +232,16 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                                        <Button x:Name="AddToProfileBtn" Style="{StaticResource Btn.Link}" HorizontalAlignment="Left" Margin="16,0,0,8" FlowDirection="{v:LocFlow}"
+                                                Visibility="{Binding IsProfileGap, Converter={StaticResource BoolVis}}" Click="AddToProfile_Click"
+                                                ToolTip="{v:Loc tt_live_gap_add}" AutomationProperties.Name="{v:Loc live_gap_add}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource T.Icon}" Text="&#xE710;" FontSize="11" Margin="0,0,6,0"/>
+                                                <TextBlock Text="{v:Loc live_gap_add}"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </Border>
                                 <!-- bullet currently being written (faded, appended below stable bullets) -->
                                 <TextBlock Text="{Binding Pending}" Margin="22,0,0,14" TextWrapping="Wrap" Foreground="{StaticResource B.TextFaint}"
                                            FontSize="{Binding AnswerFontSize}" Visibility="{Binding Pending, Converter={StaticResource StrVis}}"/>
@@ -241,19 +280,27 @@
                 </WrapPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
                     <Button Style="{StaticResource Btn.Ghost}" Command="{Binding PreviousCommand}" ToolTip="{v:Loc tt_previous}" AutomationProperties.Name="{v:Loc tt_previous}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE76B;" FontSize="11"/></Button>
-                    <TextBlock Text="{Binding HistoryLabel}" Foreground="{StaticResource B.TextFaint}" FontSize="11" VerticalAlignment="Center" Margin="2,0"/>
+                    <TextBlock x:Name="HistoryCounterText" Text="{Binding HistoryLabel}" Foreground="{StaticResource B.TextFaint}" FontSize="11" VerticalAlignment="Center" Margin="2,0"
+                               FlowDirection="LeftToRight" Visibility="{Binding HistoryLabel, Converter={StaticResource StrVis}}"/>
                     <Button Style="{StaticResource Btn.Ghost}" Command="{Binding NextCommand}" ToolTip="{v:Loc tt_next}" AutomationProperties.Name="{v:Loc tt_next}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE76C;" FontSize="11"/></Button>
                 </StackPanel>
             </Grid>
 
             <!-- ===== Manual question (always-available fallback) ===== -->
             <Grid x:Name="ManualBar" Grid.Row="3" Margin="14,0,14,12">
-                <!-- shared input: the placeholder sits inside the field with the text's inset and hides while focused or filled;
-                     the end padding keeps typed text clear of the send button -->
-                <TextBox x:Name="ManualInput" KeyDown="ManualInput_KeyDown" Padding="10,6,44,6" v:Watermark.Text="{Binding LTypeHint}"
-                         AutomationProperties.Name="{Binding LTypeHint}"/>
-                <Button Style="{StaticResource Btn.Ghost}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0" Click="ManualSend_Click" ToolTip="{v:Loc tt_send}" AutomationProperties.Name="{v:Loc tt_send}">
-                    <TextBlock Style="{StaticResource T.Icon}" Text="&#xE724;" Foreground="{StaticResource B.Accent}"/>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="{StaticResource S.ColumnGap}"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <!-- shared input: the placeholder sits inside the field with the text's inset and hides while focused or filled.
+                     Field and send button share the control-height token and are centred on one row (mirrored in RTL). -->
+                <TextBox x:Name="ManualInput" KeyDown="ManualInput_KeyDown" v:Watermark.Text="{Binding LTypeHint}" VerticalAlignment="Center"
+                         Height="{StaticResource S.ControlHeight}" AutomationProperties.Name="{Binding LTypeHint}"/>
+                <Button x:Name="ManualSendBtn" Grid.Column="2" Style="{StaticResource Btn.FormPrimary}" Padding="0" VerticalAlignment="Center"
+                        Width="{StaticResource S.ControlHeight}" Height="{StaticResource S.ControlHeight}"
+                        Click="ManualSend_Click" ToolTip="{v:Loc tt_send}" AutomationProperties.Name="{v:Loc tt_send}">
+                    <TextBlock Style="{StaticResource T.Icon}" Text="&#xE724;" HorizontalAlignment="Center"/>
                 </Button>
             </Grid>
 

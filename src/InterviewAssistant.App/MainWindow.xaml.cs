@@ -181,6 +181,13 @@ public partial class MainWindow : Window
     private void Banner_Click(object sender, RoutedEventArgs e) { OpenHome(); _home?.Navigate("account"); }
     private void Presentation_Click(object sender, RoutedEventArgs e) => _vm.ToggleCoach();
 
+    /// <summary>Profile-gap card: opens Home on Profiles → Interview profile, where the missing personal answer can be added.</summary>
+    private void AddToProfile_Click(object sender, RoutedEventArgs e)
+    {
+        OpenHome();
+        _home?.ShowInterviewProfile();
+    }
+
     private void Report_Click(object sender, RoutedEventArgs e)
     {
         if (_vm.LastReportPath is { } p && File.Exists(p))

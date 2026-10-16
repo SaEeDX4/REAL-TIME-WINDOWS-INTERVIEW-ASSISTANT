@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using InterviewAssistant.App.Services;
+using InterviewAssistant.App.UiState;
 using InterviewAssistant.Client;
 using InterviewAssistant.Contracts;
 using InterviewAssistant.Core.Languages;
@@ -82,7 +83,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _capture.FrameReady += OnAudioFrame;
         _capture.StatusChanged += s => Post(() => OnCaptureStatus(s));
         _diagTimer = new DispatcherTimer(DispatcherPriority.Background, ui) { Interval = TimeSpan.FromSeconds(1) };
-        _diagTimer.Tick += (_, _) => RefreshDiagnostics();
+        _diagTimer.Tick += (_, _) => { RefreshDiagnostics(); PollConnection(); };
         _diagTimer.Start();
 
         StartPauseCommand = new RelayCommand(async () => await ToggleListeningAsync());
@@ -108,7 +109,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public string L(string key) => Loc.T(key);
     public FlowDirection UiFlowDirection => Loc.IsRtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight;
     public string LQuestion => L("question");
-    public string LAnswer => IsCoachView ? L("coach") : L("answer");
+    public string LAnswer => IsProfileGap ? L("live_gap_header") : IsCoachView ? L("coach") : L("answer");
     public string LWaiting => L("waiting");
     public string LTypeHint => L("type_hint");
     public string LShorter => L("shorter");
@@ -134,6 +135,12 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     // ---------------- coach / adaptive ----------------
 
     private bool _isCoachView; public bool IsCoachView { get => _isCoachView; private set { if (Set(ref _isCoachView, value)) Raise(nameof(LAnswer)); } }
+    private bool _isProfileGap;
+    /// <summary>
+    /// The answer on screen is the engine's honest guidance for a personal question the profile has no data for
+    /// (<see cref="AnswerSource.Guidance"/>): shown as a distinct "Not in your profile yet" card, never as the candidate's answer.
+    /// </summary>
+    public bool IsProfileGap { get => _isProfileGap; private set { if (Set(ref _isProfileGap, value)) Raise(nameof(LAnswer)); } }
     private string _coachKeywords = ""; public string CoachKeywords { get => _coachKeywords; private set => Set(ref _coachKeywords, value); }
     private string _coachStructure = ""; public string CoachStructure { get => _coachStructure; private set => Set(ref _coachStructure, value); }
     private string? _coachReminder; public string? CoachReminder { get => _coachReminder; private set => Set(ref _coachReminder, value); }
@@ -195,17 +202,32 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _ => "",
     };
 
-    private bool _wasOffline;
+    // ---------------- connection notifications ----------------
 
-    /// <summary>One toast per connectivity transition (never repeated while the outage lasts; the banner stays).</summary>
+    // Three independent sources: the service (account refresh), the live relay (transcriber reconnecting) and Windows'
+    // network availability. The gate debounces them: no toast for short blips, "restored" only after a shown "lost",
+    // at most one lost/restored pair per ~10 s. The offline banner (ServiceBanner) stays for the whole outage.
+    private readonly ConnectionToastGate _connectionGate = new(() => DateTimeOffset.UtcNow);
+    private bool _serviceUp = true, _relayUp = true, _networkUp = true;
+
+    /// <summary>Service state changed: an outage counts once the service reports it unavailable (a retry in progress changes nothing).</summary>
     private void OnConnectivity()
     {
-        if (!UsingCloud || Cloud.State == CloudState.Connecting) return;   // a retry in progress is not a new transition
-        var offline = Cloud.State == CloudState.ServiceUnavailable;
-        if (offline == _wasOffline) return;
-        _wasOffline = offline;
-        if (offline) Toast(Loc.T("toast_connection_lost"), Views.ToastKind.Warning, Loc.T("toast_connection_lost_detail"));
-        else if (Cloud.State == CloudState.SignedIn) Toast(Loc.T("toast_connection_restored"), Views.ToastKind.Success, Loc.T("toast_connection_restored_detail"));
+        if (!UsingCloud) { _serviceUp = true; ReportConnection(silent: true); return; }
+        if (Cloud.State == CloudState.Connecting) return;   // a retry in progress is not a new transition
+        _serviceUp = Cloud.State != CloudState.ServiceUnavailable;
+        // Back up but signed out / blocked (not a network matter): forget the outage without announcing a recovery.
+        ReportConnection(silent: _serviceUp && Cloud.State != CloudState.SignedIn);
+    }
+
+    private void ReportConnection(bool silent = false) => ShowConnectionToast(_connectionGate.Report(_serviceUp && _relayUp && _networkUp, silent));
+
+    private void PollConnection() { if (_connectionGate.NeedsPolling) ShowConnectionToast(_connectionGate.Poll()); }
+
+    private void ShowConnectionToast(ConnectionToast t)
+    {
+        if (t == ConnectionToast.Lost) Toast(Loc.T("toast_connection_lost_reconnecting"), Views.ToastKind.Warning, Loc.T("toast_connection_lost_detail"));
+        else if (t == ConnectionToast.Restored) Toast(Loc.T("toast_connection_restored"), Views.ToastKind.Success, Loc.T("toast_connection_restored_detail"));
     }
     private int? _periodRemainingSeconds, _todayRemainingSeconds;
 
@@ -289,7 +311,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public string StartPauseLabel => IsListening ? L("pause") : IsPaused ? L("resume") : L("start");
     private string _diagnostics = ""; public string Diagnostics { get => _diagnostics; set => Set(ref _diagnostics, value); }
     private int _historyPosition = -1; public int HistoryPosition { get => _historyPosition; set { if (Set(ref _historyPosition, value)) Raise(nameof(HistoryLabel)); } }
-    public string HistoryLabel => _engine == null || _engine.History.Count == 0 ? "" : Loc.F("history_label", HistoryPosition + 1, _engine.History.Count);
+    /// <summary>"n / total" of the answer on screen; empty (hidden) without history — never "0 / 1" (see <see cref="HistoryCounter"/>).</summary>
+    public string HistoryLabel => HistoryCounter.Text(HistoryPosition, _engine?.History.Count ?? 0);
     private string _contextSummary = ""; public string ContextSummary { get => _contextSummary; set => Set(ref _contextSummary, value); }
     private double? _fitFontSize;
     /// <summary>Base size from the font preset, reduced by auto-fit (never below 70 %) so every bullet is visible without scrolling.</summary>
@@ -331,7 +354,12 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
                 _accountTimer = new DispatcherTimer(DispatcherPriority.Background, _ui) { Interval = TimeSpan.FromMinutes(10) };
                 _accountTimer.Tick += (_, _) => { if (!_toggleBusy) _ = Cloud.RefreshAsync(CancellationToken.None); };
                 _accountTimer.Start();
-                System.Net.NetworkInformation.NetworkChange.NetworkAvailabilityChanged += (_, e) => { if (e.IsAvailable) Post(() => _ = Cloud.RefreshAsync(CancellationToken.None)); };
+                System.Net.NetworkInformation.NetworkChange.NetworkAvailabilityChanged += (_, e) => Post(() =>
+                {
+                    _networkUp = e.IsAvailable;
+                    ReportConnection();
+                    if (e.IsAvailable) _ = Cloud.RefreshAsync(CancellationToken.None);
+                });
             }
         }
         catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
@@ -396,9 +424,11 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     /// no workspace at all — no profile, interview, report or prepared answer of anybody is loaded or visible.
     /// Never switches during an interview session (sign-out stops the session first).
     /// </summary>
+    private string? CurrentOwner => App.SelfTestOutput != null ? "selftest" : !UsingCloud ? "local" : Cloud.Auth?.Session?.UserId;
+
     public void OpenWorkspaceForCurrentAccount()
     {
-        string? owner = App.SelfTestOutput != null ? "selftest" : !UsingCloud ? "local" : Cloud.Auth?.Session?.UserId;
+        string? owner = CurrentOwner;
         // First call (startup) always initializes — signed out at startup must still get the empty knowledge base and an engine.
         if (_workspaceInitialized && owner == _workspaceOwner && (Workspace != null || owner == null)) return;
         if (SessionActive)
@@ -472,7 +502,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     {
         Bullets.Clear();
         Question = ""; ContextSummary = ""; Note = null; AnswerMeta = ""; LiveTranscript = ""; Pending = "";
-        CoachKeywords = ""; CoachStructure = ""; CoachReminder = null; IsCoachView = false;
+        CoachKeywords = ""; CoachStructure = ""; CoachReminder = null; IsCoachView = false; IsProfileGap = false;
         LastReportPath = null; HistoryPosition = -1; _displayedAnswerId = -1;
         _periodRemainingSeconds = _todayRemainingSeconds = null;
         _freshSessionOnStart = false;
@@ -546,6 +576,11 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _engine.Log += m => AppLog.Info(m);
         ApplyStatus(EngineStatus.Ready, null);
         Raise(nameof(Presentation)); Raise(nameof(PresentationLabel));
+        // A new engine starts with an empty history: nothing on screen is a history position any more (the counter
+        // hides instead of showing a stale "0 / n", and Previous/Next/rework stay disabled until the next answer).
+        HistoryPosition = -1; _displayedAnswerId = -1;
+        Raise(nameof(HistoryLabel));
+        CommandManager.InvalidateRequerySuggested();
     }
 
     /// <summary>Applies the settings that may change during an interview without ending it (sensitivity, fast cache, coach default).</summary>
@@ -712,6 +747,9 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         // interview stays browsable on screen.
         _freshSessionOnStart = count > 0 || _rebuildPending;
         _rebuildPending = false;
+        // The sign-in ended during the interview (the session kept running): now that the report is saved to that
+        // account, its answers and history leave the screen — signed out, the Live window shows no history.
+        if (_workspaceOwner != null && CurrentOwner == null) OpenWorkspaceForCurrentAccount();
     }
 
     private bool _freshSessionOnStart;
@@ -934,6 +972,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     {
         if (_engine == null) return;
         var h = _engine.History;
+        if (h.Count == 0) return;
         var idx = Math.Clamp(HistoryPosition + delta, 0, h.Count - 1);
         if (idx < 0 || idx >= h.Count) return;
         HistoryPosition = idx;
@@ -979,6 +1018,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     {
         if (a.Coach is { } c)
         {
+            IsProfileGap = false;
             IsCoachView = true;
             CoachKeywords = c.KeywordLine;
             CoachStructure = c.Structure;
@@ -986,7 +1026,9 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             BulletsChanged?.Invoke();
             return;
         }
-        IsCoachView = a.Presentation == Presentation.Coach;   // coach card stays visible while keywords are generated
+        // Profile-gap guidance is always its own card (also in Coach mode, which has no keywords for it).
+        IsProfileGap = a.Source == AnswerSource.Guidance;
+        IsCoachView = a.Presentation == Presentation.Coach && !IsProfileGap;   // coach card stays visible while keywords are generated
         CoachKeywords = ""; CoachStructure = ""; CoachReminder = null;
         var snapshot = a.SnapshotBullets();
         for (int i = Bullets.Count; i < snapshot.Count; i++) Bullets.Add(new BulletVm { Text = snapshot[i], IsParagraph = a.Style == AnswerStyle.Full });
@@ -1035,6 +1077,15 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         StatusPulse = pulse;
         // Engine detail (e.g. which device to check) wins; otherwise a calm explanation of the state.
         StatusDetail = Loc.Relocalize(detail) ?? sub;   // engine messages re-rendered in the current UI language
+        // Live relay: down while the transcriber reconnects. Once listening ends the relay no longer matters: the outage
+        // is forgotten without a "restored" notification for a connection that was not restored.
+        var relayUp = s != EngineStatus.Reconnecting;
+        var relayIdle = s is EngineStatus.Stopped or EngineStatus.Paused or EngineStatus.Ready;
+        if (relayUp != _relayUp)
+        {
+            _relayUp = relayUp;
+            ReportConnection(silent: relayIdle);
+        }
         if (s == EngineStatus.ApiError && _engine != null && _engine.IsListening == false) IsListening = false;
     }
 
