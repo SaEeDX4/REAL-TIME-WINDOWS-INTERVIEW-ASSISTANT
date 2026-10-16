@@ -50,10 +50,10 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="4"/>
             <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ItemContainerStyle" Value="{StaticResource ListItem.Row}"/>
         </Style>
-        <Style x:Key="Page" TargetType="FrameworkElement">
-            <Setter Property="MaxWidth" Value="1120"/>
-        </Style>
+        <!-- a page that fills the visible height of the content area (minus the page's bottom margin) -->
+        <v:Offset x:Key="FillViewport" By="-8"/>
     </Window.Resources>
 
     <WindowChrome.WindowChrome>
@@ -127,7 +127,9 @@
                 </DockPanel>
             </Border>
             <ScrollViewer x:Name="ContentScroll" VerticalScrollBarVisibility="Auto">
-                <Grid Margin="{StaticResource S.PageMargin}" MaxWidth="1120" HorizontalAlignment="Left">
+                <!-- pages fill the width up to the content maximum, starting at the reading-order start (left in LTR, right in RTL) -->
+                <Grid Margin="{StaticResource S.PageMargin}">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="{StaticResource S.ContentMaxWidth}"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
 
                     <!-- ===== Get started ===== -->
                     <StackPanel x:Name="PageStart" MaxWidth="760" HorizontalAlignment="Left">
@@ -181,54 +183,58 @@
 
                     <!-- ===== Profiles ===== -->
                     <Grid x:Name="PageProfiles" Visibility="Collapsed">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" MinWidth="180" MaxWidth="260"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions>
-                        <StackPanel>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{StaticResource S.SidePaneWidth}"/>
+                            <ColumnDefinition Width="{StaticResource S.PaneGap}"/>
+                            <ColumnDefinition Width="*" MaxWidth="{StaticResource S.PageMaxWidth}"/>
+                        </Grid.ColumnDefinitions>
+                        <!-- list + actions: one primary, a secondary group, the destructive action last and set apart -->
+                        <StackPanel x:Name="ProfileActions">
                             <TextBlock Style="{StaticResource H1}" Text="{v:Loc profiles}"/>
-                            <ListBox x:Name="ProfileList" Style="{StaticResource List}" Height="300" Margin="0,8,0,8" SelectionChanged="ProfileList_SelectionChanged"
+                            <ListBox x:Name="ProfileList" Style="{StaticResource List}" MinHeight="120" MaxHeight="300" Margin="0,8,0,8" SelectionChanged="ProfileList_SelectionChanged"
                                      AutomationProperties.Name="{v:Loc profiles}"/>
                             <TextBlock x:Name="ProfilesEmpty" Style="{StaticResource Hint}" Text="{v:Loc warn_create_profile_first}" Margin="0,0,0,8" Visibility="Collapsed"/>
-                            <WrapPanel>
-                                <Button Style="{StaticResource Btn.Primary}" Content="{v:Loc import_resume}" Click="NewProfile_Click" Margin="0,0,6,6" ToolTip="{v:Loc tt_import_resume}"/>
-                                <Button Style="{StaticResource Btn.Base}" Content="{v:Loc add_document}" Click="AddResume_Click" Margin="0,0,6,6" ToolTip="{v:Loc tt_add_document}"/>
-                                <Button Style="{StaticResource Btn.Base}" Content="{v:Loc new_empty_profile}" Click="NewEmptyProfile_Click" Margin="0,0,6,6" ToolTip="{v:Loc tt_new_empty_profile}"/>
-                                <Button x:Name="ExportProfileBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc export_ellipsis}" Click="ExportProfile_Click" Margin="0,0,6,6" ToolTip="{v:Loc tt_export_profile}"/>
-                                <Button x:Name="DeleteProfileBtn" Style="{StaticResource Btn.Ghost}" Content="{v:Loc delete}" Click="DeleteProfile_Click" Margin="0,0,6,6" ToolTip="{v:Loc tt_delete_profile}"/>
-                            </WrapPanel>
-                            <TextBlock Style="{StaticResource Hint}" Text="{v:Loc profile_local_hint}"/>
+                            <Button x:Name="ImportResumeBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc import_resume}" Click="NewProfile_Click" Margin="{StaticResource S.StackGap}" ToolTip="{v:Loc tt_import_resume}"/>
+                            <Button x:Name="AddDocumentBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc add_document}" Click="AddResume_Click" Margin="{StaticResource S.StackGap}" ToolTip="{v:Loc tt_add_document}"/>
+                            <Button x:Name="NewEmptyProfileBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc new_empty_profile}" Click="NewEmptyProfile_Click" Margin="{StaticResource S.StackGap}" ToolTip="{v:Loc tt_new_empty_profile}"/>
+                            <Button x:Name="ExportProfileBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc export_ellipsis}" Click="ExportProfile_Click" ToolTip="{v:Loc tt_export_profile}"/>
+                            <Border Style="{StaticResource Divider}"/>
+                            <Button x:Name="DeleteProfileBtn" Style="{StaticResource Btn.FormDanger}" Content="{v:Loc delete_profile}" Click="DeleteProfile_Click" ToolTip="{v:Loc tt_delete_profile}"/>
+                            <TextBlock Style="{StaticResource Hint}" Text="{v:Loc profile_local_hint}" Margin="0,12,0,0"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Margin="18,0,0,0" x:Name="ProfileDetail">
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="{v:Loc profile_name}" Style="{StaticResource Section}" Margin="0,4,0,6"/>
-                                    <TextBox x:Name="ProfileName" TextChanged="ProfileField_Changed" AutomationProperties.Name="{v:Loc profile_name}"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="{v:Loc profile_preferred_name}" Style="{StaticResource Section}" Margin="0,4,0,6"/>
-                                    <TextBox x:Name="ProfilePreferred" TextChanged="ProfileField_Changed" AutomationProperties.Name="{v:Loc profile_preferred_name}"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="4">
-                                    <TextBlock Text="{v:Loc profile_headline}" Style="{StaticResource Section}" Margin="0,4,0,6"/>
-                                    <TextBox x:Name="ProfileHeadline" TextChanged="ProfileField_Changed" AutomationProperties.Name="{v:Loc profile_headline}"/>
-                                </StackPanel>
+                        <StackPanel Grid.Column="2" x:Name="ProfileDetail">
+                            <!-- header fields: one grid, labels above the fields, equal columns, field height from the shared input style -->
+                            <Grid x:Name="ProfileHeaderGrid">
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="{StaticResource S.ColumnGap}"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                <TextBlock x:Name="ProfileNameLabel" Text="{v:Loc profile_name}" Style="{StaticResource T.FieldLabel}"/>
+                                <TextBox x:Name="ProfileName" Grid.Row="1" TextChanged="ProfileField_Changed" AutomationProperties.Name="{v:Loc profile_name}"/>
+                                <TextBlock Grid.Column="2" Text="{v:Loc profile_preferred_name}" Style="{StaticResource T.FieldLabel}"/>
+                                <TextBox x:Name="ProfilePreferred" Grid.Row="1" Grid.Column="2" TextChanged="ProfileField_Changed" AutomationProperties.Name="{v:Loc profile_preferred_name}"/>
+                                <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Text="{v:Loc profile_headline}" Style="{StaticResource T.FieldLabel}"/>
+                                <TextBox x:Name="ProfileHeadline" Grid.Row="3" Grid.ColumnSpan="3" TextChanged="ProfileField_Changed" AutomationProperties.Name="{v:Loc profile_headline}"/>
                             </Grid>
 
-                            <!-- section switch -->
-                            <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
-                                <Button x:Name="TabFacts" Style="{StaticResource Btn.Chip}" Content="{v:Loc profile_tab_facts}" Click="ProfileTab_Click" Tag="facts"/>
-                                <Button x:Name="TabPersonal" Style="{StaticResource Btn.Chip}" Content="{v:Loc profile_tab_personal}" Click="ProfileTab_Click" Tag="personal"/>
-                            </StackPanel>
+                            <!-- section switch: two equal segments across the content width (Tab focuses the selected one, Left/Right switch) -->
+                            <Border Style="{StaticResource Seg.Track}" Margin="0,24,0,0">
+                                <UniformGrid x:Name="ProfileTabs" Rows="1" PreviewKeyDown="ProfileTabs_PreviewKeyDown" AutomationProperties.Name="{v:Loc profile_sections}">
+                                    <RadioButton x:Name="TabFacts" Style="{StaticResource Seg.Item}" GroupName="ProfileSection" Tag="facts" Content="{v:Loc profile_tab_facts}"
+                                                 ToolTip="{v:Loc profile_tab_facts}" AutomationProperties.Name="{v:Loc profile_tab_facts}" Checked="ProfileTab_Checked"/>
+                                    <RadioButton x:Name="TabPersonal" Style="{StaticResource Seg.Item}" GroupName="ProfileSection" Tag="personal" Content="{v:Loc profile_tab_personal}"
+                                                 ToolTip="{v:Loc profile_tab_personal}" AutomationProperties.Name="{v:Loc profile_tab_personal}" Checked="ProfileTab_Checked"/>
+                                </UniformGrid>
+                            </Border>
 
                             <!-- facts -->
                             <StackPanel x:Name="FactsPanel">
-                                <DockPanel Margin="0,14,0,6">
-                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                                        <Button Style="{StaticResource Btn.Base}" Content="{v:Loc fact_add}" Click="AddFact_Click" Padding="10,4" Margin="0,0,6,0" ToolTip="{v:Loc tt_fact_add}"/>
-                                        <Button Style="{StaticResource Btn.Base}" Content="{v:Loc confirm_all}" Click="ConfirmAll_Click" Padding="10,4" ToolTip="{v:Loc tt_confirm_all}"/>
+                                <DockPanel Margin="0,16,0,6">
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button Style="{StaticResource Btn.Form}" Content="{v:Loc fact_add}" Click="AddFact_Click" Margin="8,0,0,0" ToolTip="{v:Loc tt_fact_add}"/>
+                                        <Button Style="{StaticResource Btn.Form}" Content="{v:Loc confirm_all}" Click="ConfirmAll_Click" Margin="8,0,0,0" ToolTip="{v:Loc tt_confirm_all}"/>
                                     </StackPanel>
-                                    <TextBlock x:Name="FactsHeader" Style="{StaticResource T.Label}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock x:Name="FactsHeader" Style="{StaticResource T.Label}" Margin="0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                 </DockPanel>
-                                <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,6" Text="{v:Loc facts_hint}"/>
+                                <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8" Text="{v:Loc facts_hint}"/>
                                 <DockPanel Margin="0,2,0,6">
                                     <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">
                                         <Button x:Name="FilterAll" Style="{StaticResource Btn.Chip}" Content="{v:Loc filter_all}" Tag="all" Click="FactFilter_Click"/>
@@ -266,96 +272,139 @@
 
                             <!-- interview profile (personal) -->
                             <StackPanel x:Name="PersonalPanel" Visibility="Collapsed">
-                                <TextBlock Style="{StaticResource Hint}" Margin="0,14,0,4" Text="{v:Loc personal_intro}"/>
+                                <TextBlock Style="{StaticResource Hint}" Margin="0,16,0,4" Text="{v:Loc personal_intro}"/>
                                 <StackPanel x:Name="PersonalFields"/>
                             </StackPanel>
 
+                            <v:InlineMessage x:Name="ProfileMessage" Margin="0,12,0,0"/>
                             <WrapPanel Margin="{StaticResource S.ButtonRowMargin}">
-                                <Button x:Name="SaveProfileBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc save_profile}" Click="SaveProfile_Click" Margin="0,0,12,0"/>
-                                <TextBlock x:Name="ProfileDirty" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="0" Foreground="{StaticResource B.Thinking}" AutomationProperties.LiveSetting="Polite"/>
+                                <Button x:Name="SaveProfileBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc save_profile}" Click="SaveProfile_Click" Margin="{StaticResource S.ButtonGap}"/>
+                                <TextBlock x:Name="ProfileDirty" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="4,0,0,8" Foreground="{StaticResource B.Thinking}" AutomationProperties.LiveSetting="Polite"/>
                             </WrapPanel>
                         </StackPanel>
                     </Grid>
 
-                    <!-- ===== Interviews ===== -->
+                    <!-- ===== Interviews (same grid and action pattern as Profiles) ===== -->
                     <Grid x:Name="PageInterviews" Visibility="Collapsed">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" MinWidth="180" MaxWidth="260"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions>
-                        <StackPanel>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{StaticResource S.SidePaneWidth}"/>
+                            <ColumnDefinition Width="{StaticResource S.PaneGap}"/>
+                            <ColumnDefinition Width="*" MaxWidth="{StaticResource S.PageMaxWidth}"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel x:Name="InterviewActions">
                             <TextBlock Style="{StaticResource H1}" Text="{v:Loc interviews}"/>
                             <TextBlock x:Name="InterviewsProfile" Style="{StaticResource Hint}"/>
-                            <ListBox x:Name="TargetList" Style="{StaticResource List}" Height="300" Margin="0,8,0,8" SelectionChanged="TargetList_SelectionChanged" AutomationProperties.Name="{v:Loc interviews}"/>
+                            <ListBox x:Name="TargetList" Style="{StaticResource List}" MinHeight="120" MaxHeight="300" Margin="0,8,0,8" SelectionChanged="TargetList_SelectionChanged" AutomationProperties.Name="{v:Loc interviews}"/>
                             <TextBlock x:Name="InterviewsEmpty" Style="{StaticResource Hint}" Text="{v:Loc interviews_empty}" Margin="0,0,0,8" Visibility="Collapsed"/>
-                            <WrapPanel>
-                                <Button Style="{StaticResource Btn.Primary}" Content="{v:Loc new_interview}" Click="NewTarget_Click" Margin="0,0,6,6"/>
-                                <Button x:Name="DeleteTargetBtn" Style="{StaticResource Btn.Ghost}" Content="{v:Loc delete}" Click="DeleteTarget_Click" Margin="0,0,6,6" ToolTip="{v:Loc tt_delete_interview}"/>
-                            </WrapPanel>
+                            <Button x:Name="NewTargetBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc new_interview}" Click="NewTarget_Click"/>
+                            <Border Style="{StaticResource Divider}"/>
+                            <Button x:Name="DeleteTargetBtn" Style="{StaticResource Btn.FormDanger}" Content="{v:Loc delete_interview}" Click="DeleteTarget_Click" ToolTip="{v:Loc tt_delete_interview}"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Margin="18,0,0,0" x:Name="TargetDetail" MaxWidth="820" HorizontalAlignment="Left">
-                            <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="{v:Loc job_title}" Style="{StaticResource Section}" Margin="0,4,0,6"/>
-                                    <TextBox x:Name="TargetTitle" TextChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc job_title}"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="{v:Loc company}" Style="{StaticResource Section}" Margin="0,4,0,6"/>
-                                    <TextBox x:Name="TargetCompany" TextChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc company}"/>
-                                </StackPanel>
-                            </Grid>
-                            <Grid Margin="0,10,0,0">
-                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="{v:Loc interview_language}" Style="{StaticResource T.Label}" Margin="0,0,0,6"/>
-                                    <ComboBox x:Name="TargetLanguage" SelectionChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc interview_language}"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="{v:Loc answer_language}" Style="{StaticResource T.Label}" Margin="0,0,0,6"/>
-                                    <ComboBox x:Name="TargetAnswerLanguage" SelectionChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc answer_language}"/>
-                                </StackPanel>
+                        <StackPanel Grid.Column="2" x:Name="TargetDetail">
+                            <Grid x:Name="TargetFieldGrid">
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="{StaticResource S.ColumnGap}"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                <TextBlock Text="{v:Loc job_title}" Style="{StaticResource T.FieldLabel}"/>
+                                <TextBox x:Name="TargetTitle" Grid.Row="1" TextChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc job_title}"/>
+                                <TextBlock Grid.Column="2" Text="{v:Loc company}" Style="{StaticResource T.FieldLabel}"/>
+                                <TextBox x:Name="TargetCompany" Grid.Row="1" Grid.Column="2" TextChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc company}"/>
+                                <TextBlock Grid.Row="2" Text="{v:Loc interview_language}" Style="{StaticResource T.FieldLabel}"/>
+                                <ComboBox x:Name="TargetLanguage" Grid.Row="3" SelectionChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc interview_language}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="2" Text="{v:Loc answer_language}" Style="{StaticResource T.FieldLabel}"/>
+                                <ComboBox x:Name="TargetAnswerLanguage" Grid.Row="3" Grid.Column="2" SelectionChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc answer_language}"/>
                             </Grid>
                             <TextBlock Style="{StaticResource Hint}" Text="{v:Loc language_separation_hint}"/>
-                            <DockPanel Margin="0,14,0,6">
-                                <Button DockPanel.Dock="Right" Style="{StaticResource Btn.Base}" Content="{v:Loc import_file}" Click="ImportJd_Click" Padding="10,4" Margin="8,0,0,0"/>
-                                <TextBlock Text="{v:Loc job_description}" Style="{StaticResource T.Label}" VerticalAlignment="Center"/>
+                            <DockPanel Margin="0,12,0,6">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource Btn.Form}" Content="{v:Loc import_file}" Click="ImportJd_Click" Margin="8,0,0,0" VerticalAlignment="Bottom"/>
+                                <TextBlock Text="{v:Loc job_description}" Style="{StaticResource T.FieldLabel}" Margin="0,0,0,2" VerticalAlignment="Bottom"/>
                             </DockPanel>
                             <TextBox x:Name="TargetJd" Style="{StaticResource Input.Multiline}" Height="170" TextChanged="TargetField_Changed"
                                      AutomationProperties.Name="{v:Loc job_description}"/>
                             <TextBlock Style="{StaticResource Hint}" Text="{v:Loc documents_are_data}"/>
                             <v:InlineMessage x:Name="TargetMessage"/>
-                            <WrapPanel Margin="0,12,0,0">
-                                <Button x:Name="PrepareBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc prepare}" Click="Prepare_Click" Margin="0,0,8,8"/>
-                                <Button x:Name="SaveTargetBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc save}" Click="SaveTarget_Click" Margin="0,0,8,8" ToolTip="{v:Loc tt_save_interview}"/>
-                                <Button x:Name="UseBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc start_interview}" Click="UseTarget_Click" Margin="0,0,12,8"/>
-                                <TextBlock x:Name="TargetDirty" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="0,0,0,8" Foreground="{StaticResource B.Thinking}" AutomationProperties.LiveSetting="Polite"/>
+                            <!-- action bar: primary first, then the secondary actions, state text last -->
+                            <WrapPanel Margin="{StaticResource S.ButtonRowMargin}">
+                                <Button x:Name="PrepareBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc prepare}" Click="Prepare_Click" Margin="{StaticResource S.ButtonGap}"/>
+                                <Button x:Name="SaveTargetBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc save}" Click="SaveTarget_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_save_interview}"/>
+                                <Button x:Name="UseBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc start_interview}" Click="UseTarget_Click" Margin="{StaticResource S.ButtonGap}"/>
+                                <TextBlock x:Name="TargetDirty" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="4,0,0,8" Foreground="{StaticResource B.Thinking}" AutomationProperties.LiveSetting="Polite"/>
                             </WrapPanel>
-                            <ProgressBar x:Name="PrepProgress" Height="4" Margin="0,12,0,0" Minimum="0" Maximum="1" Foreground="{StaticResource B.Accent}" Background="{StaticResource B.Surface3}" BorderThickness="0"/>
+                            <ProgressBar x:Name="PrepProgress" Height="4" Margin="0,8,0,0" Minimum="0" Maximum="1" Foreground="{StaticResource B.Accent}" Background="{StaticResource B.Surface3}" BorderThickness="0"/>
                             <TextBlock x:Name="PrepStatus" Style="{StaticResource Hint}"/>
                             <TextBlock x:Name="PrepSummary" Style="{StaticResource Hint}" Foreground="{StaticResource B.TextDim}"/>
                         </StackPanel>
                     </Grid>
 
-                    <!-- ===== Reports ===== -->
-                    <Grid x:Name="PageReports" Visibility="Collapsed">
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="560"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <StackPanel>
-                            <TextBlock Style="{StaticResource H1}" Text="{v:Loc reports}"/>
-                            <TextBlock Style="{StaticResource Hint}" Text="{v:Loc reports_hint}"/>
-                            <ListBox x:Name="ReportList" Style="{StaticResource List}" Height="360" Margin="0,10,0,8" MouseDoubleClick="OpenReport_Click"
-                                     SelectionChanged="ReportList_SelectionChanged" AutomationProperties.Name="{v:Loc reports}"/>
-                            <TextBlock x:Name="ReportsEmpty" Style="{StaticResource Hint}" Text="{v:Loc reports_empty}" Visibility="Collapsed"/>
-                            <WrapPanel>
-                                <Button x:Name="OpenReportBtn" Style="{StaticResource Btn.Primary}" Content="{v:Loc open}" Click="OpenReport_Click" Margin="0,0,8,6"/>
-                                <Button x:Name="CopyReportBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc copy_as_text}" Click="CopyReport_Click" Margin="0,0,8,6" ToolTip="{v:Loc tt_copy_report}"/>
-                                <Button x:Name="ExportReportBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc save_as_html}" Click="ExportReport_Click" Margin="0,0,8,6"/>
-                                <Button x:Name="DeleteReportBtn" Style="{StaticResource Btn.Ghost}" Content="{v:Loc delete}" Click="DeleteReport_Click" Margin="0,0,8,6"/>
-                            </WrapPanel>
-                        </StackPanel>
-                        <!-- summary of the selected report (uses the space on wide screens) -->
-                        <Border x:Name="ReportPreview" Grid.Column="1" Style="{StaticResource Card}" Margin="18,34,0,0" VerticalAlignment="Top" Visibility="Collapsed">
-                            <StackPanel>
-                                <TextBlock x:Name="ReportPreviewTitle" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
-                                <TextBlock x:Name="ReportPreviewMeta" Style="{StaticResource Hint}"/>
-                                <TextBlock x:Name="ReportPreviewQuestions" Style="{StaticResource T.Body}" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                    <!-- ===== Reports: list (≈1/3, min 260) and preview (≈2/3); fills the visible height, mirrors in RTL ===== -->
+                    <Grid x:Name="PageReports" Visibility="Collapsed" MinHeight="420"
+                          Height="{Binding ViewportHeight, ElementName=ContentScroll, Converter={StaticResource FillViewport}}">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                        <TextBlock Style="{StaticResource H1}" Text="{v:Loc reports}"/>
+                        <TextBlock Grid.Row="1" Style="{StaticResource Hint}" Text="{v:Loc reports_hint}"/>
+
+                        <Grid x:Name="ReportsBody" Grid.Row="2" Margin="0,12,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="32*" MinWidth="{StaticResource S.PaneMinWidth}"/>
+                                <ColumnDefinition Width="{StaticResource S.PaneGap}"/>
+                                <ColumnDefinition Width="68*" MinWidth="{StaticResource S.PaneMinWidth}"/>
+                            </Grid.ColumnDefinitions>
+                            <!-- Up/Down select, Enter opens, Delete asks to delete -->
+                            <ListBox x:Name="ReportList" Style="{StaticResource List}" MouseDoubleClick="OpenReport_Click" KeyDown="ReportList_KeyDown"
+                                     SelectionChanged="ReportList_SelectionChanged" AutomationProperties.Name="{v:Loc reports}" AutomationProperties.HelpText="{v:Loc tt_report_list}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding When}" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Title}" FontSize="12" Foreground="{StaticResource B.TextDim}" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" ToolTip="{Binding Title}"/>
+                                            <TextBlock Text="{Binding Questions}" FontSize="11.5" Foreground="{StaticResource B.TextFaint}" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <Border x:Name="ReportPane" Grid.Column="2" Style="{StaticResource Card}">
+                                <Grid>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                    <!-- actions for the selected report: secondary group, destructive set apart at the end -->
+                                    <DockPanel x:Name="ReportToolbar" Margin="0,0,0,8" AutomationProperties.Name="{v:Loc report_actions}">
+                                        <Button x:Name="DeleteReportBtn" DockPanel.Dock="Right" Style="{StaticResource Btn.FormDanger}" Content="{v:Loc delete}" Click="DeleteReport_Click"
+                                                ToolTip="{v:Loc tt_delete_report}" Margin="0,0,0,8" VerticalAlignment="Top"/>
+                                        <Border DockPanel.Dock="Right" Width="1" Height="24" Background="{StaticResource B.Border}" Margin="4,6,12,8" VerticalAlignment="Top"/>
+                                        <WrapPanel>
+                                            <Button x:Name="OpenReportBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc open}" Click="OpenReport_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_open_report}"/>
+                                            <Button x:Name="CopyReportBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc copy_as_text}" Click="CopyReport_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_copy_report}"/>
+                                            <Button x:Name="ExportReportBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc save_as_html}" Click="ExportReport_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_save_report_html}"/>
+                                        </WrapPanel>
+                                    </DockPanel>
+                                    <!-- summary of the selected report -->
+                                    <ScrollViewer x:Name="ReportPreview" Grid.Row="1" VerticalScrollBarVisibility="Auto" Focusable="False">
+                                        <StackPanel>
+                                            <Border Style="{StaticResource Divider}" Margin="0,0,0,12"/>
+                                            <TextBlock x:Name="ReportPreviewTitle" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
+                                            <TextBlock x:Name="ReportPreviewMeta" Style="{StaticResource Hint}"/>
+                                            <TextBlock x:Name="ReportPreviewQuestions" Style="{StaticResource T.Body}" Margin="0,12,0,0" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                    <!-- nothing selected -->
+                                    <StackPanel x:Name="ReportSelectState" Grid.RowSpan="2" VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="320" Margin="0,24">
+                                        <Border Style="{StaticResource EmptyState.Icon}">
+                                            <TextBlock Style="{StaticResource T.Icon}" Text="&#xE8FD;" FontSize="22" Foreground="{StaticResource B.TextDim}" HorizontalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Style="{StaticResource T.EmptyTitle}" Text="{v:Loc reports_select_title}"/>
+                                        <TextBlock Style="{StaticResource Hint}" Text="{v:Loc reports_select_hint}" TextAlignment="Center"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <!-- no reports at all -->
+                        <Border x:Name="ReportsEmptyState" Grid.Row="2" Style="{StaticResource Card}" Margin="0,12,0,0" Visibility="Collapsed">
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="360" Margin="0,24">
+                                <Border Style="{StaticResource EmptyState.Icon}">
+                                    <TextBlock Style="{StaticResource T.Icon}" Text="&#xE9F9;" FontSize="22" Foreground="{StaticResource B.TextDim}" HorizontalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Style="{StaticResource T.EmptyTitle}" Text="{v:Loc reports_empty_title}"/>
+                                <TextBlock Style="{StaticResource Hint}" Text="{v:Loc reports_empty_hint}" TextAlignment="Center"/>
                             </StackPanel>
                         </Border>
                     </Grid>

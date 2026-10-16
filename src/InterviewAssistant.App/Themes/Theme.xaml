@@ -25,6 +25,8 @@
     <Color x:Key="C.ErrorSoft">#40EF6B6B</Color>
     <!-- filled destructive buttons: white text above 4.5:1 -->
     <Color x:Key="C.ErrorStrong">#FFB3373A</Color>
+    <!-- informational amber surfaces (profile-gap guidance): a tint of C.Thinking, never the error colour -->
+    <Color x:Key="C.ThinkingSoft">#1FF2B44C</Color>
     <Color x:Key="C.Backdrop">#B3080A0E</Color>
 
     <SolidColorBrush x:Key="B.Bg" Color="{StaticResource C.Bg}"/>
@@ -45,6 +47,7 @@
     <SolidColorBrush x:Key="B.Error" Color="{StaticResource C.Error}"/>
     <SolidColorBrush x:Key="B.ErrorSoft" Color="{StaticResource C.ErrorSoft}"/>
     <SolidColorBrush x:Key="B.ErrorStrong" Color="{StaticResource C.ErrorStrong}"/>
+    <SolidColorBrush x:Key="B.ThinkingSoft" Color="{StaticResource C.ThinkingSoft}"/>
     <SolidColorBrush x:Key="B.Backdrop" Color="{StaticResource C.Backdrop}"/>
 
     <FontFamily x:Key="F.Ui">Segoe UI Variable Text, Segoe UI</FontFamily>
@@ -76,6 +79,17 @@
     <Thickness x:Key="S.ButtonRowMargin">0,14,0,0</Thickness>
     <Thickness x:Key="S.ButtonGap">0,0,8,8</Thickness>
     <GridLength x:Key="S.ColumnGap">12</GridLength>
+    <!-- master/detail pages (Profiles, Interviews): fixed list pane, the detail takes the rest -->
+    <GridLength x:Key="S.SidePaneWidth">240</GridLength>
+    <!-- space between the two panes of a master/detail page -->
+    <GridLength x:Key="S.PaneGap">20</GridLength>
+    <sys:Double x:Key="S.PaneMinWidth">260</sys:Double>
+    <!-- content width of the whole Home page area (detail panes stop growing here) -->
+    <sys:Double x:Key="S.ContentMaxWidth">1120</sys:Double>
+    <!-- vertical gap between stacked full-width buttons -->
+    <Thickness x:Key="S.StackGap">0,0,0,8</Thickness>
+    <!-- divider that separates a destructive action from the others -->
+    <Thickness x:Key="S.DividerMargin">0,8,0,16</Thickness>
 
     <DropShadowEffect x:Key="E.Shadow" BlurRadius="24" ShadowDepth="4" Direction="270" Opacity="0.35" Color="Black"/>
 
@@ -547,5 +561,118 @@
     </Style>
     <Style TargetType="Expander">
         <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
+    </Style>
+
+    <!-- ===== List rows (Home lists: profiles, interviews, reports, devices) =====
+         Selection is a filled accent tint with an accent outline, visible with and without keyboard focus. -->
+    <Style x:Key="ListItem.Row" TargetType="ListBoxItem">
+        <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
+        <Setter Property="Padding" Value="10,7"/>
+        <Setter Property="Margin" Value="0,0,0,2"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Grid>
+                        <Border x:Name="Bd" Background="Transparent" BorderBrush="Transparent" BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+                        </Border>
+                        <Border x:Name="Focus" CornerRadius="6" BorderBrush="{StaticResource B.Accent}" BorderThickness="2" Visibility="Collapsed" IsHitTestVisible="False"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="{StaticResource B.Surface2}"/></Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource B.AccentSoft}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Visibility" Value="Visible"/></Trigger>
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding IsOn, Source={x:Static v:HighContrast.Instance}}" Value="True"/>
+                                <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.HighlightTextBrushKey}}"/>
+                        </MultiDataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ===== Segmented control (two or more equal segments; the selected one is filled with the accent) =====
+         Built from RadioButtons (screen readers announce "selected", one group per control). The owner keeps only the
+         selected segment as a tab stop and moves with Left/Right (see SegmentedNavigation). -->
+    <Style x:Key="Seg.Track" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource B.Surface2}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource B.Border}"/>
+        <Setter Property="BorderThickness" Value="{StaticResource S.BorderThickness}"/>
+        <Setter Property="CornerRadius" Value="{StaticResource R.Control}"/>
+        <Setter Property="Padding" Value="3"/>
+        <Setter Property="MinHeight" Value="{StaticResource S.ControlHeight}"/>
+    </Style>
+    <Style x:Key="Seg.Item" TargetType="RadioButton">
+        <Setter Property="FontFamily" Value="{StaticResource F.Ui}"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="{StaticResource B.TextDim}"/>
+        <Setter Property="MinHeight" Value="{StaticResource S.ButtonHeightCompact}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Grid>
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="6" Padding="12,4">
+                            <TextBlock Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}" TextTrimming="CharacterEllipsis" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <Border x:Name="State" CornerRadius="6" Background="White" Opacity="0" IsHitTestVisible="False"/>
+                        <Border x:Name="Focus" CornerRadius="8" BorderBrush="{StaticResource B.Accent}" BorderThickness="2" Margin="-2" Visibility="Collapsed" IsHitTestVisible="False"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="State" Property="Opacity" Value="0.06"/></Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource B.AccentStrong}"/>
+                            <Setter Property="Foreground" Value="White"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Visibility" Value="Visible"/></Trigger>
+                        <MultiDataTrigger>
+                            <MultiDataTrigger.Conditions>
+                                <Condition Binding="{Binding IsOn, Source={x:Static v:HighContrast.Instance}}" Value="True"/>
+                                <Condition Binding="{Binding IsChecked, RelativeSource={RelativeSource Self}}" Value="True"/>
+                            </MultiDataTrigger.Conditions>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.HighlightTextBrushKey}}"/>
+                        </MultiDataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ===== Separators and empty states ===== -->
+    <Style x:Key="Divider" TargetType="Border">
+        <Setter Property="Height" Value="1"/>
+        <Setter Property="Background" Value="{StaticResource B.Border}"/>
+        <Setter Property="Margin" Value="{StaticResource S.DividerMargin}"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+    </Style>
+    <!-- icon disc of an empty state ("No reports yet", "Select a report") -->
+    <Style x:Key="EmptyState.Icon" TargetType="Border">
+        <Setter Property="Width" Value="56"/>
+        <Setter Property="Height" Value="56"/>
+        <Setter Property="CornerRadius" Value="28"/>
+        <Setter Property="Background" Value="{StaticResource B.Surface2}"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="Margin" Value="0,0,0,14"/>
+    </Style>
+    <Style x:Key="T.EmptyTitle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource F.Ui}"/>
+        <Setter Property="FontSize" Value="15"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
+        <Setter Property="TextAlignment" Value="Center"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
 </ResourceDictionary>
