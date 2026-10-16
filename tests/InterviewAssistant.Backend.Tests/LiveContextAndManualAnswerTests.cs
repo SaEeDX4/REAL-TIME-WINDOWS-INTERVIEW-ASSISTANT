@@ -171,16 +171,16 @@ public class LiveContextAndManualAnswerTests : IClassFixture<ApiFactory>
         await api.PutTranscriptionContextAsync(target, new TranscriptionContextDocument("Product Owner", "Teroxx", Vocabulary, "en"), default);
 
         await using var session = await CloudSession.StartAsync(api, device.Id, target, "en", default, _f.Time, runLoop: false);
+        using (await _f.OpenRelay(user, session.RelayEndpoint)) { }     // first relay connection
         var body = LastSecretBody();
         foreach (var term in Vocabulary) Assert.Contains(term, body);
         Assert.Contains("Product Owner role at Teroxx", body);
         Assert.Contains("\"language\":\"en\"", body);
-        Assert.Contains("XAB", session.Credential.TranscriptionPrompt);
+        Assert.Contains("XAB", _f.Upstream.Last.Credential.TranscriptionPrompt);
 
         int Minted() => _f.OpenAi.Requests.Count(r => r.Request.RequestUri!.AbsolutePath.EndsWith("client_secrets"));
-        await session.NextConnectionSecretAsync(default);               // first connection: start secret
         var before = Minted();
-        await session.NextConnectionSecretAsync(default);               // reconnect: freshly minted
+        using (await _f.OpenRelay(user, session.RelayEndpoint)) { }     // reconnect: freshly minted on the server
         Assert.Equal(before + 1, Minted());                              // a new secret was minted…
         var renewed = LastSecretBody();
         foreach (var term in Vocabulary) Assert.Contains(term, renewed); // …with the same interview context
@@ -202,11 +202,12 @@ public class LiveContextAndManualAnswerTests : IClassFixture<ApiFactory>
         // …and naming its id when starting a session yields only the generic prompt.
         var device = await intruder.RegisterDeviceAsync(new RegisterDeviceRequest("inst-" + Guid.NewGuid().ToString("n"), "PC", "windows-x64", "2.1.0"), default);
         await using var session = await CloudSession.StartAsync(intruder, device.Id, target, "en", default, _f.Time, runLoop: false);
+        using (await _f.OpenRelay(intruderId, session.RelayEndpoint)) { }
         var body = LastSecretBody();
         Assert.DoesNotContain("XAB", body);
         Assert.DoesNotContain("Abloxx", body);
         Assert.DoesNotContain("Teroxx", body);
-        Assert.Equal(TranscriptionPrompt.Generic, session.Credential.TranscriptionPrompt);
+        Assert.Equal(TranscriptionPrompt.Generic, _f.Upstream.Last.Credential.TranscriptionPrompt);
     }
 
     [Fact]

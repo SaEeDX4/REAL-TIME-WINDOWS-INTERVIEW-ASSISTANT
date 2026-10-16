@@ -218,9 +218,10 @@ public class ProductionReadinessTests : IClassFixture<ApiFactory>
             : original(req);
         try
         {
-            var (_, c) = await NewUser();
+            var (id, c) = await NewUser();
             var s = await (await c.StartSession((await c.RegisterDevice()).Id)).Read<StartSessionResponse>();
-            Assert.Equal("gpt-4o-mini-transcribe", s.Realtime.Model);
+            using (await _f.OpenRelay(id, s.SessionId)) { }
+            Assert.Equal("gpt-4o-mini-transcribe", _f.Upstream.Last.Credential.Model);
         }
         finally { _f.OpenAi.Respond = original; }
     }

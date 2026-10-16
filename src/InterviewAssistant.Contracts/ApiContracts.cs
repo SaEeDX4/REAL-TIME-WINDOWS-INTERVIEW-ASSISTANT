@@ -38,8 +38,13 @@ public sealed record DeviceDto(Guid Id, string Name, string Platform, string Cli
 public sealed record SyncDocument(Guid Id, string Kind, Guid? ParentId, JsonElement Data, long Version, DateTime UpdatedUtc);
 public sealed record UpsertDocumentRequest(Guid? ParentId, JsonElement Data, long? ExpectedVersion);
 
-public sealed record StartSessionRequest(Guid DeviceId, Guid? TargetId, string IdempotencyKey, string? InterviewLanguage);
-public sealed record RealtimeCredential(string ClientSecret, DateTime ExpiresAtUtc, string Model, string WebSocketUrl, string TranscriptionPrompt);
+/// <param name="Relay">The client streams audio through the service's relay (required since 2.1.0-rc.3; older clients are asked to update).</param>
+public sealed record StartSessionRequest(Guid DeviceId, Guid? TargetId, string IdempotencyKey, string? InterviewLanguage, bool Relay = false);
+/// <summary>
+/// Live transcription endpoint. For cloud sessions <see cref="Relay"/> is true, <see cref="ClientSecret"/> is empty and
+/// <see cref="WebSocketUrl"/> is a path on the service (the relay); the provider credential never leaves the server.
+/// </summary>
+public sealed record RealtimeCredential(string ClientSecret, DateTime ExpiresAtUtc, string Model, string WebSocketUrl, string TranscriptionPrompt, bool Relay = false);
 /// <summary><see cref="RemainingSeconds"/> = what this session may still use (min of plan period, today's cap, operator cap).</summary>
 public sealed record StartSessionResponse(Guid SessionId, RealtimeCredential Realtime, int HeartbeatIntervalSeconds, int MaxDurationSeconds, int RemainingSeconds,
     int PeriodRemainingSeconds = -1, int TodayRemainingSeconds = -1);

@@ -125,6 +125,9 @@ namespace InterviewAssistant.Backend.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("AllowanceAtHeartbeatSeconds")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("DeviceId")
                         .HasColumnType("uuid");
 

@@ -2,6 +2,9 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Net.Sockets;
+using System.Net.WebSockets;
+using InterviewAssistant.Contracts;
 using System.Security.Claims;
 using System.Text;
 using InterviewAssistant.Backend.Data;
@@ -31,6 +34,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public FakeTimeProvider Time { get; } = new(new DateTimeOffset(2026, 10, 7, 9, 0, 0, TimeSpan.Zero));
     public StubHandler OpenAi { get; } = new();
     public StubHandler Paddle { get; } = new();
+    public FakeRealtimeUpstream Upstream { get; } = new();
 
     public static string PgHost => Environment.GetEnvironmentVariable("IA_TEST_PG") ?? "Host=localhost;Username=ia_test;Password=ia_test";
     private string ConnectionString => $"{PgHost};Database={Database}";
@@ -52,6 +56,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         b.UseSetting("Paddle:ClientToken", "test_clienttoken123");
         b.UseSetting("Product:PublicBaseUrl", "https://api.example.test");
         b.UseSetting("Product:PrivacyPolicyUrl", "https://example.test/privacy");
+        b.UseSetting("Relay:LeaseCheckSeconds", "1");
         b.ConfigureTestServices(s =>
         {
             s.AddSingleton<TimeProvider>(Time);
@@ -59,6 +64,7 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             s.AddHttpClient("openai").ConfigurePrimaryHttpMessageHandler(() => OpenAi);
             s.AddHttpClient<IRealtimeSecretIssuer, OpenAiRealtimeSecretIssuer>("openai-secrets").ConfigurePrimaryHttpMessageHandler(() => OpenAi);
             s.AddHttpClient<IBillingProvider, PaddleBillingProvider>("paddle").ConfigurePrimaryHttpMessageHandler(() => Paddle);
+            s.AddSingleton<IRealtimeUpstreamConnector>(Upstream);
         });
         Customize(b);
     }
@@ -146,4 +152,36 @@ public sealed class StubHandler : HttpMessageHandler
         Requests.Enqueue((request, request.Content == null ? "" : await request.Content.ReadAsStringAsync(ct)));
         return Respond(request);
     }
+}
+
+/// <summary>
+/// Stands in for the provider's realtime endpoint: every relay connection gets a real WebSocket pair over loopback TCP.
+/// Tests read what the relay forwarded upstream and send transcription events back through <see cref="Connection.Socket"/>.
+/// </summary>
+public sealed class FakeRealtimeUpstream : IRealtimeUpstreamConnector
+{
+    public sealed record Connection(RealtimeCredential Credential, WebSocket Socket);
+    public ConcurrentQueue<Connection> Connections { get; } = new();
+    public bool Fail { get; set; }
+
+    public async Task<WebSocket> ConnectAsync(RealtimeCredential credential, CancellationToken ct)
+    {
+        if (Fail) throw new WebSocketException("upstream down");
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        try
+        {
+            var client = new TcpClient();
+            var accept = listener.AcceptTcpClientAsync(ct).AsTask();
+            await client.ConnectAsync(IPAddress.Loopback, ((IPEndPoint)listener.LocalEndpoint).Port, ct);
+            var server = await accept;
+            var relaySide = WebSocket.CreateFromStream(client.GetStream(), new WebSocketCreationOptions { IsServer = false });
+            var providerSide = WebSocket.CreateFromStream(server.GetStream(), new WebSocketCreationOptions { IsServer = true });
+            Connections.Enqueue(new Connection(credential, providerSide));
+            return relaySide;
+        }
+        finally { listener.Stop(); }
+    }
+
+    public Connection Last => Connections.Last();
 }

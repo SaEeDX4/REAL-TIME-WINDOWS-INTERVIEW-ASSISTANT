@@ -56,6 +56,8 @@ public sealed class InterviewSession
     public DateTime? EndedUtc { get; set; }
     public string? EndReason { get; set; }
     public int SecretsIssued { get; set; }
+    /// <summary>Live seconds the account had left after the last heartbeat; the relay closes when they are used up.</summary>
+    public int AllowanceAtHeartbeatSeconds { get; set; }
 }
 
 public sealed class UsageEntry

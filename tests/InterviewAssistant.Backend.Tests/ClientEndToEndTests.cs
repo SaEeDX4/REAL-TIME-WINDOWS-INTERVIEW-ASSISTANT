@@ -21,7 +21,8 @@ public class ClientEndToEndTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task FullLiveSessionThroughDesktopClient()
     {
-        var (api, _) = Client(Guid.NewGuid());
+        var user = Guid.NewGuid();
+        var (api, _) = Client(user);
         var cfg = await api.ConfigAsync(default);
         Assert.Equal("gpt-5.4-mini", cfg.AnswerModel);
         var me = await api.MeAsync(default);
@@ -33,7 +34,9 @@ public class ClientEndToEndTests : IClassFixture<ApiFactory>
         var device = await api.RegisterDeviceAsync(new RegisterDeviceRequest(inst, "Test PC", "windows-x64", "2.0.0"), default);
 
         await using var session = await CloudSession.StartAsync(api, device.Id, null, "en", default, _f.Time, runLoop: false);
-        Assert.StartsWith("ek_test_", session.CurrentSecret);
+        Assert.Equal("", session.Credential.ClientSecret);
+        Assert.Equal(new Uri($"ws://localhost/api/v1/sessions/{session.Id}/realtime?language=en"), session.RelayEndpoint);
+        Assert.Equal("2.0.0", session.RelayHeaders["X-Client-Version"]);
         string? ended = null;
         session.Ended += r => ended = r;
 
@@ -41,12 +44,11 @@ public class ClientEndToEndTests : IClassFixture<ApiFactory>
         await session.HeartbeatOnceAsync(default);
         Assert.Equal(30 * 60 - 30, session.RemainingSeconds);
 
-        // First connection uses the start secret; every reconnect gets a freshly minted one.
-        var first = await session.NextConnectionSecretAsync(default);
-        Assert.Equal(session.Credential.ClientSecret, first);
-        var reconnect = await session.NextConnectionSecretAsync(default);
-        Assert.NotEqual(first, reconnect);
-        Assert.StartsWith("ek_test_", reconnect);
+        // Relay connections authenticate with the user's own access token, never a provider secret.
+        var bearer = await session.NextConnectionCredentialAsync(default);
+        Assert.False(string.IsNullOrEmpty(bearer));
+        Assert.DoesNotContain("ek_", bearer);
+        using (var ws = await _f.OpenRelay(user, session.RelayEndpoint)) Assert.Equal(System.Net.WebSockets.WebSocketState.Open, ws.State);
 
         var provider = new CloudAnswerProvider(api, () => session.Id);
         var text = string.Concat(await provider.StreamAsync(new[] { new ChatMessage("system", "s"), new ChatMessage("user", "q") }, 200, default).ToListAsync());
@@ -55,6 +57,7 @@ public class ClientEndToEndTests : IClassFixture<ApiFactory>
         await session.StopAsync();
         Assert.Equal("stopped", ended);
         Assert.False(session.Active);
+        Assert.Null(await session.NextConnectionCredentialAsync(default));   // an ended lease never reconnects
         Directory.Delete(dir, true);
     }
 
@@ -76,7 +79,7 @@ public class ClientEndToEndTests : IClassFixture<ApiFactory>
     public async Task ErrorsAreTypedWithCodesAndCorrelationIds()
     {
         var (api, _) = Client(Guid.NewGuid());
-        var ex = await Assert.ThrowsAsync<BackendException>(() => api.StartSessionAsync(new StartSessionRequest(Guid.NewGuid(), null, "k", null), default));
+        var ex = await Assert.ThrowsAsync<BackendException>(() => api.StartSessionAsync(new StartSessionRequest(Guid.NewGuid(), null, "k", null, Relay: true), default));
         Assert.Equal(403, ex.Status);
         Assert.False(string.IsNullOrEmpty(ex.CorrelationId));
 

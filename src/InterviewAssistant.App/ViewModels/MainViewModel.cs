@@ -507,11 +507,12 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _transcriberOptions = TranscriberOptions();
         if (UsingCloud && Cloud.Api != null)
         {
-            // Cloud: the server picks the models and holds the provider key; the transcriber only ever sees short-lived secrets.
+            // Cloud: the server picks the models and holds the provider key; audio goes through the service's relay, which
+            // ends with the billable lease (the desktop never holds a provider credential).
             // Live lease while listening; the lease-free "manual" purpose for typed questions while paused or stopped.
             _provider = new CloudAnswerProvider(Cloud.Api!, () => _cloudSession is { Active: true } s ? s.Id : null, deviceId: () => Settings.CloudDeviceId);
-            _transcriberOptions.ServerConfiguredSession = true;   // the server mints the session config with each secret
-            _transcriber = new OpenAiRealtimeTranscriber(ct => _cloudSession is { Active: true } s ? s.NextConnectionSecretAsync(ct) : Task.FromResult<string?>(null), _transcriberOptions);
+            _transcriberOptions.ServerConfiguredSession = true;   // the server configures the upstream session for each relay connection
+            _transcriber = new OpenAiRealtimeTranscriber(ct => _cloudSession is { Active: true } s ? s.NextConnectionCredentialAsync(ct) : Task.FromResult<string?>(null), _transcriberOptions);
         }
         else
         {
@@ -609,9 +610,9 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         StartAudioPreview();
         await using var lease = UsingCloud ? await StartLeaseAsync(ct) : null;
         var opts = TranscriberOptions();
-        if (lease != null) { opts.Endpoint = lease.Credential.WebSocketUrl; opts.ServerConfiguredSession = true; }
+        if (lease != null) UseRelay(opts, lease);
         await using var t = lease != null
-            ? new OpenAiRealtimeTranscriber(c => lease.NextConnectionSecretAsync(c), opts)
+            ? new OpenAiRealtimeTranscriber(c => lease.NextConnectionCredentialAsync(c), opts)
             : new OpenAiRealtimeTranscriber(SecretStore.GetApiKey, opts);
         var text = new System.Text.StringBuilder();
         var partials = new Dictionary<string, string>();
@@ -721,7 +722,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         try
         {
             _cloudSession = await StartLeaseAsync(CancellationToken.None);
-            _transcriberOptions!.Endpoint = _cloudSession.Credential.WebSocketUrl;
+            UseRelay(_transcriberOptions!, _cloudSession);
             var session = _cloudSession;
             void Sync() { _periodRemainingSeconds = session.PeriodRemainingSeconds >= 0 ? session.PeriodRemainingSeconds : null; _todayRemainingSeconds = session.TodayRemainingSeconds >= 0 ? session.TodayRemainingSeconds : null; RaiseMinutes(); }
             session.RemainingChanged += _ => Post(Sync);
@@ -744,6 +745,14 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             if (ex.Status is 0 or >= 500) _ = Cloud.RefreshAsync(CancellationToken.None);
             return false;
         }
+    }
+
+    private static void UseRelay(RealtimeTranscriberOptions opts, CloudSession lease)
+    {
+        opts.Endpoint = lease.RelayEndpoint.ToString();
+        opts.ServerConfiguredSession = true;
+        opts.Headers.Clear();
+        foreach (var (k, v) in lease.RelayHeaders) opts.Headers[k] = v;
     }
 
     private async Task<CloudSession> StartLeaseAsync(CancellationToken ct)

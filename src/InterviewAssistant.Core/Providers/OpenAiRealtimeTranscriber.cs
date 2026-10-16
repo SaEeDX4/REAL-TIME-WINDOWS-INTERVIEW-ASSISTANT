@@ -34,6 +34,8 @@ public sealed class RealtimeTranscriberOptions
     /// problem as fatal (the server's fallback routing decides the model, not the client).
     /// </summary>
     public bool ServerConfiguredSession { get; set; }
+    /// <summary>Extra request headers for the WebSocket handshake (e.g. client version and correlation id for the relay).</summary>
+    public Dictionary<string, string> Headers { get; } = new();
 }
 
 /// <summary>
@@ -117,6 +119,7 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
             using var ws = new ClientWebSocket();
             ws.Options.SetRequestHeader("Authorization", "Bearer " + key);
             if (_useBeta) ws.Options.SetRequestHeader("OpenAI-Beta", "realtime=v1");
+            foreach (var (name, value) in _opt.Headers) ws.Options.SetRequestHeader(name, value);
             ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(15);
             string? failure = null;
             bool fatal = false;

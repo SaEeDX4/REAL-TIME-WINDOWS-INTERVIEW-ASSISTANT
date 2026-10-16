@@ -99,21 +99,31 @@ public static class ApiEndpoints
         });
 
         // ---------------- live sessions ----------------
-        authed.MapPost("/sessions", async (HttpContext http, StartSessionRequest req, SessionService s, AppDbContext db, IOptions<SafetyOptions> safety, CancellationToken ct) =>
-        {
-            var c = await Resolve(http);
-            var prompt = await TranscriptionPrompt.BuildAsync(db, c.User.Id, req.TargetId, safety.Value.MaxTranscriptionPromptChars, ct);
-            return Results.Ok(await s.StartAsync(c.User, c.Plan, req, prompt, ct));
-        }).RequireRateLimiting("credentials");
+        authed.MapPost("/sessions", async (HttpContext http, StartSessionRequest req, SessionService s, CancellationToken ct) =>
+        { var c = await Resolve(http); return Results.Ok(await s.StartAsync(c.User, c.Plan, req, ct)); }).RequireRateLimiting("credentials");
         authed.MapPost("/sessions/{id:guid}/heartbeat", async (HttpContext http, Guid id, HeartbeatRequest req, SessionService s, CancellationToken ct) =>
         { var c = await Resolve(http); return Results.Ok(await s.HeartbeatAsync(c.User, c.Plan, id, req.Sequence, ct)); });
-        authed.MapPost("/sessions/{id:guid}/realtime-secret", async (HttpContext http, Guid id, string? language, SessionService s, AppDbContext db, IOptions<SafetyOptions> safety, CancellationToken ct) =>
+        authed.MapPost("/sessions/{id:guid}/realtime-secret", async (HttpContext http, Guid id, SessionService s, CancellationToken ct) =>
+        { var c = await Resolve(http); return Results.Ok(await s.RenewSecretAsync(c.User, c.Plan, id, ct)); }).RequireRateLimiting("credentials");
+        // Live transcription relay (WebSocket). The provider credential is minted here and stays on the server; the
+        // connection closes as soon as the lease ends or its billable window runs out (RealtimeRelay, SessionService).
+        authed.MapGet("/sessions/{id:guid}/realtime", async (HttpContext http, Guid id, string? language, SessionService s, AppDbContext db, IOptions<SafetyOptions> safety,
+            RealtimeRelay relay, IServiceScopeFactory scopes) =>
         {
+            if (!http.WebSockets.IsWebSocketRequest) throw ApiException.BadRequest("websocket_required", "Connect with a WebSocket.");
             var c = await Resolve(http);
             // Reconnects keep the session's own interview context (target stored on the lease, resolved for this user only).
-            var target = await db.Sessions.Where(x => x.Id == id && x.UserId == c.User.Id).Select(x => x.TargetId).FirstOrDefaultAsync(ct);
+            var target = await db.Sessions.Where(x => x.Id == id && x.UserId == c.User.Id).Select(x => x.TargetId).FirstOrDefaultAsync(http.RequestAborted);
             var lang = language is { Length: > 0 and <= 12 } l && l.All(ch => char.IsAsciiLetter(ch) || ch == '-') ? l : null;
-            return Results.Ok(await s.RenewSecretAsync(c.User, c.Plan, id, await TranscriptionPrompt.BuildAsync(db, c.User.Id, target, safety.Value.MaxTranscriptionPromptChars, ct), lang, ct));
+            var prompt = await TranscriptionPrompt.BuildAsync(db, c.User.Id, target, safety.Value.MaxTranscriptionPromptChars, http.RequestAborted);
+            var upstream = await s.OpenRelayAsync(c.User, c.Plan, id, prompt, lang, http.RequestAborted);
+            var userId = c.User.Id;
+            await relay.RunAsync(http, id, upstream, async ct =>
+            {
+                using var scope = scopes.CreateScope();
+                return await scope.ServiceProvider.GetRequiredService<SessionService>().RelayLeaseActiveAsync(userId, id, ct);
+            });
+            return Results.Empty;
         }).RequireRateLimiting("credentials");
         authed.MapPost("/sessions/{id:guid}/stop", async (HttpContext http, Guid id, SessionService s, CancellationToken ct) =>
         { var c = await Resolve(http); await s.StopAsync(c.User, c.Plan, id, ct); return Results.NoContent(); });
@@ -247,8 +257,8 @@ public static class AdminEndpoints
                 documentCounts = await db.Documents.AsNoTracking().Where(d => d.UserId == id).GroupBy(d => d.Kind).Select(g => new { kind = g.Key, count = g.Count() }).ToListAsync(ct),
             });
         });
-        admin.MapPost("/users/{id:guid}/disable", async (Guid id, AppDbContext db, TimeProvider time, CancellationToken ct) => await SetStatus(db, time, id, "disabled", ct));
-        admin.MapPost("/users/{id:guid}/enable", async (Guid id, AppDbContext db, TimeProvider time, CancellationToken ct) => await SetStatus(db, time, id, "active", ct));
+        admin.MapPost("/users/{id:guid}/disable", async (Guid id, AppDbContext db, TimeProvider time, RealtimeRelayRegistry relays, CancellationToken ct) => await SetStatus(db, time, relays, id, "disabled", ct));
+        admin.MapPost("/users/{id:guid}/enable", async (Guid id, AppDbContext db, TimeProvider time, RealtimeRelayRegistry relays, CancellationToken ct) => await SetStatus(db, time, relays, id, "active", ct));
         admin.MapGet("/sessions/active", async (AppDbContext db, CancellationToken ct) =>
             Results.Ok(await db.Sessions.AsNoTracking().Where(s => s.Status == "active").Select(s => new { s.Id, s.UserId, s.DeviceId, s.StartedUtc, s.LastHeartbeatUtc, s.MeteredSeconds }).ToListAsync(ct)));
         admin.MapGet("/config", async (ConfigService c, AppDbContext db, CancellationToken ct) => Results.Ok(new { effective = await c.GetAsync(ct), overrides = await db.Config.AsNoTracking().ToListAsync(ct) }));
@@ -268,14 +278,16 @@ public static class AdminEndpoints
         }));
     }
 
-    private static async Task<IResult> SetStatus(AppDbContext db, TimeProvider time, Guid id, string status, CancellationToken ct)
+    private static async Task<IResult> SetStatus(AppDbContext db, TimeProvider time, RealtimeRelayRegistry relays, Guid id, string status, CancellationToken ct)
     {
         var u = await db.Users.FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw ApiException.NotFound();
         if (u.Status == "deleted") throw ApiException.Conflict("deleted", "Account was deleted.");
         var now = time.GetUtcNow().UtcDateTime;
         u.Status = status; u.UpdatedUtc = now;
-        if (status == "disabled") foreach (var s in await db.Sessions.Where(s => s.UserId == id && s.Status == "active").ToListAsync(ct)) { s.Status = "stopped"; s.EndReason = "account_disabled"; s.EndedUtc = now; }
+        var ended = status == "disabled" ? await db.Sessions.Where(s => s.UserId == id && s.Status == "active").ToListAsync(ct) : new List<InterviewSession>();
+        foreach (var s in ended) { s.Status = "stopped"; s.EndReason = "account_disabled"; s.EndedUtc = now; }
         await db.SaveChangesAsync(ct);
+        foreach (var s in ended) relays.Close(s.Id);
         return Results.Ok(new { u.Id, u.Status });
     }
 }

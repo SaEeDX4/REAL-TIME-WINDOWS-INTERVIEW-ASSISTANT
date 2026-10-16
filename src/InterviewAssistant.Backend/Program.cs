@@ -73,6 +73,10 @@ builder.Services.AddScoped<ConfigService>();
 builder.Services.AddScoped<DocumentService>();
 builder.Services.AddScoped<AccountService>();
 builder.Services.AddScoped<BillingWebhookProcessor>();
+builder.Services.Configure<RelayOptions>(cfg.GetSection("Relay"));
+builder.Services.AddSingleton<RealtimeRelayRegistry>();
+builder.Services.AddSingleton<IRealtimeUpstreamConnector, OpenAiRealtimeUpstreamConnector>();
+builder.Services.AddSingleton<RealtimeRelay>();
 builder.Services.AddHostedService<SessionSweeper>();
 
 // ---- Authentication: Supabase-issued JWTs (JWKS asymmetric keys, or legacy HS256 secret) ----
@@ -144,6 +148,7 @@ builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.PropertyNamin
 
 var app = builder.Build();
 app.UseForwardedHeaders();
+app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(15) });
 app.UseApiPipeline();
 app.UseAuthentication();
 app.UseAuthorization();

@@ -34,6 +34,19 @@ public sealed class BackendClient
         new(http, (force, ct) => auth.GetAccessTokenAsync(ct, force), clientVersion);
 
     public string? LastCorrelationId { get; private set; }
+    public string ClientVersion => _version;
+
+    /// <summary>The signed-in user's access token (used to authenticate the live transcription relay).</summary>
+    public Task<string?> AccessTokenAsync(CancellationToken ct) => _token(false, ct);
+
+    /// <summary>Absolute ws(s):// address of a relay path returned by the service (relative to the API base address).</summary>
+    public Uri WebSocketUri(string relativePath, string? language)
+    {
+        var baseUri = _http.BaseAddress ?? throw new InvalidOperationException("The service address is not configured.");
+        var b = new UriBuilder(new Uri(baseUri, relativePath)) { Scheme = baseUri.Scheme == Uri.UriSchemeHttps ? "wss" : "ws" };
+        if (!string.IsNullOrWhiteSpace(language)) b.Query = "language=" + Uri.EscapeDataString(language);
+        return b.Uri;
+    }
 
     // ---- public ----
     public Task<RuntimeConfig> ConfigAsync(CancellationToken ct) => Send<RuntimeConfig>(HttpMethod.Get, "config", null, ct, auth: false);

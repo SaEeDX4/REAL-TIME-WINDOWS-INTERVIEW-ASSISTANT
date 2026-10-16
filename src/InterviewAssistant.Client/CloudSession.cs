@@ -3,8 +3,9 @@ using InterviewAssistant.Contracts;
 namespace InterviewAssistant.Client;
 
 /// <summary>
-/// Client side of a server lease: heartbeats, ephemeral transcription credential renewal and graceful end.
-/// The transcriber reads <see cref="CurrentSecret"/> on every (re)connect.
+/// Client side of a server lease: heartbeats, the live transcription relay endpoint and graceful end. Audio goes
+/// through the service's relay (authenticated with the user's own access token); the client never holds a provider
+/// credential, and the relay closes as soon as the lease ends.
 /// </summary>
 public sealed class CloudSession : IAsyncDisposable
 {
@@ -15,8 +16,6 @@ public sealed class CloudSession : IAsyncDisposable
     private long _seq;
     private RealtimeCredential _cred;
     private int _consecutiveFailures;
-    private bool _startSecretUsed;
-    private readonly SemaphoreSlim _secretGate = new(1, 1);
 
     public Guid Id { get; }
     public int HeartbeatIntervalSeconds { get; }
@@ -30,8 +29,11 @@ public sealed class CloudSession : IAsyncDisposable
     public Guid? TargetId { get; }
     public bool Active { get; private set; } = true;
     public string? EndReason { get; private set; }
-    public string CurrentSecret => _cred.ClientSecret;
     public RealtimeCredential Credential => _cred;
+    /// <summary>Absolute address of this lease's transcription relay (with the interview language).</summary>
+    public Uri RelayEndpoint => _api.WebSocketUri(_cred.WebSocketUrl, Language);
+    /// <summary>Handshake headers for the relay connection.</summary>
+    public IReadOnlyDictionary<string, string> RelayHeaders => new Dictionary<string, string> { ["X-Client-Version"] = _api.ClientVersion };
 
     /// <summary>Raised once when the server ends the lease (allowance, max duration, revoked) or it is stopped.</summary>
     public event Action<string>? Ended;
@@ -53,7 +55,7 @@ public sealed class CloudSession : IAsyncDisposable
         StartSessionResponse? r = null;
         for (int attempt = 0; r == null; attempt++)
         {
-            try { r = await api.StartSessionAsync(new StartSessionRequest(deviceId, targetId, key, language), ct); }
+            try { r = await api.StartSessionAsync(new StartSessionRequest(deviceId, targetId, key, language, Relay: true), ct); }
             catch (BackendException ex) when (ex.Status is 0 or 502 or 503 && ex.Code != "maintenance" && attempt < 2) { await Task.Delay(500 * (attempt + 1), ct); }
         }
         var s = new CloudSession(api, r, time ?? TimeProvider.System, language, targetId);
@@ -75,22 +77,10 @@ public sealed class CloudSession : IAsyncDisposable
     }
 
     /// <summary>
-    /// Credential for the next transcription connection: the secret from session start once, then a freshly minted one
-    /// for every reconnect (ephemeral secrets are single-purpose and short-lived). Null when the lease has ended.
+    /// Bearer for the next relay connection: the user's access token while the lease is active, null once it ended
+    /// (the transcriber then stops instead of reconnecting). The relay itself re-checks the lease on every connection.
     /// </summary>
-    public async Task<string?> NextConnectionSecretAsync(CancellationToken ct)
-    {
-        if (!Active) return null;
-        await _secretGate.WaitAsync(ct);
-        try
-        {
-            if (!_startSecretUsed && _cred.ExpiresAtUtc - _time.GetUtcNow().UtcDateTime > TimeSpan.FromSeconds(30)) { _startSecretUsed = true; return _cred.ClientSecret; }
-            _startSecretUsed = true;
-            try { _cred = await _api.RenewRealtimeSecretAsync(Id, ct, Language); return _cred.ClientSecret; }
-            catch (BackendException ex) when (ex.Status is 404 or 409 or 402 or 403) { End(ex.Code); return null; }
-        }
-        finally { _secretGate.Release(); }
-    }
+    public async Task<string?> NextConnectionCredentialAsync(CancellationToken ct) => Active ? await _api.AccessTokenAsync(ct) : null;
 
     /// <summary>One heartbeat (metering + lease state). Public for deterministic tests.</summary>
     public async Task HeartbeatOnceAsync(CancellationToken ct)

@@ -12,12 +12,14 @@ public class SessionAndUsageTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task LeaseLifecycleMetersSecondsAndNeverExposesServerKey()
     {
-        var c = _f.ClientFor(Guid.NewGuid());
+        var user = Guid.NewGuid();
+        var c = _f.ClientFor(user);
         var dev = await c.RegisterDevice();
         var start = await (await c.StartSession(dev.Id)).Read<StartSessionResponse>();
-        Assert.StartsWith("ek_test_", start.Realtime.ClientSecret);
-        Assert.DoesNotContain("sk-", start.Realtime.ClientSecret);
+        Assert.Equal("", start.Realtime.ClientSecret);   // no provider credential ever reaches the desktop
+        Assert.True(start.Realtime.Relay);
         Assert.Equal(30 * 60, start.RemainingSeconds);
+        using (var ws = await _f.OpenRelay(user, start.SessionId)) { }   // the server mints the upstream secret itself
         var secretReq = _f.OpenAi.Requests.Last(r => r.Request.RequestUri!.AbsolutePath.EndsWith("client_secrets"));
         Assert.Equal("Bearer " + ApiFactory.ServerOpenAiKey, secretReq.Request.Headers.Authorization!.ToString());
         Assert.Contains("\"type\":\"transcription\"", secretReq.Body);
