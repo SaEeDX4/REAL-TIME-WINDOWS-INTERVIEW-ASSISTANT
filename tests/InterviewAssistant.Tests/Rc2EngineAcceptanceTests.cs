@@ -185,30 +185,6 @@ public class Rc2EngineAcceptanceTests
         Assert.Equal("What would you cut first if Engineering capacity halved?", Assert.Single(s.E.History).Question);
     }
 
-    [Fact]
-    public async Task TenMinutesOfFragmentedSpeech_IsBoundedAndKeepsTheLatestQuestion()
-    {
-        var s = await StartAsync();
-        GC.Collect(); var before = GC.GetTotalMemory(true);
-        // 10 minutes of statements with short (<settle) pauses: one huge turn, never finalized mid-way.
-        s.Voice(603_000);
-        s.T.Start();
-        for (int i = 0; i < 600; i++)
-        {
-            s.T.Complete($"Point {i}: the team discussed rewards, token distribution, VIP tiers and compliance constraints in detail,", "seg" + i);
-            await s.RunAsync(1000);
-        }
-        s.T.Complete("so how would you measure success?", "last");
-        s.T.Stop();
-        await s.RunAsync(3000); await s.SettleAsync();
-        GC.Collect(); var after = GC.GetTotalMemory(true);
-        _out.WriteLine($"memory delta {(after - before) / 1024} KB; dropped segments elided");
-        var a = Assert.Single(s.E.History);
-        Assert.Contains("how would you measure success", a.Question, StringComparison.OrdinalIgnoreCase);
-        Assert.True(a.OriginalText.Length <= s.E.Turn.MaxTurnChars + 200);
-        Assert.True(after - before < 4 * 1024 * 1024);
-    }
-
     // ---------------- P0-4 panel / multiple speakers ----------------
 
     private static KnowledgeBase Kb => TestKnowledge.Load();
@@ -576,14 +552,39 @@ public class Rc2EngineAcceptanceTests
 }
 
 /// <summary>
-/// Handler-latency measurements need the CPU to themselves: run with the soak tests, outside the parallel suite, so a
-/// wall-clock budget measures the engine and not the other test classes running beside it.
+/// Handler-latency and heap measurements need the process to themselves: run with the soak tests, outside the parallel
+/// suite, so a wall-clock or GC.GetTotalMemory budget measures the engine and not the test classes running beside it.
 /// </summary>
 [Collection("Soak")]
 public class Rc2EngineTimingTests
 {
     private readonly ITestOutputHelper _out;
     public Rc2EngineTimingTests(ITestOutputHelper o) => _out = o;
+
+    [Fact]
+    public async Task TenMinutesOfFragmentedSpeech_IsBoundedAndKeepsTheLatestQuestion()
+    {
+        var s = await Rc2EngineAcceptanceTests.StartAsync();
+        GC.Collect(); var before = GC.GetTotalMemory(true);
+        // 10 minutes of statements with short (<settle) pauses: one huge turn, never finalized mid-way.
+        s.Voice(603_000);
+        s.T.Start();
+        for (int i = 0; i < 600; i++)
+        {
+            s.T.Complete($"Point {i}: the team discussed rewards, token distribution, VIP tiers and compliance constraints in detail,", "seg" + i);
+            await s.RunAsync(1000);
+        }
+        s.T.Complete("so how would you measure success?", "last");
+        s.T.Stop();
+        await s.RunAsync(3000); await s.SettleAsync();
+        GC.Collect(); var after = GC.GetTotalMemory(true);
+        _out.WriteLine($"memory delta {(after - before) / 1024} KB; dropped segments elided");
+        var a = Assert.Single(s.E.History);
+        Assert.Contains("how would you measure success", a.Question, StringComparison.OrdinalIgnoreCase);
+        Assert.True(a.OriginalText.Length <= s.E.Turn.MaxTurnChars + 200);
+        Assert.True(after - before < 4 * 1024 * 1024);
+    }
+
 
     [Fact]
     public async Task FiveMinuteMonologue_StaysResponsiveBoundedAndAnswersTheFinalQuestion()

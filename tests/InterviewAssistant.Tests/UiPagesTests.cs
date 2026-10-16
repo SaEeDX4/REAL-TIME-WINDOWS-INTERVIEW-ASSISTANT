@@ -22,7 +22,8 @@ public class UiPagesTests
         }
     }
 
-    private static string App(string relative) => File.ReadAllText(Path.Combine(RepoRoot, "src", "InterviewAssistant.App", relative));
+    // Line endings normalized: Windows CI checks the sources out with CRLF.
+    private static string App(string relative) => File.ReadAllText(Path.Combine(RepoRoot, "src", "InterviewAssistant.App", relative)).Replace("\r\n", "\n");
 
     /// <summary>The opening tag of the element with this x:Name.</summary>
     private static string Element(string xaml, string name)
