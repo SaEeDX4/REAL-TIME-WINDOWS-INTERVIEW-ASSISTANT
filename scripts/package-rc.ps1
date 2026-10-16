@@ -31,6 +31,10 @@ $forbidden = Get-ChildItem $PublishDir -Recurse -File | Where-Object {
     $_.FullName -match "\\samples\\|\\tests\\|\\\.git\\"
 }
 if ($forbidden) { throw "Refusing to package: $($forbidden.FullName -join ', ')" }
+# Third-party notices and full license texts (licenses\*.txt; .txt is never a forbidden extension) must ship.
+if (-not (Test-Path (Join-Path $PublishDir "THIRD_PARTY_NOTICES.md") -PathType Leaf)) { throw "THIRD_PARTY_NOTICES.md missing from $PublishDir" }
+$licenseTexts = @(Get-ChildItem (Join-Path $PublishDir "licenses") -Filter *.txt -File)
+if ($licenseTexts.Count -eq 0) { throw "licenses\*.txt missing from $PublishDir" }
 $cloud = Get-Content (Join-Path $PublishDir "cloud.json") -Raw
 if ($cloud -match "sk-|pdl_|service_role|password|secret") { throw "cloud.json contains secret-looking values" }
 

@@ -3,7 +3,8 @@
   Builds, tests and packages Interview Assistant for Windows x64.
 .DESCRIPTION
   Produces artifacts\InterviewAssistant-Windows-x64.zip containing a self-contained single-file
-  InterviewAssistant.exe (no .NET install needed) plus the knowledge\ folder and docs.
+  InterviewAssistant.exe (no .NET install needed) plus the knowledge\ folder, docs, THIRD_PARTY_NOTICES.md and the
+  licenses\ folder (full license texts of the redistributed components; the build fails without them).
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1
 #>
@@ -52,7 +53,21 @@ if ($LASTEXITCODE) { throw "publish failed" }
 
 # End-user documentation only (no developer docs, sources or tests in the package).
 Copy-Item docs\user\USER_GUIDE.txt -Destination (Join-Path $out "User Guide.txt")
-Copy-Item THIRD_PARTY_NOTICES.md -Destination $out   # required: shipped dependencies are attributed in the package
+# Required for redistribution: the third-party notices index plus the full license texts (licenses\*.txt) of every
+# shipped component (.NET + Windows Desktop runtimes, NAudio, PdfPig, Velopack). A package without them must not exist.
+$notices = Join-Path $root "THIRD_PARTY_NOTICES.md"
+$licenses = Join-Path $root "licenses"
+if (-not (Test-Path $notices -PathType Leaf)) { throw "THIRD_PARTY_NOTICES.md is missing: refusing to package without third-party notices" }
+if (-not (Test-Path $licenses -PathType Container)) { throw "licenses\ folder is missing: refusing to package without full license texts" }
+Copy-Item $notices -Destination $out
+Copy-Item $licenses -Destination (Join-Path $out "licenses") -Recurse
+$referenced = [regex]::Matches((Get-Content $notices -Raw), 'licenses/([A-Za-z0-9._-]+\.txt)') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+if (-not $referenced) { throw "THIRD_PARTY_NOTICES.md references no license files" }
+foreach ($file in $referenced) {
+    $shipped = Join-Path $out "licenses\$file"
+    if (-not (Test-Path $shipped -PathType Leaf)) { throw "License file referenced by THIRD_PARTY_NOTICES.md is not in the package: licenses\$file" }
+}
+Write-Host "Third-party notices: THIRD_PARTY_NOTICES.md + $($referenced.Count) license files in $out\licenses"
 
 # Safety: never ship secrets or local settings.
 $bad = Get-ChildItem $out -Recurse -Include *.dpapi, settings.json, *.env, *.pdb, *.cs, *.csproj, *.sln, *Tests.dll, appsettings*.json, *.key, *.pfx -ErrorAction SilentlyContinue

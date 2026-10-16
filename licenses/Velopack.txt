@@ -1,0 +1,35 @@
+Velopack 1.2.161 (Velopack.dll in the app) and the Velopack native binaries added by vpk 1.2.161
+(Setup.exe installer stub, Update.exe, the stub launcher EXE)
+==============================================================================
+License:    MIT (SPDX: MIT), as declared by the Velopack and vpk .nuspec files
+Copyright:  Copyright (c) 2021 Caelan Sayler; Copyright (c) 2024 Velopack Ltd.
+            (.nuspec <copyright>: "Copyright (c) Velopack Ltd. All rights reserved.";
+             <authors>: "Velopack Ltd, Caelan Sayler, Kevin Bost")
+Source:     https://github.com/velopack/velopack (both packages built from commit
+            92d6a1c91716729d449034df5c50307dcce39493)
+Provenance: the NuGet packages contain no license file. The text below is the repository LICENSE at the exact
+            commit recorded in the .nuspec, copied verbatim.
+Native binaries: Setup.exe / Update.exe / stub are compiled from Velopack's Rust sources (same MIT license) and
+            statically link third-party Rust crates; their notices are in Velopack-native-THIRD-PARTY-NOTICES.txt.
+==============================================================================
+
+Copyright © 2021 Caelan Sayler
+Copyright © 2024 Velopack Ltd.
+
+Permission is hereby granted,  free of charge,  to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to  use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
