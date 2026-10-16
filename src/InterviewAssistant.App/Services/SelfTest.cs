@@ -203,8 +203,12 @@ public static class SelfTest
         {
             var home = new HomeWindow(vm, w) { Owner = w };
             home.Show(); await Idle();
+            // A fresh window has no edits: building controls (slider coercion, default selections) is not a change, and
+            // closing the app must never stop on an "unsaved changes" question nobody caused.
+            var cleanAtStart = !home.HasUnsavedEdits;
             foreach (var page in HomePages) { home.ShowPage(page); await Idle(); }
             home.ShowPage("account"); await Idle();
+            cleanAtStart &= !home.HasUnsavedEdits;
             var signInForm = home.SignedOutPanel.Visibility == Visibility.Visible || !vm.Cloud.IsConfigured;
             var noDevButton = BuildFlavor.Developer || home.DeveloperModeBtn.Visibility != Visibility.Visible;
             // PasswordBox: same template family as TextBox, placeholder state tracked without reading the password
@@ -213,8 +217,8 @@ public static class SelfTest
             home.PasswordBox.Clear(); await Idle();
             var tracksEmpty = Views.Watermark.GetIsEmpty(home.PasswordBox);
             var sameHeight = Math.Abs(home.PasswordBox.ActualHeight - home.EmailBox.ActualHeight) < 0.5;
-            var ok = home.IsLoaded && signInForm && noDevButton && tracksFilled && tracksEmpty && sameHeight; home.Close();
-            return (ok, $"{HomePages.Length} pages rendered; sign-in form {(signInForm ? "shown" : "MISSING")}; developer button {(noDevButton ? "hidden" : "VISIBLE")}; "
+            var ok = home.IsLoaded && signInForm && noDevButton && tracksFilled && tracksEmpty && sameHeight && cleanAtStart; home.Close();
+            return (ok, $"{HomePages.Length} pages rendered; no unsaved edits after opening and paging: {cleanAtStart}; sign-in form {(signInForm ? "shown" : "MISSING")}; developer button {(noDevButton ? "hidden" : "VISIBLE")}; "
                         + $"password field {home.PasswordBox.ActualHeight:0}px = e-mail field {home.EmailBox.ActualHeight:0}px: {sameHeight}; placeholder tracking {tracksFilled && tracksEmpty}");
         });
         await Check("Profile → confirm facts → prepare → load (isolated DPAPI workspace)", async () =>

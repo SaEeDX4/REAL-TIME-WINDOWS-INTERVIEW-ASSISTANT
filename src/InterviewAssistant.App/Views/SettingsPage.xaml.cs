@@ -30,7 +30,9 @@ public partial class SettingsPage : UserControl
 
     public SettingsPage()
     {
-        InitializeComponent();
+        // Building the controls raises change events (a slider with Minimum 0.6 coerces its value, check boxes and
+        // text boxes get their defaults): none of that is a user edit.
+        using (Guard.Suspend()) InitializeComponent();
         ModelBox.AddHandler(TextBoxBase.TextChangedEvent, new TextChangedEventHandler((_, _) => Guard.MarkDirty()));
         SttBox.AddHandler(TextBoxBase.TextChangedEvent, new TextChangedEventHandler((_, _) => Guard.MarkDirty()));
         foreach (var box in new Control[] { HkToggle, HkStart, HkManual }) Field.ClearOnEdit(box);
@@ -48,10 +50,13 @@ public partial class SettingsPage : UserControl
             DeveloperKeyPanel.Visibility = Visibility.Collapsed;
             foreach (var el in new FrameworkElement[] { ModelLabel, ModelBox, SttLabel, SttBox, ProtocolLabel, ProtocolBox }) el.Visibility = Visibility.Collapsed;
         }
-        foreach (var m in new[] { "gpt-5.4-mini", "gpt-4.1-mini", "gpt-5-mini", "gpt-4.1" }) ModelBox.Items.Add(m);
-        foreach (var m in new[] { "gpt-4o-transcribe", "gpt-4o-mini-transcribe" }) SttBox.Items.Add(m);
-        foreach (var p in new[] { "auto", "ga", "beta" }) ProtocolBox.Items.Add(p);
-        foreach (var f in Enum.GetValues<FontPreset>()) FontBox.Items.Add(new ComboBoxItem { Content = Loc.T("font_" + f.ToString().ToLowerInvariant()), Tag = f });
+        using (Guard.Suspend())
+        {
+            foreach (var m in new[] { "gpt-5.4-mini", "gpt-4.1-mini", "gpt-5-mini", "gpt-4.1" }) ModelBox.Items.Add(m);
+            foreach (var m in new[] { "gpt-4o-transcribe", "gpt-4o-mini-transcribe" }) SttBox.Items.Add(m);
+            foreach (var p in new[] { "auto", "ga", "beta" }) ProtocolBox.Items.Add(p);
+            foreach (var f in Enum.GetValues<FontPreset>()) FontBox.Items.Add(new ComboBoxItem { Content = Loc.T("font_" + f.ToString().ToLowerInvariant()), Tag = f });
+        }
         LoadFromSettings();
     }
 

@@ -104,17 +104,22 @@ public partial class HomeWindow : Window
 
     public HomeWindow(MainViewModel vm, MainWindow main)
     {
-        InitializeComponent();
-        _vm = vm; _main = main;
-        Title = Branding.ProductName;
-        TitleText.Text = Branding.ProductName;
-        FactList.ItemsSource = _facts;
-        UiLanguageBox.ItemsSource = LanguageRegistry.All;
-        UiLanguageBox.SelectedItem = LanguageRegistry.Find(_vm.UiLanguage);
-        BuildLanguagePickers();
-        AckBox.IsChecked = _vm.Settings.AuthorizedUseAcknowledged;
-        ChannelBox.SelectedIndex = _vm.Updates.Channel == "beta" ? 1 : 0;
-        BuildPersonalFields();
+        // Building the window and filling its pickers raises change events: none of that is a user edit.
+        using (_profileGuard.Suspend())
+        using (_targetGuard.Suspend())
+        {
+            InitializeComponent();
+            _vm = vm; _main = main;
+            Title = Branding.ProductName;
+            TitleText.Text = Branding.ProductName;
+            FactList.ItemsSource = _facts;
+            UiLanguageBox.ItemsSource = LanguageRegistry.All;
+            UiLanguageBox.SelectedItem = LanguageRegistry.Find(_vm.UiLanguage);
+            BuildLanguagePickers();
+            AckBox.IsChecked = _vm.Settings.AuthorizedUseAcknowledged;
+            ChannelBox.SelectedIndex = _vm.Updates.Channel == "beta" ? 1 : 0;
+            BuildPersonalFields();
+        }
 
         // One guard for every editor in Home: asks (in-app dialog) only before real data-loss actions.
         _nav = new NavigationGuard(AskUnsavedAsync);
@@ -267,6 +272,9 @@ public partial class HomeWindow : Window
         _closeConfirmed = true;
         Close();
     }
+
+    /// <summary>True when any editor in Home holds unsaved edits (self-test: a fresh start must have none).</summary>
+    internal bool HasUnsavedEdits => _nav.AnyDirty;
 
     /// <summary>The Live Assistant is closing the app: unsaved edits are asked about first. False = stay open.</summary>
     public async Task<bool> ConfirmCloseAsync()
