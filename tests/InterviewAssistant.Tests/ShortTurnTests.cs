@@ -94,3 +94,32 @@ public class DuplicateContextTests
         Assert.Contains("slow since launch", x.ContextSummary);
     }
 }
+
+/// <summary>RC4: imperative asks are recognised in imperative position only — statements that merely contain the verb are not.</summary>
+public class ImperativeAskTests
+{
+    private static UtteranceGate Gate() => new(new PromptEchoDetector("Job interview"));
+
+    [Theory]
+    [InlineData("Describe a time you disagreed with your manager.")]
+    [InlineData("So, describe your approach to discovery.")]
+    [InlineData("Please share an example of a hard trade-off.")]
+    [InlineData("Share an example of a feature you killed.")]
+    [InlineData("Could you explain how you prioritised the backlog.")]
+    [InlineData("Can you elaborate on the migration.")]
+    [InlineData("I'd like you to describe your first ninety days.")]
+    [InlineData("I want you to explain the trade-off.")]
+    [InlineData("We would like you to walk us through the launch.")]
+    [InlineData("Give me an example of a metric you moved.")]
+    [InlineData("Imagine you joined us tomorrow and the release is late.")]
+    [InlineData("Okay, explain the architecture to me.")]
+    [InlineData("Tell me about your biggest failure.")]
+    public void ImperativeAsk_IsAQuestion(string text) => Assert.Equal(UtteranceKind.Question, Gate().Evaluate(text).Kind);
+
+    [Theory]
+    [InlineData("The VIP tiers are popular but expensive and hard to explain in the app.")]
+    [InlineData("Our onboarding docs describe the process in detail.")]
+    [InlineData("Users often share their referral links on social media.")]
+    [InlineData("That would explain the drop in retention last quarter.")]
+    public void StatementContainingTheVerb_IsNotAnAsk(string text) => Assert.NotEqual(UtteranceKind.Question, Gate().Evaluate(text).Kind);
+}
