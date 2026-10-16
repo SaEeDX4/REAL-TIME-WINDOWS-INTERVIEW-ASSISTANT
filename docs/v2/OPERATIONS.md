@@ -47,9 +47,12 @@ deletions. Hourly: purge reports past retention. Live relays re-check their leas
 * If a schema change must be undone: take a database backup first, then run
   `dotnet ef database update <PreviousMigrationName> --project src/InterviewAssistant.Backend` against the database
   from a trusted machine (each migration's `Down` drops only what it added — data in those columns/tables is lost).
-* rc.3 migrations: `Rc3RealtimeRelay` (column `interview_sessions.AllowanceAtHeartbeatSeconds`) and
-  `Rc3IdentityDeletionAndAdjustments` (identity-deletion columns on `users`, payment/revocation columns on
-  `subscriptions`, table `billing_adjustments`). Rolling the backend back to rc.2 is safe with these in place, but an
+* rc.3 migrations: `Rc3RealtimeRelay` (column `interview_sessions.AllowanceAtHeartbeatSeconds`),
+  `Rc3IdentityDeletionAndAdjustments` (identity-deletion columns on `users`, revocation columns on `subscriptions`,
+  table `billing_adjustments`) and `Rc3SelfReviewFixes` (relay connection id, trial-forfeit flag, tables
+  `billing_transactions` and `deleted_account_markers`, drops the interim current-transaction columns, queues
+  identity deletion for accounts deleted earlier). Applied migrations are never edited or squashed: the branch
+  deploys to production automatically. Rolling the backend back to rc.2 is safe with these in place, but an
   rc.2 backend hands out client secrets again (no relay) — roll forward instead where possible.
 
 ## Secrets rotation
