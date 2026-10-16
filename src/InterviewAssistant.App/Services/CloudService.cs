@@ -28,6 +28,8 @@ public sealed class CloudService
     public bool IsConfigured => Options.IsConfigured;
     public bool IsSignedIn => Auth?.IsSignedIn == true;
     public bool UpgradePending { get; private set; }
+    /// <summary>The failure of the last <see cref="RefreshAsync"/> (null after a success): lets a page show which request failed.</summary>
+    public Exception? LastRefreshError { get; private set; }
     public event Action? Changed;
 
     /// <summary>Self-test: point the client at an unreachable endpoint to exercise the offline UI without touching production.</summary>
@@ -137,11 +139,13 @@ public sealed class CloudService
             }
             Account = await Api.MeAsync(ct);
             await EnsureDeviceAsync(ct);
+            LastRefreshError = null;
             SetState(CloudState.SignedIn, null);
             return true;
         }
         catch (BackendException ex)
         {
+            LastRefreshError = ex;
             AppLog.Warn($"Cloud refresh failed: {ex.Code} (ref {ex.CorrelationId})");
             var (state, message) = Classify(ex);
             if (state == CloudState.SignedOut && Auth != null) { Auth.SignOutLocal(); Account = null; }
@@ -164,7 +168,18 @@ public sealed class CloudService
     /// timeout, device, plan, quota, maintenance, minimum version) — never a raw exception, never "Unknown". A short
     /// reference id is appended for support (the full correlation id is in the log).
     /// </summary>
-    public static string Describe(Exception ex) => ex switch
+    public static string Describe(Exception ex) => Describe(ex, includeReference: true);
+
+    /// <summary>
+    /// <paramref name="includeReference"/> = false for inline section messages: the correlation id then goes to the log
+    /// only (the caller logs it), the user sees plain copy.
+    /// </summary>
+    public static string Describe(Exception ex, bool includeReference) => includeReference ? DescribeWithReference(ex) : StripReference(DescribeWithReference(ex), ex);
+
+    private static string StripReference(string text, Exception ex) =>
+        ex is BackendException b && Ref(b) is { Length: > 0 } r && text.EndsWith(r, StringComparison.Ordinal) ? text[..^r.Length] : text;
+
+    private static string DescribeWithReference(Exception ex) => ex switch
     {
         BackendException { Status: 0 } => Loc.T("svc_unreachable"),
         BackendException { IsUpdateRequired: true } => Loc.T("err_update_required_long"),
@@ -240,11 +255,15 @@ public sealed class CloudService
     }
 
     /// <summary>Password reset: the e-mailed link returns to this PC; then <paramref name="askNewPassword"/> collects the new password.</summary>
-    public async Task<(bool Ok, string? Error)> ResetPasswordAsync(string email, Func<Task<string?>> askNewPassword)
+    /// <remarks>
+    /// Enumeration-safe: <paramref name="requested"/> runs once the request is accepted — for an existing and for an
+    /// unknown address alike — so the UI shows the same neutral notice either way.
+    /// </remarks>
+    public async Task<(bool Ok, string? Error)> ResetPasswordAsync(string email, Func<Task<string?>> askNewPassword, Action? requested = null)
     {
         var r = await AuthAction(async () =>
         {
-            await Auth!.RecoverPasswordAsync(email, TimeSpan.FromMinutes(15), CancellationToken.None);
+            await Auth!.RecoverPasswordAsync(email, TimeSpan.FromMinutes(15), CancellationToken.None, requested);
             var pw = await askNewPassword() ?? throw new AuthException("cancelled", Loc.T("acct_password_not_changed"));
             await Auth.UpdatePasswordAsync(pw, CancellationToken.None);
         }, "Password reset");

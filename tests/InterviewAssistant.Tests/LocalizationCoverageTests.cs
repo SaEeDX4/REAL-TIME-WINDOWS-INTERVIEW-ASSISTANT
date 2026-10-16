@@ -37,12 +37,12 @@ public class LocalizationCoverageTests
     /// </summary>
     private static readonly Dictionary<string, HashSet<string>> Cognates = new()
     {
-        ["es"] = new() { "fact_kind_personal", "channel_beta_build", "font_normal" },
+        ["es"] = new() { "fact_kind_personal", "channel_beta_build", "font_normal", "set_nav_audio" },
         ["pt"] = new() { "channel_beta_build", "font_normal" },
-        ["it"] = new() { "account", "password", "channel_beta_build" },
-        ["de"] = new() { "upgrade", "interviews", "report_default_label", "channel_beta_build", "about_version", "font_normal" },
+        ["it"] = new() { "account", "password", "channel_beta_build", "set_nav_audio" },
+        ["de"] = new() { "upgrade", "interviews", "report_default_label", "channel_beta_build", "about_version", "font_normal", "set_nav_audio" },
         ["fr"] = new() { "question", "pause", "structure", "file_filter_documents", "fact_kind", "fact_kind_certification", "report_preview_meta",
-                         "channel_stable_build", "about_version", "about_install", "about_service", "pf_check_stt", "font_compact", "font_normal" },
+                         "channel_stable_build", "about_version", "about_install", "about_service", "pf_check_stt", "font_compact", "font_normal", "set_nav_audio" },
     };
     private static readonly Regex Placeholder = new(@"\{\d+\}", RegexOptions.Compiled);
 

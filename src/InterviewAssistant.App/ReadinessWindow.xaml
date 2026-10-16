@@ -32,7 +32,7 @@
             </Grid>
 
             <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
-                <Border x:Name="Verdict" CornerRadius="10" Padding="14,10" Margin="0,0,0,10" Background="{StaticResource B.Surface2}">
+                <Border x:Name="VerdictPanel" AutomationProperties.LiveSetting="Polite" CornerRadius="10" Padding="14,10" Margin="0,0,0,10" Background="{StaticResource B.Surface2}">
                     <StackPanel>
                         <TextBlock x:Name="VerdictTitle" Text="{v:Loc pf_not_checked}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource B.TextDim}"/>
                         <TextBlock x:Name="VerdictDetail" FontSize="12" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap" Margin="0,4,0,0"/>

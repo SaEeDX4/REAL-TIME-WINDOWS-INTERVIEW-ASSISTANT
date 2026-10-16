@@ -7,7 +7,8 @@
         FontFamily="{StaticResource F.Ui}" UseLayoutRounding="True" FlowDirection="{v:LocFlow}">
     <Window.Resources>
         <Style x:Key="Section" TargetType="TextBlock" BasedOn="{StaticResource T.Label}">
-            <Setter Property="Margin" Value="0,20,0,8"/>
+            <Setter Property="Margin" Value="{StaticResource S.SectionMargin}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="AutomationProperties.HeadingLevel" Value="Level2"/>
         </Style>
         <Style x:Key="H1" TargetType="TextBlock">
@@ -22,7 +23,19 @@
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Foreground" Value="{StaticResource B.TextFaint}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
-            <Setter Property="Margin" Value="0,4,0,0"/>
+            <Setter Property="Margin" Value="{StaticResource S.HintMargin}"/>
+        </Style>
+        <Style x:Key="AboutKey" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource B.TextDim}"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Margin" Value="0,3,16,3"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="AboutValue" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Margin" Value="0,3,0,3"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
         <Style x:Key="Nav" TargetType="Button" BasedOn="{StaticResource Btn.Ghost}">
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
@@ -88,18 +101,33 @@
                 <Button x:Name="NavInterviews" Style="{StaticResource Nav}" Click="Nav_Click" Tag="interviews" Content="{v:Loc interviews}"/>
                 <Button x:Name="NavReports" Style="{StaticResource Nav}" Click="Nav_Click" Tag="reports" Content="{v:Loc reports}"/>
                 <Button x:Name="NavAccount" Style="{StaticResource Nav}" Click="Nav_Click" Tag="account" Content="{v:Loc account}"/>
-                <Button x:Name="NavSettings" Style="{StaticResource Nav}" Click="Settings_Click" Content="{v:Loc settings}"/>
+                <Button x:Name="NavSettings" Style="{StaticResource Nav}" Click="Nav_Click" Tag="settings" Content="{v:Loc settings}"/>
                 <Button x:Name="NavHelp" Style="{StaticResource Nav}" Click="Nav_Click" Tag="help" Content="{v:Loc nav_help}"/>
                 <Border Height="1" Background="{StaticResource B.Border}" Margin="6,12"/>
                 <TextBlock Text="{v:Loc ui_language}" Style="{StaticResource T.Label}" Margin="12,0,0,6"/>
-                <ComboBox x:Name="UiLanguageBox" Style="{StaticResource Combo}" Margin="6,0" SelectionChanged="UiLanguage_Changed" DisplayMemberPath="DisplayName"
+                <ComboBox x:Name="UiLanguageBox" Margin="6,0" SelectionChanged="UiLanguage_Changed" DisplayMemberPath="DisplayName"
                           ToolTip="{v:Loc tt_ui_language}" AutomationProperties.Name="{v:Loc ui_language}"/>
                 <TextBlock Style="{StaticResource Hint}" Margin="12,6,6,0" FontSize="11" Text="{v:Loc ui_language_hint}"/>
             </StackPanel>
 
             <!-- content -->
-            <ScrollViewer x:Name="ContentScroll" Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Auto" Margin="8,8,8,12">
-                <Grid Margin="8,0,16,8" MaxWidth="1120" HorizontalAlignment="Left">
+            <DockPanel Grid.Row="1" Grid.Column="1" Margin="8,8,8,12">
+            <!-- Settings: sticky save bar (explicit Save; shows when there are unsaved changes) -->
+            <Border x:Name="SettingsFooter" DockPanel.Dock="Bottom" Visibility="Collapsed" Margin="8,8,16,0" Padding="14,8" CornerRadius="{StaticResource R.Card}"
+                    Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="SettingsDiscardBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc dlg_discard}" Click="SettingsDiscard_Click" Margin="0,0,8,0"/>
+                        <Button x:Name="SettingsSaveBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc dlg_save}" Click="SettingsSave_Click"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse x:Name="SettingsDirtyDot" Width="8" Height="8" Fill="{StaticResource B.Thinking}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="SettingsDirtyText" Style="{StaticResource T.Body}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+            <ScrollViewer x:Name="ContentScroll" VerticalScrollBarVisibility="Auto">
+                <Grid Margin="{StaticResource S.PageMargin}" MaxWidth="1120" HorizontalAlignment="Left">
 
                     <!-- ===== Get started ===== -->
                     <StackPanel x:Name="PageStart" MaxWidth="760" HorizontalAlignment="Left">
@@ -173,15 +201,15 @@
                                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
                                 <StackPanel>
                                     <TextBlock Text="{v:Loc profile_name}" Style="{StaticResource Section}" Margin="0,4,0,6"/>
-                                    <TextBox x:Name="ProfileName" Style="{StaticResource Input}" AutomationProperties.Name="{v:Loc profile_name}"/>
+                                    <TextBox x:Name="ProfileName" TextChanged="ProfileField_Changed" AutomationProperties.Name="{v:Loc profile_name}"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="{v:Loc profile_preferred_name}" Style="{StaticResource Section}" Margin="0,4,0,6"/>
-                                    <TextBox x:Name="ProfilePreferred" Style="{StaticResource Input}" AutomationProperties.Name="{v:Loc profile_preferred_name}"/>
+                                    <TextBox x:Name="ProfilePreferred" TextChanged="ProfileField_Changed" AutomationProperties.Name="{v:Loc profile_preferred_name}"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="4">
                                     <TextBlock Text="{v:Loc profile_headline}" Style="{StaticResource Section}" Margin="0,4,0,6"/>
-                                    <TextBox x:Name="ProfileHeadline" Style="{StaticResource Input}" AutomationProperties.Name="{v:Loc profile_headline}"/>
+                                    <TextBox x:Name="ProfileHeadline" TextChanged="ProfileField_Changed" AutomationProperties.Name="{v:Loc profile_headline}"/>
                                 </StackPanel>
                             </Grid>
 
@@ -242,9 +270,9 @@
                                 <StackPanel x:Name="PersonalFields"/>
                             </StackPanel>
 
-                            <WrapPanel Margin="0,14,0,0">
-                                <Button Style="{StaticResource Btn.Primary}" Content="{v:Loc save_profile}" Click="SaveProfile_Click" Margin="0,0,8,0" Padding="16,7"/>
-                                <TextBlock x:Name="ProfileDirty" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="0"/>
+                            <WrapPanel Margin="{StaticResource S.ButtonRowMargin}">
+                                <Button x:Name="SaveProfileBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc save_profile}" Click="SaveProfile_Click" Margin="0,0,12,0"/>
+                                <TextBlock x:Name="ProfileDirty" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="0" Foreground="{StaticResource B.Thinking}" AutomationProperties.LiveSetting="Polite"/>
                             </WrapPanel>
                         </StackPanel>
                     </Grid>
@@ -267,35 +295,38 @@
                                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
                                 <StackPanel>
                                     <TextBlock Text="{v:Loc job_title}" Style="{StaticResource Section}" Margin="0,4,0,6"/>
-                                    <TextBox x:Name="TargetTitle" Style="{StaticResource Input}" AutomationProperties.Name="{v:Loc job_title}"/>
+                                    <TextBox x:Name="TargetTitle" TextChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc job_title}"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="{v:Loc company}" Style="{StaticResource Section}" Margin="0,4,0,6"/>
-                                    <TextBox x:Name="TargetCompany" Style="{StaticResource Input}" AutomationProperties.Name="{v:Loc company}"/>
+                                    <TextBox x:Name="TargetCompany" TextChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc company}"/>
                                 </StackPanel>
                             </Grid>
                             <Grid Margin="0,10,0,0">
                                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="12"/><ColumnDefinition/></Grid.ColumnDefinitions>
                                 <StackPanel>
                                     <TextBlock Text="{v:Loc interview_language}" Style="{StaticResource T.Label}" Margin="0,0,0,6"/>
-                                    <ComboBox x:Name="TargetLanguage" Style="{StaticResource Combo}" AutomationProperties.Name="{v:Loc interview_language}"/>
+                                    <ComboBox x:Name="TargetLanguage" SelectionChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc interview_language}"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="{v:Loc answer_language}" Style="{StaticResource T.Label}" Margin="0,0,0,6"/>
-                                    <ComboBox x:Name="TargetAnswerLanguage" Style="{StaticResource Combo}" AutomationProperties.Name="{v:Loc answer_language}"/>
+                                    <ComboBox x:Name="TargetAnswerLanguage" SelectionChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc answer_language}"/>
                                 </StackPanel>
                             </Grid>
                             <TextBlock Style="{StaticResource Hint}" Text="{v:Loc language_separation_hint}"/>
                             <DockPanel Margin="0,14,0,6">
-                                <Button DockPanel.Dock="Right" Style="{StaticResource Btn.Base}" Content="{v:Loc import_file}" Click="ImportJd_Click" Padding="10,4"/>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource Btn.Base}" Content="{v:Loc import_file}" Click="ImportJd_Click" Padding="10,4" Margin="8,0,0,0"/>
                                 <TextBlock Text="{v:Loc job_description}" Style="{StaticResource T.Label}" VerticalAlignment="Center"/>
                             </DockPanel>
-                            <TextBox x:Name="TargetJd" Style="{StaticResource Input}" AcceptsReturn="True" TextWrapping="Wrap" Height="170" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top"
+                            <TextBox x:Name="TargetJd" Style="{StaticResource Input.Multiline}" Height="170" TextChanged="TargetField_Changed"
                                      AutomationProperties.Name="{v:Loc job_description}"/>
                             <TextBlock Style="{StaticResource Hint}" Text="{v:Loc documents_are_data}"/>
+                            <v:InlineMessage x:Name="TargetMessage"/>
                             <WrapPanel Margin="0,12,0,0">
-                                <Button x:Name="PrepareBtn" Style="{StaticResource Btn.Primary}" Content="{v:Loc prepare}" Click="Prepare_Click" Margin="0,0,8,0" Padding="16,7"/>
-                                <Button x:Name="UseBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc start_interview}" Click="UseTarget_Click" Padding="14,7"/>
+                                <Button x:Name="PrepareBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc prepare}" Click="Prepare_Click" Margin="0,0,8,8"/>
+                                <Button x:Name="SaveTargetBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc save}" Click="SaveTarget_Click" Margin="0,0,8,8" ToolTip="{v:Loc tt_save_interview}"/>
+                                <Button x:Name="UseBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc start_interview}" Click="UseTarget_Click" Margin="0,0,12,8"/>
+                                <TextBlock x:Name="TargetDirty" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="0,0,0,8" Foreground="{StaticResource B.Thinking}" AutomationProperties.LiveSetting="Polite"/>
                             </WrapPanel>
                             <ProgressBar x:Name="PrepProgress" Height="4" Margin="0,12,0,0" Minimum="0" Maximum="1" Foreground="{StaticResource B.Accent}" Background="{StaticResource B.Surface3}" BorderThickness="0"/>
                             <TextBlock x:Name="PrepStatus" Style="{StaticResource Hint}"/>
@@ -345,7 +376,22 @@
                         <TextBlock Text="{v:Loc help_about}" Style="{StaticResource Section}"/>
                         <Border Style="{StaticResource Card}">
                             <Grid x:Name="AboutGrid">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="170"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" MinWidth="140" MaxWidth="260"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                                <TextBlock Style="{StaticResource AboutKey}" Text="{v:Loc about_product}"/>
+                                <TextBlock x:Name="AboutProduct" Grid.Column="1" Style="{StaticResource AboutValue}"/>
+                                <TextBlock Grid.Row="1" Style="{StaticResource AboutKey}" Text="{v:Loc about_version}"/>
+                                <TextBlock x:Name="AboutVersion" Grid.Row="1" Grid.Column="1" Style="{StaticResource AboutValue}" FlowDirection="LeftToRight" HorizontalAlignment="Left"/>
+                                <TextBlock Grid.Row="2" Style="{StaticResource AboutKey}" Text="{v:Loc about_channel}"/>
+                                <TextBlock x:Name="AboutChannel" Grid.Row="2" Grid.Column="1" Style="{StaticResource AboutValue}"/>
+                                <TextBlock Grid.Row="3" Style="{StaticResource AboutKey}" Text="{v:Loc about_build}"/>
+                                <TextBlock x:Name="AboutBuild" Grid.Row="3" Grid.Column="1" Style="{StaticResource AboutValue}" FlowDirection="LeftToRight" HorizontalAlignment="Left"/>
+                                <TextBlock Grid.Row="4" Style="{StaticResource AboutKey}" Text="{v:Loc about_install}"/>
+                                <TextBlock x:Name="AboutInstall" Grid.Row="4" Grid.Column="1" Style="{StaticResource AboutValue}"/>
+                                <TextBlock Grid.Row="5" Style="{StaticResource AboutKey}" Text="{v:Loc about_signing}"/>
+                                <TextBlock x:Name="AboutSigning" Grid.Row="5" Grid.Column="1" Style="{StaticResource AboutValue}"/>
+                                <TextBlock Grid.Row="6" Style="{StaticResource AboutKey}" Text="{v:Loc about_service}"/>
+                                <TextBlock x:Name="AboutService" Grid.Row="6" Grid.Column="1" Style="{StaticResource AboutValue}"/>
                             </Grid>
                         </Border>
                         <WrapPanel Margin="0,10,0,0">
@@ -355,70 +401,84 @@
                     </StackPanel>
 
                     <!-- ===== Account ===== -->
-                    <StackPanel x:Name="PageAccount" Visibility="Collapsed" MaxWidth="820" HorizontalAlignment="Left">
+                    <StackPanel x:Name="PageAccount" Visibility="Collapsed" MaxWidth="{StaticResource S.PageMaxWidth}" HorizontalAlignment="Left">
                         <TextBlock Style="{StaticResource H1}" Text="{v:Loc account}"/>
-                        <TextBlock x:Name="AccountStatus" Style="{StaticResource Hint}" Foreground="{StaticResource B.TextDim}" FontSize="13"/>
-                        <TextBlock x:Name="AccountError" Style="{StaticResource Hint}" Foreground="{StaticResource B.Error}"/>
-                        <TextBlock x:Name="AccountInfo" Style="{StaticResource Hint}" Foreground="{StaticResource B.Listening}"/>
+                        <!-- account-wide state only (signed in as …, connecting, update required); request failures are shown in their own section -->
+                        <TextBlock x:Name="AccountStatus" Style="{StaticResource Hint}" Foreground="{StaticResource B.TextDim}" FontSize="13" AutomationProperties.LiveSetting="Polite"/>
 
                         <!-- signed out: e-mail + password -->
                         <Border x:Name="SignedOutPanel" Style="{StaticResource Card}" Margin="0,12,0,0" MaxWidth="460" HorizontalAlignment="Left">
                             <StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                     <Button x:Name="ModeSignInBtn" Style="{StaticResource Btn.Chip}" Content="{v:Loc sign_in}" Click="ModeSignIn_Click" Margin="0,0,6,0"/>
                                     <Button x:Name="ModeCreateBtn" Style="{StaticResource Btn.Chip}" Content="{v:Loc create_account}" Click="ModeCreate_Click"/>
                                 </StackPanel>
-                                <TextBlock Text="{v:Loc email}" Style="{StaticResource T.Label}" Margin="0,0,0,6"/>
-                                <TextBox x:Name="EmailBox" Style="{StaticResource Input}" AutomationProperties.Name="{v:Loc email}" TabIndex="1" FlowDirection="LeftToRight"/>
-                                <TextBlock Text="{v:Loc password}" Style="{StaticResource T.Label}" Margin="0,10,0,6"/>
-                                <PasswordBox x:Name="PasswordBox" Style="{StaticResource PasswordInput}" AutomationProperties.Name="{v:Loc password}" TabIndex="2" KeyDown="Password_KeyDown" FlowDirection="LeftToRight"/>
+                                <TextBlock x:Name="EmailLabel" Text="{v:Loc email}" Style="{StaticResource T.FieldLabel}"/>
+                                <TextBox x:Name="EmailBox" AutomationProperties.Name="{v:Loc email}" TabIndex="1" FlowDirection="LeftToRight" KeyDown="Email_KeyDown"/>
+                                <TextBlock x:Name="PasswordLabel" Text="{v:Loc password}" Style="{StaticResource T.FieldLabel}"/>
+                                <PasswordBox x:Name="PasswordBox" AutomationProperties.Name="{v:Loc password}" TabIndex="2" KeyDown="Password_KeyDown" FlowDirection="LeftToRight"/>
                                 <StackPanel x:Name="ConfirmPanel" Visibility="Collapsed">
-                                    <TextBlock Text="{v:Loc confirm_password}" Style="{StaticResource T.Label}" Margin="0,10,0,6"/>
-                                    <PasswordBox x:Name="ConfirmBox" Style="{StaticResource PasswordInput}" AutomationProperties.Name="{v:Loc confirm_password}" TabIndex="3" KeyDown="Password_KeyDown" FlowDirection="LeftToRight"/>
+                                    <TextBlock Text="{v:Loc confirm_password}" Style="{StaticResource T.FieldLabel}"/>
+                                    <PasswordBox x:Name="ConfirmBox" AutomationProperties.Name="{v:Loc confirm_password}" TabIndex="3" KeyDown="Password_KeyDown" FlowDirection="LeftToRight"/>
                                     <TextBlock Style="{StaticResource Hint}" Text="{v:Loc password_rules}"/>
                                     <TextBlock x:Name="SignUpLegal" Style="{StaticResource Hint}"/>
                                 </StackPanel>
-                                <WrapPanel Margin="0,14,0,0">
-                                    <Button x:Name="AuthSubmitBtn" Style="{StaticResource Btn.Primary}" Content="{v:Loc sign_in}" Click="AuthSubmit_Click" Padding="18,7" Margin="0,0,10,0" TabIndex="4" IsDefault="False"/>
-                                    <Button x:Name="ForgotBtn" Style="{StaticResource Btn.Ghost}" Content="{v:Loc forgot_password}" Click="Forgot_Click" TabIndex="5"/>
+                                <!-- the form's own result: errors right under the fields, reset and confirmation notices -->
+                                <v:InlineMessage x:Name="AuthMessage" Margin="0,12,0,0"/>
+                                <WrapPanel Margin="{StaticResource S.ButtonRowMargin}">
+                                    <Button x:Name="AuthSubmitBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc sign_in}" Click="AuthSubmit_Click" Margin="0,0,10,8" TabIndex="4" MinWidth="120"/>
+                                    <Button x:Name="ForgotBtn" Style="{StaticResource Btn.Ghost}" Content="{v:Loc forgot_password}" Click="Forgot_Click" TabIndex="5" Margin="0,0,0,8"/>
                                 </WrapPanel>
-                                <WrapPanel x:Name="ProviderButtons" Margin="0,10,0,0"/>
+                                <WrapPanel x:Name="ProviderButtons" Margin="0,2,0,0"/>
                                 <TextBlock Style="{StaticResource Hint}" Text="{v:Loc password_privacy_hint}"/>
                             </StackPanel>
                         </Border>
 
-                        <!-- signed in -->
+                        <!-- signed in: independently loaded sections, each with its own inline status -->
                         <StackPanel x:Name="SignedInPanel" Margin="0,12,0,0">
                             <Border Style="{StaticResource Card}">
                                 <StackPanel>
-                                    <TextBlock x:Name="PlanText" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource B.Text}"/>
+                                    <DockPanel>
+                                        <Button x:Name="RefreshAccountBtn" DockPanel.Dock="Right" Style="{StaticResource Btn.Ghost}" Click="RefreshAccount_Click" ToolTip="{v:Loc tt_refresh_account}"
+                                                AutomationProperties.Name="{v:Loc refresh}" VerticalAlignment="Top" Margin="8,0,0,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Style="{StaticResource T.Icon}" Text="&#xE72C;" FontSize="12" Margin="0,0,6,0"/>
+                                                <TextBlock Text="{v:Loc refresh}"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <TextBlock x:Name="PlanText" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                    </DockPanel>
                                     <Grid x:Name="UsageGrid" Margin="0,8,0,0">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     </Grid>
+                                    <v:InlineMessage x:Name="SummaryMessage" ActionClick="SummaryRetry_Click"/>
                                     <TextBlock x:Name="BillingNotice" Style="{StaticResource Hint}" Foreground="{StaticResource B.Thinking}" FontSize="12.5"/>
-                                    <WrapPanel Margin="0,10,0,0">
-                                        <Button x:Name="UpgradeBtn" Style="{StaticResource Btn.Primary}" Click="Upgrade_Click" Margin="0,0,8,8" ToolTip="{v:Loc tt_upgrade}"/>
-                                        <Button x:Name="ManageBillingBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc manage_billing}" Click="Portal_Click" Margin="0,0,8,8" ToolTip="{v:Loc tt_manage_billing}"/>
-                                        <Button Style="{StaticResource Btn.Ghost}" Content="{v:Loc refresh}" Click="RefreshAccount_Click" Margin="0,0,8,8" ToolTip="{v:Loc tt_refresh_account}"/>
+                                    <WrapPanel Margin="0,12,0,0">
+                                        <Button x:Name="UpgradeBtn" Style="{StaticResource Btn.FormPrimary}" Click="Upgrade_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_upgrade}"/>
+                                        <Button x:Name="ManageBillingBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc manage_billing}" Click="Portal_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_manage_billing}"/>
                                     </WrapPanel>
+                                    <v:InlineMessage x:Name="BillingMessage" ActionClick="BillingRetry_Click"/>
                                     <TextBlock x:Name="UpgradeStatus" Style="{StaticResource Hint}"/>
                                     <TextBlock x:Name="BillingTerms" Style="{StaticResource Hint}"/>
                                 </StackPanel>
                             </Border>
                             <TextBlock Text="{v:Loc devices}" Style="{StaticResource Section}"/>
-                            <ListBox x:Name="DeviceList" Style="{StaticResource List}" Height="110" AutomationProperties.Name="{v:Loc devices}" SelectionChanged="DeviceList_SelectionChanged"/>
-                            <Button x:Name="RemoveDeviceBtn" Style="{StaticResource Btn.Ghost}" Content="{v:Loc remove_device}" Click="RevokeDevice_Click" HorizontalAlignment="Left" Margin="0,6,0,0" IsEnabled="False"/>
+                            <ListBox x:Name="DeviceList" Style="{StaticResource List}" MinHeight="60" MaxHeight="180" AutomationProperties.Name="{v:Loc devices}" SelectionChanged="DeviceList_SelectionChanged"/>
+                            <v:InlineMessage x:Name="DevicesMessage" ActionClick="DevicesRetry_Click"/>
+                            <Button x:Name="RemoveDeviceBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc remove_device}" Click="RevokeDevice_Click" HorizontalAlignment="Left" Margin="0,8,0,0" IsEnabled="False"/>
                             <TextBlock Text="{v:Loc security}" Style="{StaticResource Section}"/>
                             <WrapPanel>
-                                <Button Style="{StaticResource Btn.Base}" Content="{v:Loc change_password}" Click="ChangePassword_Click" Margin="0,0,8,6"/>
-                                <Button Style="{StaticResource Btn.Base}" Content="{v:Loc sign_in_another}" Click="SwitchAccount_Click" Margin="0,0,8,6" ToolTip="{v:Loc tt_sign_in_another}"/>
-                                <Button Style="{StaticResource Btn.Base}" Content="{v:Loc sign_out}" Click="SignOut_Click" Margin="0,0,8,6" ToolTip="{v:Loc tt_sign_out}"/>
+                                <Button Style="{StaticResource Btn.Form}" Content="{v:Loc change_password}" Click="ChangePassword_Click" Margin="{StaticResource S.ButtonGap}"/>
+                                <Button Style="{StaticResource Btn.Form}" Content="{v:Loc sign_in_another}" Click="SwitchAccount_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_sign_in_another}"/>
+                                <Button Style="{StaticResource Btn.Form}" Content="{v:Loc sign_out}" Click="SignOut_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_sign_out}"/>
                             </WrapPanel>
+                            <v:InlineMessage x:Name="SecurityMessage"/>
                             <TextBlock Text="{v:Loc privacy}" Style="{StaticResource Section}"/>
                             <WrapPanel>
-                                <Button Style="{StaticResource Btn.Base}" Content="{v:Loc export_my_data}" Click="ExportAccount_Click" Margin="0,0,8,6"/>
-                                <Button Style="{StaticResource Btn.Base}" Content="{v:Loc delete_account}" Click="DeleteAccount_Click" Margin="0,0,8,6"/>
+                                <Button Style="{StaticResource Btn.Form}" Content="{v:Loc export_my_data}" Click="ExportAccount_Click" Margin="{StaticResource S.ButtonGap}"/>
+                                <Button Style="{StaticResource Btn.Form}" Content="{v:Loc delete_account}" Click="DeleteAccount_Click" Margin="{StaticResource S.ButtonGap}"/>
                             </WrapPanel>
+                            <v:InlineMessage x:Name="PrivacyMessage"/>
                             <TextBlock Style="{StaticResource Hint}" Text="{v:Loc reauth_hint}"/>
                         </StackPanel>
 
@@ -436,17 +496,24 @@
                             <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <TextBlock Text="{v:Loc update_preference}" Style="{StaticResource T.Body}" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <ComboBox x:Name="ChannelBox" Grid.Column="1" Style="{StaticResource Combo}" MinWidth="180" SelectionChanged="Channel_Changed" AutomationProperties.Name="{v:Loc update_preference}">
+                            <ComboBox x:Name="ChannelBox" Grid.Column="1" MinWidth="180" SelectionChanged="Channel_Changed" AutomationProperties.Name="{v:Loc update_preference}">
                                 <ComboBoxItem Content="{v:Loc channel_stable}" Tag="stable"/>
                                 <ComboBoxItem Content="{v:Loc channel_beta}" Tag="beta"/>
                             </ComboBox>
-                            <Button x:Name="RestartUpdateBtn" Grid.Column="3" Style="{StaticResource Btn.Base}" Content="{v:Loc restart_to_update}" Click="RestartUpdate_Click" Visibility="Collapsed"/>
+                            <Button x:Name="RestartUpdateBtn" Grid.Column="3" Style="{StaticResource Btn.Form}" Content="{v:Loc restart_to_update}" Click="RestartUpdate_Click" Visibility="Collapsed"/>
                             <TextBlock x:Name="UpdateStatus" Grid.Row="1" Grid.ColumnSpan="4" Style="{StaticResource Hint}" Margin="0,6,0,0"/>
                         </Grid>
                         <TextBlock Style="{StaticResource Hint}" Text="{v:Loc updates_hint}"/>
                     </StackPanel>
+
+                    <!-- ===== Settings ===== -->
+                    <v:SettingsPage x:Name="PageSettings" Visibility="Collapsed"/>
                 </Grid>
             </ScrollViewer>
+            </DockPanel>
+
+            <!-- in-app dialogs: dim the whole window content (title bar and sidebar included) -->
+            <v:DialogHost x:Name="Dialogs" Grid.RowSpan="2" Grid.ColumnSpan="2" CornerRadius="{Binding CornerRadius, ElementName=HomeRoot}"/>
         </Grid>
     </Border>
     <v:ToastHost x:Name="Toasts" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,28,24" Panel.ZIndex="10"/>

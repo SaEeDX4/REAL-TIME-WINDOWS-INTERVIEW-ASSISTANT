@@ -1,9 +1,11 @@
 using System.Collections.ObjectModel;
 using System.Text;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using InterviewAssistant.App.UiState;
 using InterviewAssistant.App.Services;
 using InterviewAssistant.App.ViewModels;
 using InterviewAssistant.Core.Languages;
@@ -22,15 +24,23 @@ public sealed class CheckItem : ObservableObject
     private string _state = "—"; public string State { get => _state; set => Set(ref _state, value); }
     private string _icon = ""; public string Icon { get => _icon; set => Set(ref _icon, value); }
     private Brush _brush = Brushes.Gray; public Brush Brush { get => _brush; set => Set(ref _brush, value); }
-    public bool? Passed { get; private set; }
-    public bool IsWarning { get; private set; }
+    /// <summary>PASS / WARNING (optional improvement) / FAIL (blocks the interview) / pending.</summary>
+    public CheckOutcome Outcome { get; private set; } = CheckOutcome.Pending;
+    public bool? Passed => Outcome switch { CheckOutcome.Pass => true, CheckOutcome.Pending => null, _ => false };
+    public bool IsWarning => Outcome == CheckOutcome.Warning;
 
-    public void Pass(string detail) { Passed = true; IsWarning = false; Apply(Loc.T("pf_pass"), detail, "", "B.Listening"); }
-    public void Fail(string detail) { Passed = false; IsWarning = false; Apply(Loc.T("pf_fail"), detail, "", "B.Error"); }
-    public void Warn(string detail) { Passed = false; IsWarning = true; Apply(Loc.T("pf_warning"), detail, "", "B.Thinking"); }
-    public void Busy(string detail) { Passed = null; IsWarning = false; Apply(Loc.T("pf_checking"), detail, "", "B.Accent"); }
-    private void Apply(string s, string d, string i, string b) { State = s; Detail = d; Icon = i; Brush = (Brush)Application.Current.Resources[b]; }
-    public void RefreshTitle() { Raise(nameof(Title)); Raise(nameof(FixHint)); }
+    public void Pass(string detail) { Outcome = CheckOutcome.Pass; Apply("pf_pass", detail, "", "B.Listening"); }
+    public void Fail(string detail) { Outcome = CheckOutcome.Fail; Apply("pf_fail", detail, "", "B.Error"); }
+    public void Warn(string detail) { Outcome = CheckOutcome.Warning; Apply("pf_warning", detail, "", "B.Thinking"); }
+    public void Busy(string detail) { Outcome = CheckOutcome.Pending; Apply("pf_checking", detail, "", "B.Accent"); }
+    private string _stateKey = "";
+    private void Apply(string stateKey, string d, string i, string b) { _stateKey = stateKey; State = Loc.T(stateKey); Detail = d; Icon = i; Brush = (Brush)Application.Current.Resources[b]; }
+    public void RefreshTitle()
+    {
+        Raise(nameof(Title)); Raise(nameof(FixHint));
+        if (_stateKey.Length > 0) State = Loc.T(_stateKey);
+        Detail = Loc.Relocalize(Detail) ?? Detail;
+    }
 }
 
 /// <summary>Pre-interview check + test tools. All tests use the production classes (capture, transcriber, engine).</summary>
@@ -67,8 +77,12 @@ public partial class ReadinessWindow : Window
         Checks.ItemsSource = new ObservableCollection<CheckItem>(All);
         Loaded += (_, _) => { WindowPlacement.FitToWorkArea(this); if (_autoRun) _ = RunAllAsync(); };
         Loc.LanguageChanged += OnLanguageChanged;
-        Closed += (_, _) => { _toolCts?.Cancel(); Loc.LanguageChanged -= OnLanguageChanged; };
+        _main.SettingsApplied += OnSettingsApplied;
+        Closed += (_, _) => { _toolCts?.Cancel(); _signalCts?.Cancel(); Loc.LanguageChanged -= OnLanguageChanged; _main.SettingsApplied -= OnSettingsApplied; };
     }
+
+    /// <summary>Saved settings (e.g. another audio device) are checked again right away.</summary>
+    private void OnSettingsApplied() => Dispatcher.BeginInvoke(() => { if (RunBtn.IsEnabled) _ = RunAllAsync(); });
 
     private void OnLanguageChanged() => Dispatcher.BeginInvoke(() => { foreach (var c in All) c.RefreshTitle(); UpdateVerdict(); });
 
@@ -79,6 +93,7 @@ public partial class ReadinessWindow : Window
 
     public async Task RunAllAsync()
     {
+        if (!RunBtn.IsEnabled) return;   // already running
         RunBtn.IsEnabled = false;
         try
         {
@@ -132,7 +147,8 @@ public partial class ReadinessWindow : Window
                 catch (Client.BackendException ex) { device = ""; _auth.Fail(CloudService.Describe(ex)); }
                 if (device.Length > 0)
                 {
-                    if (today <= 0) _auth.Warn(F("pf_account_today_used", a.Email, MainViewModel.BillingLabel(a)));
+                    // Live listening is blocked for the rest of the day: that is a FAIL, not an optional warning.
+                    if (today <= 0) _auth.Fail(F("pf_account_today_used", a.Email, MainViewModel.BillingLabel(a)));
                     else _auth.Pass(F("pf_account_ok", a.Email, MainViewModel.BillingLabel(a), mins, today, device));
                 }
             }
@@ -183,15 +199,54 @@ public partial class ReadinessWindow : Window
         UpdateVerdict();
     }
 
+    private CancellationTokenSource? _signalCts;
+    /// <summary>Time the capture gets to start (device open, first buffers) before the listening window counts.</summary>
+    private static readonly TimeSpan SignalGrace = TimeSpan.FromSeconds(3);
+    /// <summary>After "nothing heard yet", the check keeps listening this long and passes as soon as audio plays.</summary>
+    private static readonly TimeSpan SignalFollowUp = TimeSpan.FromMinutes(2);
+
+    /// <summary>
+    /// Meeting-audio check. A short grace period lets the capture start before anything is judged; "nothing heard" is
+    /// a WARNING (the meeting may simply be silent yet), and the check keeps listening in the background so it turns
+    /// PASS by itself once audio plays (or after a successful audio or transcription test).
+    /// </summary>
     private async Task CheckSignalAsync(TimeSpan window)
     {
+        _signalCts?.Cancel();
+        _signalCts = new CancellationTokenSource();
+        var ct = _signalCts.Token;
         _signal.Busy(T("pf_busy_signal"));
-        var start = _vm.Capture.FramesWithSignal;
-        var until = DateTime.UtcNow + window;
-        while (DateTime.UtcNow < until && _vm.Capture.FramesWithSignal - start < 5) await Task.Delay(100);
-        if (_vm.Capture.FramesWithSignal - start >= 5) _signal.Pass(F("pf_signal_ok", Math.Round(_vm.Capture.LastPeakDb), _vm.Capture.CurrentDeviceName));
-        else _signal.Warn(F("pf_signal_none", window.TotalSeconds, _vm.Capture.CurrentDeviceName));
-        UpdateVerdict();
+        try
+        {
+            var graceUntil = DateTime.UtcNow + SignalGrace;
+            while (DateTime.UtcNow < graceUntil && _vm.Capture.Status != "ACTIVE") await Task.Delay(100, ct);
+            var start = _vm.Capture.FramesWithSignal;
+            bool Heard() => _vm.Capture.FramesWithSignal - start >= 5;
+            var until = DateTime.UtcNow + window;
+            while (DateTime.UtcNow < until && !Heard()) await Task.Delay(100, ct);
+            if (Heard()) { _signal.Pass(F("pf_signal_ok", Math.Round(_vm.Capture.LastPeakDb), _vm.Capture.CurrentDeviceName)); UpdateVerdict(); return; }
+            _signal.Warn(F("pf_signal_none", window.TotalSeconds, _vm.Capture.CurrentDeviceName));
+            UpdateVerdict();
+            _ = FollowUpSignalAsync(start, ct);
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task FollowUpSignalAsync(long start, CancellationToken ct)
+    {
+        try
+        {
+            var until = DateTime.UtcNow + SignalFollowUp;
+            while (DateTime.UtcNow < until && _signal.IsWarning)
+            {
+                await Task.Delay(250, ct);
+                if (_vm.Capture.FramesWithSignal - start < 5) continue;
+                _signal.Pass(F("pf_signal_ok", Math.Round(_vm.Capture.LastPeakDb), _vm.Capture.CurrentDeviceName));
+                UpdateVerdict();
+                return;
+            }
+        }
+        catch (OperationCanceledException) { }
     }
 
     private async Task CheckTranscriptionConnectAsync()
@@ -211,27 +266,42 @@ public partial class ReadinessWindow : Window
         else _stt.Fail(done == tcs.Task ? tcs.Task.Result.Item2 ?? T("pf_stt_failed") : T("svc_timeout"));
     }
 
+    /// <summary>The verdict follows the rule the window states: only FAIL blocks; warnings are optional improvements.</summary>
+    internal VerdictKind Verdict => ReadinessVerdict.Evaluate(All.Select(c => c.Outcome));
+
     private void UpdateVerdict()
     {
         var all = All.ToList();
         var res = Application.Current.Resources;
-        var pending = all.Any(c => c.Passed == null);
-        var failed = all.Where(c => c.Passed == false && !c.IsWarning).ToList();
-        var warnings = all.Where(c => c.IsWarning).ToList();
-        if (all.All(c => c.Passed == true) || !pending && failed.Count == 0 && warnings.All(w => w == _stt || w == _topmost || w == _bank || w == _kb))
+        var failed = all.Where(c => c.Outcome == CheckOutcome.Fail).ToList();
+        var warnings = all.Where(c => c.Outcome == CheckOutcome.Warning).ToList();
+        static string Lines(IEnumerable<CheckItem> items) => string.Join("\n", items.Select(c => $"• {c.Title}: {c.FixHint}"));
+        switch (Verdict)
         {
-            VerdictTitle.Text = "✓ " + T("ready");
-            VerdictTitle.Foreground = (Brush)res["B.Listening"];
-            VerdictDetail.Text = warnings.Count == 0 ? T("pf_verdict_ready") : T("pf_verdict_ready") + "\n" + string.Join("\n", warnings.Select(c => $"• {c.Title}: {c.FixHint}"));
+            case VerdictKind.Ready:
+                VerdictTitle.Text = "✓ " + T("ready");
+                VerdictTitle.Foreground = (Brush)res["B.Listening"];
+                VerdictDetail.Text = T("pf_verdict_ready");
+                break;
+            case VerdictKind.ReadyWithWarnings:
+                VerdictTitle.Text = "✓ " + T("pf_ready_warnings");
+                VerdictTitle.Foreground = (Brush)res["B.Listening"];
+                VerdictDetail.Text = T("pf_verdict_ready") + "\n" + T("pf_verdict_optional") + "\n" + Lines(warnings);
+                break;
+            case VerdictKind.NotReady:
+                VerdictTitle.Text = T("pf_not_ready");
+                VerdictTitle.Foreground = (Brush)res["B.Error"];
+                VerdictDetail.Text = Lines(failed) + (warnings.Count > 0 ? "\n" + T("pf_verdict_optional") + "\n" + Lines(warnings) : "");
+                if (failed.All(c => c == _signal || c == _stt || c == _answer || c == _auth))
+                    VerdictDetail.Text += "\n" + T("pf_typed_still_work");
+                break;
+            default:
+                VerdictTitle.Text = T("pf_checking_all");
+                VerdictTitle.Foreground = (Brush)res["B.Accent"];
+                VerdictDetail.Text = Lines(failed);
+                break;
         }
-        else
-        {
-            VerdictTitle.Text = pending ? T("pf_checking_all") : T("pf_not_ready");
-            VerdictTitle.Foreground = (Brush)res[pending ? "B.Accent" : "B.Thinking"];
-            VerdictDetail.Text = string.Join("\n", failed.Concat(warnings).Select(c => $"• {c.Title}: {c.FixHint}"));
-            if (!pending && failed.All(c => c == _signal || c == _stt || c == _answer || c == _auth))
-                VerdictDetail.Text += "\n" + T("pf_typed_still_work");
-        }
+        AutomationProperties.SetName(VerdictPanel, VerdictTitle.Text + ". " + VerdictDetail.Text);
     }
 
     // ---------------- test tools ----------------
@@ -284,7 +354,8 @@ public partial class ReadinessWindow : Window
         var ok = cap.FramesWithSignal - start >= 5;
         ShowResult(ok, T(ok ? "pf_audio_passed" : "pf_audio_failed"));
         Diagnostic($"{cap.SampleRate} Hz · {cap.Channels} ch · {cap.Encoding} → 24000 Hz mono PCM16 · {cap.Status} · peak {maxPeak:0.0} dBFS");
-        if (ok) _signal.Pass(F("pf_signal_ok", Math.Round(maxPeak), cap.CurrentDeviceName)); else _signal.Warn(T("pf_audio_failed"));
+        if (ok) { _signalCts?.Cancel(); _signal.Pass(F("pf_signal_ok", Math.Round(maxPeak), cap.CurrentDeviceName)); }
+        else if (_signal.Outcome != CheckOutcome.Pass) _signal.Warn(T("pf_audio_failed"));
         UpdateVerdict();
     }
 
@@ -304,7 +375,13 @@ public partial class ReadinessWindow : Window
         var ok = transcript.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length >= 3;
         ShowResult(ok, ok ? T("pf_stt_passed") : T("pf_stt_no_text"));
         Diagnostic(result);
-        if (ok) _stt.Pass(T("pf_stt_passed")); else if (_stt.Passed != true) _stt.Warn(T("pf_stt_no_text"));
+        if (ok)
+        {
+            _stt.Pass(T("pf_stt_passed"));
+            // Words were transcribed from the meeting audio, so the audio signal is proven too (re-evaluated at once).
+            if (_signal.Outcome != CheckOutcome.Pass) { _signalCts?.Cancel(); _signal.Pass(F("pf_signal_from_stt", _vm.Capture.CurrentDeviceName)); }
+        }
+        else if (_stt.Passed != true) _stt.Warn(T("pf_stt_no_text"));
         UpdateVerdict();
     }
 
@@ -328,7 +405,8 @@ public partial class ReadinessWindow : Window
 
     // ---------------- buttons ----------------
     private void Run_Click(object sender, RoutedEventArgs e) => _ = RunAllAsync();
-    private void Settings_Click(object sender, RoutedEventArgs e) { _main.OpenSettings(); _ = RunAllAsync(); }
+    /// <summary>Settings is a page in Home (audio section first); saving there re-runs these checks (<see cref="OnSettingsApplied"/>).</summary>
+    private void Settings_Click(object sender, RoutedEventArgs e) => _main.OpenSettings("audio");
 
     /// <summary>Starts listening immediately (no second Start button) and confirms it.</summary>
     private async void Start_Click(object sender, RoutedEventArgs e)

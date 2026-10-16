@@ -288,6 +288,52 @@ public class CloudAuthTests
         Assert.Contains(stub.Calls, c => c.Body.Contains("\"auth_code\":\"RESET\""));
     }
 
+    /// <summary>
+    /// Enumeration safety (rc.3 bug: an unknown address showed "We sent a reset link to …"): an existing and an unknown
+    /// address produce the same displayed notice and the same outcome; the notice never names the address or claims
+    /// delivery. Rate limits are still reported.
+    /// </summary>
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound, "user_not_found")]
+    [InlineData(HttpStatusCode.BadRequest, "email_not_found")]
+    [InlineData(HttpStatusCode.NotFound, null)]
+    public async Task PasswordReset_ShowsTheSameNeutralNotice_ForKnownAndUnknownAddresses(HttpStatusCode unknownStatus, string? unknownCode)
+    {
+        var before = Core.Languages.Loc.Language;
+        Core.Languages.Loc.Language = "en";
+        try
+        {
+            async Task<(string? Shown, string Outcome)> Reset(string email)
+            {
+                var stub = new Stub((r, b) => b.Contains("known@example.test") && !b.Contains("unknown@")
+                    ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}") }
+                    : unknownCode != null ? Err(unknownStatus, unknownCode, "User not found") : new HttpResponseMessage(unknownStatus) { Content = new StringContent("{}") });
+                var auth = new SupabaseAuth(new HttpClient(stub), Opt, new MemoryStore());
+                string? shown = null;
+                // What the Account page shows when the request is accepted (HomeWindow.Forgot_Click).
+                try { await auth.RecoverPasswordAsync(email, TimeSpan.FromMilliseconds(300), default, () => shown = App.UiState.PasswordResetCopy.Requested); }
+                catch (Exception ex) { return (shown, ex.GetType().Name); }
+                return (shown, "completed");
+            }
+            var known = await Reset("known@example.test");
+            var unknown = await Reset("unknown@example.test");
+            Assert.Equal("If an account exists for this e-mail, a password reset link has been sent.", known.Shown);
+            Assert.Equal(known, unknown);   // same text, same outcome (no reset link opened within the wait)
+            Assert.DoesNotContain("example.test", known.Shown);
+        }
+        finally { Core.Languages.Loc.Language = before; }
+    }
+
+    [Fact]
+    public async Task PasswordReset_StillReportsRateLimits()
+    {
+        var auth = new SupabaseAuth(new HttpClient(new Stub((_, _) => Err(HttpStatusCode.TooManyRequests, "over_email_send_rate_limit", "x"))), Opt, new MemoryStore());
+        var accepted = false;
+        var ex = await Assert.ThrowsAsync<AuthException>(() => auth.RecoverPasswordAsync("a@b.test", TimeSpan.FromSeconds(1), default, () => accepted = true));
+        Assert.Equal("over_email_send_rate_limit", ex.Code);
+        Assert.False(accepted);
+    }
+
     [Fact]
     public async Task ExpiredRefreshMarksSessionExpired()
     {

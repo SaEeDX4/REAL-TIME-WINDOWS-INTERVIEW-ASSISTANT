@@ -10,7 +10,7 @@ namespace InterviewAssistant.App.Services;
 
 /// <summary>
 /// `InterviewAssistant.exe --selftest result.json` — runs inside the real WPF process on Windows (CI or user PC),
-/// with NO API key and NO credits: loads every window's XAML, drives the manual-question UI, checks error states,
+/// with NO API key and NO credits: loads every window's XAML and every Home page (Settings included), drives the manual-question UI, checks error states,
 /// DPAPI, settings persistence, hotkeys, audio enumeration and pause/stop. Exit code 0 = all passed.
 /// </summary>
 public static class SelfTest
@@ -179,13 +179,16 @@ public static class SelfTest
                     ScanTexts(w, english, leftovers);
                     var home = new HomeWindow(vm, w) { Owner = w };
                     home.Show(); await Idle();
-                    foreach (var page in new[] { "start", "profiles", "interviews", "reports", "account", "help" }) { home.ShowPage(page); await Idle(); ScanTexts(home, english, leftovers); }
+                    foreach (var page in HomePages) { home.ShowPage(page); await Idle(); ScanTexts(home, english, leftovers); }
+                    // an in-app dialog (localized buttons, RTL)
+                    var dialog = Views.AppDialog.ConfirmAsync(home, Core.Languages.Loc.T("confirm_delete_report"), Core.Languages.Loc.T("dlg_delete"), destructive: true);
+                    await Idle(); ScanTexts(home, english, leftovers);
+                    PressKey(home, System.Windows.Input.Key.Escape); await Task.WhenAny(dialog, Task.Delay(2000));
                     var rtlOk = lang != "fa" || home.FlowDirection == FlowDirection.RightToLeft;
                     home.Close();
-                    var s = new SettingsWindow(vm) { Owner = w }; s.Show(); await Idle(); ScanTexts(s, english, leftovers); s.Close();
                     var r = new ReadinessWindow(vm, w, autoRun: false) { Owner = w }; r.Show(); await Idle(); r.CheckLocal(); await Idle(); ScanTexts(r, english, leftovers); r.Close();
                     var mainRtl = lang != "fa" || w.FlowDirection == FlowDirection.RightToLeft;
-                    return (leftovers.Count == 0 && rtlOk && mainRtl, leftovers.Count == 0 ? $"4 windows, 6 home pages scanned; {(lang == "fa" ? "right-to-left" : "left-to-right")}" : "English left: " + string.Join(" | ", leftovers.Take(12)));
+                    return (leftovers.Count == 0 && rtlOk && mainRtl && dialog.IsCompleted, leftovers.Count == 0 ? $"3 windows, {HomePages.Length} home pages and a dialog scanned; {(lang == "fa" ? "right-to-left" : "left-to-right")}" : "English left: " + string.Join(" | ", leftovers.Take(12)));
                 }
                 finally { vm.Settings.UiLanguage = "en"; w.ApplyAppearance(); await Idle(); }
             });
@@ -193,12 +196,19 @@ public static class SelfTest
         {
             var home = new HomeWindow(vm, w) { Owner = w };
             home.Show(); await Idle();
-            foreach (var page in new[] { "start", "profiles", "interviews", "reports", "account", "help" }) { home.ShowPage(page); await Idle(); }
+            foreach (var page in HomePages) { home.ShowPage(page); await Idle(); }
             home.ShowPage("account"); await Idle();
             var signInForm = home.SignedOutPanel.Visibility == Visibility.Visible || !vm.Cloud.IsConfigured;
             var noDevButton = BuildFlavor.Developer || home.DeveloperModeBtn.Visibility != Visibility.Visible;
-            var ok = home.IsLoaded && signInForm && noDevButton; home.Close();
-            return (ok, $"5 pages rendered; sign-in form {(signInForm ? "shown" : "MISSING")}; developer button {(noDevButton ? "hidden" : "VISIBLE")}");
+            // PasswordBox: same template family as TextBox, placeholder state tracked without reading the password
+            home.PasswordBox.Password = "x"; await Idle();
+            var tracksFilled = !Views.Watermark.GetIsEmpty(home.PasswordBox);
+            home.PasswordBox.Clear(); await Idle();
+            var tracksEmpty = Views.Watermark.GetIsEmpty(home.PasswordBox);
+            var sameHeight = Math.Abs(home.PasswordBox.ActualHeight - home.EmailBox.ActualHeight) < 0.5;
+            var ok = home.IsLoaded && signInForm && noDevButton && tracksFilled && tracksEmpty && sameHeight; home.Close();
+            return (ok, $"{HomePages.Length} pages rendered; sign-in form {(signInForm ? "shown" : "MISSING")}; developer button {(noDevButton ? "hidden" : "VISIBLE")}; "
+                        + $"password field {home.PasswordBox.ActualHeight:0}px = e-mail field {home.EmailBox.ActualHeight:0}px: {sameHeight}; placeholder tracking {tracksFilled && tracksEmpty}");
         });
         await Check("Profile → confirm facts → prepare → load (isolated DPAPI workspace)", async () =>
         {
@@ -227,20 +237,81 @@ public static class SelfTest
             var secretLike = System.Text.RegularExpressions.Regex.IsMatch(text, @"sk-|pdl_|secret|service_role|password", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             return Task.FromResult((text.Contains("https://") && !secretLike, text.Length == 0 ? "missing" : text.Replace("\n", " ").Trim()));
         });
-        await Check("Settings window XAML", async () =>
+        await Check("Settings: a page in Home (gear deep-links to a section), explicit Save, validation, Discard, no separate window", async () =>
         {
-            var s = new SettingsWindow(vm) { Owner = w };
-            s.Show(); await Idle();
-            var ok = s.IsLoaded; s.Close();
-            return (ok, "opened and closed");
+            w.OpenSettings("hotkeys"); await Idle(); await Idle();
+            var home = w.Home;
+            if (home == null) return (false, "Home did not open");
+            var page = home.SettingsPageForTest;
+            var onPage = home.CurrentPage == "settings" && page.IsVisible;
+            var noWindow = !Application.Current.Windows.OfType<Window>().Any(x => x is not MainWindow && x is not HomeWindow && x.GetType().Name.Contains("Settings"));
+            var original = page.HkToggle.Text;
+            page.HkToggle.Text = vm.Settings.HotkeyCoachToggle;   // conflicts with the fixed coach-mode hotkey
+            var dirty = page.Guard.IsDirty;
+            var rejected = !page.Save() && Views.Field.GetHasError(page.HkToggle) && page.HkToggleError.Visibility == Visibility.Visible;
+            page.Discard(); await Idle();
+            var discarded = !page.Guard.IsDirty && page.HkToggle.Text == original;
+            home.Close(); await Idle();
+            return (onPage && noWindow && dirty && rejected && discarded, $"page {home.CurrentPage}; dirty {dirty}; conflict rejected {rejected}; discard restored {discarded}");
+        });
+        await Check("Language switch with unsaved edits: no question, edits and page kept (not navigation)", async () =>
+        {
+            w.OpenSettings("hotkeys"); await Idle();
+            var home = w.Home!;
+            var page = home.SettingsPageForTest;
+            page.HkManual.Text = "Ctrl+Alt+M";
+            vm.Settings.UiLanguage = "fa"; w.ApplyAppearance(); await Idle(); await Idle();
+            var noQuestion = !Views.AppDialog.IsOpen(home);
+            var kept = page.Guard.IsDirty && page.HkManual.Text == "Ctrl+Alt+M" && home.CurrentPage == "settings";
+            vm.Settings.UiLanguage = "en"; w.ApplyAppearance(); await Idle(); await Idle();
+            kept &= page.Guard.IsDirty && page.HkManual.Text == "Ctrl+Alt+M";
+            page.Discard(); await Idle();
+            home.Close(); await Idle();
+            return (noQuestion && kept, $"question shown: {!noQuestion}; edit kept through fa → en: {kept}");
+        });
+        await Check("In-app dialog: overlay inside the window, destructive defaults to Cancel, Escape cancels, unsaved-changes question on close", async () =>
+        {
+            w.OpenHome(); await Idle();
+            var home = w.Home!;
+            var confirm = Views.AppDialog.ConfirmAsync(home, "selftest", Core.Languages.Loc.T("dlg_delete"), destructive: true);
+            await Idle(); await Idle();
+            var open = Views.AppDialog.IsOpen(home);
+            var focused = System.Windows.Input.FocusManager.GetFocusedElement(home) as System.Windows.Controls.Button;
+            var defaultCancel = focused?.Content as string == Core.Languages.Loc.T("dlg_cancel");
+            PressKey(home, System.Windows.Input.Key.Escape);
+            var cancelled = await Task.WhenAny(confirm, Task.Delay(2000)) == confirm && !confirm.Result && !Views.AppDialog.IsOpen(home);
+            // closing with unsaved settings asks first (the window stays open until answered)
+            home.ShowSettings("hotkeys"); await Idle();
+            home.SettingsPageForTest.HkStart.Text = "Ctrl+Alt+K";
+            home.Close(); await Idle(); await Idle();
+            var asked = home.IsLoaded && Views.AppDialog.IsOpen(home);
+            PressKey(home, System.Windows.Input.Key.Escape); await Idle();   // Cancel = stay
+            var stayed = home.IsLoaded && home.SettingsPageForTest.Guard.IsDirty;
+            home.SettingsPageForTest.Discard(); home.Close(); await Idle();
+            return (open && defaultCancel && cancelled && asked && stayed && !home.IsLoaded, $"overlay {open}; default Cancel {defaultCancel}; Escape → cancel {cancelled}; close asked {asked}, stayed {stayed}");
+        });
+        await Check("Placeholder: inside the field, never hit-testable, hidden while focused or filled", async () =>
+        {
+            var box = w.ManualInput;
+            box.Text = "";
+            if (box.IsKeyboardFocused) System.Windows.Input.Keyboard.ClearFocus();
+            await Idle();
+            if (box.Template.FindName("Placeholder", box) is not System.Windows.Controls.TextBlock ph) return (false, "template has no placeholder");
+            var shownEmpty = ph.Visibility == Visibility.Visible && ph.Text == vm.LTypeHint;
+            box.Text = "typed"; await Idle();
+            var hiddenFilled = ph.Visibility != Visibility.Visible;
+            box.Text = ""; box.Focus(); await Idle();
+            var hiddenFocused = !box.IsKeyboardFocused || ph.Visibility != Visibility.Visible;
+            System.Windows.Input.Keyboard.ClearFocus();
+            return (shownEmpty && hiddenFilled && hiddenFocused && !ph.IsHitTestVisible, $"empty {shownEmpty}; filled hides {hiddenFilled}; focus hides {hiddenFocused}");
         });
         await Check("Pre-interview window XAML + local checks", async () =>
         {
             var r = new ReadinessWindow(vm, w, autoRun: false) { Owner = w };
             r.Show(); await Idle();
             r.CheckLocal(); await Idle();
-            var ok = r.IsLoaded; r.Close();
-            return (ok, "opened, local checks ran, closed");
+            var ok = r.IsLoaded; var verdict = r.Verdict; r.Close();
+            return (ok, $"opened, local checks ran ({verdict}), closed");
         });
         await Check("Compact mode toggle", async () => { w.SetCompact(true); await Idle(); w.SetCompact(false); await Idle(); return (true, "on/off"); });
         await Check("Diagnostics panel", async () => { vm.Settings.ShowDiagnostics = true; w.ApplyAppearance(); await Task.Delay(1300); var d = vm.Diagnostics; vm.Settings.ShowDiagnostics = false; w.ApplyAppearance(); return (d.Contains("Questions"), d.Split('\n')[0]); });
@@ -289,6 +360,18 @@ public static class SelfTest
         File.WriteAllText(outPath, json);
         AppLog.Info($"SELFTEST {(passed ? "PASSED" : "FAILED")} ({results.Count(r => r.Ok)}/{results.Count})");
         return passed ? 0 : 1;
+    }
+
+    private static readonly string[] HomePages = { "start", "profiles", "interviews", "reports", "account", "settings", "help" };
+
+    /// <summary>Sends a key to the focused element of <paramref name="window"/> (tunnelling, like a real key press).</summary>
+    private static void PressKey(Window window, System.Windows.Input.Key key)
+    {
+        if (PresentationSource.FromVisual(window) is not { } source) return;
+        var target = System.Windows.Input.FocusManager.GetFocusedElement(window) as UIElement ?? window;
+        // An open dialog owns the keyboard: without OS focus (CI desktop) send the key through its card.
+        if (Views.DialogHost.Find(window)?.TopCard is { } card && !card.IsAncestorOf(target)) target = card;
+        target.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice, source, 0, key) { RoutedEvent = System.Windows.Input.Keyboard.PreviewKeyDownEvent });
     }
 
     /// <summary>English UI strings whose translation differs: seeing one of them on screen means a surface was not localised.</summary>
