@@ -24,20 +24,33 @@ public enum UtteranceKind
     ShortAcousticEvent,
     /// <summary>Recognizer artefacts ("Thanks for watching", "♪", "...").</summary>
     Noise,
+    /// <summary>A voice was heard, but far too little of it to have said these words (recognizer filled in text).</summary>
+    ImplausibleTranscript,
+    /// <summary>An interview-flavoured sentence built from the interview's own vocabulary over too little speech.</summary>
+    ContextHallucination,
 }
 
-public sealed record UtteranceVerdict(UtteranceKind Kind, string Reason)
+public sealed record UtteranceVerdict(UtteranceKind Kind, string Reason, AcousticSupport Support = AcousticSupport.Unknown)
 {
     public bool Answerable => Kind is UtteranceKind.Question or UtteranceKind.ImplicitPrompt;
+    /// <summary>Rejected because the audio or its consistency with the text says it was not interviewer speech.</summary>
+    public bool NotSpeech => Kind is UtteranceKind.Noise or UtteranceKind.PromptEcho or UtteranceKind.NonSpeech or UtteranceKind.ShortAcousticEvent
+        or UtteranceKind.ImplausibleTranscript or UtteranceKind.ContextHallucination;
 }
 
 /// <summary>
 /// Utterance validity layer between the turn detector and the answer engine (defense in depth against answering
-/// things that are not interview questions for this candidate):
-///  1. recognizer artefacts → Noise;  2. acoustic evidence (no human speech in the audio) → ShortAcousticEvent/NonSpeech;
-///  3. prompt echo;  4. per sentence: logistics, addressed to someone else, question/request, implicit prompt, context.
-/// A question does not need a question mark ("Tell me about yourself.", "Walk me through that."). The gate never
-/// rejects a question for mentioning target terms; it rejects the structure of the prompt.
+/// things that are not interview questions for this candidate). Text alone can never prove speech — a recognizer given a
+/// chime may return a perfectly formed interview question — so the audio is judged first and the text must fit it:
+///  1. recognizer artefacts → Noise;
+///  2. the audio is not a voice (no voiced sound; narrow-band, steadily held or jumping pitch) → ShortAcousticEvent /
+///     NonSpeech, whatever the text says (no exception for long, well-formed questions);
+///  3. the voice heard could not have said these words (syllables vs voiced time and duration) → ImplausibleTranscript;
+///  4. weak support and a sentence built from the interview's own vocabulary prompt → ContextHallucination;
+///  5. prompt echo;  6. per sentence: logistics, addressed to someone else, question/request, implicit prompt, context.
+/// Short real follow-ups ("Why?", "How so?") pass: they need little voiced time, and a real voice provides it. When no audio
+/// was analysed (tests, capture not running) the acoustic steps abstain. A question does not need a question mark, and
+/// mentioning target terms with a clearly heard voice is normal; only the combination with weak audio is suspicious.
 /// </summary>
 public sealed class UtteranceGate
 {
@@ -71,6 +84,19 @@ public sealed class UtteranceGate
 
     private static readonly Regex Request = new(
         @"\b(tell (me|us)|walk (me|us)|talk (me|us) through|take (me|us) through|run (me|us) through|describe|explain|give (me|us)|share (with|an?|your|some)|elaborate|expand on|go deeper|help (me|us) understand|let's (talk|hear) about|i'?d (like|love) (to )?(hear|know|understand|learn)|i('m| am) (curious|interested) (about|to|in)|i want to (hear|know|understand)|what about|how about|thoughts on|your (view|take|thoughts|opinion) on|convince (me|us)|pitch (me|us)|sell (me|us)|imagine|suppose|say you|let's say|please)\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    /// <summary>
+    /// Elliptical follow-ups that are complete questions on their own even when a recognizer writes them with a falling
+    /// period ("Why.", "How so.", "What happened.", "And then."). A closed set of English interrogative forms — not a list
+    /// of transcripts — so a lone "Why" stays answerable while "What a day." does not.
+    /// </summary>
+    private static readonly Regex EllipticalFollowUp = new(
+        @"^((and|so|but|okay|ok|right|hm+|mm+)[,.]?\s+)?(why( not| so| exactly| is that| was that)?|how( so| come| exactly| do you mean)?|what happened( next| then| after that)?|what then|then what|and then( what)?|what else|anything else|like what|such as|for example|in what way|meaning|what do you mean|how did that go|what was the (result|outcome|impact))[.!…]*$",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static readonly Regex Exclamative = new(
+        @"^((and|so|oh|well|wow)[,.]?\s+)?(what an? |how (very |really )?(nice|great|good|interesting|cool|lovely|wonderful|funny|true|kind|exciting|impressive|fascinating|amazing)\b)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex ConditionalAsk = new(@"\bif you\b.*\b(what|how|which|would you|will you|do you)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -113,7 +139,7 @@ public sealed class UtteranceGate
     public UtteranceVerdict? EvaluateSegment(string text, SpeechEvidence evidence)
     {
         var v = Evaluate(text, evidence);
-        return v.Kind is UtteranceKind.Noise or UtteranceKind.PromptEcho or UtteranceKind.NonSpeech or UtteranceKind.ShortAcousticEvent ? v : null;
+        return v.NotSpeech ? v : null;
     }
 
     public UtteranceVerdict Evaluate(string text, SpeechEvidence evidence = default)
@@ -121,24 +147,23 @@ public sealed class UtteranceGate
         var t = (text ?? "").Trim();
         if (t.Length == 0 || Artefact.IsMatch(t)) return new(UtteranceKind.Noise, "recognizer artefact");
         var sentences = QuestionExtractor.Sentences(t);
-        bool clearQuestion = sentences.Any(s => IsQuestionSentence(s) && !Logistics.IsMatch(s) && AddressedTo(s) != Addressee.Other)
-                             && TextNormalizer.WordCount(t) >= 6;
+        var support = SpeechPlausibility.Assess(t, evidence);
+        var echo = _echo.Check(t, evidence);
 
-        if (!evidence.Unknown && !evidence.HasSpeech)
+        switch (support)
         {
-            var echoUnderNoise = _echo.Check(t, evidence);
-            // Acoustic veto: no human speech in the audio. A long, clearly formed question is the one exception (the
-            // acoustic layer could be wrong about unusual audio); recognizer hallucinations on noise are prompt echoes
-            // and short phrases, which never pass.
-            if (echoUnderNoise.IsEcho) return new(UtteranceKind.PromptEcho, "prompt echo without speech: " + echoUnderNoise.Reason);
-            if (!clearQuestion)
-                return evidence.IsShortNonSpeechEvent
-                    ? new(UtteranceKind.ShortAcousticEvent, "short non-speech sound: " + evidence)
-                    : new(UtteranceKind.NonSpeech, "no speech in audio: " + evidence);
+            case AcousticSupport.None:
+                if (echo.IsEcho) return new(UtteranceKind.PromptEcho, "prompt echo without speech: " + echo.Reason, support);
+                return evidence.ActiveMs <= SpeechEvidence.ShortEventMs
+                    ? new(UtteranceKind.ShortAcousticEvent, $"short non-speech sound ({evidence.NotVoiceReason}): {evidence}", support)
+                    : new(UtteranceKind.NonSpeech, $"no voice in audio ({evidence.NotVoiceReason}): {evidence}", support);
+            case AcousticSupport.Implausible:
+                return new(UtteranceKind.ImplausibleTranscript, $"{SpeechPlausibility.Syllables(t)} syllables cannot fit the speech heard: {evidence}", support);
+            case AcousticSupport.Weak when _echo.ContextOverlap(t) > 0:
+                return new(UtteranceKind.ContextHallucination, $"interview-vocabulary sentence over little speech ({SpeechPlausibility.Syllables(t)} syllables): {evidence}", support);
         }
 
-        var echo = _echo.Check(t, evidence);
-        if (echo.IsEcho) return new(UtteranceKind.PromptEcho, "prompt echo: " + echo.Reason);
+        if (echo.IsEcho) return new(UtteranceKind.PromptEcho, "prompt echo: " + echo.Reason, support);
 
         bool anyQuestion = false, anyOther = false, anyLogistics = false, anyImplicit = false;
         foreach (var s in sentences)
@@ -154,11 +179,11 @@ public sealed class UtteranceGate
             if (to == Addressee.Other) { anyOther = true; continue; }
             anyQuestion = true;
         }
-        if (anyQuestion) return new(UtteranceKind.Question, "question");
-        if (anyImplicit) return new(UtteranceKind.ImplicitPrompt, "statement inviting the candidate to respond");
-        if (anyOther) return new(UtteranceKind.OtherDirected, "addressed to another participant");
-        if (anyLogistics) return new(UtteranceKind.Logistics, "meeting logistics");
-        return new(UtteranceKind.Context, "statement without a question");
+        if (anyQuestion) return new(UtteranceKind.Question, "question", support);
+        if (anyImplicit) return new(UtteranceKind.ImplicitPrompt, "statement inviting the candidate to respond", support);
+        if (anyOther) return new(UtteranceKind.OtherDirected, "addressed to another participant", support);
+        if (anyLogistics) return new(UtteranceKind.Logistics, "meeting logistics", support);
+        return new(UtteranceKind.Context, "statement without a question", support);
     }
 
     /// <summary>"Sorry about that — so how would you prioritise…?" contains a real ask after the logistics phrase.</summary>
@@ -173,6 +198,8 @@ public sealed class UtteranceGate
         var t = s.Trim();
         if (t.Length == 0) return false;
         if (t.EndsWith('?')) return true;
+        if (EllipticalFollowUp.IsMatch(t)) return true;
+        if (Exclamative.IsMatch(t)) return false;   // "What a day." / "How interesting that is." are reactions, not asks
         return QuestionStart.IsMatch(t) && TextNormalizer.WordCount(t) >= 3 || Request.IsMatch(t) || ConditionalAsk.IsMatch(t);
     }
 

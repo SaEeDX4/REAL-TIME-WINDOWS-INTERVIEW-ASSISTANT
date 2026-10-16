@@ -740,5 +740,6 @@
  "rpt_latency": "P50 {0} ms · P95 {1} ms (domanda → primo suggerimento)",
  "bill_revoked": "Pro terminato — pagamento rimborsato",
  "bill_notice_revoked": "Il pagamento di questo periodo è stato rimborsato o contestato, quindi l’accesso Pro è terminato. Passa a Pro per continuare.",
- "acct_deleted_identity_pending": "Il tuo account è stato eliminato. Le tue credenziali di accesso verranno rimosse automaticamente entro pochi minuti."
+ "acct_deleted_identity_pending": "Il tuo account è stato eliminato. Le tue credenziali di accesso verranno rimosse automaticamente entro pochi minuti.",
+ "status_hearing": "Audio rilevato"
 }

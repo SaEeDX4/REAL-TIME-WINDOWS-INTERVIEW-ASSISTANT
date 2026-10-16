@@ -194,6 +194,7 @@ public class Rc2EngineAcceptanceTests
         var maxHandlerMs = 0.0;
         var live = 0;
         s.E.LiveTranscriptChanged += t => { live++; Assert.True(t.Length <= s.E.Options.LiveTextMaxChars + 1); };
+        s.Voice(300_000);                                                // five minutes of audible interviewer speech
         s.T.Start();
         var sw = new System.Diagnostics.Stopwatch();
         for (int i = 0; i < 3000; i++)
@@ -202,7 +203,7 @@ public class Rc2EngineAcceptanceTests
             var off = i * 7 % (sentence.Length - 7);
             s.T.Partial("mono", sentence.Substring(off, 7));
             maxHandlerMs = Math.Max(maxHandlerMs, sw.Elapsed.TotalMilliseconds);
-            if (i % 10 == 0) await s.RunAsync(100);   // 100 ms of virtual time per 10 deltas = 5 minutes
+            if (i % 10 == 0) await s.RunAsync(1000);  // 1 s of virtual time per 10 deltas = 5 minutes (≈10 words/s of deltas)
         }
         var monologue = string.Concat(Enumerable.Repeat(sentence, 180)) + "So what would you change first to improve retention?";
         s.T.Stop();
@@ -223,6 +224,7 @@ public class Rc2EngineAcceptanceTests
         var s = await StartAsync();
         GC.Collect(); var before = GC.GetTotalMemory(true);
         // 10 minutes of statements with short (<settle) pauses: one huge turn, never finalized mid-way.
+        s.Voice(603_000);
         s.T.Start();
         for (int i = 0; i < 600; i++)
         {

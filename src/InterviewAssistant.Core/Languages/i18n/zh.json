@@ -740,5 +740,6 @@
  "rpt_latency": "P50 {0} ms · P95 {1} ms（问题 → 首条建议）",
  "bill_revoked": "Pro 已结束 — 款项已退还",
  "bill_notice_revoked": "本期款项已退款或被提出争议，因此 Pro 权限已结束。升级即可继续使用 Pro。",
- "acct_deleted_identity_pending": "您的账户已删除。您的登录信息将在几分钟内自动移除。"
+ "acct_deleted_identity_pending": "您的账户已删除。您的登录信息将在几分钟内自动移除。",
+ "status_hearing": "正在接收音频"
 }

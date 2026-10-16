@@ -740,5 +740,6 @@
  "rpt_latency": "P50 {0} ms · P95 {1} ms (Frage → erster Vorschlag)",
  "bill_revoked": "Pro beendet – Zahlung erstattet",
  "bill_notice_revoked": "Die Zahlung für diesen Zeitraum wurde erstattet oder angefochten, daher ist der Pro-Zugang beendet. Führen Sie ein Upgrade durch, um Pro weiter zu nutzen.",
- "acct_deleted_identity_pending": "Ihr Konto wurde gelöscht. Ihre Anmeldung wird in wenigen Minuten automatisch entfernt."
+ "acct_deleted_identity_pending": "Ihr Konto wurde gelöscht. Ihre Anmeldung wird in wenigen Minuten automatisch entfernt.",
+ "status_hearing": "Audio erkannt"
 }

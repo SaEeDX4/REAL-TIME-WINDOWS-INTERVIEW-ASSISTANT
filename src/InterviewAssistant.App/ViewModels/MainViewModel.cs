@@ -1018,6 +1018,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         {
             EngineStatus.Listening => (L("status_listening"), "B.Listening", true, L("detail_listening")),
             EngineStatus.Quiet => (L("status_quiet"), "B.Listening", false, L("detail_listening")),
+            EngineStatus.HearingAudio => (L("status_hearing"), "B.Listening", true, null),
             EngineStatus.SpeechDetected => (L("status_speech"), "B.Listening", true, null),
             EngineStatus.Finalizing => (L("status_finalizing"), "B.Thinking", true, null),
             EngineStatus.Answering => (L("status_answering"), "B.Accent", true, null),

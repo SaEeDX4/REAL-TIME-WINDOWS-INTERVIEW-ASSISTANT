@@ -57,6 +57,7 @@ public class SoakTests
         var s = new InterviewSimulator(kb, provider: c => provider = new VirtualLatencyProvider(c));
         var sim = s;
         var e = s.E;
+        e.Log += l => { if (l.StartsWith("Turn not answered")) _out.WriteLine("engine: " + l); };
         await e.StartListeningAsync();
 
         var rnd = new Random(7);

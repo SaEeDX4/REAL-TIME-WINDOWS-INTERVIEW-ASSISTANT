@@ -740,5 +740,6 @@
  "rpt_latency": "P50 {0} ms · P95 {1} ms (question → première suggestion)",
  "bill_revoked": "Pro terminé — paiement remboursé",
  "bill_notice_revoked": "Le paiement de cette période a été remboursé ou contesté : l’accès Pro a donc pris fin. Passez à Pro pour continuer.",
- "acct_deleted_identity_pending": "Votre compte a été supprimé. Votre identifiant de connexion sera supprimé automatiquement d’ici quelques minutes."
+ "acct_deleted_identity_pending": "Votre compte a été supprimé. Votre identifiant de connexion sera supprimé automatiquement d’ici quelques minutes.",
+ "status_hearing": "Son détecté"
 }

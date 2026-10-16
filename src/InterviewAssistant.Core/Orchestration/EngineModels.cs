@@ -7,7 +7,12 @@ namespace InterviewAssistant.Core.Orchestration;
 /// Live states. <see cref="Quiet"/> is normal silence (neutral); <see cref="NoAudio"/> is a one-time warning when nothing
 /// has been heard since listening started (likely the wrong playback device).
 /// </summary>
-public enum EngineStatus { Ready, Listening, SpeechDetected, Finalizing, Answering, Paused, Reconnecting, NoAudio, ApiError, Stopped, Quiet, AnswerReady }
+/// <summary>
+/// <see cref="HearingAudio"/>: sound is being segmented but no trustworthy words exist yet (shown neutrally: a beep never
+/// appears as "transcribing" or "question detected"); <see cref="SpeechDetected"/>: trusted words are arriving;
+/// <see cref="Finalizing"/>: an answerable question is settling.
+/// </summary>
+public enum EngineStatus { Ready, Listening, SpeechDetected, Finalizing, Answering, Paused, Reconnecting, NoAudio, ApiError, Stopped, Quiet, AnswerReady, HearingAudio }
 
 /// <summary><see cref="Guidance"/>: deterministic coaching shown instead of an invented personal answer.</summary>
 public enum AnswerSource { Cache, Llm, CacheFallback, Error, Guidance }

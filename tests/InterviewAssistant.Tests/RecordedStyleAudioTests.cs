@@ -76,33 +76,25 @@ public class RecordedStyleAudioTests
     public RecordedStyleAudioTests(ITestOutputHelper o) => _out = o;
 
     /// <summary>
-    /// Non-speech fixtures the acoustic layer still sees as voiced (≥ 100 ms) — the documented limit of a frame-local
-    /// pitch/stationarity analysis. Each one is a harmonic or narrow-band sound with a period inside the human pitch
-    /// range whose spectrum changes within 80 ms (note onsets, vibrato, chord changes, reverberant low ringing), which is
-    /// what voiced speech looks like to this layer. They are kept honest in both directions: the test fails if one of
-    /// them stops looking voiced (move it out of this list) and the engine-level tests prove the text layer still drops
-    /// their typical recognizer output (prompt echo, "Thank you.").
+    /// Non-speech fixtures whose audio still BEHAVES like a voice to the acoustic layer (voiced, not narrow-band, pitch not
+    /// held steady) — the documented residual of a frame-local analysis. Every system sound (notification chimes, alert and
+    /// error tones, shutter, clicks) and the instrumental music are NOT in this list: they are vetoed acoustically whatever
+    /// the recognizer makes of them. Kept honest in both directions: the classification test fails if a listed fixture
+    /// stops looking like a voice, or an unlisted one starts to.
     /// </summary>
-    public static readonly IReadOnlyDictionary<string, string> KnownVoicedLookalikes = new Dictionary<string, string>
+    public static readonly IReadOnlyDictionary<string, string> KnownVoiceLookalikes = new Dictionary<string, string>
     {
-        ["chime_glock_dingdong__direct.wav"] = "two overlapping bell notes form a 262 Hz common period; ~100 ms of note onsets remain voiced",
-        ["chime_glock_dingdong__callq.wav"] = "as direct",
-        ["chime_glock_dingdong__calln.wav"] = "as direct, plus fan noise",
-        ["chime_marimba_low__calln.wav"] = "loud noisy variant: exactly 100 ms of onsets remain voiced (callq/direct pass)",
-        ["error_critical_stop__direct.wav"] = "A4 note over the E5 tail: 220 Hz common period at the note change",
-        ["error_critical_stop__callq.wav"] = "as direct",
-        ["error_critical_stop__calln.wav"] = "as direct",
-        ["error_low_buzz__direct.wav"] = "harmonic G4/D4 tone (392/294 Hz) with vibrato: acoustically a sustained sung vowel",
-        ["error_low_buzz__callq.wav"] = "as direct",
-        ["error_low_buzz__calln.wav"] = "as direct",
-        ["knock_door__callq.wav"] = "95-130 Hz panel resonance ringing in the room: quasi-periodic with a wobbling period",
-        ["knock_door__calln.wav"] = "as callq",
-        ["music_band__callq.wav"] = "bass line and chords with pitches in the voice range, changing every beat",
-        ["music_band__calln.wav"] = "as callq",
-        ["music_piano__callq.wav"] = "arpeggio + walking bass: a new note every 270 ms",
-        ["music_piano__calln.wav"] = "as callq",
+        ["knock_door__callq.wav"] = "quiet knock: 95-130 Hz panel resonance with a wobbling period (pitch jumps are not used to reject — creaky voices jump too)",
         ["music_sung__callq.wav"] = "HARD CASE: sung vowels (glottal pulses, formants, vibrato) are voiced speech acoustically",
         ["music_sung__calln.wav"] = "as callq",
+    };
+
+    /// <summary>Recognizer output that is pure invention built from the interview's own vocabulary (the RC3 manual failure).</summary>
+    public static readonly string[] ContextHallucinations =
+    {
+        "What is your experience with FinTech products?",
+        "How would you increase adoption of the XAB token at Teroxx?",
+        "Tell me about your experience as a Product Owner with blockchain products.",
     };
 
     private static string EchoPrompt => TestKnowledge.Load().Context.BuildTranscriptionPrompt();
@@ -122,17 +114,17 @@ public class RecordedStyleAudioTests
             total += AcousticAnalyzer.Analyze(frame);
             frames++;
         }
-        return new SpeechEvidence(frames, total.DurationMs, total.ActiveMs, total.VoicedMs, total.TonalMs);
+        return new SpeechEvidence(frames, total.DurationMs, total.ActiveMs, total.VoicedMs, total.TonalMs, total.PitchPairs, total.SteadyPairs, total.JumpPairs);
     }
 
     private static string Classification(SpeechEvidence e) =>
-        e.HasSpeech ? "speech" : e.IsShortNonSpeechEvent ? "short non-speech event" : "non-speech";
+        e.VoiceLike ? "voice" : e.ActiveMs <= SpeechEvidence.ShortEventMs ? "short non-speech event (" + e.NotVoiceReason + ")" : "non-speech (" + e.NotVoiceReason + ")";
 
     [Fact]
     public void Fixtures_AreReproducibleDocumentedAndWithinBudget()
     {
         var all = AudioFixtures.All;
-        Assert.True(all.Count >= 40, $"{all.Count} fixtures");
+        Assert.True(all.Count >= 60, $"{all.Count} fixtures");
         var onDisk = Directory.GetFiles(AudioFixtures.Dir, "*.wav").Select(p => Path.GetFileName(p)!).Order().ToList();
         Assert.Equal(all.Select(f => f.File).Order().ToList(), onDisk);
         var manifest = File.ReadAllText(Path.Combine(AudioFixtures.Dir, "MANIFEST.md"));
@@ -144,12 +136,12 @@ public class RecordedStyleAudioTests
             Assert.Contains(f.File, manifest);
             Assert.InRange(AudioFixtures.Pcm(f).Length, 2 * 24 * 300, 2 * 24 * 3000);   // 0.3–3 s
         }
-        Assert.True(all.Sum(f => f.Bytes) < 2_600_000, $"{all.Sum(f => f.Bytes)} bytes of audio fixtures");
+        Assert.True(all.Sum(f => f.Bytes) < 3_400_000, $"{all.Sum(f => f.Bytes)} bytes of audio fixtures");
         foreach (var kind in new[] { "chime", "error", "shutter", "click", "knock", "music", "music-sung", "speech" })
             Assert.Contains(all, f => f.Kind == kind);
         Assert.Contains(all, f => f.IsSpeech && f.Text!.Contains('¿'));     // Spanish
         Assert.Contains(all, f => f.IsSpeech && f.Text!.StartsWith("Warum")); // German
-        Assert.All(KnownVoicedLookalikes.Keys, k => Assert.Contains(all, f => f.File == k && !f.IsSpeech));
+        Assert.All(KnownVoiceLookalikes.Keys, k => Assert.Contains(all, f => f.File == k && !f.IsSpeech));
     }
 
     [Fact]
@@ -157,17 +149,17 @@ public class RecordedStyleAudioTests
     {
         var failures = new List<string>();
         var table = new StringBuilder();
-        table.AppendLine("| Fixture | Class | Kind | Voiced ms | Tonal ms | Active ms | Duration ms | Classification | Expected |");
-        table.AppendLine("|---|---|---|---:|---:|---:|---:|---|---|");
+        table.AppendLine("| Fixture | Class | Kind | Voiced ms | Tonal ms | Active ms | Duration ms | Pitch pairs | Steady | Jumps | Voice-like | Classification | Expected |");
+        table.AppendLine("|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|");
         foreach (var f in AudioFixtures.All)
         {
             var e = Evidence(AudioFixtures.Pcm(f));
-            bool known = KnownVoicedLookalikes.ContainsKey(f.File);
-            string expected = f.IsSpeech ? "speech" : known ? "known look-alike (voiced)" : "not speech";
-            table.AppendLine($"| {f.File} | {f.Class} | {f.Kind} | {e.VoicedMs} | {e.TonalMs} | {e.ActiveMs} | {e.SpanMs} | {Classification(e)} | {expected} |");
-            if (f.IsSpeech && !e.HasSpeech) failures.Add($"{f.File}: speech not detected ({e})");
-            if (!f.IsSpeech && !known && e.HasSpeech) failures.Add($"{f.File}: non-speech looks like speech ({e})");
-            if (known && !e.HasSpeech) failures.Add($"{f.File}: no longer looks voiced ({e}) — remove it from KnownVoicedLookalikes and MANIFEST.md");
+            bool known = KnownVoiceLookalikes.ContainsKey(f.File);
+            string expected = f.IsSpeech ? "voice" : known ? "known look-alike (voice-like)" : "not a voice";
+            table.AppendLine($"| {f.File} | {f.Class} | {f.Kind} | {e.VoicedMs} | {e.TonalMs} | {e.ActiveMs} | {e.SpanMs} | {e.PitchPairs} | {e.PitchSteadiness:P0} | {e.PitchJumpShare:P0} | {(e.VoiceLike ? "yes" : "no: " + e.NotVoiceReason)} | {Classification(e)} | {expected} |");
+            if (f.IsSpeech && !e.VoiceLike) failures.Add($"{f.File}: speech not recognised as a voice ({e}; {e.NotVoiceReason})");
+            if (!f.IsSpeech && !known && e.VoiceLike) failures.Add($"{f.File}: non-speech behaves like a voice ({e})");
+            if (known && e.VoiceLike == false) failures.Add($"{f.File}: no longer voice-like ({e}) — remove it from KnownVoiceLookalikes and MANIFEST.md");
         }
         _out.WriteLine(table.ToString());
         Assert.True(failures.Count == 0, string.Join("\n", failures));
@@ -178,23 +170,32 @@ public class RecordedStyleAudioTests
     {
         // Clicks, the shutter and the chimes that pass the gate are not merely "not speech": they are short events, the
         // verdict the gate reports as ShortAcousticEvent.
-        foreach (var f in AudioFixtures.All.Where(f => f.Kind is "shutter" or "click" or "chime" && !KnownVoicedLookalikes.ContainsKey(f.File)))
+        foreach (var f in AudioFixtures.All.Where(f => f.Kind is "shutter" or "click" or "chime" or "error"))
         {
             var e = Evidence(AudioFixtures.Pcm(f));
-            Assert.True(e.IsShortNonSpeechEvent, $"{f.File}: {e}");
+            Assert.False(e.VoiceLike, $"{f.File}: {e}");
+            Assert.True(e.ActiveMs <= SpeechEvidence.ShortEventMs, $"{f.File}: {e}");
         }
     }
 
-    private async Task<InterviewSimulator> PlayAsync(AudioFixture f, string? transcript)
+    private async Task<InterviewSimulator> PlayAsync(AudioFixture f, string? transcript, bool partials = true)
     {
         var s = new InterviewSimulator(options: new EngineOptions { AutoTick = false });
         s.E.Log += line => _out.WriteLine("  engine: " + line);
         await s.StartAsync();
         await s.RunAsync(1000);                         // capture running, room quiet
-        s.SoundFromPcm(AudioFixtures.Pcm(f), transcript);
+        s.SoundFromPcm(AudioFixtures.Pcm(f), transcript, partials);
         await s.RunAsync(f.DurationMs + 4500);
         await s.SettleAsync();
         return s;
+    }
+
+    /// <summary>The UI never saw the invented words, nor a "transcribing" / "question detected" state for them.</summary>
+    private static void AssertNothingShown(InterviewSimulator s, string? hallucination)
+    {
+        Assert.All(s.LiveTexts, t => Assert.True(t.Length == 0, $"live text shown: '{t}' (for '{hallucination}')"));
+        Assert.DoesNotContain(EngineStatus.Finalizing, s.Statuses);
+        Assert.DoesNotContain(EngineStatus.SpeechDetected, s.Statuses);
     }
 
     private static void AssertNothingAnswered(InterviewSimulator s, string what)
@@ -213,6 +214,7 @@ public class RecordedStyleAudioTests
         {
             var s = await PlayAsync(f, hallucination);
             AssertNothingAnswered(s, $"{file} heard as '{hallucination}'");
+            if (!KnownVoiceLookalikes.ContainsKey(file)) AssertNothingShown(s, hallucination);
         }
     }
 
@@ -221,19 +223,46 @@ public class RecordedStyleAudioTests
     public async Task Engine_NonSpeechFixture_HeardAsAShortQuestion_IsVetoedAcoustically(string file)
     {
         // The hard case for the text layer: the recognizer turns the sound into a plausible short question. Only the
-        // acoustic veto can stop it, so this holds exactly for the fixtures the analyser classifies as non-speech.
+        // acoustic veto can stop it, so this holds for every fixture that does not behave like a voice — all system sounds.
         var f = AudioFixtures.Get(file);
-        var s = await PlayAsync(f, "How so?");
-        var answered = s.E.Memory.Questions.Count > 0;
-        _out.WriteLine($"{file}: answered={answered}; suppression: {string.Join(", ", s.E.Metrics.Suppression.Where(kv => kv.Value > 0))}");
-        if (KnownVoicedLookalikes.ContainsKey(file))
+        foreach (var question in new[] { "How so?", "Why?", "Really?", "Tell me more.", "What happened?" })
         {
-            Assert.True(answered, $"{file} is listed as a known look-alike but was vetoed — update the list");
-            return;
+            var s = await PlayAsync(f, question);
+            var answered = s.E.Memory.Questions.Count > 0;
+            _out.WriteLine($"{file} as '{question}': answered={answered}; {string.Join(", ", s.E.Metrics.Suppression.Where(kv => kv.Value > 0))}");
+            if (KnownVoiceLookalikes.ContainsKey(file)) continue;   // documented residual: a short phrase over a voice-like sound
+            AssertNothingAnswered(s, $"{file} heard as '{question}'");
+            AssertNothingShown(s, question);
+            Assert.True(s.E.Metrics.ShortAcousticEventSuppressed + s.E.Metrics.NonSpeechSuppressed >= 1, string.Join(", ", s.E.Metrics.Suppression));
         }
-        AssertNothingAnswered(s, file + " heard as 'How so?'");
-        Assert.True(s.E.Metrics.ShortAcousticEventSuppressed + s.E.Metrics.NonSpeechSuppressed >= 1,
-            string.Join(", ", s.E.Metrics.Suppression));
+    }
+
+    [Theory]
+    [MemberData(nameof(AudioFixtures.NonSpeech), MemberType = typeof(AudioFixtures))]
+    public async Task Engine_NonSpeechFixture_HeardAsAContextDerivedQuestion_AnswersNothing(string file)
+    {
+        // The RC3 manual failure: a short system sound became "What is your experience with FinTech products?". A well-
+        // formed interview question built from the prompt vocabulary is never accepted from audio that is not a voice, nor
+        // from a voice too short to have said it. Singing is the documented exception (long, genuinely voiced audio).
+        var f = AudioFixtures.Get(file);
+        foreach (var hallucination in ContextHallucinations)
+        {
+            var s = await PlayAsync(f, hallucination);
+            _out.WriteLine($"{file} as '{hallucination}': answered={s.E.Memory.Questions.Count > 0}; {string.Join(", ", s.E.Metrics.Suppression.Where(kv => kv.Value > 0))}");
+            if (f.Kind == "music-sung") continue;
+            AssertNothingAnswered(s, $"{file} heard as '{hallucination}'");
+            Assert.Empty(s.E.History);
+            if (KnownVoiceLookalikes.ContainsKey(file))
+            {
+                // A voice-like knock can carry the first few words for a moment (they fit the voiced audio), but the
+                // sentence loses its trust as soon as it outgrows the sound: never the full invention, never "finalizing".
+                Assert.DoesNotContain(s.LiveTexts, t => t.Length > 0 && t.TrimEnd('?', '.') == hallucination.TrimEnd('?', '.'));
+                Assert.Equal("", s.LiveTexts.LastOrDefault() ?? "");
+                Assert.DoesNotContain(EngineStatus.Finalizing, s.Statuses);
+                continue;
+            }
+            AssertNothingShown(s, hallucination);
+        }
     }
 
     [Theory]
@@ -249,16 +278,39 @@ public class RecordedStyleAudioTests
     }
 
     [Theory]
+    [InlineData("speech_ninetydays__callq.wav")]
+    [InlineData("speech_ninetydays__calln.wav")]
+    [InlineData("speech_fast_ninetydays__callq.wav")]
+    [InlineData("speech_de_warum__callq.wav")]
+    [InlineData("speech_es_reto__calln.wav")]
+    [InlineData("speech_tellme__callq.wav")]
+    public async Task Engine_SpeechFixture_ShowsLiveWordsBeforeTheTurnEnds(string file)
+    {
+        // The trust boundary must not make real speech feel laggy: words appear while the interviewer is still talking
+        // (or within the VAD tail), not only once the turn is final.
+        var f = AudioFixtures.Get(file);
+        var start = 1000L;   // PlayAsync starts the sound after one second of quiet
+        var s = await PlayAsync(f, f.Text);
+        var firstShown = s.LiveTimeline.FirstOrDefault(x => x.Text.Length > 0);
+        Assert.True(firstShown.Text != null, "no live text was ever shown");
+        var soundEnd = start + (f.DurationMs + 99) / 100 * 100;
+        _out.WriteLine($"{file}: first live words at +{firstShown.At - start} ms ('{firstShown.Text}'), sound ends at +{soundEnd - start} ms");
+        Assert.True(firstShown.At <= soundEnd + 400, $"first live words only at +{firstShown.At - start} ms");
+        Assert.Contains(EngineStatus.SpeechDetected, s.Statuses);
+        Assert.Single(s.E.Memory.Questions);
+    }
+
+    [Theory]
     [InlineData("music_sung__callq.wav")]
     [InlineData("music_sung__calln.wav")]
     public void SungMelody_LooksVoiced_ButItsTypicalTranscriptsAreStillDropped(string file)
     {
-        // Documented behaviour, not a goal: a sung vowel melody is voiced, non-tonal, pitch-in-range audio, i.e. speech
-        // to the acoustic layer. The text layer still drops what recognizers produce for music.
+        // Documented behaviour, not a goal: a sung vowel melody is voiced, non-tonal, moving-pitch audio, i.e. a voice to
+        // the acoustic layer. The text layer still drops what recognizers produce for music.
         var f = AudioFixtures.Get(file);
         var e = Evidence(AudioFixtures.Pcm(f));
         _out.WriteLine($"{file}: {e}");
-        Assert.True(e.HasSpeech, e.ToString());
+        Assert.True(e.VoiceLike, e.ToString());
         var gate = new InterviewAssistant.Core.Intelligence.UtteranceGate(new InterviewAssistant.Core.Intelligence.PromptEchoDetector(EchoPrompt));
         foreach (var text in new[] { "♪ ♪", "Thanks for watching!", "(music)", EchoPrompt })
             Assert.False(gate.Evaluate(text, e).Answerable, text);

@@ -59,6 +59,14 @@ classification test (its table is reproduced below).
 | `speech_ninetydays` | speech | `en-us+m7`, 180 wpm, pitch 50: "What would you do in your first ninety days?" |
 | `speech_de_warum` | speech | `de+m2`, 160 wpm, pitch 45: "Warum haben Sie sich bei uns beworben?" (German) |
 | `speech_es_reto` | speech | `es+f2`, 165 wpm, pitch 55: "¿Cuál fue su mayor reto?" (Spanish) |
+| `speech_why_falling` | speech | `en-gb+m3`, 160 wpm, pitch 35: "Why." (falling, no question mark — RC4) |
+| `speech_really` | speech | `en-us+f2`, 170 wpm, pitch 60: "Really?" (RC4) |
+| `speech_andthen` | speech | `en-gb+f1`, 175 wpm, pitch 55: "And then?" (RC4) |
+| `speech_tellmemore` | speech | `en-us+m4`, 170 wpm, pitch 45: "Tell me more." (RC4) |
+| `speech_whathappened` | speech | `en-gb+m6`, 175 wpm, pitch 50: "What happened?" (RC4) |
+| `speech_metrics_oneword` | speech | `en-us+m2`, 165 wpm, pitch 50: "Metrics?" (RC4) |
+| `speech_anythingelse` | speech | `en-us+f3`, 170 wpm, pitch 55: "Anything else?" (RC4) |
+| `speech_fast_ninetydays` | speech | `en-us+m5`, **240 wpm**, pitch 50: "What would you do in your first ninety days?" — a deliberately fast talker for the speech-rate check (RC4) |
 
 eSpeak output (22.05 kHz) is resampled to 24 kHz with ffmpeg, trimmed to 80 ms of lead/tail silence and given a short,
 mostly dry room (RT60 0.3 s, the remote talker's room).
@@ -75,8 +83,7 @@ Each base is rendered in 2–3 variants (file suffix):
 
 Background noise is added *before* the volume stage on purpose: on a real call the remote room noise is scaled together
 with the remote voice by the local playback volume, so a quiet variant also has quieter noise. Clipped files:
-`error_critical_stop__calln`, `click_mouse__calln`, `speech_why__calln`, `speech_howso__calln`,
-`speech_metrics__calln`, `speech_tellme__calln`, `speech_ninetydays__calln`.
+`error_critical_stop__calln`, `click_mouse__calln`, `speech_why__calln`, `speech_howso__calln`, `speech_metrics__calln`, `speech_tellme__calln`, `speech_ninetydays__calln`, `speech_why_falling__calln`, `speech_really__calln`, `speech_fast_ninetydays__calln`.
 
 ## Files
 
@@ -126,80 +133,119 @@ with the remote voice by the local playback volume, so a quiet variant also has 
 | `speech_de_warum__calln.wav` | speech | speech | 2220 ms | 104 KiB | calln | -8 | fan -35 dBFS RMS @ -6 dBFS ref | no | Warum haben Sie sich bei uns beworben? |
 | `speech_es_reto__callq.wav` | speech | speech | 1743 ms | 82 KiB | callq | -30 | pink -45 dBFS RMS @ -6 dBFS ref | no | ¿Cuál fue su mayor reto? |
 | `speech_es_reto__calln.wav` | speech | speech | 1743 ms | 82 KiB | calln | -6 | fan -35 dBFS RMS @ -6 dBFS ref | no | ¿Cuál fue su mayor reto? |
+| `speech_why_falling__callq.wav` | speech | speech | 460 ms | 22 KiB | callq | -18 | pink -45 dBFS RMS @ -6 dBFS ref | no | Why. |
+| `speech_why_falling__calln.wav` | speech | speech | 460 ms | 22 KiB | calln | -8 | fan -35 dBFS RMS @ -6 dBFS ref | yes | Why. |
+| `speech_really__callq.wav` | speech | speech | 639 ms | 30 KiB | callq | -30 | pink -45 dBFS RMS @ -6 dBFS ref | no | Really? |
+| `speech_really__calln.wav` | speech | speech | 639 ms | 30 KiB | calln | -6 | fan -35 dBFS RMS @ -6 dBFS ref | yes | Really? |
+| `speech_andthen__callq.wav` | speech | speech | 637 ms | 30 KiB | callq | -30 | pink -45 dBFS RMS @ -6 dBFS ref | no | And then? |
+| `speech_andthen__calln.wav` | speech | speech | 637 ms | 30 KiB | calln | -6 | fan -35 dBFS RMS @ -6 dBFS ref | no | And then? |
+| `speech_tellmemore__callq.wav` | speech | speech | 962 ms | 45 KiB | callq | -30 | pink -45 dBFS RMS @ -6 dBFS ref | no | Tell me more. |
+| `speech_tellmemore__calln.wav` | speech | speech | 962 ms | 45 KiB | calln | -6 | fan -35 dBFS RMS @ -6 dBFS ref | no | Tell me more. |
+| `speech_whathappened__callq.wav` | speech | speech | 769 ms | 36 KiB | callq | -30 | pink -45 dBFS RMS @ -6 dBFS ref | no | What happened? |
+| `speech_whathappened__calln.wav` | speech | speech | 769 ms | 36 KiB | calln | -6 | fan -35 dBFS RMS @ -6 dBFS ref | no | What happened? |
+| `speech_metrics_oneword__callq.wav` | speech | speech | 834 ms | 39 KiB | callq | -30 | pink -45 dBFS RMS @ -6 dBFS ref | no | Metrics? |
+| `speech_metrics_oneword__calln.wav` | speech | speech | 834 ms | 39 KiB | calln | -6 | fan -35 dBFS RMS @ -6 dBFS ref | no | Metrics? |
+| `speech_anythingelse__callq.wav` | speech | speech | 906 ms | 42 KiB | callq | -18 | pink -45 dBFS RMS @ -6 dBFS ref | no | Anything else? |
+| `speech_anythingelse__calln.wav` | speech | speech | 906 ms | 42 KiB | calln | -8 | fan -35 dBFS RMS @ -6 dBFS ref | no | Anything else? |
+| `speech_fast_ninetydays__callq.wav` | speech | speech | 1640 ms | 77 KiB | callq | -24 | pink -45 dBFS RMS @ -6 dBFS ref | no | What would you do in your first ninety days? |
+| `speech_fast_ninetydays__calln.wav` | speech | speech | 1640 ms | 77 KiB | calln | -10 | fan -35 dBFS RMS @ -6 dBFS ref | yes | What would you do in your first ninety days? |
 
-Total: 44 files, 2,541,892 bytes (2482 KiB).
+Total: 60 files, 3,199,852 bytes (3125 KiB).
 
-## Classification by the acoustic layer
+## Classification by the acoustic layer (RC4)
 
 Printed by `RecordedStyleAudioTests.AcousticAnalyzer_ClassifiesEveryFixture` (ITestOutputHelper; run with
 `--logger "console;verbosity=detailed"`). Each fixture is streamed in 100 ms frames (the last one padded with silence)
-and summed like the engine's evidence timeline. *Speech* = `SpeechEvidence.HasSpeech` (≥ 100 ms voiced); *short
-non-speech event* = `IsShortNonSpeechEvent`. "Before" is the analyser at the parent commit, "after" the current one.
+and summed like the engine's evidence timeline. *Voice-like* = `SpeechEvidence.VoiceLike`: ≥ 100 ms voiced, not
+dominated by narrow-band (tonal) sound, and — once at least 10 pitch pairs were measured — a pitch that moves rather
+than holds (`PitchSteadiness` < 65 %). *Pitch pairs* are consecutive in-voice-range periodic 20 ms hops; *steady* = the
+pitch changed by less than 0.6 %, *jumps* = by more than 2.5 % (reported, not used: creaky real voices jump too).
+The RC3 "before → after" voiced columns are kept in git history (commit dc67e80).
 
-| Fixture | Expected | Voiced ms (before → after) | Tonal ms (after) | Active ms | Duration ms | Classification (after) |
-|---|---|---:|---:|---:|---:|---|
-| `chime_glock_dingdong__direct.wav` | known look-alike (voiced) | 700 → 100 | 420 | 1080 | 1100 | speech |
-| `chime_glock_dingdong__callq.wav` | known look-alike (voiced) | 700 → 100 | 440 | 1080 | 1100 | speech |
-| `chime_glock_dingdong__calln.wav` | known look-alike (voiced) | 660 → 120 | 480 | 1100 | 1100 | speech |
-| `chime_glock_arpeggio__direct.wav` | not speech | 900 → 60 | 100 | 980 | 1000 | short non-speech event |
-| `chime_glock_arpeggio__callq.wav` | not speech | 880 → 60 | 120 | 980 | 1000 | short non-speech event |
-| `chime_glock_arpeggio__calln.wav` | not speech | 900 → 80 | 100 | 1000 | 1000 | short non-speech event |
-| `chime_marimba_low__direct.wav` | not speech | 860 → 60 | 200 | 980 | 1000 | short non-speech event |
-| `chime_marimba_low__callq.wav` | not speech | 860 → 60 | 380 | 980 | 1000 | short non-speech event |
-| `chime_marimba_low__calln.wav` | known look-alike (voiced) | 860 → 100 | 340 | 1000 | 1000 | speech |
-| `error_critical_stop__direct.wav` | known look-alike (voiced) | 580 → 140 | 440 | 640 | 900 | speech |
-| `error_critical_stop__callq.wav` | known look-alike (voiced) | 520 → 140 | 380 | 580 | 900 | speech |
-| `error_critical_stop__calln.wav` | known look-alike (voiced) | 580 → 180 | 360 | 900 | 900 | speech |
-| `error_low_buzz__direct.wav` | known look-alike (voiced) | 600 → 400 | 0 | 600 | 800 | speech |
-| `error_low_buzz__callq.wav` | known look-alike (voiced) | 580 → 420 | 0 | 580 | 800 | speech |
-| `error_low_buzz__calln.wav` | known look-alike (voiced) | 620 → 460 | 0 | 800 | 800 | speech |
-| `shutter_camera__direct.wav` | not speech | 0 → 0 | 0 | 280 | 700 | short non-speech event |
-| `shutter_camera__callq.wav` | not speech | 0 → 0 | 0 | 240 | 700 | short non-speech event |
-| `shutter_camera__calln.wav` | not speech | 20 → 20 | 0 | 660 | 700 | short non-speech event |
-| `click_keyboard__callq.wav` | not speech | 0 → 0 | 0 | 860 | 1200 | short non-speech event |
-| `click_keyboard__calln.wav` | not speech | 0 → 0 | 0 | 1160 | 1200 | short non-speech event |
-| `click_mouse__callq.wav` | not speech | 0 → 0 | 0 | 320 | 1000 | short non-speech event |
-| `click_mouse__calln.wav` | not speech | 40 → 0 | 0 | 1000 | 1000 | short non-speech event |
-| `knock_door__callq.wav` | known look-alike (voiced) | 500 → 360 | 40 | 620 | 1000 | speech |
-| `knock_door__calln.wav` | known look-alike (voiced) | 520 → 280 | 100 | 1000 | 1000 | speech |
-| `music_band__callq.wav` | known look-alike (voiced) | 1200 → 800 | 0 | 1680 | 1700 | speech |
-| `music_band__calln.wav` | known look-alike (voiced) | 1260 → 680 | 0 | 1700 | 1700 | speech |
-| `music_piano__callq.wav` | known look-alike (voiced) | 1620 → 520 | 0 | 1680 | 1700 | speech |
-| `music_piano__calln.wav` | known look-alike (voiced) | 1640 → 580 | 0 | 1700 | 1700 | speech |
-| `music_sung__callq.wav` | known look-alike (voiced) | 1600 → 1520 | 160 | 1800 | 2000 | speech |
-| `music_sung__calln.wav` | known look-alike (voiced) | 1780 → 1640 | 100 | 2000 | 2000 | speech |
-| `speech_why__callq.wav` | speech | 200 → 180 | 0 | 400 | 500 | speech |
-| `speech_why__calln.wav` | speech | 220 → 200 | 0 | 460 | 500 | speech |
-| `speech_howso__callq.wav` | speech | 420 → 420 | 0 | 620 | 700 | speech |
-| `speech_howso__calln.wav` | speech | 400 → 400 | 0 | 640 | 700 | speech |
-| `speech_metrics__callq.wav` | speech | 740 → 760 | 0 | 920 | 1200 | speech |
-| `speech_metrics__calln.wav` | speech | 720 → 700 | 0 | 1160 | 1200 | speech |
-| `speech_tellme__callq.wav` | speech | 900 → 860 | 20 | 1240 | 1500 | speech |
-| `speech_tellme__calln.wav` | speech | 880 → 860 | 20 | 1500 | 1500 | speech |
-| `speech_ninetydays__callq.wav` | speech | 1580 → 1400 | 0 | 1660 | 2100 | speech |
-| `speech_ninetydays__calln.wav` | speech | 1760 → 1620 | 0 | 2100 | 2100 | speech |
-| `speech_de_warum__callq.wav` | speech | 1820 → 1640 | 0 | 2060 | 2300 | speech |
-| `speech_de_warum__calln.wav` | speech | 1700 → 1540 | 40 | 2220 | 2300 | speech |
-| `speech_es_reto__callq.wav` | speech | 1220 → 1140 | 0 | 1260 | 1800 | speech |
-| `speech_es_reto__calln.wav` | speech | 1400 → 1300 | 20 | 1760 | 1800 | speech |
+| Fixture | Class | Kind | Voiced ms | Tonal ms | Active ms | Duration ms | Pitch pairs | Steady | Jumps | Voice-like | Classification | Expected |
+| chime_glock_dingdong__direct.wav | nonspeech | chime | 100 | 420 | 1080 | 1100 | 18 | 83 % | 11 % | no: tonal 81 % | short non-speech event (tonal 81 %) | not a voice |
+| chime_glock_dingdong__callq.wav | nonspeech | chime | 100 | 440 | 1080 | 1100 | 18 | 67 % | 28 % | no: tonal 81 % | short non-speech event (tonal 81 %) | not a voice |
+| chime_glock_dingdong__calln.wav | nonspeech | chime | 120 | 480 | 1100 | 1100 | 17 | 76 % | 18 % | no: tonal 80 % | short non-speech event (tonal 80 %) | not a voice |
+| chime_glock_arpeggio__direct.wav | nonspeech | chime | 60 | 100 | 980 | 1000 | 25 | 100 % | 0 % | no: no voiced sound | short non-speech event (no voiced sound) | not a voice |
+| chime_glock_arpeggio__callq.wav | nonspeech | chime | 60 | 120 | 980 | 1000 | 24 | 92 % | 8 % | no: no voiced sound | short non-speech event (no voiced sound) | not a voice |
+| chime_glock_arpeggio__calln.wav | nonspeech | chime | 80 | 100 | 1000 | 1000 | 25 | 96 % | 4 % | no: no voiced sound | short non-speech event (no voiced sound) | not a voice |
+| chime_marimba_low__direct.wav | nonspeech | chime | 60 | 200 | 980 | 1000 | 23 | 48 % | 22 % | no: no voiced sound | short non-speech event (no voiced sound) | not a voice |
+| chime_marimba_low__callq.wav | nonspeech | chime | 60 | 380 | 980 | 1000 | 13 | 62 % | 15 % | no: no voiced sound | short non-speech event (no voiced sound) | not a voice |
+| chime_marimba_low__calln.wav | nonspeech | chime | 100 | 340 | 1000 | 1000 | 14 | 57 % | 29 % | no: tonal 77 % | short non-speech event (tonal 77 %) | not a voice |
+| error_critical_stop__direct.wav | nonspeech | error | 140 | 440 | 640 | 900 | 6 | 50 % | 50 % | no: tonal 76 % | short non-speech event (tonal 76 %) | not a voice |
+| error_critical_stop__callq.wav | nonspeech | error | 140 | 380 | 580 | 900 | 6 | 67 % | 33 % | no: tonal 73 % | short non-speech event (tonal 73 %) | not a voice |
+| error_critical_stop__calln.wav | nonspeech | error | 180 | 360 | 900 | 900 | 6 | 50 % | 50 % | no: tonal 67 % | short non-speech event (tonal 67 %) | not a voice |
+| error_low_buzz__direct.wav | nonspeech | error | 400 | 0 | 600 | 800 | 17 | 82 % | 12 % | no: steady pitch 82 % | short non-speech event (steady pitch 82 %) | not a voice |
+| error_low_buzz__callq.wav | nonspeech | error | 420 | 0 | 580 | 800 | 17 | 76 % | 24 % | no: steady pitch 76 % | short non-speech event (steady pitch 76 %) | not a voice |
+| error_low_buzz__calln.wav | nonspeech | error | 460 | 0 | 800 | 800 | 17 | 76 % | 24 % | no: steady pitch 76 % | short non-speech event (steady pitch 76 %) | not a voice |
+| shutter_camera__direct.wav | nonspeech | shutter | 0 | 0 | 280 | 700 | 0 | 0 % | 0 % | no: no voiced sound | short non-speech event (no voiced sound) | not a voice |
+| shutter_camera__callq.wav | nonspeech | shutter | 0 | 0 | 240 | 700 | 0 | 0 % | 0 % | no: no voiced sound | short non-speech event (no voiced sound) | not a voice |
+| shutter_camera__calln.wav | nonspeech | shutter | 20 | 0 | 660 | 700 | 0 | 0 % | 0 % | no: no voiced sound | short non-speech event (no voiced sound) | not a voice |
+| click_keyboard__callq.wav | nonspeech | click | 0 | 0 | 860 | 1200 | 0 | 0 % | 0 % | no: no voiced sound | short non-speech event (no voiced sound) | not a voice |
+| click_keyboard__calln.wav | nonspeech | click | 0 | 0 | 1160 | 1200 | 0 | 0 % | 0 % | no: no voiced sound | short non-speech event (no voiced sound) | not a voice |
+| click_mouse__callq.wav | nonspeech | click | 0 | 0 | 320 | 1000 | 0 | 0 % | 0 % | no: no voiced sound | short non-speech event (no voiced sound) | not a voice |
+| click_mouse__calln.wav | nonspeech | click | 0 | 0 | 1000 | 1000 | 0 | 0 % | 0 % | no: no voiced sound | short non-speech event (no voiced sound) | not a voice |
+| knock_door__callq.wav | nonspeech | knock | 360 | 40 | 620 | 1000 | 11 | 18 % | 55 % | yes | voice | known look-alike (voice-like) |
+| knock_door__calln.wav | nonspeech | knock | 280 | 100 | 1000 | 1000 | 9 | 33 % | 44 % | no: tonal 26 % | short non-speech event (tonal 26 %) | not a voice |
+| music_band__callq.wav | nonspeech | music | 800 | 0 | 1680 | 1700 | 34 | 88 % | 0 % | no: steady pitch 88 % | non-speech (steady pitch 88 %) | not a voice |
+| music_band__calln.wav | nonspeech | music | 680 | 0 | 1700 | 1700 | 31 | 81 % | 0 % | no: steady pitch 81 % | non-speech (steady pitch 81 %) | not a voice |
+| music_piano__callq.wav | nonspeech | music | 520 | 0 | 1680 | 1700 | 48 | 94 % | 6 % | no: steady pitch 94 % | non-speech (steady pitch 94 %) | not a voice |
+| music_piano__calln.wav | nonspeech | music | 580 | 0 | 1700 | 1700 | 48 | 90 % | 10 % | no: steady pitch 90 % | non-speech (steady pitch 90 %) | not a voice |
+| music_sung__callq.wav | nonspeech | music-sung | 1520 | 160 | 1800 | 2000 | 45 | 38 % | 13 % | yes | voice | known look-alike (voice-like) |
+| music_sung__calln.wav | nonspeech | music-sung | 1640 | 100 | 2000 | 2000 | 49 | 37 % | 16 % | yes | voice | known look-alike (voice-like) |
+| speech_why__callq.wav | speech | speech | 180 | 0 | 400 | 500 | 4 | 25 % | 0 % | yes | voice | voice |
+| speech_why__calln.wav | speech | speech | 200 | 0 | 460 | 500 | 5 | 20 % | 60 % | yes | voice | voice |
+| speech_howso__callq.wav | speech | speech | 420 | 0 | 620 | 700 | 10 | 50 % | 20 % | yes | voice | voice |
+| speech_howso__calln.wav | speech | speech | 400 | 0 | 640 | 700 | 8 | 75 % | 0 % | yes | voice | voice |
+| speech_metrics__callq.wav | speech | speech | 760 | 0 | 920 | 1200 | 22 | 45 % | 23 % | yes | voice | voice |
+| speech_metrics__calln.wav | speech | speech | 700 | 0 | 1160 | 1200 | 20 | 35 % | 25 % | yes | voice | voice |
+| speech_tellme__callq.wav | speech | speech | 860 | 20 | 1240 | 1500 | 24 | 38 % | 12 % | yes | voice | voice |
+| speech_tellme__calln.wav | speech | speech | 860 | 20 | 1500 | 1500 | 21 | 43 % | 10 % | yes | voice | voice |
+| speech_ninetydays__callq.wav | speech | speech | 1400 | 0 | 1660 | 2100 | 45 | 24 % | 29 % | yes | voice | voice |
+| speech_ninetydays__calln.wav | speech | speech | 1620 | 0 | 2100 | 2100 | 48 | 29 % | 31 % | yes | voice | voice |
+| speech_de_warum__callq.wav | speech | speech | 1640 | 0 | 2060 | 2300 | 49 | 51 % | 10 % | yes | voice | voice |
+| speech_de_warum__calln.wav | speech | speech | 1540 | 40 | 2220 | 2300 | 41 | 44 % | 20 % | yes | voice | voice |
+| speech_es_reto__callq.wav | speech | speech | 1140 | 0 | 1260 | 1800 | 32 | 28 % | 12 % | yes | voice | voice |
+| speech_es_reto__calln.wav | speech | speech | 1300 | 20 | 1760 | 1800 | 37 | 27 % | 14 % | yes | voice | voice |
+| speech_why_falling__callq.wav | speech | speech | 200 | 0 | 460 | 500 | 6 | 33 % | 0 % | yes | voice | voice |
+| speech_why_falling__calln.wav | speech | speech | 240 | 0 | 460 | 500 | 6 | 33 % | 0 % | yes | voice | voice |
+| speech_really__callq.wav | speech | speech | 360 | 0 | 440 | 700 | 13 | 15 % | 23 % | yes | voice | voice |
+| speech_really__calln.wav | speech | speech | 420 | 0 | 640 | 700 | 14 | 0 % | 21 % | yes | voice | voice |
+| speech_andthen__callq.wav | speech | speech | 240 | 60 | 420 | 700 | 7 | 57 % | 14 % | yes | voice | voice |
+| speech_andthen__calln.wav | speech | speech | 460 | 0 | 640 | 700 | 11 | 45 % | 9 % | yes | voice | voice |
+| speech_tellmemore__callq.wav | speech | speech | 540 | 40 | 840 | 1000 | 15 | 13 % | 13 % | yes | voice | voice |
+| speech_tellmemore__calln.wav | speech | speech | 520 | 80 | 1000 | 1000 | 13 | 23 % | 0 % | yes | voice | voice |
+| speech_whathappened__callq.wav | speech | speech | 300 | 0 | 440 | 800 | 7 | 0 % | 14 % | yes | voice | voice |
+| speech_whathappened__calln.wav | speech | speech | 320 | 0 | 800 | 800 | 8 | 0 % | 25 % | yes | voice | voice |
+| speech_metrics_oneword__callq.wav | speech | speech | 360 | 0 | 380 | 900 | 9 | 44 % | 33 % | yes | voice | voice |
+| speech_metrics_oneword__calln.wav | speech | speech | 340 | 0 | 840 | 900 | 8 | 62 % | 38 % | yes | voice | voice |
+| speech_anythingelse__callq.wav | speech | speech | 640 | 0 | 820 | 1000 | 18 | 6 % | 33 % | yes | voice | voice |
+| speech_anythingelse__calln.wav | speech | speech | 640 | 0 | 920 | 1000 | 18 | 17 % | 33 % | yes | voice | voice |
+| speech_fast_ninetydays__callq.wav | speech | speech | 1260 | 0 | 1520 | 1700 | 39 | 21 % | 23 % | yes | voice | voice |
+| speech_fast_ninetydays__calln.wav | speech | speech | 1260 | 20 | 1640 | 1700 | 36 | 28 % | 22 % | yes | voice | voice |
 
-Summary (after): all 14 speech fixtures are speech (minimum: "Why?" with 180 ms voiced); 12 of 30 non-speech fixtures
-are rejected (every shutter and click, 5 of 9 chimes, all as short non-speech events); 18 are **known look-alikes**
-that still carry ≥ 100 ms of voiced-looking audio (listed with reasons in
-`RecordedStyleAudioTests.KnownVoicedLookalikes`). Before the analyser change only the 7 shutter/click fixtures were
-rejected and every chime and error tone produced 520–900 ms of "speech".
+Summary: all 30 speech fixtures are voice-like (minimum: "Why?" with 180 ms voiced and 4 pitch pairs). Of the
+30 non-speech fixtures, 27 are not voice-like — every shutter, click, chime, alert tone (including the in-range
+low buzz, by its steady pitch), the noisy knock and all instrumental music — and 3 remain **known look-alikes** with the
+reasons listed in `RecordedStyleAudioTests.KnownVoiceLookalikes`: the quiet knock (`knock_door__callq`) and the sung
+melody (`music_sung__*`). In RC3, 18 of 30 non-speech fixtures were look-alikes.
 
-### Engine level (InterviewSimulator.SoundFromPcm)
+### Engine level (InterviewSimulator.SoundFromPcm, partial transcripts streamed word by word)
 
-- Every non-speech fixture, played through the engine while the recognizer "hears" the transcription prompt, "Thank
-  you." or nothing: **no answer, no question recorded, no provider request** (all 30, including the look-alikes — the
-  prompt-echo and text layers catch those transcripts).
-- Every non-speech fixture heard as a plausible short question ("How so?"): the 12 rejected fixtures are vetoed
-  acoustically (`ShortAcousticEvent`); the 18 look-alikes **are answered**. This is the residual risk: a recognizer that
-  turns a doorbell-like two-note chime, an alert tone, a knock or music into a short question will still trigger an
-  answer. The test asserts this split so any change is visible.
-- Every speech fixture with its real words (English, German, Spanish; down to "Why?"): answered exactly once.
-- The sung melody (`music_sung__*`) is voiced, non-tonal, pitch-in-range audio — speech, as far as acoustics go. It is
+- Every non-speech fixture while the recognizer "hears" the transcription prompt, "Thank you." or nothing: no answer,
+  no question recorded, no provider request; for every fixture that is not a look-alike, no live text and no
+  "transcribing"/"finalizing" status either.
+- Every non-speech fixture heard as a short real-sounding question ("How so?", "Why?", "Really?", "Tell me more.",
+  "What happened?"): every non-look-alike is vetoed acoustically (`ShortAcousticEvent`/`NonSpeech`) with nothing shown.
+  The look-alikes are the documented residual for *short* phrases.
+- Every non-speech fixture heard as a well-formed interview question built from the prompt vocabulary (the RC3
+  manual failure "What is your experience with FinTech products?" and two others): nothing answered, nothing in
+  history, for every fixture except the sung melody — including the quiet knock, which is voice-like but far too short
+  to have said the sentence (`ContextHallucination`). For the knock a few leading words may show for a moment, but the
+  sentence loses its trust as it outgrows the sound and is never shown whole or finalized.
+- Every speech fixture with its real words (English, German, Spanish; "Why?", a falling "Why.", "Really?", "And
+  then?", "Metrics?", up to a 240 wpm talker): answered exactly once.
+- The sung melody (`music_sung__*`) is voiced, non-tonal, moving-pitch audio — speech, as far as acoustics go. It is
   asserted as such, together with the fact that the gate still rejects what recognizers produce for music ("♪ ♪",
   "Thanks for watching!", "(music)", the prompt echo).
 

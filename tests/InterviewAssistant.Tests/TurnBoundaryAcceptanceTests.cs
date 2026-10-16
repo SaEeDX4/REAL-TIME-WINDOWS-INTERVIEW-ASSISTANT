@@ -120,6 +120,7 @@ public class TurnBoundaryAcceptanceTests
     public async Task FragmentedDeltasAndDuplicateSegmentsGiveOneAnswer()
     {
         var s = await Sim();
+        s.Voice(2000);                                                   // the interviewer is audible while the item is open
         s.T.Start(); await s.RunAsync(2000); s.T.Stop(); await s.RunAsync(200);
         foreach (var piece in new[] { "How ", "would ", "you ", "handle ", "an ", "unrealistic ", "deadline" }) s.T.Partial("seg1", piece);
         s.T.Complete("How would you handle an unrealistic deadline", "seg1");

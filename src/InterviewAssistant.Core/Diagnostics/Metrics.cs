@@ -13,7 +13,7 @@ public sealed class SessionMetrics
     private readonly ConcurrentQueue<LatencySample> _samples = new();
     public int Capacity { get; init; } = 200;
     private int _questions, _cacheAnswers, _llmAnswers, _fallbackAnswers, _apiErrors, _duplicates, _reconnects, _llmRequests, _merged;
-    private int _nonSpeech, _promptEcho, _shortEvent, _invalid, _otherDirected, _logistics, _contextHeld, _acousticOverride, _variants, _guidance, _redundantDropped;
+    private int _nonSpeech, _promptEcho, _shortEvent, _invalid, _otherDirected, _logistics, _contextHeld, _weakSupport, _implausible, _contextHallucination, _variants, _guidance, _redundantDropped;
     public long AudioMsSent;
 
     public int Questions => _questions;
@@ -39,12 +39,16 @@ public sealed class SessionMetrics
     public int LogisticsSuppressed => _logistics;
     /// <summary>Context statements held for the next question (not answered on their own).</summary>
     public int ContextHeld => _contextHeld;
-    /// <summary>Clear questions accepted although the acoustic layer saw no speech (acoustic layer possibly wrong).</summary>
-    public int AcousticOverrides => _acousticOverride;
+    /// <summary>Questions accepted with only weak acoustic support for their words (diagnostics; they had a real voice).</summary>
+    public int WeakSupportAccepted => _weakSupport;
+    /// <summary>Transcripts with far more words than the voiced audio could hold (implausible_transcript_suppressed).</summary>
+    public int ImplausibleTranscriptSuppressed => _implausible;
+    /// <summary>Interview-flavoured sentences built from the prompt vocabulary over too little speech (context_hallucination_suppressed).</summary>
+    public int ContextHallucinationSuppressed => _contextHallucination;
     public int Variants => _variants;
     public int GuidanceAnswers => _guidance;
     public int RedundantBulletsDropped => _redundantDropped;
-    public int TotalSuppressed => _nonSpeech + _promptEcho + _shortEvent + _invalid + _otherDirected + _logistics;
+    public int TotalSuppressed => _nonSpeech + _promptEcho + _shortEvent + _invalid + _otherDirected + _logistics + _implausible + _contextHallucination;
 
     public void Add(LatencySample s)
     {
@@ -68,7 +72,9 @@ public sealed class SessionMetrics
     public void IncOtherDirected() => Interlocked.Increment(ref _otherDirected);
     public void IncLogistics() => Interlocked.Increment(ref _logistics);
     public void IncContextHeld() => Interlocked.Increment(ref _contextHeld);
-    public void IncAcousticOverride() => Interlocked.Increment(ref _acousticOverride);
+    public void IncWeakSupport() => Interlocked.Increment(ref _weakSupport);
+    public void IncImplausible() => Interlocked.Increment(ref _implausible);
+    public void IncContextHallucination() => Interlocked.Increment(ref _contextHallucination);
     public void IncVariant() => Interlocked.Increment(ref _variants);
     public void IncGuidance() => Interlocked.Increment(ref _guidance);
     public void IncRedundantDropped() => Interlocked.Increment(ref _redundantDropped);
@@ -78,7 +84,8 @@ public sealed class SessionMetrics
     {
         ["non_speech_suppressed"] = _nonSpeech, ["prompt_echo_suppressed"] = _promptEcho, ["short_acoustic_event_suppressed"] = _shortEvent,
         ["invalid_turn_suppressed"] = _invalid, ["other_directed_suppressed"] = _otherDirected, ["logistics_suppressed"] = _logistics,
-        ["context_held"] = _contextHeld, ["acoustic_override"] = _acousticOverride,
+        ["implausible_transcript_suppressed"] = _implausible, ["context_hallucination_suppressed"] = _contextHallucination,
+        ["context_held"] = _contextHeld, ["weak_acoustic_support_accepted"] = _weakSupport,
     };
 
     /// <summary>Approximate session cost in USD from configurable unit prices (estimate only).</summary>

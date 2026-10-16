@@ -54,6 +54,27 @@ public sealed class PromptEchoDetector
         return new(reason.Length > 0, reason, Math.Round(coverage, 2), run);
     }
 
+    /// <summary>Words of the prompt's frame that say nothing about the interview's own subject.</summary>
+    private static readonly HashSet<string> FrameWords = new(StringComparer.Ordinal)
+    {
+        "job", "interview", "interviews", "role", "for", "a", "an", "at", "the", "of", "and", "or", "in", "on", "to", "with", "terms",
+        "professional", "business", "technology", "vocabulary", "keywords", "is", "are", "you", "your",
+    };
+
+    /// <summary>
+    /// Distinct words of the transcript that come from the interview's own vocabulary prompt (title, company, domain
+    /// terms), ignoring the prompt's generic frame. A recognizer that is given non-speech tends to produce a sentence
+    /// built from exactly this vocabulary ("What is your experience with FinTech products?").
+    /// </summary>
+    public int ContextOverlap(string transcript)
+    {
+        var words = Tokens(transcript).Take(240).Where(w => w.Length > 1 && !FrameWords.Contains(w)).Distinct().ToList();
+        int hits = words.Count(_promptSet.Contains);
+        var norm = " " + Norm(transcript) + " ";
+        foreach (var t in _terms) if (t.Contains(' ') && norm.Contains(" " + t + " ", StringComparison.Ordinal)) hits++;   // multi-word terms
+        return hits;
+    }
+
     private static IEnumerable<string> Tokens(string s) => Word.Matches(s.ToLowerInvariant()).Select(m => m.Value);
     private static string Norm(string s) => string.Join(' ', Tokens(s));
 

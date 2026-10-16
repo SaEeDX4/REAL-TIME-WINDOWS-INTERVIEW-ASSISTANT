@@ -23,6 +23,8 @@ public sealed class InterviewSimulator
     public int VadSilenceMs { get; set; } = 400;
     public int TranscriptMs { get; set; } = 300;
     public int MsPerWord { get; set; } = 330;
+    /// <summary>Conversational speech is ~5 syllables/s: long words take longer than short ones.</summary>
+    public int MsPerSyllable { get; set; } = 190;
     public int AudioFrameEveryMs { get; set; } = 100;
 
     private readonly List<AnswerView> _started = new(), _completed = new();
@@ -39,6 +41,15 @@ public sealed class InterviewSimulator
     /// <summary>False = the old behaviour (digital silence frames only), for tests about timing without acoustics.</summary>
     public bool SendAudio { get; set; } = true;
     public IReadOnlyList<AnswerView> Started { get { lock (_started) return _started.ToList(); } }
+    private readonly List<string> _liveTexts = new();
+    private readonly List<(long At, string Text)> _liveTimeline = new();
+    private readonly List<EngineStatus> _statuses = new();
+    /// <summary>Every live-transcript text the UI was given, in order.</summary>
+    public IReadOnlyList<string> LiveTexts { get { lock (_liveTexts) return _liveTexts.ToList(); } }
+    /// <summary>Every live-transcript text with the virtual time it was shown.</summary>
+    public IReadOnlyList<(long At, string Text)> LiveTimeline { get { lock (_liveTexts) return _liveTimeline.ToList(); } }
+    /// <summary>Every engine status the UI was given, in order.</summary>
+    public IReadOnlyList<EngineStatus> Statuses { get { lock (_statuses) return _statuses.ToList(); } }
     public IReadOnlyList<AnswerView> Completed { get { lock (_completed) return _completed.ToList(); } }
     /// <summary>Completed answers that are still on screen (not replaced by a continuation of the same question).</summary>
     public IReadOnlyList<AnswerView> Visible => Completed.Where(a => !a.Superseded).ToList();
@@ -48,6 +59,8 @@ public sealed class InterviewSimulator
         var p = provider?.Invoke(Clock) ?? (withProvider ? P : null);
         E = new InterviewEngine(kb ?? TestKnowledge.Load(), T, p, options ?? new EngineOptions { AutoTick = false }, Clock);
         E.AnswerStarted += a => { lock (_started) _started.Add(a); };
+        E.LiveTranscriptChanged += t => { lock (_liveTexts) { _liveTexts.Add(t); _liveTimeline.Add((Clock.NowMs, t)); } };
+        E.StatusChanged += (st, _) => { lock (_statuses) _statuses.Add(st); };
         E.AnswerCompleted += a => { lock (_completed) _completed.Add(a); };
     }
 
@@ -79,7 +92,7 @@ public sealed class InterviewSimulator
             if (pending.Length == 0)
                 At(t + OnsetMs, () => T.Start());
             pending = pending.Length == 0 ? text : pending + " " + text;
-            var dur = Math.Max(600, text.Split(' ').Length * MsPerWord);
+            var dur = Math.Max(600, Math.Max(text.Split(' ').Length * MsPerWord, InterviewAssistant.Core.Intelligence.SpeechPlausibility.Syllables(text) * MsPerSyllable));
             _sounds.Add((t, t + dur, SoundKind.Speech, null));
             t += dur;
             bool last = i == parts.Count - 1;
@@ -91,6 +104,16 @@ public sealed class InterviewSimulator
             pending = "";
             t += pause;
         }
+    }
+
+    /// <summary>
+    /// Makes the interviewer's voice audible for <paramref name="ms"/> from now without scheduling any recognizer events —
+    /// for tests that drive the fake transcriber by hand (partials, revised finals, reconnects) over real-sounding audio.
+    /// </summary>
+    public void Voice(int ms)
+    {
+        long t = Clock.NowMs;
+        _sounds.Add((t, t + ms, SoundKind.Speech, null));
     }
 
     /// <summary>
@@ -112,7 +135,7 @@ public sealed class InterviewSimulator
     /// the same server-VAD timing as <see cref="Sound"/>; the recognizer then returns <paramref name="transcript"/> (the
     /// real words for speech, a hallucination such as the vocabulary prompt or "Thank you." for non-speech; null = no text).
     /// </summary>
-    public void SoundFromPcm(byte[] pcm, string? transcript)
+    public void SoundFromPcm(byte[] pcm, string? transcript, bool partials = false)
     {
         int frameBytes = Rate24kFrameBytes;
         var frames = new byte[(pcm.Length + frameBytes - 1) / frameBytes][];
@@ -129,6 +152,17 @@ public sealed class InterviewSimulator
         At(t + OnsetMs, () => T.Start());
         At(t + durationMs + VadSilenceMs, () => T.Stop());
         At(t + durationMs + VadSilenceMs + TranscriptMs, () => T.Complete(transcript ?? "", id));
+        if (partials && !string.IsNullOrEmpty(transcript))
+        {
+            // The recognizer streams the words while it "hears" them: deltas spread over the sound and the VAD tail.
+            var words = transcript.Split(' ');
+            long from = t + OnsetMs + 100, span = Math.Max(100, durationMs + VadSilenceMs - OnsetMs - 100);
+            for (int i = 0; i < words.Length; i++)
+            {
+                var delta = (i == 0 ? "" : " ") + words[i];
+                At(from + span * i / words.Length, () => T.Partial(id, delta));
+            }
+        }
     }
 
     private readonly HashSet<byte[]> _pcmFrames = new(ReferenceEqualityComparer.Instance);

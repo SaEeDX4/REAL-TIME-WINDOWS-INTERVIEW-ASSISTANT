@@ -740,5 +740,6 @@
  "rpt_latency": "P50 {0} ms · P95 {1} ms (question → first suggestion)",
  "bill_revoked": "Pro ended — payment refunded",
  "bill_notice_revoked": "The payment for this period was refunded or disputed, so Pro access has ended. Upgrade to continue with Pro.",
- "acct_deleted_identity_pending": "Your account was deleted. Your sign-in will be removed automatically within a few minutes."
+ "acct_deleted_identity_pending": "Your account was deleted. Your sign-in will be removed automatically within a few minutes.",
+ "status_hearing": "Hearing audio"
 }

@@ -35,6 +35,8 @@ public sealed class InterviewEngine : IAsyncDisposable
     private readonly PendingContext _pending = new();
     private readonly SpeechEvidenceTimeline _timeline = new();
     private long _segmentStartedAt = -1;
+    /// <summary>Start of the most recent segment's evidence window (kept after speech stops: partials arrive late).</summary>
+    private long _partialWindowFrom = -1;
     private bool _inSegment;
     private readonly Dictionary<int, AnswerView> _turnAnswers = new();
     private TaskCompletionSource<bool>? _hold;
@@ -96,7 +98,7 @@ public sealed class InterviewEngine : IAsyncDisposable
         bool continuation;
         lock (_gate_)
         {
-            if (!_inSegment) { _segmentStartedAt = _clock.NowMs; _inSegment = true; }
+            if (!_inSegment) { _segmentStartedAt = _clock.NowMs; _inSegment = true; _partialWindowFrom = _segmentStartedAt - Options.EvidenceLeadMs; }
             continuation = _turn.OnSpeechStarted();
             // The interviewer is finishing the same question: keep a pending AI request on hold until the turn settles.
             if (continuation && _hold != null) _holdExtended = true;
@@ -110,8 +112,9 @@ public sealed class InterviewEngine : IAsyncDisposable
         lock (_gate_)
         {
             var now = _clock.NowMs;
-            var from = (_segmentStartedAt >= 0 ? _segmentStartedAt : now) - Options.EvidenceLeadMs;
-            var evidence = _timeline.Sum(from, now);
+            // Without the segment's start (lost in a reconnect) its audio window is unknown: abstain, never judge the words
+            // by a fragment of the audio.
+            var evidence = _segmentStartedAt >= 0 ? _timeline.Sum(_segmentStartedAt - Options.EvidenceLeadMs, now) : SpeechEvidence.Unheard;
             _inSegment = false; _segmentStartedAt = -1;
             _turn.OnSpeechStopped(evidence, _transcriber?.LastStoppedItemId);
         }
@@ -143,8 +146,13 @@ public sealed class InterviewEngine : IAsyncDisposable
         var names = new[] { kb.Context.CandidateName, kb.Profile.Name, kb.Profile.PreferredName };
         var terms = kb.Context.TranscriptionTerms().Concat(kb.Context.Employers).Concat(kb.Profile.Experience.Select(e => e.Company));
         _gate = new UtteranceGate(new PromptEchoDetector(kb.Context.BuildTranscriptionPrompt(), kb.Context.TranscriptionTerms()), names, terms);
-        _turn = new TurnDetector(_clock) { Aliases = kb.Context.Aliases, TermNormalizer = kb.Context.NormalizeTerms, SegmentFilter = KeepSegment };
-        _turn.LiveTextChanged += t => { _liveText = t; _liveDirty = true; };
+        _turn = new TurnDetector(_clock) { Aliases = kb.Context.Aliases, TermNormalizer = kb.Context.NormalizeTerms, SegmentFilter = KeepSegment, PartialFilter = TrustPartial };
+        _turn.LiveTextChanged += t =>
+        {
+            _liveText = t; _liveDirty = true;
+            // Words are only "being transcribed" once they are trusted; until then the status stays neutral.
+            if (Status == EngineStatus.HearingAudio && _turn.HasTrustedText) SetStatus(EngineStatus.SpeechDetected);
+        };
         _turn.StateChanged += OnTurnState;
         _turn.TurnFinalized += t => _ = HandleFinalizedAsync(t);
         _interrupt.LevelChanged += l => AdaptiveChanged?.Invoke(l);
@@ -287,10 +295,14 @@ public sealed class InterviewEngine : IAsyncDisposable
         if (Status == EngineStatus.Answering && s != TurnState.SpeechStarted) return;
         switch (s)
         {
-            case TurnState.SpeechStarted: SetStatus(EngineStatus.SpeechDetected); break;
-            case TurnState.PossibleEnd:
-            case TurnState.TurnSettling: SetStatus(EngineStatus.Finalizing); break;
-            case TurnState.Listening: if (Status is EngineStatus.SpeechDetected or EngineStatus.Finalizing) SetStatus(EngineStatus.Listening); break;
+            // Sound started: neutral until trusted words arrive (a beep is never shown as "transcribing").
+            case TurnState.SpeechStarted: SetStatus(_turn.HasTrustedText ? EngineStatus.SpeechDetected : EngineStatus.HearingAudio); break;
+            // "Question detected" only for text the gate would answer with the evidence heard so far.
+            case TurnState.TurnSettling:
+                if (_gate.Evaluate(_turn.CurrentText(), _turn.TurnEvidence).Answerable) SetStatus(EngineStatus.Finalizing);
+                else if (_turn.HasTrustedText) SetStatus(EngineStatus.SpeechDetected);
+                break;
+            case TurnState.Listening: if (Status is EngineStatus.HearingAudio or EngineStatus.SpeechDetected or EngineStatus.Finalizing) SetStatus(EngineStatus.Listening); break;
         }
     }
 
@@ -332,7 +344,7 @@ public sealed class InterviewEngine : IAsyncDisposable
             else if (previous == null) lock (_gate_) _turn.Forget(turn.TurnId);
             return;
         }
-        if (!turn.Evidence.Unknown && !turn.Evidence.HasSpeech) { Metrics.IncAcousticOverride(); Log?.Invoke("Clear question accepted although the acoustic layer saw no speech (" + turn.Evidence + ")"); }
+        if (verdict.Support == AcousticSupport.Weak) { Metrics.IncWeakSupport(); Log?.Invoke("Question accepted with weak acoustic support (" + turn.Evidence + ")"); }
 
         // Context statements merged into this (continued) turn are part of its text now.
         if (turn.RevisesTurnId is int merged && previous == null) _pending.Remove(merged);
@@ -358,6 +370,27 @@ public sealed class InterviewEngine : IAsyncDisposable
             kind: AnswerKind.Live, turnId: turn.TurnId, replaces: previous).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Trust boundary for live partial transcripts (called on every partial delta): shown only when the sound heard for the
+    /// current segment so far behaves like a voice that could have said the words, and the words are not the prompt or a
+    /// prompt-flavoured sentence over little speech. With no audio analysed (tests without capture) partials are shown.
+    /// </summary>
+    private bool TrustPartial(string partial)
+    {
+        var now = _clock.NowMs;
+        var from = _partialWindowFrom >= 0 ? _partialWindowFrom : now - Options.EvidenceLeadMs;
+        var evidence = _timeline.Sum(from, now);
+        var text = partial.Trim();
+        if (text.Length == 0) return false;
+        // Live words are shown only once the audio clearly behaves like a voice: a pitch track long enough to rule out a
+        // held tone (buzz, note, instrument) and enough voiced sound for every syllable. Anything less waits for the end of
+        // the turn, where the full evidence decides — a short real "Why?" simply appears when it is final.
+        if (!evidence.PitchJudged) return false;
+        if (SpeechPlausibility.Assess(text, evidence) != AcousticSupport.Strong) return false;
+        // Prompt echoes are short reproductions of the prompt; long voiced partials are not worth the comparison cost.
+        return TextNormalizer.WordCount(text) > 80 || !_gate.Echo.Check(text, evidence).IsEcho;
+    }
+
     /// <summary>Drops artefact segments (beep echo, no speech) before they can merge with real speech in the same turn.</summary>
     private bool KeepSegment(string text, SpeechEvidence evidence)
     {
@@ -380,6 +413,8 @@ public sealed class InterviewEngine : IAsyncDisposable
             case UtteranceKind.OtherDirected: Metrics.IncOtherDirected(); break;
             case UtteranceKind.Logistics: Metrics.IncLogistics(); break;
             case UtteranceKind.Context: Metrics.IncContextHeld(); break;
+            case UtteranceKind.ImplausibleTranscript: Metrics.IncImplausible(); break;
+            case UtteranceKind.ContextHallucination: Metrics.IncContextHallucination(); break;
         }
         // Kind, reason and size only — the transcript itself is never logged.
         Log?.Invoke($"Turn not answered: {v.Kind} ({v.Reason}; {words} words)");

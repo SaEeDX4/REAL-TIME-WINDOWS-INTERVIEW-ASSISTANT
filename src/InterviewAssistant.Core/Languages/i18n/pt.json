@@ -740,5 +740,6 @@
  "rpt_latency": "P50 {0} ms · P95 {1} ms (pergunta → primeira sugestão)",
  "bill_revoked": "Pro encerrado — pagamento reembolsado",
  "bill_notice_revoked": "O pagamento deste período foi reembolsado ou contestado, por isso o acesso ao Pro foi encerrado. Faça upgrade para continuar com o Pro.",
- "acct_deleted_identity_pending": "Sua conta foi excluída. Seu login será removido automaticamente em alguns minutos."
+ "acct_deleted_identity_pending": "Sua conta foi excluída. Seu login será removido automaticamente em alguns minutos.",
+ "status_hearing": "Ouvindo áudio"
 }

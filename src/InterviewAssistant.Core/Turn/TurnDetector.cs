@@ -35,6 +35,8 @@ public sealed class TurnDetector
     private readonly IClock _clock;
     private readonly List<(string ItemId, string Text)> _segments = new();
     private readonly Dictionary<string, System.Text.StringBuilder> _partials = new();
+    private readonly Dictionary<string, bool> _partialTrusted = new();
+    private readonly Dictionary<string, int> _partialCheckedAt = new();   // partial length at the last trust check
     private readonly Queue<Audio.SpeechEvidence> _pendingEvidence = new();
     // Evidence keyed by the transcription item it belongs to (exact); the queue is only a fallback when ids are unknown.
     private readonly Dictionary<string, Audio.SpeechEvidence> _evidenceByItem = new();
@@ -55,6 +57,16 @@ public sealed class TurnDetector
     /// speech in its audio). Applied when the segment's transcript completes, with that segment's acoustic evidence.
     /// </summary>
     public Func<string, Audio.SpeechEvidence, bool>? SegmentFilter { get; set; }
+    /// <summary>
+    /// Trust boundary for in-progress (partial) transcripts: only partials this accepts are shown as live text. Raw
+    /// partials of a beep ("Job interview") must never reach the screen; completed segments are judged by
+    /// <see cref="SegmentFilter"/>. Null = show every partial.
+    /// </summary>
+    public Func<string, bool>? PartialFilter { get; set; }
+    /// <summary>Acoustic evidence of the segments accepted into the current turn so far.</summary>
+    public Audio.SpeechEvidence TurnEvidence => _turnEvidence;
+    /// <summary>True when the live text holds trusted words (accepted segments or trusted partials).</summary>
+    public bool HasTrustedText => _segments.Count > 0 || _partialTrusted.Values.Any(t => t);
     /// <summary>Target-scoped term normalization applied to finalized text (e.g. MiCA → MiCAR when the target uses MiCAR).</summary>
     public Func<string, string>? TermNormalizer { get; set; }
     public double Sensitivity { get; set; } = 1.0; // >1 waits longer, <1 answers faster
@@ -82,7 +94,7 @@ public sealed class TurnDetector
 
     public void Reset()
     {
-        _segments.Clear(); _partials.Clear(); _segmentsText = null; _droppedSegments = 0;
+        _segments.Clear(); _partials.Clear(); _partialTrusted.Clear(); _partialCheckedAt.Clear(); _segmentsText = null; _droppedSegments = 0;
         _speechStoppedAt = _lastSegmentAt = _settleDeadline = -1;
         _awaitingSegments = 0;
         _reopened = null;
@@ -147,13 +159,25 @@ public sealed class TurnDetector
         if (!_partials.TryGetValue(itemId, out var sb)) _partials[itemId] = sb = new System.Text.StringBuilder();
         sb.Append(delta);
         if (sb.Length > MaxPartialChars) sb.Remove(0, sb.Length - MaxPartialChars);
-        LiveTextChanged?.Invoke(CurrentText());
+        // An untrusted or short partial is re-checked on every delta (a sentence that outgrows its audio loses its trust
+        // at once); a long trusted one after every ~40 new characters (cheap for minute-long monologues).
+        bool trusted = _partialTrusted.GetValueOrDefault(itemId);
+        if (PartialFilter == null) trusted = true;
+        else if (!trusted || sb.Length <= 240 || sb.Length - _partialCheckedAt.GetValueOrDefault(itemId) >= 40)
+        {
+            trusted = PartialFilter(sb.ToString());
+            _partialCheckedAt[itemId] = sb.Length;
+        }
+        _partialTrusted[itemId] = trusted;
+        LiveTextChanged?.Invoke(DisplayText());
     }
 
     public void OnSegmentCompleted(string itemId, string transcript)
     {
         if (State == TurnState.Idle) return;
         _partials.Remove(itemId);
+        _partialTrusted.Remove(itemId);
+        _partialCheckedAt.Remove(itemId);
         if (_awaitingSegments > 0) _awaitingSegments--;
         var text = transcript.Trim();
         var idx = _segments.FindIndex(s => s.ItemId == itemId);
@@ -162,12 +186,12 @@ public sealed class TurnDetector
         {
             Audio.SpeechEvidence segEvidence;
             if (_evidenceByItem.Remove(itemId, out var byItem)) segEvidence = byItem;
-            else segEvidence = _pendingEvidence.Count > 0 ? _pendingEvidence.Dequeue() : default;
+            else segEvidence = _pendingEvidence.Count > 0 ? _pendingEvidence.Dequeue() : Audio.SpeechEvidence.Unheard;
             if (text.Length > 0 && SegmentFilter != null && !SegmentFilter(text, segEvidence))
             {
                 // Dropped: the turn continues (or ends) as if this sound had not been transcribed.
                 _lastSegmentAt = _clock.NowMs;
-                LiveTextChanged?.Invoke(CurrentText());
+                LiveTextChanged?.Invoke(DisplayText());
                 if (_segments.Count == 0 && _partials.Count == 0 && _awaitingSegments == 0 && State is TurnState.PossibleEnd or TurnState.TurnSettling)
                 {
                     _speechStoppedAt = _settleDeadline = -1; _turnStartMs = -1; _turnEvidence = default; _reopened = null;
@@ -184,7 +208,7 @@ public sealed class TurnDetector
             }
         }
         _lastSegmentAt = _clock.NowMs;
-        LiveTextChanged?.Invoke(CurrentText());
+        LiveTextChanged?.Invoke(DisplayText());
         if (State is TurnState.PossibleEnd or TurnState.TurnSettling) ScheduleSettle();
     }
 
@@ -195,6 +219,8 @@ public sealed class TurnDetector
     public void OnConnectionInterrupted()
     {
         _partials.Clear();
+        _partialTrusted.Clear();
+        _partialCheckedAt.Clear();
         _awaitingSegments = 0;
         // Transcripts of the dropped connection never arrive: their evidence must not shift onto later segments.
         _pendingEvidence.Clear();
@@ -271,11 +297,20 @@ public sealed class TurnDetector
         var t = text.Trim();
         if (t.Length == 0) return true;
         if (Pleasantry.IsMatch(t)) return true;
-        if (TextNormalizer.WordCount(t) < 2) return !OneWordAsk.IsMatch(t); // "Why?" / "Example?" are real follow-ups
+        if (TextNormalizer.WordCount(t) < 2)
+        {
+            // One word is a real follow-up when it is asked ("Metrics?", "Timeline?") or is an interrogative a recognizer
+            // wrote with falling punctuation ("Why.", "How", "Really."); acknowledgements and fillers are not ("Okay?",
+            // "Hm?", "Sorry?" — the last asks the interviewer to repeat, not the candidate to answer).
+            var word = t.TrimEnd('?', '.', '!', '…', ' ');
+            if (word.Length == 0 || Pleasantry.IsMatch(word) || Filler.IsMatch(word)) return true;
+            return !(t.EndsWith('?') || OneWordAsk.IsMatch(word));
+        }
         return false;
     }
 
-    private static readonly Regex OneWordAsk = new(@"^(why|how|really|example|examples|which|meaning|explain|elaborate|metrics|when|where|who|what)\s*\?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex OneWordAsk = new(@"^(why|how|really|example|examples|which|meaning|explain|elaborate|when|where|who|what)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex Filler = new(@"^(h+m+|m+h*m+|uh+|um+|huh|eh|ah+|oh+|sorry|pardon|hello|hi|hey|bye)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private void Finalize(long now)
     {
@@ -342,6 +377,15 @@ public sealed class TurnDetector
 
     public string CurrentText()
     {
+        var segments = SegmentsText();
+        if (_partials.Count == 0) return segments;
+        var sb = new StringBuilder(segments);
+        foreach (var p in _partials.Values) { if (p.Length == 0) continue; if (sb.Length > 0) sb.Append(' '); sb.Append(p.ToString().Trim()); }
+        return sb.ToString();
+    }
+
+    private string SegmentsText()
+    {
         if (_segmentsText == null)
         {
             var b = new StringBuilder();
@@ -353,9 +397,21 @@ public sealed class TurnDetector
             }
             _segmentsText = b.ToString();
         }
-        if (_partials.Count == 0) return _segmentsText;
-        var sb = new StringBuilder(_segmentsText);
-        foreach (var p in _partials.Values) { if (p.Length == 0) continue; if (sb.Length > 0) sb.Append(' '); sb.Append(p.ToString().Trim()); }
+        return _segmentsText;
+    }
+
+    /// <summary>What may be shown as live text: accepted segments plus the partials that passed <see cref="PartialFilter"/>.</summary>
+    public string DisplayText()
+    {
+        var segments = SegmentsText();
+        if (_partials.Count == 0) return segments;
+        var sb = new StringBuilder(segments);
+        foreach (var (id, p) in _partials)
+        {
+            if (p.Length == 0 || !_partialTrusted.GetValueOrDefault(id, PartialFilter == null)) continue;
+            if (sb.Length > 0) sb.Append(' ');
+            sb.Append(p.ToString().Trim());
+        }
         return sb.ToString();
     }
 

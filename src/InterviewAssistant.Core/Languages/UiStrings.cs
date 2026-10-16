@@ -6,7 +6,7 @@ public static class UiStrings
     public static readonly string[] Keys =
     {
         "status_ready", "status_listening", "status_speech", "status_finalizing", "status_answering", "status_paused", "status_reconnecting",
-        "status_no_audio", "status_api_error", "status_stopped",
+        "status_no_audio", "status_api_error", "status_stopped", "status_hearing",
         "question", "answer", "coach", "waiting", "type_hint", "start", "pause", "resume",
         "shorter", "technical", "example", "full", "keywords", "structure", "adaptive_concise", "adaptive_rapid", "minutes_left",
         "sign_in", "sign_out", "account", "upgrade", "manage_billing", "profiles", "interviews", "reports", "settings",

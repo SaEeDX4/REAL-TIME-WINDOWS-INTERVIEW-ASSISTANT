@@ -740,5 +740,6 @@
  "rpt_latency": "P50 {0} ms · P95 {1} ms (pregunta → primera sugerencia)",
  "bill_revoked": "Pro finalizado: pago reembolsado",
  "bill_notice_revoked": "El pago de este periodo se reembolsó o se disputó, por lo que el acceso Pro ha finalizado. Mejora tu plan para seguir con Pro.",
- "acct_deleted_identity_pending": "Se eliminó tu cuenta. Tu inicio de sesión se eliminará automáticamente en unos minutos."
+ "acct_deleted_identity_pending": "Se eliminó tu cuenta. Tu inicio de sesión se eliminará automáticamente en unos minutos.",
+ "status_hearing": "Oyendo audio"
 }

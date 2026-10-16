@@ -437,6 +437,16 @@ SPEECH = [
     ("speech_ninetydays", "en-us+m7", 180, 50, "What would you do in your first ninety days?"),
     ("speech_de_warum", "de+m2", 160, 45, "Warum haben Sie sich bei uns beworben?"),
     ("speech_es_reto", "es+f2", 165, 55, "¿Cuál fue su mayor reto?"),
+    # RC4 negative controls: short real follow-ups must stay answerable (falling and rising, one to three words), plus a
+    # deliberately fast speaker for the speech-rate plausibility check.
+    ("speech_why_falling", "en-gb+m3", 160, 35, "Why."),
+    ("speech_really", "en-us+f2", 170, 60, "Really?"),
+    ("speech_andthen", "en-gb+f1", 175, 55, "And then?"),
+    ("speech_tellmemore", "en-us+m4", 170, 45, "Tell me more."),
+    ("speech_whathappened", "en-gb+m6", 175, 50, "What happened?"),
+    ("speech_metrics_oneword", "en-us+m2", 165, 50, "Metrics?"),
+    ("speech_anythingelse", "en-us+f3", 170, 55, "Anything else?"),
+    ("speech_fast_ninetydays", "en-us+m5", 240, 50, "What would you do in your first ninety days?"),
 ]
 
 

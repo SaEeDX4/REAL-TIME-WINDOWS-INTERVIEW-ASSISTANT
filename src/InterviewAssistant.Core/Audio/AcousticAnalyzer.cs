@@ -2,11 +2,16 @@ using System.Buffers.Binary;
 
 namespace InterviewAssistant.Core.Audio;
 
-/// <summary>Acoustic summary of one captured frame (milliseconds of each kind of sound).</summary>
-public readonly record struct FrameAcoustics(int DurationMs, int ActiveMs, int VoicedMs, int TonalMs)
+/// <summary>
+/// Acoustic summary of one captured frame (milliseconds of each kind of sound) plus pitch-movement counts over pairs of
+/// consecutive periodic hops: <see cref="SteadyPairs"/> held their pitch within 0.6 % (a note or tone), <see cref="JumpPairs"/>
+/// moved by more than 2.5 % (no continuous voice pitch, e.g. a knock's wobbling resonance).
+/// </summary>
+public readonly record struct FrameAcoustics(int DurationMs, int ActiveMs, int VoicedMs, int TonalMs, int PitchPairs = 0, int SteadyPairs = 0, int JumpPairs = 0)
 {
     public static FrameAcoustics operator +(FrameAcoustics a, FrameAcoustics b) =>
-        new(a.DurationMs + b.DurationMs, a.ActiveMs + b.ActiveMs, a.VoicedMs + b.VoicedMs, a.TonalMs + b.TonalMs);
+        new(a.DurationMs + b.DurationMs, a.ActiveMs + b.ActiveMs, a.VoicedMs + b.VoicedMs, a.TonalMs + b.TonalMs,
+            a.PitchPairs + b.PitchPairs, a.SteadyPairs + b.SteadyPairs, a.JumpPairs + b.JumpPairs);
 }
 
 /// <summary>
@@ -21,6 +26,9 @@ public readonly record struct FrameAcoustics(int DurationMs, int ActiveMs, int V
 ///  - SUSTAINED (active, neither voiced nor tonal): a periodic hop whose spectrum is unchanged in the disjoint windows
 ///    40 ms before and after it. Struck or held notes and alert tones ring with fixed partials; voiced speech does not
 ///    hold its harmonics and formants still for 80–120 ms (pitch glides and articulation move them).
+///  - PITCH MOVEMENT between consecutive periodic hops (20 ms apart): a voice's pitch glides continuously (typically
+///    0.5–1.5 % per hop with intonation and jitter); a note or alert tone holds it (&lt; 0.6 %). Jumps (&gt; 2.5 %) are counted
+///    for diagnostics. Counted per pair so the evidence for a whole segment can say how voice-like the pitch was.
 /// Speech evidence = voiced and not tonal. A Windows beep is tonal; a screenshot/click sound is an unvoiced noise
 /// burst; neither produces speech evidence. Harmonic sounds with a moving pitch inside the voice range (singing, music,
 /// a low alert tone with vibrato, the low ringing of a door knock) can still look voiced, so this is one layer of
@@ -44,10 +52,16 @@ public static class AcousticAnalyzer
     private const int MinShortLag = 5;                     // 2.4 kHz
     private const int SpectrumBins = Fft / 2;
     private const byte Inactive = 0, Unvoiced = 1, Voiced = 2, Tonal = 3;
+    /// <summary>|ln(f2/f1)| below which consecutive periodic hops hold the same pitch (0.6 %).</summary>
+    public const double SteadyPitchDelta = 0.006;
+    /// <summary>|ln(f2/f1)| above which consecutive periodic hops have no continuous pitch (2.5 %).</summary>
+    public const double PitchJumpDelta = 0.025;
 
     [ThreadStatic] private static double[]? _x, _re, _im, _r;
     [ThreadStatic] private static double[][]? _spectra;
     [ThreadStatic] private static byte[]? _kind;
+    [ThreadStatic] private static double[]? _period;
+    [ThreadStatic] private static int[]? _start;
 
     public static FrameAcoustics Analyze(ReadOnlySpan<byte> pcm16)
     {
@@ -66,17 +80,21 @@ public static class AcousticAnalyzer
         int hops = Math.Max(1, n12 / hop);
         int msPerHop = Math.Max(1, durationMs / hops);
         int active = 0, voiced = 0, tonal = 0;
-        if (_kind == null || _kind.Length < hops) { _kind = new byte[hops]; _spectra = new double[hops][]; }
+        if (_kind == null || _kind.Length < hops) { _kind = new byte[hops]; _spectra = new double[hops][]; _period = new double[hops]; _start = new int[hops]; }
         var kind = _kind;
+        var period = _period!;
+        var starts = _start!;
         var spectra = _spectra!;
         for (int h = 0; h < hops; h++)
         {
             kind[h] = Inactive;
+            period[h] = 0;
             int start = h * hop;
             int len = Math.Min(Window, n12 - start);
             // The last hop of a frame analyses the frame's last full window, not a truncated 20 ms one (a half window
             // smears narrow partials, so a pure tone stopped looking tonal on every fifth hop).
             if (len < Window) { start = Math.Max(0, n12 - Window); len = Math.Min(Window, n12 - start); }
+            starts[h] = start;
             if (len <= MinLag) continue;
             var w = new ReadOnlySpan<double>(x, start, len);
             double energy = 0, mean = 0;
@@ -95,8 +113,20 @@ public static class AcousticAnalyzer
             if (isTonal) { kind[h] = Tonal; continue; }
             kind[h] = Unvoiced;
             if (len <= MaxLag + 60) continue;
-            var (r, aboveVoice) = Periodicity(w, mean);
-            if (r >= VoicedCorrelation) kind[h] = aboveVoice ? Tonal : Voiced;
+            var (r, aboveVoice, lag) = Periodicity(w, mean);
+            if (r >= VoicedCorrelation) { kind[h] = aboveVoice ? Tonal : Voiced; if (!aboveVoice) period[h] = lag; }
+        }
+        int pairs = 0, steady = 0, jumps = 0;
+        for (int h = 1; h < hops; h++)
+        {
+            // Pitch movement over every pair of consecutive periodic hops in the voice range (sustained ones included:
+            // their steadiness is exactly what distinguishes a held tone from a voice).
+            // Only hops a full hop apart: the last hop of a frame re-analyses (part of) the previous window.
+            if (period[h] <= 0 || period[h - 1] <= 0 || starts[h] - starts[h - 1] != hop) continue;
+            var delta = Math.Abs(Math.Log(period[h] / period[h - 1]));
+            pairs++;
+            if (delta < SteadyPitchDelta) steady++;
+            else if (delta > PitchJumpDelta) jumps++;
         }
         for (int h = 0; h < hops; h++)
         {
@@ -107,7 +137,7 @@ public static class AcousticAnalyzer
                 if (!Sustained(h, hops, kind, spectra)) voiced += msPerHop;
             }
         }
-        return new FrameAcoustics(durationMs, Math.Min(active, durationMs), Math.Min(voiced, durationMs), Math.Min(tonal, durationMs));
+        return new FrameAcoustics(durationMs, Math.Min(active, durationMs), Math.Min(voiced, durationMs), Math.Min(tonal, durationMs), pairs, steady, jumps);
     }
 
     /// <summary>
@@ -115,7 +145,7 @@ public static class AcousticAnalyzer
     /// voice's: a lag under 2.5 ms (above 400 Hz) that is about as periodic as the in-range peak, which is (close to) an
     /// integer multiple of it. The in-range peak is then a multiple of a chime/alert-tone period, not a voice pitch.
     /// </summary>
-    private static (double Best, bool AboveVoiceRange) Periodicity(ReadOnlySpan<double> w, double mean)
+    private static (double Best, bool AboveVoiceRange, double Period) Periodicity(ReadOnlySpan<double> w, double mean)
     {
         var r = _r ??= new double[MaxLag + 2];
         Array.Clear(r);
@@ -133,16 +163,16 @@ public static class AcousticAnalyzer
             r[lag] = xx <= 0 || yy <= 0 ? 0 : xy / Math.Sqrt(xx * yy);
             if (lag >= MinLag && r[lag] > best) { best = r[lag]; bestLag = lag; }
         }
-        if (best < VoicedCorrelation) return (best, false);
+        if (best < VoicedCorrelation) return (best, false, 0);
         double period = Interpolate(r, bestLag);
         for (int lag = MinShortLag; lag < MinLag; lag++)
         {
             if (r[lag] < best - ShortPeriodMargin || r[lag] < r[lag - 1] || r[lag] < r[lag + 1]) continue;
             double shortPeriod = Interpolate(r, lag);
             double k = Math.Round(period / shortPeriod);
-            if (k >= 2 && Math.Abs(period - k * shortPeriod) <= 0.04 * period) return (best, true);
+            if (k >= 2 && Math.Abs(period - k * shortPeriod) <= 0.04 * period) return (best, true, period);
         }
-        return (best, false);
+        return (best, false, period);
     }
 
     /// <summary>Parabolic interpolation of a correlation peak (fractional lag).</summary>
@@ -245,20 +275,82 @@ public static class AcousticAnalyzer
     }
 }
 
-/// <summary>Acoustic evidence for one interviewer segment or turn.</summary>
-public readonly record struct SpeechEvidence(int FramesObserved, int SpanMs, int ActiveMs, int VoicedMs, int TonalMs)
+/// <summary>
+/// Acoustic evidence for one interviewer segment or turn. <see cref="WindowMs"/> is the time range the evidence was asked
+/// for; <see cref="SpanMs"/> the audio actually analysed in it (less when capture frames were missing).
+/// </summary>
+public readonly record struct SpeechEvidence(int FramesObserved, int SpanMs, int ActiveMs, int VoicedMs, int TonalMs,
+    int PitchPairs = 0, int SteadyPairs = 0, int JumpPairs = 0, int WindowMs = 0)
 {
     /// <summary>No audio was analysed (no capture data for the period): acoustic layers abstain.</summary>
     public bool Unknown => FramesObserved == 0;
+    /// <summary>
+    /// Less than three quarters of the requested window was analysed (capture stalled, a segment's start was lost, or a
+    /// monologue outlasted the evidence buffer): the words cannot be compared with the audio, so the speech-rate checks
+    /// abstain instead of vetoing real speech they could not hear. Whether the audio that WAS heard is a voice still counts.
+    /// </summary>
+    public bool Incomplete => !Unknown && WindowMs > 0 && SpanMs * 4 < WindowMs * 3;
     /// <summary>Enough voiced, non-tonal sound for a real human utterance (even a short "Why?").</summary>
     public bool HasSpeech => !Unknown && VoicedMs >= MinVoicedMs;
     /// <summary>A short sound with no speech in it: a beep, chime, click or screenshot sound.</summary>
     public bool IsShortNonSpeechEvent => !Unknown && VoicedMs < MinVoicedMs && ActiveMs <= ShortEventMs;
+
+    /// <summary>Share of the periodic sound that was narrow-band (chimes, alert tones): speech ≈ 0–3 %.</summary>
+    public double TonalShare => VoicedMs + TonalMs == 0 ? 0 : TonalMs / (double)(VoicedMs + TonalMs);
+    /// <summary>Share of consecutive periodic hops that held their pitch (notes, tones): speech ≈ 15–60 %.</summary>
+    public double PitchSteadiness => PitchPairs == 0 ? 0 : SteadyPairs / (double)PitchPairs;
+    /// <summary>Share of consecutive periodic hops whose pitch jumped (knocks, rattles): speech is continuous.</summary>
+    public double PitchJumpShare => PitchPairs == 0 ? 0 : JumpPairs / (double)PitchPairs;
+
+    /// <summary>
+    /// Voiced sound that also BEHAVES like a voice: little narrow-band energy and a pitch that moves rather than holding
+    /// still (a note, a buzz, an alert tone, instrumental music). Fewer than ten pitch pairs (a very short "Why?") are too
+    /// noisy to judge steadiness, so they count as voice-like when the other signs agree. Pitch JUMPS are reported but
+    /// deliberately not used to reject: creaky voice and vocal fry make real voices jumpy too, and rejecting a real
+    /// interviewer is the worse failure.
+    /// </summary>
+    public bool VoiceLike => HasSpeech && !TooTonal && (PitchPairs < MinPitchPairs || PitchSteadiness < MaxPitchSteadiness);
+
+    /// <summary>
+    /// Narrow-band energy dominates. Judged only once at least <see cref="MinTonalMs"/> of tonal sound was heard: in a
+    /// half-second "And then?" two or three tonal hops are measurement noise, while every chime and alert tone measured
+    /// holds 200 ms or more.
+    /// </summary>
+    public bool TooTonal => TonalMs >= MinTonalMs && TonalShare >= MaxTonalShare;
+
+    /// <summary>
+    /// The pitch track is long enough to tell a moving voice from a held tone. Live (partial) text is only trusted once
+    /// this holds; a turn too short to reach it is judged when it ends.
+    /// </summary>
+    public bool PitchJudged => PitchPairs >= MinPitchPairs;
+
+    /// <summary>Why the audio does not behave like a voice (for diagnostics); empty when it does.</summary>
+    public string NotVoiceReason => !HasSpeech ? "no voiced sound"
+        : TooTonal ? $"tonal {TonalShare:P0}"
+        : PitchPairs >= MinPitchPairs && PitchSteadiness >= MaxPitchSteadiness ? $"steady pitch {PitchSteadiness:P0}" : "";
+
+    /// <summary>
+    /// A segment whose audio window is not known (e.g. its start was lost in a reconnect, or its evidence never arrived):
+    /// no frames, and a window so large that any turn containing it counts as <see cref="Incomplete"/> — the acoustic layers
+    /// abstain rather than judging a whole question by a fragment of its audio.
+    /// </summary>
+    public static SpeechEvidence Unheard => new(0, 0, 0, 0, 0, WindowMs: UnheardWindowMs);
+    public const int UnheardWindowMs = 600_000;
+
     public const int MinVoicedMs = 100;
     public const int ShortEventMs = 1500;
+    public const double MaxTonalShare = 0.2;
+    public const int MinTonalMs = 100;
+    public const double MaxPitchSteadiness = 0.65;
+    public const int MinPitchPairs = 10;
+
     public static SpeechEvidence operator +(SpeechEvidence a, SpeechEvidence b) =>
-        new(a.FramesObserved + b.FramesObserved, a.SpanMs + b.SpanMs, a.ActiveMs + b.ActiveMs, a.VoicedMs + b.VoicedMs, a.TonalMs + b.TonalMs);
-    public override string ToString() => Unknown ? "acoustics: n/a" : $"voiced {VoicedMs} ms, active {ActiveMs} ms, tonal {TonalMs} ms over {SpanMs} ms";
+        new(a.FramesObserved + b.FramesObserved, a.SpanMs + b.SpanMs, a.ActiveMs + b.ActiveMs, a.VoicedMs + b.VoicedMs, a.TonalMs + b.TonalMs,
+            a.PitchPairs + b.PitchPairs, a.SteadyPairs + b.SteadyPairs, a.JumpPairs + b.JumpPairs, a.WindowMs + b.WindowMs);
+
+    public override string ToString() => Unknown ? "acoustics: n/a"
+        : $"voiced {VoicedMs} ms, active {ActiveMs} ms, tonal {TonalMs} ms over {SpanMs} ms" +
+          (PitchPairs > 0 ? $", pitch steady {PitchSteadiness:P0} / jumps {PitchJumpShare:P0} of {PitchPairs}" : "");
 }
 
 /// <summary>
@@ -298,7 +390,8 @@ public sealed class SpeechEvidenceTimeline
                 if (at > toMs) continue;
                 frames++; total += a;
             }
-            return new SpeechEvidence(frames, total.DurationMs, total.ActiveMs, total.VoicedMs, total.TonalMs);
+            return new SpeechEvidence(frames, total.DurationMs, total.ActiveMs, total.VoicedMs, total.TonalMs,
+                total.PitchPairs, total.SteadyPairs, total.JumpPairs, (int)Math.Max(0, toMs - fromMs));
         }
     }
 }
