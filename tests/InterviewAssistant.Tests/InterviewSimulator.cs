@@ -1,3 +1,4 @@
+using InterviewAssistant.Core.Audio;
 using InterviewAssistant.Core.Diagnostics;
 using InterviewAssistant.Core.Knowledge;
 using InterviewAssistant.Core.Orchestration;
@@ -28,13 +29,13 @@ public sealed class InterviewSimulator
     private readonly SortedList<long, List<Action>> _events = new();
     private int _item;
     // What is audible at each moment (virtual ms → kind), so the engine receives realistic audio frames.
-    private readonly List<(long From, long To, SoundKind Kind)> _sounds = new();
+    private readonly List<(long From, long To, SoundKind Kind, byte[][]? Pcm)> _sounds = new();
     private static readonly byte[][] SpeechFrames = SyntheticAudio.Frames(SyntheticAudio.Speech(2000, 135)).ToArray();
     private static readonly byte[][] BeepFrames = SyntheticAudio.Frames(SyntheticAudio.Beep(600, 880)).ToArray();
     private static readonly byte[][] ShutterFrames = SyntheticAudio.Frames(SyntheticAudio.Concat(SyntheticAudio.Shutter(), SyntheticAudio.Silence(250))).ToArray();
     private static readonly byte[][] ChordFrames = SyntheticAudio.Frames(SyntheticAudio.Chord(2000)).ToArray();
     private static readonly byte[] SilenceFrame = new byte[4800];
-    public enum SoundKind { Speech, Beep, Shutter, Music }
+    public enum SoundKind { Speech, Beep, Shutter, Music, Pcm }
     /// <summary>False = the old behaviour (digital silence frames only), for tests about timing without acoustics.</summary>
     public bool SendAudio { get; set; } = true;
     public IReadOnlyList<AnswerView> Started { get { lock (_started) return _started.ToList(); } }
@@ -79,7 +80,7 @@ public sealed class InterviewSimulator
                 At(t + OnsetMs, () => T.Start());
             pending = pending.Length == 0 ? text : pending + " " + text;
             var dur = Math.Max(600, text.Split(' ').Length * MsPerWord);
-            _sounds.Add((t, t + dur, SoundKind.Speech));
+            _sounds.Add((t, t + dur, SoundKind.Speech, null));
             t += dur;
             bool last = i == parts.Count - 1;
             if (!last && pause < VadSilenceMs) { t += pause; continue; }   // VAD does not split: same segment
@@ -99,18 +100,48 @@ public sealed class InterviewSimulator
     public void Sound(SoundKind kind, string? hallucination, int durationMs = 600)
     {
         long t = Clock.NowMs;
-        _sounds.Add((t, t + durationMs, kind));
+        _sounds.Add((t, t + durationMs, kind, null));
         var id = "item" + (++_item);
         At(t + OnsetMs, () => T.Start());
         At(t + durationMs + VadSilenceMs, () => T.Stop());
         At(t + durationMs + VadSilenceMs + TranscriptMs, () => T.Complete(hallucination ?? "", id));
     }
 
+    /// <summary>
+    /// Plays recorded/generated audio (24 kHz mono PCM16, e.g. a WAV fixture's data chunk) as 100 ms capture frames, with
+    /// the same server-VAD timing as <see cref="Sound"/>; the recognizer then returns <paramref name="transcript"/> (the
+    /// real words for speech, a hallucination such as the vocabulary prompt or "Thank you." for non-speech; null = no text).
+    /// </summary>
+    public void SoundFromPcm(byte[] pcm, string? transcript)
+    {
+        int frameBytes = Rate24kFrameBytes;
+        var frames = new byte[(pcm.Length + frameBytes - 1) / frameBytes][];
+        for (int i = 0; i < frames.Length; i++)
+        {
+            frames[i] = new byte[frameBytes];   // the last frame is padded with silence, as the capture framer would after it
+            Array.Copy(pcm, i * frameBytes, frames[i], 0, Math.Min(frameBytes, pcm.Length - i * frameBytes));
+        }
+        int durationMs = frames.Length * 100;
+        long t = Clock.NowMs;
+        _sounds.Add((t, t + durationMs, SoundKind.Pcm, frames));
+        foreach (var f in frames) _pcmFrames.Add(f);
+        var id = "item" + (++_item);
+        At(t + OnsetMs, () => T.Start());
+        At(t + durationMs + VadSilenceMs, () => T.Stop());
+        At(t + durationMs + VadSilenceMs + TranscriptMs, () => T.Complete(transcript ?? "", id));
+    }
+
+    private readonly HashSet<byte[]> _pcmFrames = new(ReferenceEqualityComparer.Instance);
+    private const int Rate24kFrameBytes = 4800; // 100 ms of 24 kHz mono PCM16, the capture frame size
+
     private byte[] FrameAt(long now)
     {
         if (!SendAudio) return SilenceFrame;
-        foreach (var (from, to, kind) in _sounds)
+        foreach (var (from, to, kind, pcm) in _sounds)
         {
+            // A frame delivered at `now` carries the audio of (now - 100, now]: every PCM frame is played, the first one
+            // 100 ms after the sound starts.
+            if (kind == SoundKind.Pcm) { if (now > from && now <= to) return pcm![Math.Min((int)((now - from - 1) / 100), pcm.Length - 1)]; continue; }
             if (now < from || now >= to) continue;
             var idx = (int)((now - from) / 100);
             return kind switch
@@ -141,7 +172,8 @@ public sealed class InterviewSimulator
             if (now % AudioFrameEveryMs == 0)
             {
                 var f = FrameAt(now);
-                E.OnAudioFrame(f, ReferenceEquals(f, SilenceFrame) ? -100 : -30);
+                // Synthetic sounds keep the fixed level they always had; PCM fixtures report their real RMS level.
+                E.OnAudioFrame(f, ReferenceEquals(f, SilenceFrame) ? -100 : _pcmFrames.Contains(f) ? PcmConverter.LevelDb(f) : -30);
                 _sounds.RemoveAll(x => x.To < now - 60_000);
             }
             E.Tick();

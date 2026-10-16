@@ -11,13 +11,20 @@ public readonly record struct FrameAcoustics(int DurationMs, int ActiveMs, int V
 
 /// <summary>
 /// Cheap, dependency-free speech evidence from 24 kHz mono PCM16 (the exact stream sent for transcription).
-/// Each 20 ms hop is analysed over a 40 ms window at 12 kHz:
+/// Each 20 ms hop is analysed over a 40 ms window at 12 kHz (the last hop of a frame uses the frame's last full window):
 ///  - ACTIVE: level above the floor (something is playing);
 ///  - VOICED: a periodic signal with a pitch between ~80 and ~400 Hz (normalized autocorrelation) — human voiced speech;
 ///  - TONAL: nearly all energy in one or two narrow spectral peaks with no harmonic ladder — beeps, chimes, notification
-///    tones (voiced speech always shows several harmonics).
+///    tones (voiced speech always shows several harmonics). A periodic hop also counts as TONAL when the signal repeats
+///    faster than any voice (a period shorter than 2.5 ms, i.e. a fundamental above 400 Hz): the in-range
+///    autocorrelation peak is then only a multiple of that period — chimes, alert tones, most notification sounds.
+///  - SUSTAINED (active, neither voiced nor tonal): a periodic hop whose spectrum is unchanged in the disjoint windows
+///    40 ms before and after it. Struck or held notes and alert tones ring with fixed partials; voiced speech does not
+///    hold its harmonics and formants still for 80–120 ms (pitch glides and articulation move them).
 /// Speech evidence = voiced and not tonal. A Windows beep is tonal; a screenshot/click sound is an unvoiced noise
-/// burst; neither produces speech evidence. Music can look voiced, so this is one layer of several, never the only one.
+/// burst; neither produces speech evidence. Harmonic sounds with a moving pitch inside the voice range (singing, music,
+/// a low alert tone with vibrato, the low ringing of a door knock) can still look voiced, so this is one layer of
+/// several, never the only one (measured limits: tests/fixtures/audio/MANIFEST.md).
 /// </summary>
 public static class AcousticAnalyzer
 {
@@ -30,8 +37,17 @@ public static class AcousticAnalyzer
     public const double ActiveDbfs = -50;
     public const double VoicedCorrelation = 0.5;
     public const double TonalConcentration = 0.97;
+    /// <summary>Spectral cosine similarity above which two disjoint 40 ms windows hold the same sustained sound.</summary>
+    public const double SustainedSimilarity = 0.95;
+    /// <summary>A shorter period is the true one when it is (almost) as periodic as the in-range peak.</summary>
+    private const double ShortPeriodMargin = 0.02;
+    private const int MinShortLag = 5;                     // 2.4 kHz
+    private const int SpectrumBins = Fft / 2;
+    private const byte Inactive = 0, Unvoiced = 1, Voiced = 2, Tonal = 3;
 
-    [ThreadStatic] private static double[]? _x, _re, _im;
+    [ThreadStatic] private static double[]? _x, _re, _im, _r;
+    [ThreadStatic] private static double[][]? _spectra;
+    [ThreadStatic] private static byte[]? _kind;
 
     public static FrameAcoustics Analyze(ReadOnlySpan<byte> pcm16)
     {
@@ -50,11 +66,17 @@ public static class AcousticAnalyzer
         int hops = Math.Max(1, n12 / hop);
         int msPerHop = Math.Max(1, durationMs / hops);
         int active = 0, voiced = 0, tonal = 0;
+        if (_kind == null || _kind.Length < hops) { _kind = new byte[hops]; _spectra = new double[hops][]; }
+        var kind = _kind;
+        var spectra = _spectra!;
         for (int h = 0; h < hops; h++)
         {
+            kind[h] = Inactive;
             int start = h * hop;
             int len = Math.Min(Window, n12 - start);
-            if (len < MaxLag + 60) { start = Math.Max(0, n12 - Window); len = Math.Min(Window, n12 - start); }
+            // The last hop of a frame analyses the frame's last full window, not a truncated 20 ms one (a half window
+            // smears narrow partials, so a pure tone stopped looking tonal on every fifth hop).
+            if (len < Window) { start = Math.Max(0, n12 - Window); len = Math.Min(Window, n12 - start); }
             if (len <= MinLag) continue;
             var w = new ReadOnlySpan<double>(x, start, len);
             double energy = 0, mean = 0;
@@ -65,22 +87,42 @@ public static class AcousticAnalyzer
             var db = rms <= 1e-9 ? -120 : 20 * Math.Log10(rms);
             if (db < ActiveDbfs) continue;
             active += msPerHop;
-            var (conc, _, peaks) = Spectrum(w, mean);
+            var power = spectra[h] ??= new double[SpectrumBins];
+            var (conc, _, peaks) = Spectrum(w, mean, power);
             // Narrow-band sound: energy in one or two partials and almost nothing else (beeps, chimes, notification
             // tones). Voiced speech always shows a ladder of harmonics, so it has several strong spectral peaks.
             bool isTonal = peaks <= 1 ? conc >= 0.9 : peaks <= 2 && conc >= TonalConcentration;
-            if (isTonal) { tonal += msPerHop; continue; }
-            if (len > MaxLag + 60 && PeakCorrelation(w, mean) >= VoicedCorrelation) voiced += msPerHop;
+            if (isTonal) { kind[h] = Tonal; continue; }
+            kind[h] = Unvoiced;
+            if (len <= MaxLag + 60) continue;
+            var (r, aboveVoice) = Periodicity(w, mean);
+            if (r >= VoicedCorrelation) kind[h] = aboveVoice ? Tonal : Voiced;
+        }
+        for (int h = 0; h < hops; h++)
+        {
+            if (kind[h] == Tonal) tonal += msPerHop;
+            else if (kind[h] == Voiced)
+            {
+                // A sustained note is neither speech nor a narrow-band beep: it only counts as active sound.
+                if (!Sustained(h, hops, kind, spectra)) voiced += msPerHop;
+            }
         }
         return new FrameAcoustics(durationMs, Math.Min(active, durationMs), Math.Min(voiced, durationMs), Math.Min(tonal, durationMs));
     }
 
-    /// <summary>Maximum normalized autocorrelation over human pitch lags.</summary>
-    private static double PeakCorrelation(ReadOnlySpan<double> w, double mean)
+    /// <summary>
+    /// Maximum normalized autocorrelation over human pitch lags, and whether the signal's true period is shorter than any
+    /// voice's: a lag under 2.5 ms (above 400 Hz) that is about as periodic as the in-range peak, which is (close to) an
+    /// integer multiple of it. The in-range peak is then a multiple of a chime/alert-tone period, not a voice pitch.
+    /// </summary>
+    private static (double Best, bool AboveVoiceRange) Periodicity(ReadOnlySpan<double> w, double mean)
     {
-        double best = 0;
+        var r = _r ??= new double[MaxLag + 2];
+        Array.Clear(r);
         int n = w.Length;
-        for (int lag = MinLag; lag <= MaxLag && lag < n - 60; lag++)
+        int bestLag = 0;
+        double best = 0;
+        for (int lag = MinShortLag - 1; lag <= MaxLag && lag < n - 60; lag++)
         {
             double xy = 0, xx = 0, yy = 0;
             for (int i = 0; i + lag < n; i++)
@@ -88,15 +130,56 @@ public static class AcousticAnalyzer
                 double a = w[i] - mean, b = w[i + lag] - mean;
                 xy += a * b; xx += a * a; yy += b * b;
             }
-            if (xx <= 0 || yy <= 0) continue;
-            var r = xy / Math.Sqrt(xx * yy);
-            if (r > best) best = r;
+            r[lag] = xx <= 0 || yy <= 0 ? 0 : xy / Math.Sqrt(xx * yy);
+            if (lag >= MinLag && r[lag] > best) { best = r[lag]; bestLag = lag; }
         }
-        return best;
+        if (best < VoicedCorrelation) return (best, false);
+        double period = Interpolate(r, bestLag);
+        for (int lag = MinShortLag; lag < MinLag; lag++)
+        {
+            if (r[lag] < best - ShortPeriodMargin || r[lag] < r[lag - 1] || r[lag] < r[lag + 1]) continue;
+            double shortPeriod = Interpolate(r, lag);
+            double k = Math.Round(period / shortPeriod);
+            if (k >= 2 && Math.Abs(period - k * shortPeriod) <= 0.04 * period) return (best, true);
+        }
+        return (best, false);
+    }
+
+    /// <summary>Parabolic interpolation of a correlation peak (fractional lag).</summary>
+    private static double Interpolate(double[] r, int lag)
+    {
+        if (lag <= 0 || lag + 1 >= r.Length) return lag;
+        double a = r[lag - 1], b = r[lag], c = r[lag + 1], d = a - 2 * b + c;
+        return d < 0 ? lag + 0.5 * (a - c) / d : lag;
+    }
+
+    /// <summary>
+    /// A voiced-looking hop whose spectrum is unchanged in the disjoint windows 40 ms before and after it (those of this
+    /// frame that hold sound; at least one) is a sustained note or tone, not speech.
+    /// </summary>
+    private static bool Sustained(int h, int hops, byte[] kind, double[][] spectra)
+    {
+        int partners = 0;
+        for (int j = h - 2; j <= h + 2; j += 4)
+        {
+            if (j < 0 || j >= hops || kind[j] == Inactive) continue;
+            if (Cosine(spectra[h], spectra[j]) < SustainedSimilarity) return false;
+            partners++;
+        }
+        return partners > 0;
+    }
+
+    /// <summary>Cosine similarity of two power spectra over 70 Hz – 4 kHz (the band the peak analysis uses).</summary>
+    private static double Cosine(double[] a, double[] b)
+    {
+        int lo = (int)(70.0 * Fft / Decimated), hi = (int)(4000.0 * Fft / Decimated);
+        double xy = 0, xx = 0, yy = 0;
+        for (int k = lo; k <= hi; k++) { xy += a[k] * b[k]; xx += a[k] * a[k]; yy += b[k] * b[k]; }
+        return xx <= 0 || yy <= 0 ? 0 : xy / Math.Sqrt(xx * yy);
     }
 
     /// <summary>Share of spectral power in the two strongest narrow peaks (±2 bins). Pure/dual tones ≈ 0.9+, speech ≈ 0.2–0.5.</summary>
-    private static (double Share, double PeakHz, int Peaks) Spectrum(ReadOnlySpan<double> w, double mean)
+    private static (double Share, double PeakHz, int Peaks) Spectrum(ReadOnlySpan<double> w, double mean, double[] power)
     {
         var re = _re ??= new double[Fft];
         var im = _im ??= new double[Fft];
@@ -111,7 +194,8 @@ public static class AcousticAnalyzer
         int half = Fft / 2;
         Span<double> p = stackalloc double[half];
         double total = 0;
-        for (int k = 1; k < half; k++) { p[k] = re[k] * re[k] + im[k] * im[k]; total += p[k]; }
+        Array.Clear(power);
+        for (int k = 1; k < half; k++) { p[k] = re[k] * re[k] + im[k] * im[k]; total += p[k]; power[k] = p[k]; }
         if (total <= 0) return (0, 0, 0);
         // Strong peaks: local maxima within 20 dB of the strongest bin, between 70 Hz and 4 kHz.
         double max = 0; for (int k = 1; k < half; k++) max = Math.Max(max, p[k]);
