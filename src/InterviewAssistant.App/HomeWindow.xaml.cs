@@ -56,6 +56,19 @@ public partial class HomeWindow : Window
 
     private static string T(string key) => Loc.T(key);
     private static string F(string key, params object?[] args) => Loc.F(key, args);
+    /// <summary>Local storage failures (disk full, file locked, folder not writable, protected data unreadable): shown with contextual copy.</summary>
+    private static bool IsStorageError(Exception ex) => ex is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException;
+
+    /// <summary>One row of the Reports list: when, which interview, how many questions (screen readers read all three).</summary>
+    public sealed class ReportRow
+    {
+        public required StoredSession Session { get; init; }
+        public InterviewReport? Report { get; init; }
+        public required string When { get; init; }
+        public required string Title { get; init; }
+        public required string Questions { get; init; }
+        public override string ToString() => string.Join(", ", new[] { When, Title, Questions }.Where(x => x.Length > 0));
+    }
 
     /// <summary>One fact in the review list: confirmation is a pending edit until Save profile.</summary>
     public sealed class FactRow : INotifyPropertyChanged
@@ -323,7 +336,10 @@ public partial class HomeWindow : Window
     private void Nav_Click(object sender, RoutedEventArgs e) => Navigate((string)((Button)sender).Tag);
     private void AccountBadge_Click(object sender, RoutedEventArgs e) => Navigate("account");
     private void GoInterviews_Click(object sender, RoutedEventArgs e) => Navigate("interviews");
-    private async void GoInterviewProfile_Click(object sender, RoutedEventArgs e)
+    private void GoInterviewProfile_Click(object sender, RoutedEventArgs e) => ShowInterviewProfile();
+
+    /// <summary>Profiles page on the Interview profile tab (onboarding step 3 and the Live window's "Add to profile").</summary>
+    public async void ShowInterviewProfile()
     {
         if (_page != "profiles" && !await _nav.CanProceedAsync(ChangeReason.Navigate, GuardsOfPage(_page))) return;
         ShowPage("profiles"); SetProfileTab("personal");
@@ -513,16 +529,36 @@ public partial class HomeWindow : Window
 
     private void ProfileField_Changed(object sender, TextChangedEventArgs e) => _profileGuard.MarkDirty();
 
-    private void ProfileTab_Click(object sender, RoutedEventArgs e) => SetProfileTab((string)((Button)sender).Tag);
+    private string _profileTab = "facts";
+
+    private void ProfileTab_Checked(object sender, RoutedEventArgs e)
+    {
+        if (sender is RadioButton { Tag: string tab }) SetProfileTab(tab);
+    }
+
+    /// <summary>Segmented control keyboard: Left/Right move to the visually adjacent segment (mirrored in RTL) and select it.</summary>
+    private void ProfileTabs_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key is not (Key.Left or Key.Right)) return;
+        e.Handled = true;
+        var tabs = new[] { TabFacts, TabPersonal };
+        var current = Array.FindIndex(tabs, t => t.IsChecked == true);
+        var next = SegmentedNavigation.Move(Math.Max(0, current), tabs.Length, e.Key == Key.Left, ProfileTabs.FlowDirection == FlowDirection.RightToLeft);
+        if (next < 0 || next == current) return;
+        tabs[next].IsChecked = true;   // → SetProfileTab
+        tabs[next].Focus();
+    }
 
     private void SetProfileTab(string tab)
     {
+        _profileTab = tab;
         FactsPanel.Visibility = tab == "facts" ? Visibility.Visible : Visibility.Collapsed;
         PersonalPanel.Visibility = tab == "personal" ? Visibility.Visible : Visibility.Collapsed;
-        TabFacts.Opacity = tab == "facts" ? 1 : 0.65;
-        TabPersonal.Opacity = tab == "personal" ? 1 : 0.65;
-        TabFacts.FontWeight = tab == "facts" ? FontWeights.SemiBold : FontWeights.Normal;
-        TabPersonal.FontWeight = tab == "personal" ? FontWeights.SemiBold : FontWeights.Normal;
+        TabFacts.IsChecked = tab == "facts";
+        TabPersonal.IsChecked = tab == "personal";
+        // Roving tab stop: Tab reaches the control once, on the selected segment; the arrows move inside it.
+        TabFacts.IsTabStop = tab == "facts";
+        TabPersonal.IsTabStop = tab == "personal";
     }
 
     /// <summary>The optional interview-profile questions, grouped by section (all localized; nothing required). Built once; a language switch only re-renders the texts.</summary>
@@ -576,7 +612,13 @@ public partial class HomeWindow : Window
         if (dlg.ShowDialog(this) != true) return (null, "");
         var info = new FileInfo(dlg.FileName);
         if (info.Length > 10 * 1024 * 1024) { await AlertAsync(T("warn_file_too_large"), DialogTone.Warning); return (null, ""); }
-        return (File.ReadAllBytes(dlg.FileName), dlg.SafeFileName);
+        try { return (File.ReadAllBytes(dlg.FileName), dlg.SafeFileName); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            AppLog.Warn($"Document could not be read ({ex.GetType().Name})");
+            await AlertAsync(T("err_file_read"), DialogTone.Warning);
+            return (null, "");
+        }
     }
 
     private async void NewProfile_Click(object sender, RoutedEventArgs e) => await ImportResumeAsync(newProfile: true);
@@ -605,7 +647,13 @@ public partial class HomeWindow : Window
         if (doc == null) { await AlertAsync(error ?? T("warn_import_failed"), DialogTone.Warning); return; }
         var profile = newProfile ? new CandidateProfileRecord() : Store.GetProfile(_profile!.Id) ?? _profile!;
         var parsed = ProfileService.AddResume(profile, doc);
-        Store.SaveProfile(profile);
+        try { Store.SaveProfile(profile); }
+        catch (Exception ex) when (IsStorageError(ex))
+        {
+            AppLog.Error("Profile save after import failed", ex);
+            await AlertAsync(T("err_profile_save"), DialogTone.Warning);
+            return;
+        }
         AppLog.Info($"Resume imported: {parsed.Facts.Count} facts, {parsed.Warnings.Count} warnings, flags {doc.SecurityFlags.Count}");
         RefreshProfiles(profile.Id, reload: true);
         ShowPage("profiles"); SetProfileTab("facts");
@@ -618,7 +666,13 @@ public partial class HomeWindow : Window
     {
         if (Store == null || !await _nav.CanProceedAsync(ChangeReason.SwitchItem, _profileGuard, _targetGuard) || await ProfileLimitReachedAsync() || Store == null) return;
         var p = new CandidateProfileRecord { Name = T("profile_new_name") };
-        Store.SaveProfile(p);
+        try { Store.SaveProfile(p); }
+        catch (Exception ex) when (IsStorageError(ex))
+        {
+            AppLog.Error("New profile could not be saved", ex);
+            Notify(T("err_profile_save"), ToastKind.Error);
+            return;
+        }
         RefreshProfiles(p.Id, reload: true);
         ProfileName.Focus(); ProfileName.SelectAll();
         Notify(T("toast_profile_created"), ToastKind.Success);
@@ -704,6 +758,7 @@ public partial class HomeWindow : Window
     private bool SaveProfile()
     {
         if (_profile == null || Store == null) return false;
+        ProfileMessage.Clear();
         _profile.Name = ProfileName.Text.Trim();
         _profile.PreferredName = ProfilePreferred.Text.Trim();
         _profile.Headline = ProfileHeadline.Text.Trim();
@@ -715,8 +770,18 @@ public partial class HomeWindow : Window
         }
         foreach (var (key, box) in _personalBoxes) ProfileService.SetPersonal(_profile, key, box.Text);
         ProfileService.RebuildStories(_profile);
-        Store.SaveProfile(_profile);
-        foreach (var t in Store.Targets(_profile.Id).Where(t => t.Preparation == PreparationState.Prepared)) { t.Preparation = PreparationState.Stale; Store.SaveTarget(t); }
+        try
+        {
+            Store.SaveProfile(_profile);
+            foreach (var t in Store.Targets(_profile.Id).Where(t => t.Preparation == PreparationState.Prepared)) { t.Preparation = PreparationState.Stale; Store.SaveTarget(t); }
+        }
+        catch (Exception ex) when (IsStorageError(ex))
+        {
+            // The edits stay on screen (still unsaved): the user can free space and press Save again.
+            AppLog.Error("Profile save failed", ex);
+            ProfileMessage.Show(T("err_profile_save"), MessageKind.Error);
+            return false;
+        }
         // Personal answers apply to the Live Assistant immediately (no re-preparation needed).
         if (_vm.ActiveProfileId == _profile.Id && !_vm.SessionActive && _vm.Workspace != null)
         {
@@ -737,7 +802,16 @@ public partial class HomeWindow : Window
         if (_profile == null || Store == null) return;
         var dlg = new SaveFileDialog { FileName = "interview-assistant-profile.zip", Filter = T("file_filter_zip") + " (*.zip)|*.zip" };
         if (dlg.ShowDialog(this) != true) return;
-        using (var fs = File.Create(dlg.FileName)) Store.ExportProfile(_profile.Id, fs);
+        try
+        {
+            using (var fs = File.Create(dlg.FileName)) Store.ExportProfile(_profile.Id, fs);
+        }
+        catch (Exception ex) when (IsStorageError(ex))
+        {
+            AppLog.Error("Profile export failed", ex);
+            Notify(T("err_profile_export"), ToastKind.Error);
+            return;
+        }
         Notify(T("toast_profile_exported"), ToastKind.Success);
     }
 
@@ -745,10 +819,17 @@ public partial class HomeWindow : Window
     {
         if (_profile == null || Store == null) return;
         if (_vm.SessionActive && _vm.ActiveProfileId == _profile.Id) { await AlertAsync(T("warn_stop_first"), DialogTone.Warning); return; }
-        if (!await AppDialog.ConfirmAsync(this, F("confirm_delete_profile", _profile.Name), T("dlg_delete"), destructive: true) || _profile == null || Store == null) return;
-        if (_vm.ActiveProfileId == _profile.Id) _vm.SetActive(null, null);
+        // Destructive confirmation in the in-app dialog: Cancel is the default button (Enter/Escape never delete).
+        if (!await AppDialog.ConfirmAsync(this, F("confirm_delete_profile", _profile.Name), T("delete_profile"), destructive: true) || _profile == null || Store == null) return;
         var targetIds = Store.Targets(_profile.Id).Select(t => t.Id).ToList();
-        Store.DeleteProfile(_profile.Id);
+        try { Store.DeleteProfile(_profile.Id); }
+        catch (Exception ex) when (IsStorageError(ex))
+        {
+            AppLog.Error("Profile deletion failed", ex);
+            Notify(T("err_profile_delete"), ToastKind.Error);
+            return;   // nothing changed on screen: pending edits stay
+        }
+        if (_vm.ActiveProfileId == _profile.Id) _vm.SetActive(null, null);
         _ = _vm.ForgetTranscriptionContextAsync(targetIds);
         _profileGuard.MarkClean(); _targetGuard.MarkClean();   // the deletion was confirmed: its pending edits go with it
         _profile = null;
@@ -870,7 +951,13 @@ public partial class HomeWindow : Window
         t.ExpectedLanguage = (TargetLanguage.SelectedItem as LangItem)?.Code ?? "auto";
         t.AnswerLanguage = (TargetAnswerLanguage.SelectedItem as LangItem)?.Code ?? "same";
         if (changed && t.Preparation == PreparationState.Prepared) t.Preparation = PreparationState.Stale;
-        Store.SaveTarget(t);
+        try { Store.SaveTarget(t); }
+        catch (Exception ex) when (IsStorageError(ex))
+        {
+            AppLog.Error("Interview save failed", ex);
+            TargetMessage.Show(T("err_interview_save"), MessageKind.Error);
+            return null;
+        }
         _target = t;
         _targetGuard.MarkClean();
         RefreshTargets(t.Id);
@@ -966,8 +1053,14 @@ public partial class HomeWindow : Window
         if (_target == null || Store == null) return;
         if (_vm.SessionActive && _vm.ActiveTargetId == _target.Id) { await AlertAsync(T("warn_stop_first"), DialogTone.Warning); return; }
         if (!await AppDialog.ConfirmAsync(this, F("confirm_delete_interview", _target.DisplayName), T("dlg_delete"), destructive: true) || _target == null || Store == null) return;
+        try { Store.DeleteTarget(_target.Id); }
+        catch (Exception ex) when (IsStorageError(ex))
+        {
+            AppLog.Error("Interview deletion failed", ex);
+            Notify(T("err_interview_delete"), ToastKind.Error);
+            return;
+        }
         if (_vm.ActiveTargetId == _target.Id) _vm.SetActive(_vm.ActiveProfileId, null);
-        Store.DeleteTarget(_target.Id);
         _ = _vm.ForgetTranscriptionContextAsync(new[] { _target.Id });
         _targetGuard.MarkClean();
         _target = null;
@@ -977,41 +1070,81 @@ public partial class HomeWindow : Window
 
     // ================= reports =================
 
-    private string? SelectedReportId() => (ReportList.SelectedItem as Item<StoredSession>)?.Value.Id;
+    private ReportRow? SelectedRow => ReportList.SelectedItem as ReportRow;
+    private string? SelectedReportId() => SelectedRow?.Session.Id;
 
-    /// <summary>Newest first; called on page open and automatically right after Stop saves a report. Keeps the selection.</summary>
+    /// <summary>
+    /// Newest first; called on page open and automatically right after Stop saves a report (which selects it). Keeps the
+    /// selection. No reports: the empty state replaces both panes.
+    /// </summary>
     private void RefreshReports(string? selectId = null)
     {
         var sessions = Store?.Sessions() ?? Array.Empty<StoredSession>();
-        var items = sessions.Where(s => s.ReportJson.Length > 0).OrderByDescending(s => s.EndedUtc ?? s.StartedUtc)
-            .Select(s => new Item<StoredSession>($"{s.StartedUtc.ToLocalTime().ToString("g", Loc.Culture)}  ·  {LabelFor(s)}", s)).ToList();
-        ReportList.ItemsSource = items;
-        ReportsEmpty.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        ReportList.SelectedItem = items.FirstOrDefault(i => i.Value.Id == selectId);
-        if (ReportList.SelectedItem == null) ReportPreview.Visibility = Visibility.Collapsed;
-        SetReportButtons(ReportList.SelectedItem != null);
+        var rows = sessions.Where(s => s.ReportJson.Length > 0).OrderByDescending(s => s.EndedUtc ?? s.StartedUtc).Select(ReportRowFor).ToList();
+        ReportList.ItemsSource = rows;
+        ReportList.SelectedItem = rows.FirstOrDefault(r => r.Session.Id == selectId);
+        var any = rows.Count > 0;
+        ReportsBody.Visibility = any ? Visibility.Visible : Visibility.Collapsed;
+        ReportsEmptyState.Visibility = any ? Visibility.Collapsed : Visibility.Visible;
+        ShowSelectedReport();
     }
 
-    private void SetReportButtons(bool selected) =>
-        OpenReportBtn.IsEnabled = CopyReportBtn.IsEnabled = ExportReportBtn.IsEnabled = DeleteReportBtn.IsEnabled = selected;
+    private ReportRow ReportRowFor(StoredSession s)
+    {
+        var r = ReportSerializer.FromJson(s.ReportJson);
+        var title = Store?.GetTarget(s.TargetId)?.DisplayName is { Length: > 0 } target ? target
+            : r?.TargetLabel is { Length: > 0 } label ? label : T("report_default_label");
+        return new ReportRow
+        {
+            Session = s, Report = r, Title = title,
+            When = s.StartedUtc.ToLocalTime().ToString("g", Loc.Culture),
+            Questions = r == null ? T("report_unreadable_short") : F("report_row_questions", r.Questions.Count),
+        };
+    }
 
-    private string LabelFor(StoredSession s) => Store?.GetTarget(s.TargetId)?.DisplayName ?? T("report_default_label");
+    private void SetReportButtons(bool readable, bool selected)
+    {
+        OpenReportBtn.IsEnabled = CopyReportBtn.IsEnabled = ExportReportBtn.IsEnabled = readable;
+        DeleteReportBtn.IsEnabled = selected;
+    }
 
     private InterviewReport? SelectedReport(out StoredSession? session)
     {
-        session = (ReportList.SelectedItem as Item<StoredSession>)?.Value;
-        return session == null ? null : ReportSerializer.FromJson(session.ReportJson);
+        session = SelectedRow?.Session;
+        return SelectedRow?.Report;
     }
 
-    private void ReportList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void ReportList_SelectionChanged(object sender, SelectionChangedEventArgs e) => ShowSelectedReport();
+
+    /// <summary>Preview pane: "Select a report" without a selection; otherwise the toolbar and the summary of the selected report.</summary>
+    private void ShowSelectedReport()
     {
-        var r = SelectedReport(out var s);
-        SetReportButtons(r != null && s != null);
-        if (r == null || s == null) { ReportPreview.Visibility = Visibility.Collapsed; return; }
-        ReportPreview.Visibility = Visibility.Visible;
-        ReportPreviewTitle.Text = HtmlReportRenderer.Header(r.ProfileLabel, r.TargetLabel);
+        var row = SelectedRow;
+        var r = row?.Report;
+        SetReportButtons(r != null, row != null);
+        ReportSelectState.Visibility = row == null ? Visibility.Visible : Visibility.Collapsed;
+        ReportToolbar.Visibility = ReportPreview.Visibility = row == null ? Visibility.Collapsed : Visibility.Visible;
+        if (row == null) return;
+        if (r == null)
+        {
+            // A damaged report can still be deleted; nothing else is offered.
+            ReportPreviewTitle.Text = row.Title;
+            ReportPreviewMeta.Text = row.When;
+            ReportPreviewQuestions.Text = T("report_unreadable");
+            return;
+        }
+        ReportPreviewTitle.Text = HtmlReportRenderer.Header(r.ProfileLabel, r.TargetLabel) is { Length: > 0 } h ? h : row.Title;
         ReportPreviewMeta.Text = F("report_preview_meta", r.StartedUtc.ToLocalTime().ToString("g", Loc.Culture), (int)(r.EndedUtc - r.StartedUtc).TotalMinutes, r.Questions.Count);
-        ReportPreviewQuestions.Text = string.Join("\n", r.Questions.Take(8).Select(q => F("report_q_prefix", q.Index) + " " + Short(q.OriginalWording, 110))) + (r.Questions.Count > 8 ? "\n…" : "");
+        ReportPreviewQuestions.Text = string.Join("\n", r.Questions.Select(q => F("report_q_prefix", q.Index) + " " + Short(q.OriginalWording, 160)));
+        ReportPreview.ScrollToTop();
+    }
+
+    /// <summary>Keyboard: Up/Down select (list default), Enter opens, Delete asks to delete.</summary>
+    private void ReportList_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (SelectedRow == null) return;
+        if (e.Key == Key.Enter) { e.Handled = true; OpenReport_Click(sender, e); }
+        else if (e.Key == Key.Delete) { e.Handled = true; DeleteReport_Click(sender, e); }
     }
 
     private void OpenReport_Click(object sender, RoutedEventArgs e)
@@ -1019,16 +1152,30 @@ public partial class HomeWindow : Window
         var r = SelectedReport(out var s);
         if (r == null || s == null) return;
         if (_vm.Workspace == null || !_vm.WorkspaceMatchesAccount) return;
-        // Viewer copy in this account's private folder (not Documents); removed when the workspace closes.
-        var path = _vm.Workspace.WriteViewerCopy(s.Id, HtmlReportRenderer.Render(r, Branding.ProductName));
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+        try
+        {
+            // Viewer copy in this account's private folder (not Documents); removed when the workspace closes.
+            var path = _vm.Workspace.WriteViewerCopy(s.Id, HtmlReportRenderer.Render(r, Branding.ProductName));
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (IsStorageError(ex) || ex is Win32Exception or InvalidOperationException)
+        {
+            AppLog.Error("Report could not be opened", ex);
+            Notify(T("err_report_open"), ToastKind.Error);
+        }
     }
 
     private void CopyReport_Click(object sender, RoutedEventArgs e)
     {
         var r = SelectedReport(out _);
         if (r == null) return;
-        Clipboard.SetText(HtmlReportRenderer.RenderText(r, Branding.ProductName));
+        try { Clipboard.SetText(HtmlReportRenderer.RenderText(r, Branding.ProductName)); }
+        catch (System.Runtime.InteropServices.ExternalException ex)
+        {
+            AppLog.Warn($"Clipboard busy: {ex.GetType().Name}");
+            Notify(T("err_report_copy"), ToastKind.Error);
+            return;
+        }
         Notify(T("toast_report_copied"), ToastKind.Success);
     }
 
@@ -1038,17 +1185,37 @@ public partial class HomeWindow : Window
         if (r == null) return;
         var dlg = new SaveFileDialog { FileName = "interview-report.html", Filter = T("file_filter_html") + " (*.html)|*.html" };
         if (dlg.ShowDialog(this) != true) return;
-        File.WriteAllText(dlg.FileName, HtmlReportRenderer.Render(r, Branding.ProductName));
+        try { File.WriteAllText(dlg.FileName, HtmlReportRenderer.Render(r, Branding.ProductName)); }
+        catch (Exception ex) when (IsStorageError(ex))
+        {
+            AppLog.Error("Report export failed", ex);
+            Notify(T("err_report_save"), ToastKind.Error);
+            return;
+        }
         Notify(T("toast_report_exported"), ToastKind.Success);
     }
 
     private async void DeleteReport_Click(object sender, RoutedEventArgs e)
     {
-        if ((ReportList.SelectedItem as Item<StoredSession>)?.Value is not { } s || Store == null) return;
+        if (SelectedRow is not { } row || Store == null) return;
+        var index = ReportList.SelectedIndex;
+        // Destructive confirmation in the in-app dialog: Cancel is the default button.
         if (!await AppDialog.ConfirmAsync(this, T("confirm_delete_report"), T("dlg_delete"), destructive: true) || Store == null) return;
-        Store.DeleteSession(s.Id);
-        _vm.Workspace?.DeleteViewerCopy(s.Id);
+        try { Store.DeleteSession(row.Session.Id); }
+        catch (Exception ex) when (IsStorageError(ex))
+        {
+            AppLog.Error("Report deletion failed", ex);
+            Notify(T("err_report_delete"), ToastKind.Error);
+            return;
+        }
+        _vm.Workspace?.DeleteViewerCopy(row.Session.Id);
         RefreshReports();
+        // Keyboard flow: the neighbouring report is selected and the list keeps focus.
+        if (ReportList.Items.Count > 0)
+        {
+            ReportList.SelectedIndex = Math.Clamp(index, 0, ReportList.Items.Count - 1);
+            (ReportList.ItemContainerGenerator.ContainerFromIndex(ReportList.SelectedIndex) as ListBoxItem)?.Focus();
+        }
         Notify(T("toast_report_deleted"), ToastKind.Info);
     }
 
@@ -1612,4 +1779,5 @@ public partial class HomeWindow : Window
     internal SettingsPage SettingsPageForTest => PageSettings;
     internal string CurrentPage => _page;
     internal string? EditedProfileId => _profile?.Id;
+    internal string ProfileTab => _profileTab;
 }

@@ -32,3 +32,11 @@ public sealed class Multiply : IValueConverter
     public object Convert(object value, Type t, object p, CultureInfo c) => (value is double d ? d : 16) * Factor;
     public object ConvertBack(object value, Type t, object p, CultureInfo c) => throw new NotSupportedException();
 }
+
+/// <summary>Adds <see cref="By"/> to a length (never below 0) — e.g. a page that fills the scroll viewport minus its margin.</summary>
+public sealed class Offset : IValueConverter
+{
+    public double By { get; set; }
+    public object Convert(object value, Type t, object p, CultureInfo c) => value is double d && !double.IsNaN(d) ? Math.Max(0, d + By) : DependencyProperty.UnsetValue;
+    public object ConvertBack(object value, Type t, object p, CultureInfo c) => throw new NotSupportedException();
+}
