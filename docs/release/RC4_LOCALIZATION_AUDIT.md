@@ -9,20 +9,20 @@ table (`ReportLabels`, 10 languages).
 
 | Language | Keys | Missing | Identical to English (not a reviewed cognate) | Placeholder mismatches | RTL | Latin words left inside the text |
 |---|---|---|---|---|---|---|
-| English (en) | 813 | — | — | — | — | — |
-| Spanish (es) | 813 | 0 | 0 | 0 | — | (not applicable: Latin script, gated by the identical-value check) |
-| French (fr) | 813 | 0 | 0 | 0 | — | " |
-| German (de) | 813 | 0 | 0 | 0 | — | " |
-| Portuguese (pt) | 813 | 0 | 0 | 0 | — | " |
-| Italian (it) | 813 | 0 | 0 | 0 | — | " |
-| Arabic (ar) | 813 | 0 | 0 | 0 | yes | 5, all technical: "Apple" (sign-in provider), "https", Windows device names ("Headphones", "Stereo", "Hands-Free"), the "Win" key, the "Delete" key |
-| Persian (fa) | 813 | 0 | 0 | 0 | yes | 8, all technical: as Arabic plus "Setup" (installer file name), "sandbox" (Paddle environment), "Documents" (folder path) |
-| Chinese (zh) | 813 | 0 | 0 | 0 | — | 7, technical: as above plus "token" (API term) |
-| Hindi (hi) | 813 | 0 | 0 | 0 | — | 6, technical: as above |
+| English (en) | 814 | — | — | — | — | — |
+| Spanish (es) | 814 | 0 | 0 | 0 | — | (not applicable: Latin script, gated by the identical-value check) |
+| French (fr) | 814 | 0 | 0 | 0 | — | " |
+| German (de) | 814 | 0 | 0 | 0 | — | " |
+| Portuguese (pt) | 814 | 0 | 0 | 0 | — | " |
+| Italian (it) | 814 | 0 | 0 | 0 | — | " |
+| Arabic (ar) | 814 | 0 | 0 | 0 | yes | 5, all technical: "Apple" (sign-in provider), "https", Windows device names ("Headphones", "Stereo", "Hands-Free"), the "Win" key, the "Delete" key |
+| Persian (fa) | 814 | 0 | 0 | 0 | yes | 8, all technical: as Arabic plus "Setup" (installer file name), "sandbox" (Paddle environment), "Documents" (folder path) |
+| Chinese (zh) | 814 | 0 | 0 | 0 | — | 7, technical: as above plus "token" (API term) |
+| Hindi (hi) | 814 | 0 | 0 | 0 | — | 6, technical: as above |
 
-rc.3 had 742 keys per language; rc.4 adds 71 (in-app dialogs `dlg_*`, Settings page `set_*`, account section
+rc.3 had 742 keys per language; rc.4 adds 72 (in-app dialogs `dlg_*`, Settings page `set_*`, account section
 states `acct_section_*`, neutral password-reset copy, "Hearing audio", Reports empty/selection states, profile-gap
-card, connection toasts, contextual error copy, split fact counts). Every one is translated in all 10 languages.
+card, connection toasts, contextual error copy, split fact counts, the account-change notice). Every one is translated in all 10 languages.
 
 ## Surface mapping (what is actually on screen)
 

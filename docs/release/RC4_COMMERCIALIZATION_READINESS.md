@@ -16,7 +16,7 @@ rc.4 is a release candidate for testing, not Stable. Billing stays in the Paddle
 | Report trustworthiness | READY | doubtful questions listed separately and excluded from statistics |
 | Desktop UI consistency | READY (code + Windows self-test) · visual manual pass pending | design tokens, one form-control family, in-app dialogs, Settings page, Profiles/Reports redesign |
 | Error states | READY | independent account sections, contextual copy, tested matrix |
-| Localization | READY (complete, 813 keys × 10) · **EXTERNAL** native review | |
+| Localization | READY (complete, 814 keys × 10) · **EXTERNAL** native review | |
 | Accessibility | READY for RC · manual screen-reader pass pending | |
 | Backend compatibility | READY | no server change; rc.3 clients unaffected; minimum version not raised |
 
