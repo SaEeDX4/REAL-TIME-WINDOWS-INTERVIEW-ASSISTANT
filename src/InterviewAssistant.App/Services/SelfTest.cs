@@ -57,7 +57,14 @@ public static class SelfTest
 
         await Check("Generic start: no hard-coded candidate", () => Task.FromResult((vm.Knowledge!.Questions.Count == 0 || vm.ActiveLabel.Length > 0, vm.ActiveLabel)));
         await Check("Fixture pack loads on request (--fixture)", () => Task.FromResult((vm.LoadSample(App.FixtureDir), vm.ActiveLabel)));
-        await Check("Main window created + XAML loaded", () => Task.FromResult((w.IsLoaded && w.IsVisible && new System.Windows.Interop.WindowInteropHelper(w).Handle != IntPtr.Zero, $"{w.ActualWidth:0}x{w.ActualHeight:0}")));
+        await Check("History counter hidden without history (never \"0 / 1\")", async () =>
+        {
+            await Idle();
+            var counter = (FrameworkElement)w.FindName("HistoryCounterText");
+            var hidden = vm.HistoryLabel.Length == 0 && counter.Visibility != Visibility.Visible;
+            return (hidden && !vm.PreviousCommand.CanExecute(null), hidden ? "hidden" : $"shows '{vm.HistoryLabel}'");
+        });
+        await Check("Main window created + XAML loaded",() => Task.FromResult((w.IsLoaded && w.IsVisible && new System.Windows.Interop.WindowInteropHelper(w).Handle != IntPtr.Zero, $"{w.ActualWidth:0}x{w.ActualHeight:0}")));
         await Check("Window topmost", () => Task.FromResult((w.Topmost, w.Topmost ? "on" : "off")));
         await Check("Knowledge pack loaded", () => Task.FromResult((vm.Knowledge != null && vm.Knowledge.Profile.Experience.Count == 5, $"{vm.ActiveLabel}, {vm.Knowledge?.Stories.Count} stories, {vm.Knowledge?.Snippets.Count} notes")));
         await Check("Question bank loaded (>=80)", () => Task.FromResult((vm.Knowledge?.Questions.Count >= 80, $"{vm.Knowledge?.Questions.Count} questions")));
@@ -304,6 +311,45 @@ public static class SelfTest
             var hiddenFocused = !box.IsKeyboardFocused || ph.Visibility != Visibility.Visible;
             System.Windows.Input.Keyboard.ClearFocus();
             return (shownEmpty && hiddenFilled && hiddenFocused && !ph.IsHitTestVisible, $"empty {shownEmpty}; filled hides {hiddenFilled}; focus hides {hiddenFocused}");
+        });
+        await Check("Live window: question field and send button share one row and one height; prepared answer is not a profile-gap card", async () =>
+        {
+            await Idle();
+            var box = w.ManualInput; var send = w.ManualSendBtn;
+            var sameHeight = Math.Abs(box.ActualHeight - send.ActualHeight) < 0.5;
+            var boxMid = box.TranslatePoint(new Point(0, box.ActualHeight / 2), w).Y;
+            var sendMid = send.TranslatePoint(new Point(0, send.ActualHeight / 2), w).Y;
+            var aligned = Math.Abs(boxMid - sendMid) < 1;
+            var noGapCard = !vm.IsProfileGap && w.ProfileGapHeader.Visibility != Visibility.Visible && w.AddToProfileBtn.Visibility != Visibility.Visible;
+            return (sameHeight && aligned && noGapCard, $"field {box.ActualHeight:0}px, send {send.ActualHeight:0}px, centre offset {Math.Abs(boxMid - sendMid):0.0}px; gap card {(noGapCard ? "hidden" : "SHOWN")}");
+        });
+        await Check("Home: Profiles segmented sections (arrows switch, one tab stop); Reports two panes or empty state with four actions", async () =>
+        {
+            var home = new HomeWindow(vm, w) { Owner = w };
+            home.Show(); await Idle();
+            home.ShowPage("profiles"); await Idle();
+            var named = System.Windows.Automation.AutomationProperties.GetName(home.TabFacts).Length > 0 && System.Windows.Automation.AutomationProperties.GetName(home.TabPersonal).Length > 0;
+            var equal = Math.Abs(home.TabFacts.ActualWidth - home.TabPersonal.ActualWidth) < 1;
+            void Arrow(System.Windows.Input.Key key)
+            {
+                if (PresentationSource.FromVisual(home) is not { } src) return;
+                var target = home.TabFacts.IsChecked == true ? home.TabFacts : home.TabPersonal;
+                target.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice, src, 0, key) { RoutedEvent = System.Windows.Input.Keyboard.PreviewKeyDownEvent });
+            }
+            Arrow(System.Windows.Input.Key.Right); await Idle();
+            var movedRight = home.ProfileTab == "personal" && home.PersonalPanel.Visibility == Visibility.Visible && home.TabPersonal.IsTabStop && !home.TabFacts.IsTabStop;
+            Arrow(System.Windows.Input.Key.Left); await Idle();
+            var movedBack = home.ProfileTab == "facts" && home.FactsPanel.Visibility == Visibility.Visible;
+            var deleteSeparated = home.DeleteProfileBtn.Style == (Style)home.FindResource("Btn.FormDanger");
+            home.ShowPage("reports"); await Idle();
+            var any = home.ReportList.Items.Count > 0;
+            var states = any ? home.ReportsBody.Visibility == Visibility.Visible && home.ReportsEmptyState.Visibility != Visibility.Visible
+                             : home.ReportsEmptyState.Visibility == Visibility.Visible && home.ReportsBody.Visibility != Visibility.Visible;
+            var fourActions = new[] { home.OpenReportBtn, home.CopyReportBtn, home.ExportReportBtn, home.DeleteReportBtn }.All(b => b.Content is string s && s.Length > 0);
+            var listShare = any ? home.ReportList.ActualWidth / Math.Max(1, home.ReportsBody.ActualWidth) : 0.32;
+            home.Close(); await Idle();
+            var ok = named && equal && movedRight && movedBack && deleteSeparated && states && fourActions && listShare is > 0.2 and < 0.5;
+            return (ok, $"segments named {named}, equal {equal}, → {movedRight}, ← {movedBack}; delete destructive {deleteSeparated}; reports {(any ? "two panes" : "empty state")} {states}; actions {fourActions}; list share {listShare:P0}");
         });
         await Check("Pre-interview window XAML + local checks", async () =>
         {
