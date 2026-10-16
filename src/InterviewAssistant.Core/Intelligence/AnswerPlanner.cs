@@ -48,7 +48,9 @@ public sealed record AnswerPlan(
             sb.AppendLine("Confidence is LOW: use measured wording, stay general where evidence is thin, never invent specifics.");
         if (Personal != PersonalTopic.None)
             sb.AppendLine(PersonalFacts.Count > 0
-                ? "PERSONAL ANSWER — use ONLY these confirmed facts (do not add others): " + string.Join(" | ", PersonalFacts)
+                ? "PERSONAL ANSWER — use ONLY these confirmed facts (do not add others): " + string.Join(" | ", PersonalFacts) +
+                  ". Rephrase them naturally in first person and stop. Do NOT add reasons, feelings, benefits, personality traits, skills it " +
+                  "built, how often, where, since when, or a link to the role — none of that was confirmed. Short is correct here."
                 : "PERSONAL ANSWER — the profile has NO confirmed facts on this: do not invent any (no hobbies, preferences or reasons).");
         return sb.ToString().TrimEnd();
     }
@@ -92,7 +94,7 @@ public static class AnswerPlanner
         var metrics = stories.SelectMany(s => s.VerifiedNumbers).Where(n => n.Length > 0).Distinct().Take(8).ToList();
         var companies = stories.Select(s => s.Company).Where(c => c.Length > 1).Distinct(StringComparer.OrdinalIgnoreCase).Take(3).ToList();
 
-        string structure = personal != PersonalTopic.None ? "one genuine point → why it matters to you → link to the role"
+        string structure = personal != PersonalTopic.None ? (personalFacts.Count > 0 ? "the confirmed facts, rephrased in first person — nothing added" : "the candidate's own words (no facts confirmed)")
             : gap ? "honest bridge → closest confirmed experience (past tense) → approach (I'd…)"
             : cls.Mode == AnswerMode.Verified ? (cls.Category == "BEHAVIOURAL" ? "situation → what I did → result" : "direct answer from confirmed experience → how → result")
             : q.SubQuestions.Count >= 2 ? "answer each part in order: " + string.Join(" / ", q.SubQuestions.Select(s => Short(s, 6)))

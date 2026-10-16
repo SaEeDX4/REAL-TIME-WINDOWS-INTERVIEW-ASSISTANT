@@ -24,6 +24,8 @@ public sealed class ReportQuestion
     /// <summary>Interviewer context before the question (summary).</summary>
     public string Context { get; init; } = "";
     public bool Typed { get; init; }
+    /// <summary>Set for a question listed under <see cref="InterviewReport.UncertainQuestions"/>: why its audio is doubtful.</summary>
+    public string UncertainReason { get; init; } = "";
 }
 
 /// <summary>
@@ -57,6 +59,11 @@ public sealed class InterviewReport
     public List<string> FollowUpPreparation { get; init; } = new();
     public List<string> ThankYouThemes { get; init; } = new();
     public List<string> UnusedRelevantStories { get; init; } = new();
+    /// <summary>
+    /// Heard questions whose recorded audio evidence fails the acoustic checks on re-validation (e.g. a non-speech sound
+    /// that slipped through live). Listed for review — never silently dropped — and excluded from every statistic.
+    /// </summary>
+    public List<ReportQuestion> UncertainQuestions { get; init; } = new();
     /// <summary>Turns that were not interview questions (non-speech, prompt echo, logistics, remarks to others) — counts only.</summary>
     public int ExcludedTurns { get; init; }
 
@@ -73,13 +80,35 @@ public static class ReportBuilder
         var echo = new PromptEchoDetector(kb.Context.BuildTranscriptionPrompt(), kb.Context.TranscriptionTerms());
         var valid = memory.Questions.Where(q => q.Original.Trim().Length > 0 && (q.Typed || !echo.Check(q.Original).IsEcho)).ToList();
         int invalid = memory.Questions.Count - valid.Count;
-        if (invalid > 0) memory = Filtered(memory, valid);
-        var qs = memory.Questions.Select(q => new ReportQuestion
+        // Second line of defence for heard questions: re-check the recorded audio evidence with the live gate's acoustic
+        // rules. A question that fails is moved to its own, clearly labelled list instead of disappearing.
+        var gate = UtteranceGate.For(kb);
+        var uncertain = new List<(QuestionRecord Q, string Reason)>();
+        foreach (var q in valid)
+        {
+            if (q.Typed || q.Heard == null) continue;   // typed, or recorded before evidence was kept: nothing to re-check
+            var v = gate.Evaluate(q.Original, q.Heard.ToEvidence());
+            var reason = v.Kind switch
+            {
+                UtteranceKind.NonSpeech or UtteranceKind.ShortAcousticEvent => "why_nonspeech",
+                UtteranceKind.ImplausibleTranscript => "why_implausible",
+                UtteranceKind.ContextHallucination => "why_context",
+                _ => null,
+            };
+            if (reason != null) uncertain.Add((q, reason));
+        }
+        if (uncertain.Count > 0) valid = valid.Except(uncertain.Select(u => u.Q)).ToList();
+        if (invalid > 0 || uncertain.Count > 0) memory = Filtered(memory, valid);
+        string L(string key) => ReportLabels.Get(reportLanguage, key);
+        ReportQuestion ToReport(QuestionRecord q, string reason = "") => new()
         {
             Index = q.Index, OriginalWording = q.Original, DetectedLanguage = q.DetectedLanguage, AnswerLanguage = q.AnswerLanguage, Category = q.Category, Mode = q.Mode,
             SuggestionsShown = q.AnswerBullets.Count > 0 ? q.AnswerBullets.ToList() : q.CoachKeywords.ToList(), Presentation = q.Presentation, Source = q.Source,
             FirstBulletMs = q.FirstBulletLatencyMs, FollowUpOf = q.FollowUpOf, ReferencesEarlier = q.ReferencesEarlierAnswer, Context = q.Context, Typed = q.Typed,
-        }).ToList();
+            UncertainReason = reason.Length > 0 ? L(reason) : "",
+        };
+        var qs = memory.Questions.Select(q => ToReport(q)).ToList();
+        var doubtful = uncertain.Select(u => ToReport(u.Q, u.Reason)).ToList();
 
         var storyLabel = kb.Stories.ToDictionary(s => s.Id, s => $"{s.Company}: {Short(s.Action, 10)}");
         var stories = memory.StoryUse.OrderByDescending(kv => kv.Value).Select(kv => (storyLabel.GetValueOrDefault(kv.Key, kv.Key), kv.Value)).ToList();
@@ -142,7 +171,7 @@ public static class ReportBuilder
             LatencyP50Ms = SessionMetrics.Percentile(latencies, 50), LatencyP95Ms = SessionMetrics.Percentile(latencies, 95),
             TranscriptionIssues = issues, StrengthsOfPreparation = strengths, PreparationWeaknesses = weaknesses, FollowUpPreparation = followUp,
             ThankYouThemes = themes, UnusedRelevantStories = unused,
-            ExcludedTurns = (metrics?.TotalSuppressed ?? 0) + invalid,
+            ExcludedTurns = (metrics?.TotalSuppressed ?? 0) + invalid, UncertainQuestions = doubtful,
         };
     }
 

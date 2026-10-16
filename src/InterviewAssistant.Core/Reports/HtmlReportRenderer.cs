@@ -34,7 +34,7 @@ public static class HtmlReportRenderer
         sb.Append("body{font-family:'Segoe UI',system-ui,sans-serif;max-width:860px;margin:32px auto;padding:0 20px;color:#1b1f24;line-height:1.5}");
         sb.Append("h1{font-size:24px;margin:0 0 4px}h2{font-size:16px;margin:28px 0 8px;border-bottom:1px solid #e3e6ea;padding-bottom:4px}");
         sb.Append(".meta{color:#5b6470;font-size:13px}.note{background:#fff7e6;border:1px solid #f2d091;border-radius:8px;padding:10px 14px;font-size:13px;margin:16px 0}");
-        sb.Append(".q{border:1px solid #e3e6ea;border-radius:8px;padding:10px 14px;margin:8px 0;break-inside:avoid}.q h3{font-size:15px;margin:0 0 2px}.q .labels,.q .ctx{font-size:12px;color:#5b6470;margin:2px 0 6px}");
+        sb.Append(".q{border:1px solid #e3e6ea;border-radius:8px;padding:10px 14px;margin:8px 0;break-inside:avoid}.q h3{font-size:15px;margin:0 0 2px}.q.unc{border-style:dashed;background:#fafbfc}.q .labels,.q .ctx{font-size:12px;color:#5b6470;margin:2px 0 6px}");
         sb.Append(".inf{font-size:11px;font-weight:400;color:#8a5a00}ul{margin:6px 0;padding-inline-start:22px}bdi{unicode-bidi:isolate}</style></head><body>");
         sb.Append($"<h1>{E(L("title"))}</h1><p class=\"meta\"><bdi>{E(Header(r.ProfileLabel, r.TargetLabel))}</bdi> · {r.StartedUtc:yyyy-MM-dd HH:mm} UTC · {E(L("duration"))}: {(int)(r.EndedUtc - r.StartedUtc).TotalMinutes} min · {E(L("language"))}: {E(string.Join(", ", r.LanguagesUsed.Select(LanguageRegistry.EnglishName)))}</p>");
         if (!r.CandidateMicrophoneEnabled) sb.Append($"<p class=\"note\">{E(L("honesty"))}</p>");
@@ -48,6 +48,12 @@ public static class HtmlReportRenderer
             if (q.Context.Length > 0) sb.Append($"<p class=\"ctx\">{E(L("context"))}: <bdi dir=\"auto\">{E(q.Context)}</bdi></p>");
             if (q.SuggestionsShown.Count > 0) { sb.Append("<ul>"); foreach (var s in q.SuggestionsShown) sb.Append($"<li><bdi dir=\"auto\">{E(s)}</bdi></li>"); sb.Append("</ul>"); }
             sb.Append("</section>");
+        }
+        if (r.UncertainQuestions.Count > 0)
+        {
+            sb.Append($"<h2>{E(L("uncertain"))} ({r.UncertainQuestions.Count})</h2><p class=\"note\">{E(L("uncertain_note"))}</p>");
+            foreach (var q in r.UncertainQuestions)
+                sb.Append($"<section class=\"q unc\"><h3>Q{q.Index}. <bdi dir=\"auto\">{E(q.OriginalWording)}</bdi></h3><p class=\"labels\">{E(q.UncertainReason)}</p></section>");
         }
         if (r.ExcludedTurns > 0) sb.Append($"<p class=\"meta\">{E(L("excluded"))}: {r.ExcludedTurns}</p>");
 
@@ -91,6 +97,11 @@ public static class HtmlReportRenderer
             sb.AppendLine($"   {L("category")}: {q.Category.ToLowerInvariant().Replace('_', ' ')} · {L("mode")}: {q.Mode.ToLowerInvariant()}{(q.Typed ? " · " + L("typed") : "")}");
             if (q.Context.Length > 0) sb.AppendLine($"   {L("context")}: {q.Context}");
             foreach (var s in q.SuggestionsShown) sb.AppendLine("   - " + s);
+        }
+        if (r.UncertainQuestions.Count > 0)
+        {
+            sb.AppendLine(); sb.AppendLine($"{L("uncertain")} ({r.UncertainQuestions.Count})"); sb.AppendLine(L("uncertain_note"));
+            foreach (var q in r.UncertainQuestions) { sb.AppendLine(); sb.AppendLine($"Q{q.Index}. {q.OriginalWording}"); sb.AppendLine($"   {q.UncertainReason}"); }
         }
         void List(string key, IEnumerable<string> items, bool inference = false)
         {

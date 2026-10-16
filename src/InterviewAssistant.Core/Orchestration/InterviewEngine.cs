@@ -143,9 +143,7 @@ public sealed class InterviewEngine : IAsyncDisposable
         _prompts = new PromptBuilder(kb);
         _evidence = EvidenceIndex.For(kb);
         _validator = new FactValidator(kb.Profile, kb.Context, _evidence);
-        var names = new[] { kb.Context.CandidateName, kb.Profile.Name, kb.Profile.PreferredName };
-        var terms = kb.Context.TranscriptionTerms().Concat(kb.Context.Employers).Concat(kb.Profile.Experience.Select(e => e.Company));
-        _gate = new UtteranceGate(new PromptEchoDetector(kb.Context.BuildTranscriptionPrompt(), kb.Context.TranscriptionTerms()), names, terms);
+        _gate = UtteranceGate.For(kb);
         _turn = new TurnDetector(_clock) { Aliases = kb.Context.Aliases, TermNormalizer = kb.Context.NormalizeTerms, SegmentFilter = KeepSegment, PartialFilter = TrustPartial };
         _turn.LiveTextChanged += t =>
         {
@@ -367,7 +365,7 @@ public sealed class InterviewEngine : IAsyncDisposable
             if (ev != null) { _session.Interruptions.Add(ev); InterruptionDetected?.Invoke(ev); }
         }
         await AnswerAsync(question, Options.DefaultStyle, allowCache: true, speechEndMs: turn.SpeechEndMs, finalizedMs: turn.FinalizedMs,
-            kind: AnswerKind.Live, turnId: turn.TurnId, replaces: previous).ConfigureAwait(false);
+            kind: AnswerKind.Live, turnId: turn.TurnId, replaces: previous, heard: HeardEvidence.From(turn.Evidence, verdict.Support)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -461,7 +459,7 @@ public sealed class InterviewEngine : IAsyncDisposable
         if (v != null) { v.Cancel(); v.Dispose(); }
     }
 
-    private async Task AnswerAsync(ExtractedQuestion xq, AnswerStyle style, bool allowCache, long speechEndMs, long finalizedMs, AnswerKind kind, int turnId = 0, AnswerView? replaces = null)
+    private async Task AnswerAsync(ExtractedQuestion xq, AnswerStyle style, bool allowCache, long speechEndMs, long finalizedMs, AnswerKind kind, int turnId = 0, AnswerView? replaces = null, HeardEvidence? heard = null)
     {
         bool isVariant = kind == AnswerKind.Variant;
         var question = xq.CoreQuestion;
@@ -513,13 +511,14 @@ public sealed class InterviewEngine : IAsyncDisposable
             reused.Original = question; reused.Context = xq.ContextSummary; reused.DetectedLanguage = detected; reused.AnswerLanguage = answerLang;
             reused.Category = cls.Category; reused.Mode = cls.Mode.ToString(); reused.MatchedQuestionId = match.Question?.QuestionId;
             reused.AnswerBullets.Clear(); reused.StoryIds.Clear(); reused.QualityFlags.Clear();
+            if (heard != null) reused.Heard = heard;
             record = reused;
         }
         else
         {
             record = _session.Add(new QuestionRecord
             {
-                Original = question, Context = xq.ContextSummary, Typed = kind == AnswerKind.Typed, DetectedLanguage = detected, AnswerLanguage = answerLang,
+                Original = question, Context = xq.ContextSummary, Typed = kind == AnswerKind.Typed, Heard = heard, DetectedLanguage = detected, AnswerLanguage = answerLang,
                 Category = cls.Category, Mode = cls.Mode.ToString(),
                 IntentKey = SessionMemory.IntentKeyFor(question, cls.Category, match.Confidence >= MatchConfidence.Medium ? match.Question : null),
                 MatchedQuestionId = match.Question?.QuestionId, FollowUpOf = cls.IsFollowUp ? _session.Last?.Index : null,
@@ -600,8 +599,16 @@ public sealed class InterviewEngine : IAsyncDisposable
                 {
                     if (kind == AnswerKind.Live && replaces == null && Options.ContinuationHoldMs > 0 && IsListening && !await HoldForContinuationAsync(ct).ConfigureAwait(false))
                         throw new OperationCanceledException(ct);
+                    if (personal && plan.PersonalFacts.Count > 0) view.GroundingFacts = plan.PersonalFacts;
                     (firstToken, firstBullet) = await StreamLlmAsync(view, question, cls, ctx, effective, request, ct).ConfigureAwait(false);
                     Metrics.IncLlm();
+                    if (view.GroundingFacts != null && view.Bullets.Count == 0 && !ct.IsCancellationRequested)
+                    {
+                        // Every bullet added something the candidate never said: show their own confirmed words instead.
+                        view.Source = AnswerSource.CacheFallback;
+                        foreach (var b in plan.PersonalFacts.Take(3)) { view.AppendBullet(b); BulletAdded?.Invoke(view, b); }
+                        if (firstBullet < 0) firstBullet = _clock.NowMs;
+                    }
                 }
                 catch (ProviderException ex) when (!ct.IsCancellationRequested)
                 {
@@ -857,6 +864,16 @@ public sealed class InterviewEngine : IAsyncDisposable
         {
             view.ValidationFlags.Add("DROPPED_LEAK: bullet looked like prompt internals or a secret");
             return false;
+        }
+        // Personal answers say only what the candidate confirmed: no added traits, feelings, benefits or links.
+        if (view.GroundingFacts != null && view.AnswerLanguage == "en")
+        {
+            var extra = PersonalGrounding.Unsupported(bullet, view.GroundingFacts, view.Question);
+            if (extra.Count > 0)
+            {
+                view.ValidationFlags.Add($"DROPPED_UNGROUNDED_PERSONAL: {extra.Count} word(s) not in the confirmed profile facts");
+                return false;
+            }
         }
         // Fact validation before display: unsupported first-person past claims become "I'd …" in every mode;
         // claims backed by confirmed evidence stay in the past tense (they are true).

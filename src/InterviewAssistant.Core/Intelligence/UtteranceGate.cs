@@ -58,6 +58,14 @@ public sealed class UtteranceGate
     private readonly HashSet<string> _candidateNames;
     private readonly HashSet<string> _knownTerms;
 
+    /// <summary>The gate the live engine uses for this knowledge base (prompt echo, candidate names, known terms).</summary>
+    public static UtteranceGate For(Knowledge.KnowledgeBase kb)
+    {
+        var names = new[] { kb.Context.CandidateName, kb.Profile.Name, kb.Profile.PreferredName };
+        var terms = kb.Context.TranscriptionTerms().Concat(kb.Context.Employers).Concat(kb.Profile.Experience.Select(e => e.Company));
+        return new UtteranceGate(new PromptEchoDetector(kb.Context.BuildTranscriptionPrompt(), kb.Context.TranscriptionTerms()), names, terms);
+    }
+
     public UtteranceGate(PromptEchoDetector echo, IEnumerable<string>? candidateNames = null, IEnumerable<string>? knownTerms = null)
     {
         _echo = echo;

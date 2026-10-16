@@ -486,7 +486,7 @@ public class Rc2EngineAcceptanceTests
 
     // ---------------- P1-1/5 profile-aware personal answers ----------------
 
-    private static KnowledgeBase WithPersonal(params (string Category, string Text)[] facts)
+    internal static KnowledgeBase WithPersonal(params (string Category, string Text)[] facts)
     {
         var kb = TestKnowledge.Load();
         var profile = new CandidateProfile

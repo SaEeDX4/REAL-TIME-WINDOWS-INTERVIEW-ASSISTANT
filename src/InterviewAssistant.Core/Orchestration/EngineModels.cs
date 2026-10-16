@@ -54,6 +54,8 @@ public sealed class AnswerView
     /// <summary>Error category when the answer failed (null on success).</summary>
     public Providers.ProviderErrorKind? Error { get; set; }
     internal Live.QuestionRecord? Record { get; set; }
+    /// <summary>Confirmed profile facts a personal answer must stay within (null = not a grounded personal answer).</summary>
+    internal IReadOnlyList<string>? GroundingFacts { get; set; }
     internal bool BridgePending { get; set; }
     /// <summary>Live question, typed question, or a variant (rework) of an existing answer.</summary>
     public AnswerKind Kind { get; init; }

@@ -38,6 +38,39 @@ public sealed class QuestionRecord
     public int VariantCount { get; set; }
     public string Confidence { get; set; } = "";
     public List<string> QualityFlags { get; set; } = new();
+    /// <summary>
+    /// Acoustic provenance of a heard question (null for typed questions and records from builds before 2.1.0-rc.4):
+    /// sizes and ratios of the audio the turn was heard in — never audio, never a voiceprint.
+    /// </summary>
+    public HeardEvidence? Heard { get; set; }
+}
+
+/// <summary>
+/// Serializable summary of <see cref="Audio.SpeechEvidence"/> kept with a heard question, so the report can re-check that
+/// a recorded question was carried by a voice (defence in depth against non-speech that slipped through live).
+/// </summary>
+public sealed class HeardEvidence
+{
+    public int FramesObserved { get; set; }
+    public int SpanMs { get; set; }
+    public int WindowMs { get; set; }
+    public int ActiveMs { get; set; }
+    public int VoicedMs { get; set; }
+    public int TonalMs { get; set; }
+    public int PitchPairs { get; set; }
+    public int SteadyPairs { get; set; }
+    public int JumpPairs { get; set; }
+    /// <summary>Acoustic support the live gate assigned (Strong, Weak, Unknown).</summary>
+    public string Support { get; set; } = "";
+
+    public static HeardEvidence From(Audio.SpeechEvidence e, AcousticSupport support) => new()
+    {
+        FramesObserved = e.FramesObserved, SpanMs = e.SpanMs, WindowMs = e.WindowMs, ActiveMs = e.ActiveMs, VoicedMs = e.VoicedMs,
+        TonalMs = e.TonalMs, PitchPairs = e.PitchPairs, SteadyPairs = e.SteadyPairs, JumpPairs = e.JumpPairs, Support = support.ToString(),
+    };
+
+    public Audio.SpeechEvidence ToEvidence() =>
+        new(FramesObserved, SpanMs, ActiveMs, VoicedMs, TonalMs, PitchPairs, SteadyPairs, JumpPairs, WindowMs);
 }
 
 public sealed class InterruptionEvent
