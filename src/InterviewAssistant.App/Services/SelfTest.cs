@@ -369,6 +369,8 @@ public static class SelfTest
     {
         if (PresentationSource.FromVisual(window) is not { } source) return;
         var target = System.Windows.Input.FocusManager.GetFocusedElement(window) as UIElement ?? window;
+        // An open dialog owns the keyboard: without OS focus (CI desktop) send the key through its card.
+        if (Views.DialogHost.Find(window)?.TopCard is { } card && !card.IsAncestorOf(target)) target = card;
         target.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice, source, 0, key) { RoutedEvent = System.Windows.Input.Keyboard.PreviewKeyDownEvent });
     }
 

@@ -110,10 +110,12 @@ public partial class HomeWindow : Window
         _nav.Register(PageSettings.Guard);
         _profileGuard.Save = SaveProfile;
         _profileGuard.Discard = () => { if (_profile != null) LoadProfile(Store?.GetProfile(_profile.Id)); };
-        _targetGuard.Save = () => SaveTargetFields() != null;
+        // A "Save" answer that fails validation shows the page with the problem (the user stays to fix it).
+        _targetGuard.Save = () => { if (SaveTargetFields() != null) return true; ShowPage("interviews"); TargetTitle.Focus(); return false; };
         _targetGuard.Discard = () => LoadTarget(_target != null ? Store?.GetTarget(_target.Id) : null);
         foreach (var g in _nav.Guards) g.DirtyChanged += UpdateDirtyIndicators;
         PageSettings.Initialize(vm, main);
+        PageSettings.Guard.Save = () => { if (PageSettings.Save()) return true; ShowPage("settings"); PageSettings.ShowSection("hotkeys"); return false; };
         PageSettings.Saved += () => Notify(T("toast_settings_saved"), ToastKind.Success);
         foreach (var box in new Control[] { EmailBox, PasswordBox, ConfirmBox, TargetTitle }) Field.ClearOnEdit(box);
 

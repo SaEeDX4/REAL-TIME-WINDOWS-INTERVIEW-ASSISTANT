@@ -123,6 +123,8 @@ public sealed class DialogHost : Grid
     public CornerRadius CornerRadius { get => (CornerRadius)GetValue(CornerRadiusProperty); set => SetValue(CornerRadiusProperty, value); }
 
     public bool IsOpen => _layers.Count > 0;
+    /// <summary>The card of the dialog on top (self-test: keys are sent through it like a real key press).</summary>
+    internal UIElement? TopCard => _layers.Count > 0 ? _layers[^1].Card : null;
 
     public DialogHost()
     {
