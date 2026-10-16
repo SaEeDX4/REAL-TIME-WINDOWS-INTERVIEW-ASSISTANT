@@ -78,12 +78,22 @@ public sealed class OpenAiRealtimeTranscriber : ITranscriber
         _useBeta = !_opt.ServerConfiguredSession && _opt.Protocol.Equals("beta", StringComparison.OrdinalIgnoreCase);
     }
 
-    public Task StartAsync(CancellationToken ct)
+    /// <summary>
+    /// Starts the connection loop, or restarts it when the previous one has ended (its token was cancelled, e.g. by a
+    /// resume, or it stopped because the live session ended). A running loop is left alone.
+    /// </summary>
+    public async Task StartAsync(CancellationToken ct)
     {
-        if (_loop != null) return Task.CompletedTask;
+        if (_loop is { IsCompleted: false } && _cts is { IsCancellationRequested: false }) return;
+        if (_loop != null)
+        {
+            _cts?.Cancel();   // the previous loop must be gone before a new one reads the audio queue (single reader)
+            try { await _loop.ConfigureAwait(false); } catch (OperationCanceledException) { }
+        }
+        _cts?.Dispose();
         _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        _loop = Task.Run(() => RunAsync(_cts.Token));
-        return Task.CompletedTask;
+        var token = _cts.Token;
+        _loop = Task.Run(() => RunAsync(token));
     }
 
     public async Task StopAsync()

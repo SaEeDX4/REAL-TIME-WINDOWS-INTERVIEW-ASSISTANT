@@ -4,7 +4,8 @@
 .DESCRIPTION
   - The app project version is a semantic version; a release candidate (x.y.z-rc.N) is never built as Stable.
   - docs/release/RELEASE_NOTES-v<version>.md exists, names the version and is not a placeholder.
-  - For a release candidate N >= 2, every mandatory RC audit document exists and is substantive.
+  - For a release candidate N >= 2, every mandatory audit document of the RC2 audit set (kept current for later
+    candidates) exists and is substantive; from N >= 3 the candidate's own launch-blocker report RC<N>_LAUNCH_BLOCKERS.md too.
   - No provider keys, webhook secrets, signed JWTs (e.g. a service-role key), database URLs with passwords or private keys are committed (test fixtures are marked "fake-credential: test fixture").
 #>
 param([Parameter(Mandatory)][string]$Version)
@@ -30,11 +31,13 @@ $r = Test-Doc $notes 400; if ($r) { $failures += $r }
 elseif (-not ((Get-Content $notes -Raw).Contains($Version))) { $failures += "$notes does not name version $Version" }
 
 if ($Version -match '-rc\.(\d+)$' -and [int]$Matches[1] -ge 2) {
-    $n = $Matches[1]
+    $n = [int]$Matches[1]
     foreach ($d in "ROOT_CAUSES", "ENGINE_AUDIT", "PERFORMANCE_AUDIT", "SECURITY_AUDIT", "PRIVACY_AUDIT", "LOCALIZATION_AUDIT",
-                   "UI_UX_AUDIT", "DATA_INTEGRITY_AUDIT", "COMMERCIALIZATION_READINESS", "MANUAL_REGRESSION") {
-        $r = Test-Doc "docs/release/RC${n}_$d.md" 800; if ($r) { $failures += $r }
+                   "UI_UX_AUDIT", "DATA_INTEGRITY_AUDIT", "COMMERCIALIZATION_READINESS", "MANUAL_REGRESSION", "DEPENDENCY_LICENSE_AUDIT") {
+        $r = Test-Doc "docs/release/RC2_$d.md" 800; if ($r) { $failures += $r }
+        elseif ($n -ge 3 -and -not ((Get-Content "docs/release/RC2_$d.md" -Raw).Contains("rc.$n"))) { $failures += "docs/release/RC2_$d.md was not updated for rc.$n" }
     }
+    if ($n -ge 3) { $r = Test-Doc "docs/release/RC${n}_LAUNCH_BLOCKERS.md" 800; if ($r) { $failures += $r } }
 }
 
 $secrets = git grep -nE "sk-(proj-)?[A-Za-z0-9_-]{32,}|pdl_(live|sdbx)_apikey_[A-Za-z0-9]{20,}|pdl_ntfset_[A-Za-z0-9]{20,}|-----BEGIN (RSA |EC )?PRIVATE KEY-----|eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}|postgres(ql)?://[^:/ ]+:[^@ ]+@|sb_secret_[A-Za-z0-9_-]{20,}" |

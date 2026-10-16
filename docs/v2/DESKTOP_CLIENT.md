@@ -3,7 +3,7 @@
 ## Modes
 | Mode | When | AI path | Key handling |
 |---|---|---|---|
-| **Account** (`Settings.Mode = "cloud"`, default) | `cloud.json` present with valid https endpoints | Server: ephemeral Realtime secret for transcription, `/answers/stream` proxy for answers | No provider key on the PC. Supabase tokens DPAPI-encrypted (`session.dpapi`) |
+| **Account** (`Settings.Mode = "cloud"`, default) | `cloud.json` present with valid https endpoints | Server: live transcription relay (WebSocket, user token), `/answers/stream` proxy for answers | No provider key on the PC. Supabase tokens DPAPI-encrypted (`session.dpapi`) |
 | **Developer** | No service configured, or chosen in onboarding | Direct OpenAI with the user's own key (the validated V1 path, unchanged) | DPAPI `apikey.dpapi` |
 
 `cloud.json` (next to the EXE, per release channel; `%APPDATA%\InterviewAssistant\cloud.json` overrides for staging) holds **public values only**:
@@ -41,5 +41,5 @@ Prepared answers are not gated offline because they are the user's own locally s
 | Client ↔ real backend + PostgreSQL (session, heartbeats, renewal, SSE answers, errors, token refresh, sync) | TESTED (`ClientEndToEndTests`) |
 | PKCE, loopback, token store, refresh/revocation, magic-link flow (stubbed Supabase) | TESTED (`CloudAuthTests`) |
 | WPF windows, Coach toggle, auto-fit, RTL switch, local preparation, report on Stop | PASSED — self-test inside the real EXE on windows-latest (28/28) |
-| Real Supabase sign-in, real OpenAI ephemeral transcription via the server | NOT YET VALIDATED — needs Supabase project + server OpenAI key |
+| Real Supabase sign-in, real OpenAI transcription through the server relay | NOT YET VALIDATED — needs Supabase project + server OpenAI key |
 | Visual quality of new screens | NOT YET VALIDATED by a human on Windows |

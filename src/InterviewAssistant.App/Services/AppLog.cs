@@ -29,4 +29,22 @@ public static class AppLog
     }
 
     public static IReadOnlyList<string> Recent => Ring.ToArray();
+
+    /// <summary>Daily log files older than <paramref name="keepDays"/> days are deleted (called at startup).</summary>
+    public static int Prune(int keepDays = 14)
+    {
+        int removed = 0;
+        try
+        {
+            var cutoff = DateTime.Now.Date.AddDays(-keepDays);
+            foreach (var f in Directory.EnumerateFiles(AppPaths.Logs, "app-*.log"))
+            {
+                var stamp = Path.GetFileNameWithoutExtension(f)["app-".Length..];
+                if (DateTime.TryParseExact(stamp, "yyyyMMdd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var day) && day < cutoff)
+                    try { File.Delete(f); removed++; } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { /* retention is best-effort */ }
+        return removed;
+    }
 }

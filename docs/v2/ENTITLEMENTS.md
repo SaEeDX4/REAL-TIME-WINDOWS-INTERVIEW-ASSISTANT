@@ -38,7 +38,9 @@ The server is the single source of truth. The desktop only *displays* entitlemen
 | `CoachMode` | Feature flag |
 
 ## Live-minute metering (session leases)
-- `POST /sessions` → lease + ephemeral OpenAI Realtime client secret (TTL 600 s). Idempotency key makes retries return the same lease.
+- `POST /sessions` (with `relay: true`; older clients get 426) → lease + the relay endpoint (no provider secret). Idempotency key makes retries return the same lease.
+- `GET /sessions/{id}/realtime` (WebSocket) → the relay: the server mints the upstream secret per connection and closes the socket when the lease ends or its billable window runs out.
+- Paddle `adjustment.*`: an approved full refund or an approved chargeback of the current payment revokes paid access (billing state `revoked`); a newer payment or an approved chargeback reversal restores it. Partial refunds and credits do not change access.
 - One lease per device: restarting on the same device replaces its stale lease; leases on other devices count against `MaxConcurrentSessions`. Start/heartbeat/renew/stop are serialized per user with a PostgreSQL advisory lock (race-tested).
 - Client heartbeats every 30 s with a strictly increasing `seq` (replays → 409).
 - Billed seconds per heartbeat = elapsed since last heartbeat, **capped at 2× the interval** (no over-billing after sleep/offline).

@@ -189,6 +189,21 @@ public sealed class InterviewEngine : IAsyncDisposable
         SetStatus(EngineStatus.Paused);
     }
 
+    /// <summary>
+    /// Closes the transcription connection while paused (a cloud pause ends the billable lease, and with it the relay);
+    /// <see cref="StartListeningAsync"/> reconnects. History, memory and typed questions are unaffected.
+    /// </summary>
+    public async Task SuspendTranscriptionAsync()
+    {
+        if (_transcriber != null && _paused) await _transcriber.StopAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>Reconnects transcription if its connection loop ended while listening (e.g. a replaced live lease).</summary>
+    public async Task EnsureTranscriptionAsync()
+    {
+        if (_transcriber != null && IsListening && _runCts != null) await _transcriber.StartAsync(_runCts.Token).ConfigureAwait(false);
+    }
+
     public async Task StopAsync()
     {
         lock (_gate_) ReleaseHold(true);

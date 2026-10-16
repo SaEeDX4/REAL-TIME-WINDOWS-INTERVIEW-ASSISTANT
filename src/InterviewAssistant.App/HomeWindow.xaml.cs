@@ -572,7 +572,9 @@ public partial class HomeWindow : Window
         if (_vm.SessionActive && _vm.ActiveProfileId == _profile.Id) { Warn(T("warn_stop_first")); return; }
         if (!Confirm(F("confirm_delete_profile", _profile.Name))) return;
         if (_vm.ActiveProfileId == _profile.Id) _vm.SetActive(null, null);
+        var targetIds = Store.Targets(_profile.Id).Select(t => t.Id).ToList();
         Store.DeleteProfile(_profile.Id);
+        _ = _vm.ForgetTranscriptionContextAsync(targetIds);
         _profile = null;
         RefreshProfiles();
         RefreshChecklist();
@@ -725,6 +727,7 @@ public partial class HomeWindow : Window
         if (!Confirm(F("confirm_delete_interview", _target.DisplayName))) return;
         if (_vm.ActiveTargetId == _target.Id) _vm.SetActive(_vm.ActiveProfileId, null);
         Store.DeleteTarget(_target.Id);
+        _ = _vm.ForgetTranscriptionContextAsync(new[] { _target.Id });
         _target = null;
         RefreshTargets();
         Notify(T("toast_interview_deleted"), ToastKind.Info);

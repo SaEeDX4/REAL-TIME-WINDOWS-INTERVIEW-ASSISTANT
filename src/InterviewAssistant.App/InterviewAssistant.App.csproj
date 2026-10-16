@@ -11,9 +11,9 @@
     <RootNamespace>InterviewAssistant.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <!-- Semantic version: 2.1.0-rc.2 (release candidate). CI passes -p:Version and -p:SourceRevisionId=<commit>;
+    <!-- Semantic version: 2.1.0-rc.3 (release candidate). CI passes -p:Version and -p:SourceRevisionId=<commit>;
          the commit is appended to the informational version and shown in Help → About. -->
-    <Version>2.1.0-rc.2</Version>
+    <Version>2.1.0-rc.3</Version>
     <SourceRevisionId Condition="'$(SourceRevisionId)' == ''">local</SourceRevisionId>
     <!-- Velopack hooks must run before WPF starts: custom entry point. -->
     <StartupObject>InterviewAssistant.App.Program</StartupObject>

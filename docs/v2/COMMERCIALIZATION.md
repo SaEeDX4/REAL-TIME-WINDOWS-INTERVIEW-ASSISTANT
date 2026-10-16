@@ -3,7 +3,7 @@
 ## What is ready in code
 - Multi-user backend: auth, per-user isolation, entitlements, metering, leases, safety caps, admin, export/delete — tested against PostgreSQL.
 - Paddle MoR integration: checkout, portal, verified/idempotent/ordered webhooks, grace period.
-- Server-side OpenAI key; ephemeral Realtime secrets; answer streaming proxy; remote model routing + kill switch; minimum client version.
+- Server-side OpenAI key; live transcription relay (no provider credential on the PC; closes with the lease); answer streaming proxy; remote model routing + kill switch; minimum client version.
 - CI: PR validation (tests, migration drift, vulnerable packages, secret scan, container build), Windows release, backend deploy with approval gate.
 
 ## External accounts and decisions required (the remaining boundary)

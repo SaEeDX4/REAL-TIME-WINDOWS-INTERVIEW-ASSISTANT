@@ -15,7 +15,7 @@ src/InterviewAssistant.Core        engine (audio, turn detection, matching, memo
                                    profiles/targets/ingestion/preparation) — cross-platform, no UI
 src/InterviewAssistant.Contracts   DTOs shared by desktop and backend (/api/v1)
 src/InterviewAssistant.Backend     ASP.NET Core API: auth (Supabase JWT), Postgres (EF Core), entitlements,
-                                   session leases, usage ledger, OpenAI proxy + realtime client secrets, Paddle
+                                   session leases, usage ledger, OpenAI proxy + live transcription relay, Paddle
 src/InterviewAssistant.Client      desktop cloud client (cross-platform, tested on Linux): Supabase PKCE + loopback,
                                    token store, typed API client, session leases, cloud answer provider, update policy
 src/InterviewAssistant.App         WPF desktop (WASAPI loopback, overlay, Home dashboard, onboarding, billing links,
@@ -26,7 +26,7 @@ tests/*                            unit, engine, backend integration, security, 
 ## Key flows
 **Sign-in**: desktop opens system browser → Supabase `/auth/v1/authorize` with PKCE (S256) + state → loopback `http://127.0.0.1:<port>/callback` → code exchange → access/refresh tokens stored with DPAPI. Backend validates Supabase JWT (issuer, audience, signature, lifetime).
 
-**Live session lease**: `POST /api/v1/sessions` → entitlement + concurrency + device checks → server session id + OpenAI realtime **client secret** (`POST /v1/realtime/client_secrets`, short-lived `ek_…`) → desktop connects to OpenAI realtime directly with the ephemeral secret (lowest latency) → `POST /sessions/{id}/heartbeat` every 30 s meters seconds and renews the secret only while entitled → `POST /sessions/{id}/stop` or 90 s heartbeat timeout releases the lease.
+**Live session lease**: `POST /api/v1/sessions` → entitlement + concurrency + device checks → server session id + the relay endpoint → desktop opens a WebSocket to `/api/v1/sessions/{id}/realtime` with its own access token → the server checks the lease, mints an OpenAI realtime client secret (`POST /v1/realtime/client_secrets`, short-lived `ek_…`) for this one upstream connection and relays audio up / transcription events down (only `input_audio_buffer.*` messages are forwarded upstream) → `POST /sessions/{id}/heartbeat` every 30 s meters seconds → `POST /sessions/{id}/stop`, expiry, exhausted allowance, device revocation or account suspension end the lease **and close the relay immediately**; each relay also re-reads its lease every 2 s and closes when the time since the last heartbeat reaches the remaining allowance or the heartbeat timeout minus 5 s, so audio is never carried outside billed time. The relay adds one network hop (backend region ↔ OpenAI) to transcription latency.
 
 **Answers**: desktop matches the selected target's local prepared bank first (no network). Otherwise `POST /api/v1/answers/stream` (SSE) → backend checks the lease + rate limits → OpenAI with the server key → streams deltas back. The permanent OpenAI key exists only on the server.
 

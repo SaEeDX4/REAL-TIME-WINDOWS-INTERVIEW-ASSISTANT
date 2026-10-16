@@ -43,7 +43,7 @@ public sealed class CloudService
     {
         _settings = settings;
         Options = LoadOptions();
-        // Full semantic version incl. pre-release ("2.1.0-rc.2"): devices, support and minimum-version checks see the real build.
+        // Full semantic version incl. pre-release ("2.1.0-rc.3"): devices, support and minimum-version checks see the real build.
         Options.ClientVersion = BuildInfo.Version;
         if (!Options.IsConfigured) { State = CloudState.NotConfigured; Message = Loc.T("acct_not_configured_long"); return; }
         LoadCachedPublicConfig();

@@ -28,4 +28,4 @@
 Every 30 s: expire leases without heartbeat for 90 s. Hourly: purge reports past retention.
 
 ## Secrets rotation
-OpenAI key, Paddle API key / webhook secret, DB password: rotate in the host secret store and restart. Ephemeral client secrets expire on their own (≤10 min).
+OpenAI key, Paddle API key / webhook secret, DB password: rotate in the host secret store and restart. Ephemeral upstream secrets are minted by the relay per connection, never leave the server and expire on their own (≤10 min). `Auth__ServiceRoleKey` (Supabase secret key, used only to delete sign-in identities of deleted accounts) rotates the same way; while it is missing, identity deletions queue up (admin `/health`: `identityDeletionsPending`) and complete automatically once it is set.

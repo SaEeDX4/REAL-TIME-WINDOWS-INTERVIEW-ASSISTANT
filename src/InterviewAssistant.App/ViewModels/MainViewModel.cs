@@ -513,7 +513,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             // Live lease while listening; the lease-free "manual" purpose for typed questions while paused or stopped.
             _provider = new CloudAnswerProvider(Cloud.Api!, () => _cloudSession is { Active: true } s ? s.Id : null, deviceId: () => Settings.CloudDeviceId);
             _transcriberOptions.ServerConfiguredSession = true;   // the server configures the upstream session for each relay connection
-            _transcriber = new OpenAiRealtimeTranscriber(ct => _cloudSession is { Active: true } s ? s.NextConnectionCredentialAsync(ct) : Task.FromResult<string?>(null), _transcriberOptions);
+            _transcriber = new OpenAiRealtimeTranscriber(RelayCredentialAsync, _transcriberOptions);
         }
         else
         {
@@ -673,6 +673,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         if (IsListening)
         {
             _engine.Pause(); IsListening = false; IsPaused = true;
+            if (UsingCloud) await _engine.SuspendTranscriptionAsync();   // the relay closes with the lease; Resume reconnects
             await EndLeaseAsync();   // paused time is never billed
             if (UsingCloud) Toast(Loc.T("toast_paused"), Views.ToastKind.Info, Loc.T("toast_paused_detail"));
             else Toast(Loc.T("toast_paused_dev"), Views.ToastKind.Info);
@@ -748,6 +749,34 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Deletes the server copy of deleted interviews' transcription context (names and terms uploaded for recognition).
+    /// Best-effort: offline or signed out, it stays until the account is deleted (privacy audit P7).
+    /// </summary>
+    public async Task ForgetTranscriptionContextAsync(IEnumerable<string> targetIds)
+    {
+        if (!UsingCloud || Cloud.Api == null || !Cloud.IsSignedIn) return;
+        foreach (var id in targetIds)
+        {
+            if (!Guid.TryParse(id, out var g)) continue;
+            try { await Cloud.Api.DeleteDocumentAsync("targets", g, CancellationToken.None); }
+            catch (BackendException ex) when (ex.Status == 404) { }
+            catch (BackendException ex) { AppLog.Warn($"Interview context not removed from the service ({ex.Code})"); }
+        }
+    }
+
+    private volatile bool _leaseRestarting;
+
+    /// <summary>
+    /// Bearer for the next relay connection. While an ended lease is being replaced automatically, waits briefly for the
+    /// new one instead of giving up; null (transcriber stops) once no lease is active.
+    /// </summary>
+    private async Task<string?> RelayCredentialAsync(CancellationToken ct)
+    {
+        for (int i = 0; i < 60 && _leaseRestarting && _cloudSession is not { Active: true }; i++) await Task.Delay(250, ct);
+        return _cloudSession is { Active: true } s ? await s.NextConnectionCredentialAsync(ct) : null;
+    }
+
     private static void UseRelay(RealtimeTranscriberOptions opts, CloudSession lease)
     {
         opts.Endpoint = lease.RelayEndpoint.ToString();
@@ -803,14 +832,23 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private async Task OnLeaseEndedAsync(string reason)
     {
         AppLog.Info("Lease ended: " + reason);
-        _cloudSession = null;
         // Network loss, sleep/wake or a crash-replaced lease: the user still wants help — start a new lease once, silently.
-        if (IsListening && reason is "heartbeat_timeout" or "session_ended" or "expired" or "not_found" && await BeginLeaseAsync())
+        var restart = IsListening && reason is "heartbeat_timeout" or "session_ended" or "expired" or "not_found";
+        _leaseRestarting = restart;   // set before the old lease disappears, so a reconnect in between waits for the new one
+        _cloudSession = null;
+        if (restart)
         {
-            AppLog.Info("Lease restarted automatically");
-            return;
+            bool restarted;
+            try { restarted = await BeginLeaseAsync(); }
+            finally { _leaseRestarting = false; }
+            if (restarted)
+            {
+                AppLog.Info("Lease restarted automatically");
+                if (_engine != null) await _engine.EnsureTranscriptionAsync();   // the old relay closed with the old lease
+                return;
+            }
         }
-        if (_engine != null && (IsListening || IsPaused)) { _engine.Pause(); IsListening = false; IsPaused = true; }
+        if (_engine != null && (IsListening || IsPaused)) { _engine.Pause(); IsListening = false; IsPaused = true; await _engine.SuspendTranscriptionAsync(); }
         Note = Loc.T(reason switch
         {
             "allowance_exhausted" => "lease_end_allowance",

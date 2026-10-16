@@ -23,7 +23,7 @@ pwsh scripts/update-test.ps1                                                    
 ## NOT YET VALIDATED (needs external accounts or a human on Windows)
 - Real Supabase sign-in (OAuth + magic link) and JWKS validation against a live project.
 - Real Paddle sandbox checkout, portal, and webhook delivery.
-- Real OpenAI ephemeral transcription session created by the server and used by the desktop.
+- Real OpenAI transcription through the server relay (the server mints the ephemeral session; the desktop only talks to the relay).
 - Live answer quality in all 10 languages with a real model (gated test exists; needs `OPENAI_API_KEY` secret).
 - Code signing; SmartScreen reputation.
 - Staging/production deployment and smoke tests (workflow ready, needs hosting + secrets).

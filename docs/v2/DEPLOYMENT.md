@@ -10,7 +10,7 @@ Verified continuously by `.github/workflows/production-smoke.yml` (on every push
 | Database | Railway PostgreSQL | Migrations applied at start (`Database__MigrateOnStart=true`), additive only |
 | Auth | Supabase Auth — RS256/ES256 JWT verified via JWKS | Desktop: e-mail/password and optional OAuth (PKCE via loopback) |
 | Billing | Paddle Billing (sandbox now; merchant of record) | See BILLING.md |
-| AI | OpenAI — server key only | Desktop receives short-lived realtime client secrets only |
+| AI | OpenAI — server key only | Desktop streams live audio through the backend relay (WebSocket); no provider credential ever reaches the PC |
 
 `railway.json` makes Railway wait for `/health/ready` before switching traffic (180 s) and restart on failure.
 Railway auto-deploys the connected branch on push. `backend-deploy.yml` (GHCR image + deploy hook, `main` only) is an
@@ -30,6 +30,7 @@ Production startup **fails fast** with a list of problems when required values a
 | `Auth__PublishableKey` | **yes for desktop sign-in** | Supabase *publishable* (anon) key — public by design, served to the app via `/api/v1/config` |
 | `Auth__OAuthProviders__0` | optional | e.g. `google` (enable it in Supabase first) |
 | `Auth__AdminUserIds__0` | optional | Supabase user id for `/api/v1/admin/*` |
+| `Auth__ServiceRoleKey` | **yes for account deletion** | Supabase *secret* key (`sb_secret_…`, or the legacy `service_role` key). Server-only; used solely for `DELETE /auth/v1/admin/users/{id}` when a user deletes their account. Missing → deletions are queued and completed once it is set (startup warning). |
 | `OpenAI__ApiKey` | yes | server-only project key with a monthly spend limit |
 | `Paddle__ApiBaseUrl` | no | default `https://sandbox-api.paddle.com`; `https://api.paddle.com` for live |
 | `Paddle__ApiKey`, `Paddle__WebhookSecret` | yes | server-only; live/sandbox mismatch is rejected at startup |

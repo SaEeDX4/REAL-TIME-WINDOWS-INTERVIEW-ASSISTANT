@@ -40,6 +40,7 @@ public partial class App : Application
         }
         Branding.Load(AppContext.BaseDirectory);
         AppLog.Info($"{Branding.ProductName} {Services.BuildInfo.Summary} starting on {Environment.OSVersion}");
+        if (AppLog.Prune() is > 0 and var pruned) AppLog.Info($"Removed {pruned} log file(s) older than 14 days");
         var window = new MainWindow();
         MainWindow = window;
         window.Show();
