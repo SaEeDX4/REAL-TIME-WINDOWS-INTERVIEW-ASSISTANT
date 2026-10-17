@@ -472,6 +472,8 @@
                         <!-- signed out: e-mail + password -->
                         <Border x:Name="SignedOutPanel" Style="{StaticResource Card}" Margin="0,12,0,0" MaxWidth="460" HorizontalAlignment="Left">
                             <StackPanel>
+                                <TextBlock x:Name="AuthHeading" Style="{StaticResource H1}" FontSize="18"/>
+                                <TextBlock x:Name="AuthSubtitle" Style="{StaticResource Hint}" Margin="0,0,0,10"/>
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                     <Button x:Name="ModeSignInBtn" Style="{StaticResource Btn.Chip}" Content="{v:Loc sign_in}" Click="ModeSignIn_Click" Margin="0,0,6,0"/>
                                     <Button x:Name="ModeCreateBtn" Style="{StaticResource Btn.Chip}" Content="{v:Loc create_account}" Click="ModeCreate_Click"/>

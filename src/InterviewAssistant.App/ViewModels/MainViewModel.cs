@@ -531,14 +531,16 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     /// Sign out: the interview (if any) is stopped and its report saved to THIS account's workspace, the backend lease
     /// ends, tokens are revoked/cleared, and the account's data leaves the screen and memory.
     /// </summary>
-    public async Task SignOutAsync()
+    /// <param name="quiet">True for "Switch account" (and after an account deletion): the sign-in page that follows says
+    /// what happened, so no "Signed out" notification is shown. A normal sign-out keeps it.</param>
+    public async Task SignOutAsync(bool quiet = false)
     {
         if (SessionActive) await StopAsync();
         await EndLeaseAsync();
         await Cloud.SignOutAsync();
         Readiness.Clear();   // the checks belonged to the previous account
         OpenWorkspaceForCurrentAccount();
-        Toast(Loc.T("toast_signed_out"), Views.ToastKind.Info, Loc.T("toast_signed_out_detail"));
+        if (!quiet) Toast(Loc.T("toast_signed_out"), Views.ToastKind.Info, Loc.T("toast_signed_out_detail"));
     }
 
     /// <summary>A live interview session exists (listening or paused) — it continues until Stop.</summary>

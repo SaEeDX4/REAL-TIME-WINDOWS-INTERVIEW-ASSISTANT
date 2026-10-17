@@ -25,6 +25,8 @@ public partial class HomeWindow
 {
     private bool _createMode;
     private bool _authBusy;
+    /// <summary>State of the signed-out form (sign in, create account, forgot password, reset sent, switch account).</summary>
+    private readonly AuthFormState _auth = new();
 
     private void RefreshAccount()
     {
@@ -200,6 +202,9 @@ public partial class HomeWindow
     private void SetCreateMode(bool create)
     {
         _createMode = create;
+        if (create) _auth.ToCreateAccount(); else if (_auth.Mode == AuthMode.CreateAccount) _auth.ToSignIn();
+        AuthHeading.Text = T(_auth.HeadingKey);
+        AuthSubtitle.Text = _auth.SubtitleKey is { } sub ? F(sub, _auth.PreviousEmail) : "";
         ConfirmPanel.Visibility = create ? Visibility.Visible : Visibility.Collapsed;
         if (!_authBusy) AuthSubmitBtn.Content = T(create ? "create_account" : "sign_in");
         ModeSignInBtn.FontWeight = create ? FontWeights.Normal : FontWeights.SemiBold;
@@ -285,6 +290,7 @@ public partial class HomeWindow
                 {
                     _vm.OpenWorkspaceForCurrentAccount();   // this account's data only
                     if (!_vm.SessionActive) _vm.BuildEngine();
+                    _auth.Reset();   // a later sign-out starts at the plain sign-in again
                     _sections.Summary.Loaded(DateTimeOffset.Now);
                     await RefreshAccountSectionsAsync(summary: false);
                     Notify(T("toast_signed_in"), ToastKind.Success, _vm.Cloud.Account?.Email);
@@ -542,26 +548,36 @@ public partial class HomeWindow
         return !_vm.SessionActive || await AppDialog.ConfirmAsync(this, T("confirm_sign_out_session"), T("dlg_sign_out"), destructive: true);
     }
 
+    /// <summary>Sign out (header menu): the normal sign-out with its "Signed out" notification; the form starts at Sign in.</summary>
     private async void SignOut_Click(object sender, RoutedEventArgs e)
     {
         if (!await ConfirmSignOutAsync()) return;
         await _vm.SignOutAsync();
+        _auth.Reset();
         EmailBox.Text = "";
         AuthMessage.Clear();
         RefreshAll();
         ShowPage("account");
     }
 
+    /// <summary>
+    /// Switch account (Security card and header menu): asks first, signs out QUIETLY (no "Signed out" notification — the
+    /// page that follows says what happened) and opens the sign-in form in its "Sign in with another account" state with
+    /// an empty e-mail field and the focus in it.
+    /// </summary>
     private async void SwitchAccount_Click(object sender, RoutedEventArgs e)
     {
+        var previous = _vm.Cloud.Account?.Email ?? _vm.Cloud.Auth?.Session?.Email ?? "";
+        if (!await AppDialog.ConfirmAsync(this, F("switch_confirm_message", previous), T("switch_account"), title: T("switch_confirm_title"))) return;
         if (!await ConfirmSignOutAsync()) return;
-        await _vm.SignOutAsync();
+        await _vm.SignOutAsync(quiet: true);
+        _auth.StartSwitch(previous);
         EmailBox.Text = "";
+        PasswordBox.Clear(); ConfirmBox.Clear();
         AuthMessage.Clear();
-        SetCreateMode(false);
         RefreshAll();
         ShowPage("account");
-        EmailBox.Focus();
+        _ = Dispatcher.BeginInvoke(new Action(() => EmailBox.Focus()), System.Windows.Threading.DispatcherPriority.Input);
     }
 
     // ----- header account button and menu -----
