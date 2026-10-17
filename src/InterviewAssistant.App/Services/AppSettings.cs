@@ -46,7 +46,7 @@ public sealed class AppSettings
     public double Width { get; set; } = 720;
     public double Height { get; set; } = 560;
     public bool FirstRunCompleted { get; set; }
-    /// <summary>The short Live Assistant introduction was dismissed with "Don't show again" (reopen with the ? button).</summary>
+    /// <summary>The Live Assistant's Quick help has opened by itself once (first use); afterwards only the ? button opens it.</summary>
     public bool LiveIntroDismissed { get; set; }
     // Home window placement (the live window uses Left/Top/Width/Height above).
     public double? HomeLeft { get; set; }

@@ -30,13 +30,23 @@ public static class SelfTest
         async Task Idle() => await w.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
         async Task<bool> WaitFor(Func<bool> cond, int ms) { var until = Environment.TickCount64 + ms; while (!cond() && Environment.TickCount64 < until) await Task.Delay(50); return cond(); }
 
-        await Check("Live Assistant introduction: shown on first use, dismissible", async () =>
+        // rc.5: the big introduction overlay became the Quick help popover. Same intent: shown on first use, dismissible.
+        await Check("Live Assistant introduction: Quick help opens by itself on first use, Escape closes it (once only), \"?\" reopens it with the configured hotkeys", async () =>
         {
-            await Idle();
-            var shown = vm.ShowLiveIntro && w.FindName("LiveIntro") is FrameworkElement f && f.Visibility == Visibility.Visible;
-            vm.DismissLiveIntro(dontShowAgain: false);
-            await Idle();
-            return (shown && !vm.ShowLiveIntro && !vm.Settings.LiveIntroDismissed, shown ? "shown, then dismissed for this session" : "not shown");
+            await Idle(); await Idle();
+            var shown = vm.ShowLiveIntro && w.QuickHelpOpen && w.QuickHelpTexts.Count > 0;
+            var noOptOut = w.FindName("IntroDontShow") == null && w.FindName("LiveIntro") == null;   // no "Don't show again", no overlay
+            PressKey(w, System.Windows.Input.Key.Escape); await Idle();
+            var closed = !w.QuickHelpOpen && !vm.ShowLiveIntro && vm.Settings.LiveIntroDismissed;
+            w.ToggleQuickHelp(); await Idle(); await Idle();
+            var texts = w.QuickHelpTexts;
+            var configured = new[] { vm.Settings.HotkeyStartPause, vm.Settings.HotkeyManualInput, vm.Settings.HotkeyToggleWindow, vm.Settings.HotkeyCoachToggle };
+            var reopened = w.QuickHelpOpen && texts.Any(configured.Contains);   // the user's own hotkeys (which ones depends on the state)
+            PressKey(w, System.Windows.Input.Key.Escape); await Idle();
+            var focusBack = System.Windows.Input.FocusManager.GetFocusedElement(w) == w.FindName("HelpBtn");
+            var closedAgain = !w.QuickHelpOpen && w.QuickHelpTexts.Count == 0;   // content leaves with the popover
+            return (shown && noOptOut && closed && reopened && closedAgain,
+                $"first use {(shown ? "shown" : "NOT shown")}; Escape closes {closed}; reopened with hotkeys {reopened} ({texts.Count} texts); closed again {closedAgain}; focus back on ? {focusBack}");
         });
         await Check("Build information: version, channel and commit", () =>
         {

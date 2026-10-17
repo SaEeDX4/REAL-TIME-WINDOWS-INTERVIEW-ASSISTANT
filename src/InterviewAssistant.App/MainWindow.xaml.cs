@@ -41,12 +41,13 @@ public partial class MainWindow : Window
     {
         var error = _vm.Initialize();
         if (error != null) { ShowTransientError(error); return; }
-        _vm.ShowLiveIntro = !_vm.Settings.LiveIntroDismissed;
+        _firstUseHelpPending = !_vm.Settings.LiveIntroDismissed;   // Quick help opens by itself once (first use)
         RegisterHotkeys();
         _vm.StartAudioPreview(); // meter works before the interview starts
         AppLog.Info("Main window loaded");
         if (App.SelfTestOutput is { } outPath)
         {
+            Dispatcher.BeginInvoke(ShowFirstUseHelp, DispatcherPriority.Loaded);
             Dispatcher.BeginInvoke(async () =>
             {
                 App.RequestedExitCode = await SelfTest.RunAsync(this, _vm, outPath);
@@ -55,8 +56,10 @@ public partial class MainWindow : Window
             return;
         }
         // First run: onboarding (authorized-use acknowledgement, account, profile, interview) in Home.
+        // Quick help then opens when the user comes back to the Live window (never over the onboarding).
         if (!_vm.Settings.AuthorizedUseAcknowledged || !_vm.Settings.FirstRunCompleted)
             Dispatcher.BeginInvoke(() => OpenHome(), DispatcherPriority.ApplicationIdle);
+        else Dispatcher.BeginInvoke(ShowFirstUseHelp, DispatcherPriority.ApplicationIdle);
     }
 
     // ---------------- appearance & placement ----------------
@@ -250,9 +253,7 @@ public partial class MainWindow : Window
         if (BulletList.ItemContainerGenerator.ContainerFromIndex(index) is not FrameworkElement c) return double.NaN;
         return c.TransformToAncestor(AnswerScroll).Transform(new Point(0, c.ActualHeight)).Y;
     }
-    private void Help_Click(object sender, RoutedEventArgs e) => _vm.ShowLiveIntro = !_vm.ShowLiveIntro;
     private void Adaptive_Click(object sender, RoutedEventArgs e) { _vm.ResetAdaptive(); Toasts.Show(Core.Languages.Loc.T("toast_adaptive_reset"), Views.ToastKind.Info); }
-    private void IntroClose_Click(object sender, RoutedEventArgs e) => _vm.DismissLiveIntro(IntroDontShow.IsChecked == true);
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 

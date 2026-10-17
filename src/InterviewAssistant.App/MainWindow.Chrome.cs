@@ -24,6 +24,7 @@ public partial class MainWindow
     private void InitChrome()
     {
         _more = new Views.Popover(this, MorePopup, MoreBtn);
+        InitQuickHelp();
         // The snapshot is written on the checks' threads: marshal to the UI thread before touching controls.
         _vm.Readiness.Changed += _ => Dispatcher.BeginInvoke(RefreshReadiness);
         _vm.WorkspaceChanged += () => Dispatcher.BeginInvoke(RefreshReadiness);   // other account / interview → "Check again"

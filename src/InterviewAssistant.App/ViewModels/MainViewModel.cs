@@ -61,11 +61,16 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>A report was saved (Home refreshes its Reports list immediately).</summary>
     public event Action<string>? ReportSaved;
 
+    /// <summary>The Live Assistant's Quick help popover is open (rc.5: replaces the big introduction overlay).</summary>
     private bool _showLiveIntro; public bool ShowLiveIntro { get => _showLiveIntro; set => Set(ref _showLiveIntro, value); }
-    public void DismissLiveIntro(bool dontShowAgain)
+    /// <summary>
+    /// Quick help closed. It opens by itself only once (first use): <paramref name="remember"/> records that in
+    /// <see cref="AppSettings.LiveIntroDismissed"/>; afterwards it opens only with "?" (there is no "Don't show again").
+    /// </summary>
+    public void DismissLiveIntro(bool remember = true)
     {
         ShowLiveIntro = false;
-        if (dontShowAgain) { Settings.LiveIntroDismissed = true; Settings.Save(); }
+        if (remember && !Settings.LiveIntroDismissed) { Settings.LiveIntroDismissed = true; Settings.Save(); }
     }
 
     public MainViewModel(Dispatcher ui)
