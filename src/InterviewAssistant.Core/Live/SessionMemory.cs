@@ -60,6 +60,10 @@ public sealed class HeardEvidence
     public int PitchPairs { get; set; }
     public int SteadyPairs { get; set; }
     public int JumpPairs { get; set; }
+    /// <summary>Pitch-run counts (2.1.0-rc.5+; 0 in older records, which then keep the older acoustic rule).</summary>
+    public int TrackedHops { get; set; }
+    public int RunHops { get; set; }
+    public int FlatRunHops { get; set; }
     /// <summary>Acoustic support the live gate assigned (Strong, Weak, Unknown).</summary>
     public string Support { get; set; } = "";
 
@@ -67,10 +71,11 @@ public sealed class HeardEvidence
     {
         FramesObserved = e.FramesObserved, SpanMs = e.SpanMs, WindowMs = e.WindowMs, ActiveMs = e.ActiveMs, VoicedMs = e.VoicedMs,
         TonalMs = e.TonalMs, PitchPairs = e.PitchPairs, SteadyPairs = e.SteadyPairs, JumpPairs = e.JumpPairs, Support = support.ToString(),
+        TrackedHops = e.TrackedHops, RunHops = e.RunHops, FlatRunHops = e.FlatRunHops,
     };
 
     public Audio.SpeechEvidence ToEvidence() =>
-        new(FramesObserved, SpanMs, ActiveMs, VoicedMs, TonalMs, PitchPairs, SteadyPairs, JumpPairs, WindowMs);
+        new(FramesObserved, SpanMs, ActiveMs, VoicedMs, TonalMs, PitchPairs, SteadyPairs, JumpPairs, WindowMs, TrackedHops, RunHops, FlatRunHops);
 }
 
 public sealed class InterruptionEvent

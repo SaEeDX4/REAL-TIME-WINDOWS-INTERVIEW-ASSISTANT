@@ -34,6 +34,7 @@ public sealed class InterviewEngine : IAsyncDisposable
     private readonly UtteranceGate _gate;
     private readonly PendingContext _pending = new();
     private readonly SpeechEvidenceTimeline _timeline = new();
+    private readonly PitchRunTracker _pitchRuns = new();   // capture thread only
     private long _segmentStartedAt = -1;
     /// <summary>Start of the most recent segment's evidence window (kept after speech stops: partials arrive late).</summary>
     private long _partialWindowFrom = -1;
@@ -157,6 +158,7 @@ public sealed class InterviewEngine : IAsyncDisposable
         };
         _turn.StateChanged += OnTurnState;
         _turn.TurnFinalized += t => _ = HandleFinalizedAsync(t);
+        _turn.FollowUpSplit += k => { Metrics.IncFollowUpTurn(); Log?.Invoke($"Turn accepted: {k.ToString().ToLowerInvariant()} follow-up after a complete question - new turn, not merged"); };
         _interrupt.LevelChanged += l => AdaptiveChanged?.Invoke(l);
 
         if (_transcriber != null)
@@ -181,6 +183,7 @@ public sealed class InterviewEngine : IAsyncDisposable
         _runCts = new CancellationTokenSource();
         lock (_gate_) { _turn.Start(); _inSegment = false; _segmentStartedAt = -1; }
         _timeline.Clear();
+        _pitchRuns.Reset();
         _lastAudioActivityMs = _clock.NowMs;
         _heardAudio = false; _noAudioWarned = false;
         if (_transcriber != null) await _transcriber.StartAsync(_runCts.Token).ConfigureAwait(false);
@@ -237,7 +240,7 @@ public sealed class InterviewEngine : IAsyncDisposable
         if (!IsListening) return;
         var now = _clock.NowMs;
         if (levelDb > -55) { _lastAudioActivityMs = now; _heardAudio = true; }
-        _timeline.Add(now, AcousticAnalyzer.Analyze(pcm16));
+        _timeline.Add(now, AcousticAnalyzer.Analyze(pcm16, _pitchRuns));
         Interlocked.Add(ref Metrics.AudioMsSent, pcm16.Length / 48);
         _transcriber?.SendAudio(pcm16);
     }
@@ -347,6 +350,7 @@ public sealed class InterviewEngine : IAsyncDisposable
             else if (previous == null) lock (_gate_) _turn.Forget(turn.TurnId);
             return;
         }
+        if (verdict.Kind == UtteranceKind.FollowUp) { Metrics.IncFollowUp(); Log?.Invoke($"Turn accepted: candidate-directed follow-up ({verdict.Support} acoustic support)"); }
         if (verdict.Support == AcousticSupport.Weak) { Metrics.IncWeakSupport(); Log?.Invoke("Question accepted with weak acoustic support (" + turn.Evidence + ")"); }
 
         // Context statements merged into this (continued) turn are part of its text now.
@@ -384,6 +388,8 @@ public sealed class InterviewEngine : IAsyncDisposable
         var now = _clock.NowMs;
         var from = _partialWindowFrom >= 0 ? _partialWindowFrom : now - Options.EvidenceLeadMs;
         var evidence = _timeline.Sum(from, now);
+        var (openRun, openFlat) = _pitchRuns.OpenRun();
+        evidence = evidence with { RunHops = evidence.RunHops + openRun, FlatRunHops = evidence.FlatRunHops + openFlat };
         var text = partial.Trim();
         if (text.Length == 0) return false;
         // Live words are shown only once the audio clearly behaves like a voice: a pitch track long enough to rule out a

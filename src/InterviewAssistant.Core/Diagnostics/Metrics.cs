@@ -13,7 +13,7 @@ public sealed class SessionMetrics
     private readonly ConcurrentQueue<LatencySample> _samples = new();
     public int Capacity { get; init; } = 200;
     private int _questions, _cacheAnswers, _llmAnswers, _fallbackAnswers, _apiErrors, _duplicates, _reconnects, _llmRequests, _merged;
-    private int _nonSpeech, _promptEcho, _shortEvent, _invalid, _otherDirected, _logistics, _contextHeld, _weakSupport, _implausible, _contextHallucination, _variants, _guidance, _redundantDropped;
+    private int _nonSpeech, _promptEcho, _shortEvent, _invalid, _otherDirected, _logistics, _contextHeld, _weakSupport, _implausible, _contextHallucination, _variants, _guidance, _redundantDropped, _followUps, _followUpTurns;
     public long AudioMsSent;
 
     public int Questions => _questions;
@@ -45,6 +45,10 @@ public sealed class SessionMetrics
     public int ImplausibleTranscriptSuppressed => _implausible;
     /// <summary>Interview-flavoured sentences built from the prompt vocabulary over too little speech (context_hallucination_suppressed).</summary>
     public int ContextHallucinationSuppressed => _contextHallucination;
+    /// <summary>Candidate-directed follow-ups answered ("Tell me more.", "Go on.", "Why?").</summary>
+    public int FollowUpsAccepted => _followUps;
+    /// <summary>Follow-ups that came quickly after a complete question and became their own turn instead of merging.</summary>
+    public int FollowUpTurnsSplit => _followUpTurns;
     public int Variants => _variants;
     public int GuidanceAnswers => _guidance;
     public int RedundantBulletsDropped => _redundantDropped;
@@ -75,6 +79,8 @@ public sealed class SessionMetrics
     public void IncWeakSupport() => Interlocked.Increment(ref _weakSupport);
     public void IncImplausible() => Interlocked.Increment(ref _implausible);
     public void IncContextHallucination() => Interlocked.Increment(ref _contextHallucination);
+    public void IncFollowUp() => Interlocked.Increment(ref _followUps);
+    public void IncFollowUpTurn() => Interlocked.Increment(ref _followUpTurns);
     public void IncVariant() => Interlocked.Increment(ref _variants);
     public void IncGuidance() => Interlocked.Increment(ref _guidance);
     public void IncRedundantDropped() => Interlocked.Increment(ref _redundantDropped);
@@ -86,6 +92,7 @@ public sealed class SessionMetrics
         ["invalid_turn_suppressed"] = _invalid, ["other_directed_suppressed"] = _otherDirected, ["logistics_suppressed"] = _logistics,
         ["implausible_transcript_suppressed"] = _implausible, ["context_hallucination_suppressed"] = _contextHallucination,
         ["context_held"] = _contextHeld, ["weak_acoustic_support_accepted"] = _weakSupport,
+        ["follow_up_accepted"] = _followUps, ["follow_up_new_turn"] = _followUpTurns,
     };
 
     /// <summary>Approximate session cost in USD from configurable unit prices (estimate only).</summary>

@@ -21,7 +21,11 @@ public class ShortTurnTests
     public void ShortFollowUp_IsAQuestion_AndIsNotDroppedByTheTurnDetector(string text)
     {
         Assert.False(TurnDetector.IsNonQuestion(text), text);
-        Assert.Equal(UtteranceKind.Question, Gate().Evaluate(text).Kind);
+        var verdict = Gate().Evaluate(text);
+        Assert.True(verdict.Answerable, text);
+        // rc.5: an imperative that points back at the answer is its own kind (a candidate-directed follow-up); the
+        // elliptical and explicit questions stay questions.
+        Assert.Equal(text == "Tell me more." ? UtteranceKind.FollowUp : UtteranceKind.Question, verdict.Kind);
     }
 
     [Theory]
@@ -31,7 +35,7 @@ public class ShortTurnTests
 
     [Theory]
     [InlineData("What a day.")] [InlineData("How nice.")] [InlineData("What a great story that was.")] [InlineData("How interesting that is.")]
-    public void Exclamation_StartingWithAWhWord_IsNotAQuestion(string text) => Assert.NotEqual(UtteranceKind.Question, Gate().Evaluate(text).Kind);
+    public void Exclamation_StartingWithAWhWord_IsNotAQuestion(string text) => Assert.False(Gate().Evaluate(text).Answerable, text);
 
     [Fact]
     public void ShortFollowUp_OverAShortRealVoice_HasAcousticSupport()

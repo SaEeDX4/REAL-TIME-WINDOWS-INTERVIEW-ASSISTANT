@@ -22,6 +22,8 @@ public enum UtteranceKind
     NonSpeech,
     /// <summary>A short non-speech sound (beep, chime, click, screenshot sound).</summary>
     ShortAcousticEvent,
+    /// <summary>A candidate-directed follow-up request: an imperative ("Tell me more.", "Go on.") or an elliptical ask ("Why?").</summary>
+    FollowUp,
     /// <summary>Recognizer artefacts ("Thanks for watching", "♪", "...").</summary>
     Noise,
     /// <summary>A voice was heard, but far too little of it to have said these words (recognizer filled in text).</summary>
@@ -32,7 +34,7 @@ public enum UtteranceKind
 
 public sealed record UtteranceVerdict(UtteranceKind Kind, string Reason, AcousticSupport Support = AcousticSupport.Unknown)
 {
-    public bool Answerable => Kind is UtteranceKind.Question or UtteranceKind.ImplicitPrompt;
+    public bool Answerable => Kind is UtteranceKind.Question or UtteranceKind.ImplicitPrompt or UtteranceKind.FollowUp;
     /// <summary>Rejected because the audio or its consistency with the text says it was not interviewer speech.</summary>
     public bool NotSpeech => Kind is UtteranceKind.Noise or UtteranceKind.PromptEcho or UtteranceKind.NonSpeech or UtteranceKind.ShortAcousticEvent
         or UtteranceKind.ImplausibleTranscript or UtteranceKind.ContextHallucination;
@@ -83,7 +85,7 @@ public sealed class UtteranceGate
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex Logistics = new(
-        @"\b(can you hear me|can everyone hear|do you hear me|can you see (my|the) screen|are you able to see|is my (audio|video|screen|mic)|you('re| are) (on )?mute|you('re| are) muted|you('re| are) breaking up|my connection|your connection|(let me|i('ll| will)) share (my )?screen|stop sharing|shall we (start|begin|get started)|are you ready( to (start|begin))?|give me (a |one )?(second|sec|moment|minute)|one (second|sec|moment)|bear with me|sorry about that|sorry,? (you go|go ahead|after you|i interrupted)|no,? (you go|go ahead)|you first|after you|let's (move on|wrap up|get started|take a (short )?break)|we('ll| will) (move on|come back)|let me (check|find|pull up|open)|i('ll| will) (be )?tak(e|ing) notes|we have (\d+|a few|about \d+|around \d+) minutes|(is|has) everyone (here|joined|ready)|let's wait for|we('re| are) waiting for|(i|we) can('t| not) hear (you|anything))\b",
+        @"\b(can you hear me|can everyone hear|do you hear me|can you see (my|the) screen|are you able to see|is my (audio|video|screen|mic)|you('re| are) (on )?mute|you('re| are) muted|you('re| are) breaking up|my connection|your connection|(let me|i('ll| will)) share (my )?screen|(please |can you |could you )?share (your|the) screen|(keep|continue) sharing|stop sharing|(tell me|let me know) when (you('re| are)|you’re) ready|shall we (start|begin|get started)|are you ready( to (start|begin))?|give me (a |one )?(second|sec|moment|minute)|one (second|sec|moment)|bear with me|sorry about that|sorry,? (you go|go ahead|after you|i interrupted)|no,? (you go|go ahead)|you first|after you|let's (move on|wrap up|get started|take a (short )?break)|we('ll| will) (move on|come back)|let me (check|find|pull up|open)|i('ll| will) (be )?tak(e|ing) notes|we have (\d+|a few|about \d+|around \d+) minutes|(is|has) everyone (here|joined|ready)|let's wait for|we('re| are) waiting for|(i|we) can('t| not) hear (you|anything))\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex QuestionStart = new(
@@ -104,6 +106,9 @@ public sealed class UtteranceGate
     /// period ("Why.", "How so.", "What happened.", "And then."). A closed set of English interrogative forms — not a list
     /// of transcripts — so a lone "Why" stays answerable while "What a day." does not.
     /// </summary>
+    /// <summary>"Why.", "How so.", "And then." — see <see cref="EllipticalFollowUp"/>.</summary>
+    public static bool IsEllipticalFollowUp(string sentence) => EllipticalFollowUp.IsMatch((sentence ?? "").Trim());
+
     private static readonly Regex EllipticalFollowUp = new(
         @"^((and|so|but|okay|ok|right|hm+|mm+)[,.]?\s+)?(why( not| so| exactly| is that| was that)?|how( so| come| exactly| do you mean)?|what happened( next| then| after that)?|what then|then what|and then( what)?|what else|anything else|like what|such as|for example|in what way|meaning|what do you mean|how did that go|what was the (result|outcome|impact))[.!…]*$",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -178,7 +183,7 @@ public sealed class UtteranceGate
 
         if (echo.IsEcho) return new(UtteranceKind.PromptEcho, "prompt echo: " + echo.Reason, support);
 
-        bool anyQuestion = false, anyOther = false, anyLogistics = false, anyImplicit = false;
+        bool anyQuestion = false, anyOther = false, anyLogistics = false, anyImplicit = false, onlyFollowUps = true;
         foreach (var s in sentences)
         {
             if (Logistics.IsMatch(s) && !HasRealAskBeyondLogistics(s)) { anyLogistics = true; continue; }
@@ -191,8 +196,12 @@ public sealed class UtteranceGate
             }
             if (to == Addressee.Other) { anyOther = true; continue; }
             anyQuestion = true;
+            // "Tell me more." / "Go on." refer back to the answer; "Why?" stays an (elliptical) question and "Describe a time…" a full one.
+            if (!(FollowUpIntent.Classify(s) == FollowUpKind.Imperative && FollowUpIntent.IsStandaloneFollowUp(s))) onlyFollowUps = false;
         }
-        if (anyQuestion) return new(UtteranceKind.Question, "question", support);
+        if (anyQuestion) return onlyFollowUps
+            ? new(UtteranceKind.FollowUp, "candidate-directed follow-up", support)
+            : new(UtteranceKind.Question, "question", support);
         if (anyImplicit) return new(UtteranceKind.ImplicitPrompt, "statement inviting the candidate to respond", support);
         if (anyOther) return new(UtteranceKind.OtherDirected, "addressed to another participant", support);
         if (anyLogistics) return new(UtteranceKind.Logistics, "meeting logistics", support);
@@ -212,6 +221,7 @@ public sealed class UtteranceGate
         if (t.Length == 0) return false;
         if (TextNormalizer.EndsWithQuestionMark(t)) return true;
         if (EllipticalFollowUp.IsMatch(t)) return true;
+        if (FollowUpIntent.IsImperativeAsk(t)) return true;
         if (Exclamative.IsMatch(t)) return false;   // "What a day." / "How interesting that is." are reactions, not asks
         return QuestionStart.IsMatch(t) && TextNormalizer.WordCount(t) >= 3 || Request.IsMatch(t) || ConditionalAsk.IsMatch(t);
     }

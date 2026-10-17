@@ -108,13 +108,16 @@ public class RecordedStyleAudioTests
         pcm.CopyTo(padded, 0);
         var total = default(FrameAcoustics);
         int frames = 0;
+        var runs = new PitchRunTracker();
         foreach (var frame in framer.Push(padded))
         {
             Assert.Equal(4800, frame.Length);
-            total += AcousticAnalyzer.Analyze(frame);
+            total += AcousticAnalyzer.Analyze(frame, runs);
             frames++;
         }
-        return new SpeechEvidence(frames, total.DurationMs, total.ActiveMs, total.VoicedMs, total.TonalMs, total.PitchPairs, total.SteadyPairs, total.JumpPairs);
+        total += AcousticAnalyzer.Analyze(new byte[4800], runs);   // the quiet after the sound closes the last pitch run
+        return new SpeechEvidence(frames, total.DurationMs - 100, total.ActiveMs, total.VoicedMs, total.TonalMs, total.PitchPairs, total.SteadyPairs, total.JumpPairs,
+            0, total.TrackedHops, total.RunHops, total.FlatRunHops);
     }
 
     private static string Classification(SpeechEvidence e) =>
@@ -136,7 +139,8 @@ public class RecordedStyleAudioTests
             Assert.Contains(f.File, manifest);
             Assert.InRange(AudioFixtures.Pcm(f).Length, 2 * 24 * 300, 2 * 24 * 3000);   // 0.3–3 s
         }
-        Assert.True(all.Sum(f => f.Bytes) < 3_400_000, $"{all.Sum(f => f.Bytes)} bytes of audio fixtures");
+        // rc.5: +14 flat-intonation follow-ups (one call-path variant each).
+        Assert.True(all.Sum(f => f.Bytes) < 4_200_000, $"{all.Sum(f => f.Bytes)} bytes of audio fixtures");
         foreach (var kind in new[] { "chime", "error", "shutter", "click", "knock", "music", "music-sung", "speech" })
             Assert.Contains(all, f => f.Kind == kind);
         Assert.Contains(all, f => f.IsSpeech && f.Text!.Contains('¿'));     // Spanish
@@ -149,14 +153,14 @@ public class RecordedStyleAudioTests
     {
         var failures = new List<string>();
         var table = new StringBuilder();
-        table.AppendLine("| Fixture | Class | Kind | Voiced ms | Tonal ms | Active ms | Duration ms | Pitch pairs | Steady | Jumps | Voice-like | Classification | Expected |");
-        table.AppendLine("|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|---|---|");
+        table.AppendLine("| Fixture | Class | Kind | Voiced ms | Tonal ms | Active ms | Duration ms | Pitch pairs | Steady | Jumps | Run windows | Flat runs | Voice-like | Classification | Expected |");
+        table.AppendLine("|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|---|");
         foreach (var f in AudioFixtures.All)
         {
             var e = Evidence(AudioFixtures.Pcm(f));
             bool known = KnownVoiceLookalikes.ContainsKey(f.File);
             string expected = f.IsSpeech ? "voice" : known ? "known look-alike (voice-like)" : "not a voice";
-            table.AppendLine($"| {f.File} | {f.Class} | {f.Kind} | {e.VoicedMs} | {e.TonalMs} | {e.ActiveMs} | {e.SpanMs} | {e.PitchPairs} | {e.PitchSteadiness:P0} | {e.PitchJumpShare:P0} | {(e.VoiceLike ? "yes" : "no: " + e.NotVoiceReason)} | {Classification(e)} | {expected} |");
+            table.AppendLine($"| {f.File} | {f.Class} | {f.Kind} | {e.VoicedMs} | {e.TonalMs} | {e.ActiveMs} | {e.SpanMs} | {e.PitchPairs} | {e.PitchSteadiness:P0} | {e.PitchJumpShare:P0} | {e.RunHops} | {e.FlatRunShare:P0} | {(e.VoiceLike ? "yes" : "no: " + e.NotVoiceReason)} | {Classification(e)} | {expected} |");
             if (f.IsSpeech && !e.VoiceLike) failures.Add($"{f.File}: speech not recognised as a voice ({e}; {e.NotVoiceReason})");
             if (!f.IsSpeech && !known && e.VoiceLike) failures.Add($"{f.File}: non-speech behaves like a voice ({e})");
             if (known && e.VoiceLike == false) failures.Add($"{f.File}: no longer voice-like ({e}) — remove it from KnownVoiceLookalikes and MANIFEST.md");

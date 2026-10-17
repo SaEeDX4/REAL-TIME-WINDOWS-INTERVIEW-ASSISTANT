@@ -449,10 +449,34 @@ SPEECH = [
     ("speech_fast_ninetydays", "en-us+m5", 240, 50, "What would you do in your first ninety days?"),
 ]
 
+# RC5: candidate-directed imperative follow-ups, many spoken with FLAT, falling declarative intonation (SSML prosody range
+# x-low/low) — the case the rc.4 "steady pitch" veto mistook for a held tone. One call-path variant each (alternating),
+# name, voice, words/min, pitch, text, prosody range.
+FOLLOW_UPS = [
+    ("speech_fu_tellmemore_flat", "en-gb+m3", 160, 40, "Tell me more.", "x-low"),
+    ("speech_fu_walkthat", "en-us+m7", 165, 45, "Walk me through that.", "low"),
+    ("speech_fu_explainfurther", "en-gb+f3", 165, 55, "Explain further.", "x-low"),
+    ("speech_fu_goon", "en-us+m3", 150, 40, "Go on.", "x-low"),
+    ("speech_fu_example", "en-us+f2", 170, 55, "Give me an example.", "low"),
+    ("speech_fu_elaborate", "en-gb+m1", 160, 40, "Elaborate.", "x-low"),
+    ("speech_fu_continue", "en-us+m4", 160, 45, "Continue.", "x-low"),
+    ("speech_fu_talkit", "en-gb+f1", 170, 55, "Talk me through it.", "low"),
+    ("speech_fu_expand", "en-us+f4", 170, 55, "Can you expand on that?", "medium"),
+    ("speech_fu_moredetail", "en-gb+m6", 165, 45, "Give me more detail.", "x-low"),
+    ("speech_fu_thinking", "en-us+m2", 170, 50, "Take me through your thinking.", "low"),
+    ("speech_fu_process", "en-gb+m3", 165, 40, "Walk me through the process.", "x-low"),
+    ("speech_fu_howdid", "en-us+f3", 170, 55, "Explain how you did that.", "low"),
+    ("speech_fu_another", "en-us+m5", 170, 45, "Give me another example.", "x-low"),
+]
 
-def espeak(name: str, voice: str, wpm: int, pitch: int, text: str, tmp: str) -> np.ndarray:
+
+def espeak(name: str, voice: str, wpm: int, pitch: int, text: str, tmp: str, prosody_range: str | None = None) -> np.ndarray:
     raw, res = os.path.join(tmp, name + "_raw.wav"), os.path.join(tmp, name + "_24k.wav")
-    run(["espeak-ng", "-v", voice, "-s", str(wpm), "-p", str(pitch), "-w", raw, text])
+    if prosody_range is None:
+        run(["espeak-ng", "-v", voice, "-s", str(wpm), "-p", str(pitch), "-w", raw, text])
+    else:   # SSML pitch range: x-low = nearly monotone
+        run(["espeak-ng", "-v", voice, "-s", str(wpm), "-p", str(pitch), "-m", "-w", raw,
+             f'<speak><prosody range="{prosody_range}">{text}</prosody></speak>'])
     run(["ffmpeg", "-y", "-v", "error", "-i", raw, "-ar", str(SR), "-ac", "1", "-c:a", "pcm_s16le", "-bitexact", res])
     x = read_wav(res)
     # Trim eSpeak's leading/trailing silence to 80 ms, the remote talker's room: short, mostly dry reverb.
@@ -547,6 +571,10 @@ def bases():
         yield (name, "speech", "speech", ("callq", "calln"),
                (lambda tmp, a=(name, voice, wpm, pitch, text): espeak(*a, tmp)),
                f'eSpeak NG voice {voice}, {wpm} wpm, pitch {pitch}: "{text}"')
+    for i, (name, voice, wpm, pitch, text, rng_) in enumerate(FOLLOW_UPS):
+        yield (name, "speech", "speech", ("callq",) if i % 2 == 0 else ("calln",),
+               (lambda tmp, a=(name, voice, wpm, pitch, text), r=rng_: espeak(*a, tmp, r)),
+               f'eSpeak NG voice {voice}, {wpm} wpm, pitch {pitch}, prosody range {rng_} (flat/falling): "{text}"')
 
 
 def tool_versions() -> dict:
@@ -572,7 +600,7 @@ def generate(out_dir: str) -> list[dict]:
                 write_wav(os.path.join(out_dir, file), y)
                 with open(os.path.join(out_dir, file), "rb") as fh:
                     sha = hashlib.sha256(fh.read()).hexdigest()
-                text = next((s[4] for s in SPEECH if s[0] == base_name), None)
+                text = next((s[4] for s in SPEECH + FOLLOW_UPS if s[0] == base_name), None)
                 entries.append(dict(file=file, cls=cls, kind=kind, text=text, base=desc, duration_ms=round(len(y) * 1000 / SR),
                                     bytes=os.path.getsize(os.path.join(out_dir, file)), sha256=sha, **info))
                 print(f"{file:44s} {cls:9s} {kind:10s} {len(y) / SR:5.2f} s", flush=True)

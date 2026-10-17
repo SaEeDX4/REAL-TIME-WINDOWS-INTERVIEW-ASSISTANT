@@ -86,6 +86,8 @@ public sealed class TurnDetector
     public event Action<TurnState>? StateChanged;
     public event Action<string>? LiveTextChanged;
     public event Action<FinalizedTurn>? TurnFinalized;
+    /// <summary>A standalone follow-up arrived within the continuation window and became its own turn (diagnostics).</summary>
+    public event Action<FollowUpKind>? FollowUpSplit;
 
     public TurnDetector(IClock clock) => _clock = clock;
 
@@ -305,7 +307,7 @@ public sealed class TurnDetector
             // "Hm?", "Sorry?" — the last asks the interviewer to repeat, not the candidate to answer).
             var word = t.TrimEnd('?', '？', '؟', '.', '!', '…', ' ');
             if (word.Length == 0 || Pleasantry.IsMatch(word) || Filler.IsMatch(word)) return true;
-            return !(TextNormalizer.EndsWithQuestionMark(t) || OneWordAsk.IsMatch(word));
+            return !(TextNormalizer.EndsWithQuestionMark(t) || OneWordAsk.IsMatch(word) || Intelligence.FollowUpIntent.Classify(t) != Intelligence.FollowUpKind.None);
         }
         return false;
     }
@@ -329,6 +331,14 @@ public sealed class TurnDetector
         if (IsNonQuestion(text)) { SetState(TurnState.Listening); return; } // an acknowledgement never reopens or creates a turn
 
         int? revises = null;
+        // A short follow-up that points back at the answer ("Tell me more.", "Why?", "Give me another example.") after a
+        // complete question is a NEW ask, however quickly it follows: merging it would replace the previous question's
+        // answer instead of answering the follow-up. A follow-up after an unfinished question ("…and" + "go on") still merges.
+        if (reopened is { } follow && FollowUpIntent.IsStandaloneFollowUp(text) && IsCompleteAsk(follow.Text))
+        {
+            reopened = null;
+            FollowUpSplit?.Invoke(FollowUpIntent.Classify(text));
+        }
         if (reopened is { } prev)
         {
             var restated = StripRestartCues(text);
@@ -351,6 +361,13 @@ public sealed class TurnDetector
         SetState(TurnState.QuestionFinalized);
         TurnFinalized?.Invoke(new FinalizedTurn(text, speechEnd, now, count, id, revises, evidence, startMs));
         SetState(TurnState.Listening);
+    }
+
+    /// <summary>The previous turn ended as a complete ask (terminal punctuation, no dangling conjunction or article).</summary>
+    private static bool IsCompleteAsk(string text)
+    {
+        var t = text.TrimEnd();
+        return t.Length > 0 && !TrailingIncomplete.IsMatch(t) && ".?!？؟。！".Contains(t[^1]);
     }
 
     private void RememberFinal(int id, string text, long speechEnd, Audio.SpeechEvidence evidence) =>
