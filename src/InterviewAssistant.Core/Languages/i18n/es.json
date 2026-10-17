@@ -77,6 +77,7 @@
  "help_diag_conn_ok": "Conectado",
  "help_diag_copy": "Copiar diagnóstico",
  "tt_help_diag_copy": "Copia la versión, el estado de la conexión y los tiempos para el soporte (sin respuestas, transcripciones ni contraseñas)",
+ "err_diag_copy": "No se pudo copiar el diagnóstico. Puede que otro programa esté usando el portapapeles — inténtalo de nuevo.",
  "help_diag_run": "Ejecutar autodiagnóstico",
  "tt_help_diag_run": "Comprobación rápida: dispositivo de audio, servicio, ajustes y acceso al disco",
  "help_diag_running": "Ejecutando el autodiagnóstico…",

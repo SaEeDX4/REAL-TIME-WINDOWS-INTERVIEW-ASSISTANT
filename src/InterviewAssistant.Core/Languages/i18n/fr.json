@@ -77,6 +77,7 @@
  "help_diag_conn_ok": "Connecté",
  "help_diag_copy": "Copier le diagnostic",
  "tt_help_diag_copy": "Copie la version, l'état de la connexion et les délais pour l'assistance (sans réponses, transcriptions ni mots de passe)",
+ "err_diag_copy": "Impossible de copier le diagnostic. Un autre programme utilise peut-être le presse-papiers — réessayez.",
  "help_diag_run": "Lancer l'autotest",
  "tt_help_diag_run": "Contrôle rapide : périphérique audio, service, paramètres et accès au disque",
  "help_diag_running": "Autotest en cours…",

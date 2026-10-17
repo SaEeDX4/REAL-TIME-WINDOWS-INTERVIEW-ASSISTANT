@@ -83,7 +83,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _capture.FrameReady += OnAudioFrame;
         _capture.StatusChanged += s => Post(() => OnCaptureStatus(s));
         _diagTimer = new DispatcherTimer(DispatcherPriority.Background, ui) { Interval = TimeSpan.FromSeconds(1) };
-        _diagTimer.Tick += (_, _) => { RefreshDiagnostics(); PollConnection(); };
+        _diagTimer.Tick += (_, _) => { if (Settings.ShowDiagnostics) RefreshDiagnostics(); PollConnection(); };
         _diagTimer.Start();
 
         StartPauseCommand = new RelayCommand(async () => await ToggleListeningAsync());
@@ -1105,9 +1105,14 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
     // ---------------- diagnostics ----------------
 
-    private void RefreshDiagnostics()
+    /// <summary>
+    /// Technical lines for support (Help &amp; about → Copy diagnostics; English on purpose, never shown as UI text): audio,
+    /// counters, latency, resources and the last log lines. Refreshed on demand (rc.5: the Live window has no panel any
+    /// more; the legacy ShowDiagnostics setting still refreshes it every second).
+    /// </summary>
+    public void RefreshDiagnostics()
     {
-        if (!Settings.ShowDiagnostics || _engine == null) return;
+        if (_engine == null) return;
         var m = _engine.Metrics;
         var proc = Process.GetCurrentProcess();
         var cpuNow = proc.TotalProcessorTime;

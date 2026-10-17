@@ -331,11 +331,7 @@
                 </Button>
             </Grid>
 
-            <!-- ===== Diagnostics ===== -->
-            <Border x:Name="DiagPanel" Grid.Row="4" Margin="14,0,14,12" Padding="12,8" CornerRadius="8" Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" Visibility="Collapsed"
-                    FlowDirection="LeftToRight">
-                <TextBlock Text="{Binding Diagnostics}" FontFamily="Cascadia Mono, Consolas" FontSize="10.5" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap"/>
-            </Border>
+            <!-- rc.5: no diagnostics panel here — technical details live in Home → Help & about → Diagnostics -->
 
             <!-- first-time introduction (short; reopen with the ? button) -->
             <Border x:Name="LiveIntro" Grid.Row="1" Grid.RowSpan="3" Margin="14,4,14,10" Padding="20,16" CornerRadius="12" Panel.ZIndex="5"

@@ -77,6 +77,7 @@
  "help_diag_conn_ok": "Conectado",
  "help_diag_copy": "Copiar diagnóstico",
  "tt_help_diag_copy": "Copia versão, estado da conexão e tempos para o suporte (sem respostas, transcrições ou senhas)",
+ "err_diag_copy": "Não foi possível copiar o diagnóstico. Outro programa pode estar usando a área de transferência — tente novamente.",
  "help_diag_run": "Executar autoteste",
  "tt_help_diag_run": "Verificação rápida: dispositivo de áudio, serviço, configurações e acesso ao disco",
  "help_diag_running": "Executando o autoteste…",

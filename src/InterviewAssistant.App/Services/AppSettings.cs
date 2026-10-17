@@ -18,6 +18,7 @@ public sealed class AppSettings
     public bool UseFastCache { get; set; } = true;
     public bool CompactMode { get; set; }
     public bool AlwaysOnTop { get; set; } = true;
+    /// <summary>Legacy (kept so older settings files load): no UI toggle since rc.5 — diagnostics live in Help &amp; about.</summary>
     public bool ShowDiagnostics { get; set; }
     public bool SaveSessionTranscript { get; set; }          // privacy: off by default
     public string HotkeyToggleWindow { get; set; } = "Ctrl+Alt+Space";
@@ -62,6 +63,8 @@ public sealed class AppSettings
 
     public static string? OverridePath { get; set; } // self-test isolation
     private static string FilePath => OverridePath ?? Path.Combine(AppPaths.Roaming, "settings.json");
+    /// <summary>Where the settings are stored (Help → Diagnostics health check reads it back).</summary>
+    public static string CurrentPath => FilePath;
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
     public static AppSettings Load()

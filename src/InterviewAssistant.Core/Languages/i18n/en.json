@@ -77,6 +77,7 @@
  "help_diag_conn_ok": "Connected",
  "help_diag_copy": "Copy diagnostics",
  "tt_help_diag_copy": "Copies version, connection state and timing details for support (no answers, transcripts or passwords)",
+ "err_diag_copy": "Couldn't copy the diagnostics. Another program may be using the clipboard — try again.",
  "help_diag_run": "Run self-test",
  "tt_help_diag_run": "Quick health check: audio device, service, settings and disk access",
  "help_diag_running": "Running the self-test…",

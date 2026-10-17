@@ -419,9 +419,7 @@ public partial class HomeWindow : Window
 
     private void CopyBuildInfo_Click(object sender, RoutedEventArgs e)
     {
-        // Support text stays in English on purpose (read by the support team, not shown in the UI).
-        var signer = Environment.ProcessPath is { } exe ? Authenticode.TrustedSigner(exe) : null;
-        Clipboard.SetText($"{Branding.ProductName} {BuildInfo.Version} ({BuildInfo.Channel}) build {BuildInfo.Commit} · {(BuildInfo.IsInstalled ? "installed" : "portable")} · {(signer != null ? "signed" : "unsigned")} · {Environment.OSVersion}");
+        Clipboard.SetText(SupportLine());
         Notify(T("toast_copied"), ToastKind.Success);
     }
 

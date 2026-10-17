@@ -66,7 +66,6 @@ public partial class MainWindow : Window
         _vm.RefreshLanguage();
         Topmost = _vm.Settings.AlwaysOnTop;
         Root.Opacity = ShadowLayer.Opacity = Math.Clamp(_vm.Settings.WindowOpacity, 0.75, 1.0);
-        DiagPanel.Visibility = _vm.Settings.ShowDiagnostics ? Visibility.Visible : Visibility.Collapsed;
         ApplyCompact(_vm.Settings.CompactMode);
         _vm.RefreshFonts();
         RefreshReadiness();   // texts composed in code follow the UI language
@@ -163,13 +162,6 @@ public partial class MainWindow : Window
         var text = ManualInput.Text;
         ManualInput.Clear();
         await _vm.SubmitManualAsync(text);
-    }
-
-    private void Diagnostics_Click(object sender, RoutedEventArgs e)
-    {
-        _vm.Settings.ShowDiagnostics = !_vm.Settings.ShowDiagnostics;
-        DiagPanel.Visibility = _vm.Settings.ShowDiagnostics ? Visibility.Visible : Visibility.Collapsed;
-        _vm.Settings.Save();
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e) { CloseMore(); OpenSettings(); }

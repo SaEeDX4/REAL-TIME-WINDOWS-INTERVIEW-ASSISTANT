@@ -77,6 +77,7 @@
  "help_diag_conn_ok": "Verbunden",
  "help_diag_copy": "Diagnose kopieren",
  "tt_help_diag_copy": "Kopiert Version, Verbindungsstatus und Zeitangaben für den Support (keine Antworten, Transkripte oder Passwörter)",
+ "err_diag_copy": "Die Diagnose konnte nicht kopiert werden. Möglicherweise verwendet ein anderes Programm die Zwischenablage — bitte erneut versuchen.",
  "help_diag_run": "Selbsttest ausführen",
  "tt_help_diag_run": "Schnelle Prüfung: Audiogerät, Dienst, Einstellungen und Datenträgerzugriff",
  "help_diag_running": "Selbsttest läuft…",

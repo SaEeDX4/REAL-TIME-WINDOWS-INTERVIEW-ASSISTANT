@@ -77,6 +77,7 @@
  "help_diag_conn_ok": "已连接",
  "help_diag_copy": "复制诊断信息",
  "tt_help_diag_copy": "复制版本、连接状态和用时信息供支持人员使用（不含回答、转写内容或密码）",
+ "err_diag_copy": "无法复制诊断信息。可能有其他程序正在使用剪贴板——请重试。",
  "help_diag_run": "运行自检",
  "tt_help_diag_run": "快速健康检查：音频设备、服务、设置和磁盘访问",
  "help_diag_running": "正在运行自检…",

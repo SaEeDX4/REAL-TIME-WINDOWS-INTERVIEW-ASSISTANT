@@ -364,7 +364,26 @@ public static class SelfTest
             return (ok, $"opened, local checks ran ({verdict}), closed");
         });
         await Check("Compact mode toggle", async () => { w.SetCompact(true); await Idle(); w.SetCompact(false); await Idle(); return (true, "on/off"); });
-        await Check("Diagnostics panel", async () => { vm.Settings.ShowDiagnostics = true; w.ApplyAppearance(); await Task.Delay(1300); var d = vm.Diagnostics; vm.Settings.ShowDiagnostics = false; w.ApplyAppearance(); return (d.Contains("Questions"), d.Split('\n')[0]); });
+        // rc.5: no diagnostics panel in the Live window any more — the technical lines are refreshed on demand for Copy
+        // diagnostics, and Help & about → Diagnostics shows a friendly summary plus the in-app health check.
+        await Check("Diagnostics: technical lines on demand; Help & about → Diagnostics renders a friendly summary and the health check, no raw errors or credentials", async () =>
+        {
+            vm.RefreshDiagnostics(); await Idle();
+            var technical = vm.Diagnostics.Contains("Questions");
+            var noPanel = w.FindName("DiagPanel") == null;
+            var home = new HomeWindow(vm, w) { Owner = w };
+            home.Show(); await Idle();
+            home.ShowPage("help"); await Idle();
+            var rows = await home.RunHealthCheckAsync(); await Idle();
+            var texts = home.HelpDiagnosticsTexts.ToList();
+            var friendly = texts.Count == 4 + rows.Count && texts.All(t => !string.IsNullOrWhiteSpace(t))
+                           && !texts.Any(t => t.Contains("Exception") || t.Contains("HRESULT") || System.Text.RegularExpressions.Regex.IsMatch(t, @"\bat [A-Z]\w*\.\w+"));
+            var copied = home.DiagnosticsText();
+            var noSecrets = !System.Text.RegularExpressions.Regex.IsMatch(copied, @"Bearer\s|sk-[A-Za-z0-9]{8}|eyJ[A-Za-z0-9_-]{12}|access_token|refresh_token", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            home.Close(); await Idle();
+            return (technical && noPanel && rows.Count == 4 && friendly && noSecrets && copied.Contains(BuildInfo.Version),
+                $"technical '{vm.Diagnostics.Split('\n')[0]}'; panel removed {noPanel}; {rows.Count} health rows ({UiState.HealthCheck.Passed(rows)} pass); summary friendly {friendly}; copy without credentials {noSecrets}");
+        });
         await Check("DPAPI credential protection round-trip", () => Task.FromResult((SecretStore.SelfTestRoundTrip(), "protect/unprotect ok, wrong entropy rejected")));
         await Check("Settings persistence", () =>
         {
