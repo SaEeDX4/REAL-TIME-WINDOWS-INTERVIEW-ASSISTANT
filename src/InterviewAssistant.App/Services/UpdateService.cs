@@ -77,27 +77,63 @@ public sealed class UpdateService
         return new UpdateManager(source, options);
     }
 
+    /// <summary>
+    /// A check can run: a signed, installed copy with an https feed. Unsigned, portable or unconfigured builds never check;
+    /// <see cref="StatusText"/> then keeps saying why automatic updates are unavailable.
+    /// </summary>
+    public bool CanCheck => _mgr is { IsInstalled: true };
+    public bool IsChecking { get; private set; }
+
     /// <summary>Background tick (call periodically). Respects the live-session rule.</summary>
     public async Task TickAsync(bool sessionActive)
     {
-        if (_mgr is not { IsInstalled: true } || _pending != null) return;
+        if (!CanCheck || _pending != null || IsChecking) return;
         if (!UpdatePolicy.ShouldCheck(sessionActive, _lastCheck, DateTimeOffset.UtcNow, _started)) return;
+        await CheckAsync();
+    }
+
+    /// <summary>
+    /// "Check for updates" (Settings → Updates): the same check as the background tick, without its interval — and still
+    /// never during a live session. Does nothing for builds that cannot update (the status says why), or once an update is ready.
+    /// </summary>
+    public async Task CheckNowAsync(bool sessionActive)
+    {
+        if (!CanCheck || _pending != null || IsChecking) return;
+        if (!UpdatePolicy.ShouldCheckNow(sessionActive))
+        {
+            SetStatus("Updates are checked after the interview.", "upd_after_session");
+            Changed?.Invoke();
+            return;
+        }
+        await CheckAsync();
+    }
+
+    private async Task CheckAsync()
+    {
+        var mgr = _mgr!;
         _lastCheck = DateTimeOffset.UtcNow;
+        IsChecking = true;
+        SetStatus("Checking for updates…", "upd_checking");
+        Changed?.Invoke();
         try
         {
-            var info = await _mgr.CheckForUpdatesAsync();
-            if (info == null) { SetStatus($"Up to date ({_mgr.CurrentVersion}, {Channel}).", "upd_up_to_date", _mgr.CurrentVersion?.ToString()); Changed?.Invoke(); return; }
-            await _mgr.DownloadUpdatesAsync(info);
-            if (!PackageTrusted(info)) { SetStatus("An update was found but its signature could not be verified; it was not installed.", "upd_untrusted"); Changed?.Invoke(); return; }
+            var info = await mgr.CheckForUpdatesAsync();
+            if (info == null) { SetStatus($"Up to date ({mgr.CurrentVersion}, {Channel}).", "upd_up_to_date", mgr.CurrentVersion?.ToString()); return; }
+            await mgr.DownloadUpdatesAsync(info);
+            if (!PackageTrusted(info)) { SetStatus("An update was found but its signature could not be verified; it was not installed.", "upd_untrusted"); return; }
             _pending = info;
             SetStatus($"Version {PendingVersion} is ready — it installs when you close the app.", "upd_ready", PendingVersion);
             AppLog.Info("Update downloaded: " + PendingVersion);
-            Changed?.Invoke();
         }
         catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidOperationException or TaskCanceledException)
         {
             SetStatus("Update check failed; will retry later.", "upd_failed");
             AppLog.Warn("Update check failed: " + ex.GetType().Name);
+        }
+        finally
+        {
+            IsChecking = false;
+            Changed?.Invoke();
         }
     }
 

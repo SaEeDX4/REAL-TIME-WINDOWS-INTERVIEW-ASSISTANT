@@ -22,7 +22,7 @@ namespace InterviewAssistant.App;
 
 /// <summary>
 /// Home: onboarding, the Candidate Knowledge Profile (facts with provenance + interview profile), interviews
-/// (targets + preparation), reports, account (plan, quota, devices, security, privacy, updates), settings and help/about.
+/// (targets + preparation), reports, account (plan, quota, devices, security, privacy), settings (updates included) and help/about.
 /// Everything shown belongs to the signed-in account's workspace; signed out, no user data is loaded or shown.
 /// All text comes from the localization tables and refreshes live when the UI language changes — a language switch
 /// only re-renders texts: drafts, selections, unsaved-changes state and scroll position stay exactly as they were.
@@ -119,7 +119,6 @@ public partial class HomeWindow : Window
             UiLanguageBox.SelectedItem = LanguageRegistry.Find(_vm.UiLanguage);
             BuildLanguagePickers();
             AckBox.IsChecked = _vm.Settings.AuthorizedUseAcknowledged;
-            ChannelBox.SelectedIndex = _vm.Updates.Channel == "beta" ? 1 : 0;
             BuildPersonalFields();
         }
 
@@ -137,6 +136,8 @@ public partial class HomeWindow : Window
         PageSettings.Initialize(vm, main);
         PageSettings.Guard.Save = () => { if (PageSettings.Save()) return true; ShowPage("settings"); PageSettings.ShowSection("hotkeys"); return false; };
         PageSettings.Saved += () => Notify(T("toast_settings_saved"), ToastKind.Success);
+        PageSettings.DefaultsRestored += category => Notify(category == null ? T("toast_defaults_restored")
+            : F("toast_section_reset", T(SettingsCategories.All[SettingsCategories.IndexOf(category)].TitleKey)), ToastKind.Success);
         foreach (var box in new Control[] { EmailBox, PasswordBox, ConfirmBox, TargetTitle }) Field.ClearOnEdit(box);
 
         _vm.Updates.Changed += OnUpdatesChanged;
@@ -1760,25 +1761,8 @@ public partial class HomeWindow : Window
 
     // ================= updates =================
 
-    private void RefreshUpdates()
-    {
-        BuildChannelText.Text = F("updates_this_build", BuildInfo.Version, BuildInfo.ChannelLabel);
-        UpdateStatus.Text = Loc.Relocalize(_vm.Updates.StatusText) ?? "";
-        RestartUpdateBtn.Visibility = _vm.Updates.UpdateReady ? Visibility.Visible : Visibility.Collapsed;
-    }
-
-    private void Channel_Changed(object sender, SelectionChangedEventArgs e)
-    {
-        if (ChannelBox.SelectedItem is not ComboBoxItem { Tag: string ch } || ch == _vm.Settings.UpdateChannel) return;
-        _vm.Settings.UpdateChannel = ch;
-        _vm.Settings.Save();
-        UpdateStatus.Text = T("updates_channel_restart");
-    }
-
-    private async void RestartUpdate_Click(object sender, RoutedEventArgs e)
-    {
-        if (!_vm.Updates.TryApplyAndRestart(_vm.SessionActive)) await AlertAsync(T("warn_update_session"), DialogTone.Warning);
-    }
+    /// <summary>Updates live in Settings → Updates (rc.5; formerly on the Account page).</summary>
+    private void RefreshUpdates() => PageSettings.RefreshUpdates();
 
     // ================= helpers =================
 

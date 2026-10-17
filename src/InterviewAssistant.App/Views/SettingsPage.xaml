@@ -4,123 +4,253 @@
              xmlns:v="clr-namespace:InterviewAssistant.App.Views">
     <UserControl.Resources>
         <v:LevelToWidth x:Key="LevelW" Max="200"/>
-        <Style x:Key="Section" TargetType="TextBlock" BasedOn="{StaticResource T.Label}">
-            <Setter Property="Margin" Value="{StaticResource S.SectionMargin}"/>
-            <Setter Property="TextWrapping" Value="Wrap"/>
-            <Setter Property="AutomationProperties.HeadingLevel" Value="Level2"/>
-        </Style>
         <Style x:Key="Hint" TargetType="TextBlock" BasedOn="{StaticResource T.Body}">
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Foreground" Value="{StaticResource B.TextFaint}"/>
             <Setter Property="Margin" Value="{StaticResource S.HintMargin}"/>
         </Style>
-        <Style x:Key="RowLabel" TargetType="TextBlock" BasedOn="{StaticResource T.Body}">
+        <!-- a field label with an optional ⓘ next to it -->
+        <Style x:Key="LabelRow" TargetType="StackPanel">
+            <Setter Property="Orientation" Value="Horizontal"/>
+            <Setter Property="Margin" Value="{StaticResource S.FieldLabelMargin}"/>
+        </Style>
+        <Style x:Key="RowLabel" TargetType="TextBlock" BasedOn="{StaticResource T.Label}">
+            <Setter Property="Margin" Value="0"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="0,0,12,0"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="Field" TargetType="ComboBox" BasedOn="{StaticResource Combo}">
+            <Setter Property="MaxWidth" Value="420"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        </Style>
+        <Style x:Key="HotkeyBox" TargetType="TextBox" BasedOn="{StaticResource Input}">
+            <Setter Property="MaxWidth" Value="320"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="MinWidth" Value="220"/>
+            <Setter Property="FlowDirection" Value="LeftToRight"/>
+        </Style>
+        <Style x:Key="AboutKey" TargetType="TextBlock" BasedOn="{StaticResource T.Body}">
+            <Setter Property="Margin" Value="0,3,16,3"/>
+        </Style>
+        <Style x:Key="AboutValue" TargetType="TextBlock" BasedOn="{StaticResource T.Body}">
+            <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
+            <Setter Property="Margin" Value="0,3,0,3"/>
+        </Style>
+
+        <!-- category list row: title + one-line description; the selected row has an accent bar on the reading-order
+             start side (mirrors in RTL) and a filled background, visible with and without keyboard focus -->
+        <Style x:Key="CategoryItem" TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource B.TextDim}"/>
+            <Setter Property="Padding" Value="14,8,10,8"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Grid>
+                            <Border x:Name="Bd" Background="Transparent" CornerRadius="{StaticResource R.Control}" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+                            </Border>
+                            <Border x:Name="Bar" Width="3" CornerRadius="2" Margin="0,9" HorizontalAlignment="Left" Background="{StaticResource B.Accent}" Visibility="Collapsed" IsHitTestVisible="False"/>
+                            <Border x:Name="Focus" CornerRadius="{StaticResource R.Control}" BorderBrush="{StaticResource B.Accent}" BorderThickness="2" Visibility="Collapsed" IsHitTestVisible="False"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="{StaticResource B.Surface}"/></Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource B.Surface2}"/>
+                                <Setter TargetName="Bar" Property="Visibility" Value="Visible"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Visibility" Value="Visible"/></Trigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsOn, Source={x:Static v:HighContrast.Instance}}" Value="True"/>
+                                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                                <Setter TargetName="Bar" Property="Background" Value="{DynamicResource {x:Static SystemColors.HighlightTextBrushKey}}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.HighlightTextBrushKey}}"/>
+                            </MultiDataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </UserControl.Resources>
 
-    <StackPanel MaxWidth="{StaticResource S.PageMaxWidth}" HorizontalAlignment="Left">
-        <TextBlock Text="{v:Loc settings}" FontFamily="{StaticResource F.Display}" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource B.Text}"
-                   Margin="0,0,0,4" AutomationProperties.HeadingLevel="Level1"/>
-        <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_save_hint}"/>
+    <Grid MaxWidth="1000" HorizontalAlignment="Stretch">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1*" MinWidth="180" MaxWidth="250"/>
+            <ColumnDefinition Width="{StaticResource S.PaneGap}"/>
+            <ColumnDefinition Width="3*"/>
+        </Grid.ColumnDefinitions>
 
-        <!-- section shortcuts (also the deep-link targets used by the Live Assistant gear and the pre-interview check) -->
-        <WrapPanel Margin="0,12,0,0" AutomationProperties.Name="{v:Loc settings}">
-            <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,6" Content="{v:Loc set_nav_audio}" Tag="audio" Click="SectionChip_Click"/>
-            <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,6" Content="{v:Loc set_nav_answers}" Tag="answers" Click="SectionChip_Click"/>
-            <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,6" Content="{v:Loc set_nav_listening}" Tag="listening" Click="SectionChip_Click"/>
-            <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,6" Content="{v:Loc set_nav_window}" Tag="window" Click="SectionChip_Click"/>
-            <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,6" Content="{v:Loc set_nav_hotkeys}" Tag="hotkeys" Click="SectionChip_Click"/>
-            <Button Style="{StaticResource Btn.Chip}" Margin="0,0,6,6" Content="{v:Loc set_nav_privacy}" Tag="privacy" Click="SectionChip_Click"/>
-        </WrapPanel>
-
-        <!-- developer builds only -->
-        <StackPanel x:Name="DeveloperKeyPanel">
-            <TextBlock Text="{v:Loc set_dev_key}" Style="{StaticResource Section}"/>
-            <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <PasswordBox x:Name="KeyBox" AutomationProperties.Name="{v:Loc set_dev_key}" FlowDirection="LeftToRight" PasswordChanged="Changed"/>
-                <Button Grid.Column="1" Style="{StaticResource Btn.Form}" Content="{v:Loc set_test}" Click="TestKey_Click" Margin="8,0,0,0"/>
-                <Button Grid.Column="2" Style="{StaticResource Btn.Ghost}" Content="{v:Loc set_remove}" Click="RemoveKey_Click" Margin="4,0,0,0"/>
-            </Grid>
-            <TextBlock x:Name="KeyStatus" Style="{StaticResource Hint}"/>
-            <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_dev_key_hint}"/>
+        <StackPanel Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,0,0,14">
+            <TextBlock Text="{v:Loc settings}" FontFamily="{StaticResource F.Display}" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource B.Text}"
+                       VerticalAlignment="Center" AutomationProperties.HeadingLevel="Level1"/>
+            <v:InfoTip Text="{v:Loc set_save_hint}" Margin="6,2,0,0"/>
         </StackPanel>
 
-        <!-- ===== Audio ===== -->
-        <TextBlock x:Name="SecAudio" Text="{v:Loc set_audio}" Style="{StaticResource Section}"/>
-        <Grid>
-            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <ComboBox x:Name="DeviceBox" SelectionChanged="DeviceBox_SelectionChanged" AutomationProperties.Name="{v:Loc set_audio}"/>
-            <Button Grid.Column="1" Style="{StaticResource Btn.Form}" Click="RefreshDevices_Click" ToolTip="{v:Loc set_refresh_devices}" AutomationProperties.Name="{v:Loc set_refresh_devices}" Margin="8,0,0,0">
-                <TextBlock Style="{StaticResource T.Icon}" Text="&#xE72C;"/>
+        <!-- ===== category list (reading-order start side; Up/Down move within it) ===== -->
+        <StackPanel Grid.Row="1">
+            <ListBox x:Name="CategoryList" Background="Transparent" BorderThickness="0" Padding="0" ItemContainerStyle="{StaticResource CategoryItem}"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="{v:Loc set_categories}"
+                     SelectionMode="Single" SelectionChanged="CategoryList_SelectionChanged" PreviewKeyDown="CategoryList_PreviewKeyDown">
+                <!-- no inner scroll viewer: the page scrolls as a whole and the mouse wheel keeps working over the list -->
+                <ListBox.Template>
+                    <ControlTemplate TargetType="ListBox">
+                        <ItemsPresenter/>
+                    </ControlTemplate>
+                </ListBox.Template>
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate><StackPanel/></ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+            </ListBox>
+            <!-- quiet footer of the list -->
+            <Border Style="{StaticResource Divider}" Margin="6,12,6,8"/>
+            <Button x:Name="RestoreAllBtn" Style="{StaticResource Btn.Ghost}" HorizontalAlignment="Left" Click="RestoreAll_Click" Margin="4,0,0,0"
+                    ToolTip="{v:Loc set_restore_body}" AutomationProperties.Name="{v:Loc set_restore_all}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource T.Icon}" Text="&#xE777;" FontSize="12" Margin="0,0,8,0"/>
+                    <TextBlock Text="{v:Loc set_restore_all}" FontSize="12.5" TextWrapping="Wrap"/>
+                </StackPanel>
             </Button>
-        </Grid>
-        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-            <TextBlock Text="{v:Loc set_level}" Foreground="{StaticResource B.TextDim}" FontSize="12" VerticalAlignment="Center" MinWidth="40" Margin="0,0,8,0"/>
-            <Border Width="200" Height="6" CornerRadius="3" Background="{StaticResource B.Surface3}" VerticalAlignment="Center" AutomationProperties.Name="{v:Loc set_level}">
-                <Border HorizontalAlignment="Left" CornerRadius="3" Background="{StaticResource B.Listening}" Width="{Binding AudioLevel, Converter={StaticResource LevelW}}"/>
-            </Border>
         </StackPanel>
-        <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_audio_hint}"/>
 
-        <!-- ===== Answers ===== -->
-        <TextBlock x:Name="SecAnswers" Text="{v:Loc set_answers}" Style="{StaticResource Section}"/>
-        <Grid>
-            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" MinWidth="150" MaxWidth="280"/><ColumnDefinition/></Grid.ColumnDefinitions>
-            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
-            <TextBlock x:Name="ModelLabel" Text="{v:Loc set_answer_model}" Style="{StaticResource RowLabel}"/>
-            <ComboBox x:Name="ModelBox" Grid.Column="1" IsEditable="True" Margin="0,4" AutomationProperties.Name="{v:Loc set_answer_model}" FlowDirection="LeftToRight"/>
-            <TextBlock x:Name="SttLabel" Grid.Row="1" Text="{v:Loc set_stt_model}" Style="{StaticResource RowLabel}"/>
-            <ComboBox x:Name="SttBox" Grid.Row="1" Grid.Column="1" IsEditable="True" Margin="0,4" AutomationProperties.Name="{v:Loc set_stt_model}" FlowDirection="LeftToRight"/>
-            <TextBlock x:Name="ProtocolLabel" Grid.Row="2" Text="{v:Loc set_protocol}" Style="{StaticResource RowLabel}"/>
-            <ComboBox x:Name="ProtocolBox" Grid.Row="2" Grid.Column="1" Margin="0,4" AutomationProperties.Name="{v:Loc set_protocol}" SelectionChanged="Changed"/>
-            <TextBlock Grid.Row="3" Text="{v:Loc set_font_size}" Style="{StaticResource RowLabel}"/>
-            <ComboBox x:Name="FontBox" Grid.Row="3" Grid.Column="1" Margin="0,4" AutomationProperties.Name="{v:Loc set_font_size}" SelectionChanged="Changed"/>
-        </Grid>
-        <CheckBox x:Name="FastCacheBox" Style="{StaticResource Check}" Content="{v:Loc set_fast_cache}" Margin="0,10,0,0" Checked="Changed" Unchecked="Changed"/>
+        <!-- ===== the selected category (one at a time) ===== -->
+        <StackPanel Grid.Row="1" Grid.Column="2" MaxWidth="{StaticResource S.PageMaxWidth}" HorizontalAlignment="Stretch">
+            <DockPanel>
+                <Button x:Name="ResetSectionBtn" DockPanel.Dock="Right" Style="{StaticResource Btn.Ghost}" VerticalAlignment="Top" Click="ResetSection_Click" Margin="8,0,0,0"
+                        AutomationProperties.Name="{v:Loc set_reset_section}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource T.Icon}" Text="&#xE777;" FontSize="12" Margin="0,0,6,0"/>
+                        <TextBlock Text="{v:Loc set_reset_section}" FontSize="12.5"/>
+                    </StackPanel>
+                </Button>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="CategoryTitle" FontFamily="{StaticResource F.Display}" FontSize="17" FontWeight="SemiBold" Foreground="{StaticResource B.Text}"
+                               TextWrapping="Wrap" VerticalAlignment="Center" AutomationProperties.HeadingLevel="Level2"/>
+                    <v:InfoTip x:Name="CategoryInfo" Margin="6,2,0,0"/>
+                </StackPanel>
+            </DockPanel>
+            <TextBlock x:Name="CategoryDescription" Style="{StaticResource T.Body}" Margin="0,2,0,4"/>
 
-        <!-- ===== Listening ===== -->
-        <TextBlock x:Name="SecListening" Text="{v:Loc set_listening}" Style="{StaticResource Section}"/>
-        <TextBlock Text="{v:Loc set_end_wait}" Style="{StaticResource T.Body}"/>
-        <DockPanel Margin="0,4,0,0">
-            <TextBlock DockPanel.Dock="Left" Text="{v:Loc set_faster}" FontSize="11" Foreground="{StaticResource B.TextFaint}" VerticalAlignment="Center" MinWidth="46" Margin="0,0,8,0"/>
-            <TextBlock DockPanel.Dock="Right" Text="{v:Loc set_waits_longer}" FontSize="11" Foreground="{StaticResource B.TextFaint}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-            <Slider x:Name="VadSlider" Minimum="0.6" Maximum="1.8" TickFrequency="0.1" IsSnapToTickEnabled="True" AutomationProperties.Name="{v:Loc set_end_wait}" ValueChanged="SliderChanged"/>
-        </DockPanel>
-        <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_end_wait_hint}"/>
+            <!-- ===== Audio ===== -->
+            <StackPanel x:Name="CatAudio" Tag="audio">
+                <TextBlock Text="{v:Loc set_audio_device}" Style="{StaticResource T.FieldLabel}"/>
+                <Grid MaxWidth="480" HorizontalAlignment="Stretch">
+                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <ComboBox x:Name="DeviceBox" SelectionChanged="DeviceBox_SelectionChanged" AutomationProperties.Name="{v:Loc set_audio_device}"/>
+                    <Button Grid.Column="1" Style="{StaticResource Btn.Form}" Click="RefreshDevices_Click" ToolTip="{v:Loc set_refresh_devices}" AutomationProperties.Name="{v:Loc set_refresh_devices}" Margin="8,0,0,0">
+                        <TextBlock Style="{StaticResource T.Icon}" Text="&#xE72C;"/>
+                    </Button>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <TextBlock Text="{v:Loc set_level}" Foreground="{StaticResource B.TextDim}" FontSize="12" VerticalAlignment="Center" MinWidth="40" Margin="0,0,8,0"/>
+                    <Border Width="200" Height="6" CornerRadius="3" Background="{StaticResource B.Surface3}" VerticalAlignment="Center" AutomationProperties.Name="{v:Loc set_level}">
+                        <Border HorizontalAlignment="Left" CornerRadius="3" Background="{StaticResource B.Listening}" Width="{Binding AudioLevel, Converter={StaticResource LevelW}}"/>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
 
-        <!-- ===== Window ===== -->
-        <TextBlock x:Name="SecWindow" Text="{v:Loc set_window}" Style="{StaticResource Section}"/>
-        <Grid>
-            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" MinWidth="150" MaxWidth="280"/><ColumnDefinition/></Grid.ColumnDefinitions>
-            <TextBlock Text="{v:Loc set_opacity}" Style="{StaticResource RowLabel}"/>
-            <Slider x:Name="OpacitySlider" Grid.Column="1" Minimum="0.75" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True" AutomationProperties.Name="{v:Loc set_opacity}"
-                    VerticalAlignment="Center" ValueChanged="SliderChanged"/>
-        </Grid>
-        <CheckBox x:Name="TopmostBox" Style="{StaticResource Check}" Content="{v:Loc set_topmost}" Margin="0,8,0,0" Checked="Changed" Unchecked="Changed"/>
+            <!-- ===== Answers ===== -->
+            <StackPanel x:Name="CatAnswers" Tag="answers" Visibility="Collapsed">
+                <!-- developer builds only -->
+                <StackPanel x:Name="DeveloperKeyPanel">
+                    <TextBlock Text="{v:Loc set_dev_key}" Style="{StaticResource T.FieldLabel}"/>
+                    <Grid MaxWidth="560" HorizontalAlignment="Stretch">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <PasswordBox x:Name="KeyBox" AutomationProperties.Name="{v:Loc set_dev_key}" FlowDirection="LeftToRight" PasswordChanged="Changed"/>
+                        <Button Grid.Column="1" Style="{StaticResource Btn.Form}" Content="{v:Loc set_test}" Click="TestKey_Click" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Style="{StaticResource Btn.Ghost}" Content="{v:Loc set_remove}" Click="RemoveKey_Click" Margin="4,0,0,0"/>
+                    </Grid>
+                    <TextBlock x:Name="KeyStatus" Style="{StaticResource Hint}" AutomationProperties.LiveSetting="Polite"/>
+                    <!-- security statement: stays visible -->
+                    <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_dev_key_hint}"/>
+                </StackPanel>
+                <TextBlock x:Name="ModelLabel" Text="{v:Loc set_answer_model}" Style="{StaticResource T.FieldLabel}"/>
+                <ComboBox x:Name="ModelBox" Style="{StaticResource Field}" IsEditable="True" AutomationProperties.Name="{v:Loc set_answer_model}" FlowDirection="LeftToRight"/>
+                <TextBlock x:Name="SttLabel" Text="{v:Loc set_stt_model}" Style="{StaticResource T.FieldLabel}"/>
+                <ComboBox x:Name="SttBox" Style="{StaticResource Field}" IsEditable="True" AutomationProperties.Name="{v:Loc set_stt_model}" FlowDirection="LeftToRight"/>
+                <TextBlock x:Name="ProtocolLabel" Text="{v:Loc set_protocol}" Style="{StaticResource T.FieldLabel}"/>
+                <ComboBox x:Name="ProtocolBox" Style="{StaticResource Field}" AutomationProperties.Name="{v:Loc set_protocol}" SelectionChanged="Changed"/>
+                <TextBlock Text="{v:Loc set_font_size}" Style="{StaticResource T.FieldLabel}"/>
+                <ComboBox x:Name="FontBox" Style="{StaticResource Field}" AutomationProperties.Name="{v:Loc set_font_size}" SelectionChanged="Changed"/>
+                <CheckBox x:Name="FastCacheBox" Style="{StaticResource Check}" Content="{v:Loc set_fast_cache}" Margin="0,14,0,0" Checked="Changed" Unchecked="Changed"/>
+            </StackPanel>
 
-        <!-- ===== Hotkeys ===== -->
-        <TextBlock x:Name="SecHotkeys" Text="{v:Loc set_hotkeys}" Style="{StaticResource Section}"/>
-        <Grid>
-            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" MinWidth="150" MaxWidth="280"/><ColumnDefinition/></Grid.ColumnDefinitions>
-            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
-            <TextBlock Text="{v:Loc set_hk_toggle}" Style="{StaticResource RowLabel}"/>
-            <TextBox x:Name="HkToggle" Grid.Column="1" Margin="0,4,0,0" AutomationProperties.Name="{v:Loc set_hk_toggle}" FlowDirection="LeftToRight" TextChanged="Changed"/>
-            <v:InlineMessage x:Name="HkToggleError" Grid.Row="1" Grid.Column="1" Margin="0,4,0,0"/>
-            <TextBlock Grid.Row="2" Text="{v:Loc set_hk_start}" Style="{StaticResource RowLabel}"/>
-            <TextBox x:Name="HkStart" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" AutomationProperties.Name="{v:Loc set_hk_start}" FlowDirection="LeftToRight" TextChanged="Changed"/>
-            <v:InlineMessage x:Name="HkStartError" Grid.Row="3" Grid.Column="1" Margin="0,4,0,0"/>
-            <TextBlock Grid.Row="4" Text="{v:Loc set_hk_manual}" Style="{StaticResource RowLabel}"/>
-            <TextBox x:Name="HkManual" Grid.Row="4" Grid.Column="1" Margin="0,8,0,0" AutomationProperties.Name="{v:Loc set_hk_manual}" FlowDirection="LeftToRight" TextChanged="Changed"/>
-            <v:InlineMessage x:Name="HkManualError" Grid.Row="5" Grid.Column="1" Margin="0,4,0,0"/>
-        </Grid>
-        <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_hotkeys_hint}"/>
+            <!-- ===== Listening ===== -->
+            <StackPanel x:Name="CatListening" Tag="listening" Visibility="Collapsed">
+                <StackPanel Style="{StaticResource LabelRow}">
+                    <TextBlock Text="{v:Loc set_end_wait}" Style="{StaticResource RowLabel}"/>
+                    <v:InfoTip Text="{v:Loc set_end_wait_hint}"/>
+                </StackPanel>
+                <DockPanel MaxWidth="480" HorizontalAlignment="Stretch">
+                    <TextBlock DockPanel.Dock="Left" Text="{v:Loc set_faster}" FontSize="11.5" Foreground="{StaticResource B.TextDim}" VerticalAlignment="Center" MinWidth="46" Margin="0,0,8,0"/>
+                    <TextBlock DockPanel.Dock="Right" Text="{v:Loc set_waits_longer}" FontSize="11.5" Foreground="{StaticResource B.TextDim}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    <Slider x:Name="VadSlider" Minimum="0.6" Maximum="1.8" TickFrequency="0.1" IsSnapToTickEnabled="True" AutomationProperties.Name="{v:Loc set_end_wait}" ValueChanged="SliderChanged"/>
+                </DockPanel>
+            </StackPanel>
 
-        <!-- ===== Privacy ===== -->
-        <TextBlock x:Name="SecPrivacy" Text="{v:Loc privacy}" Style="{StaticResource Section}"/>
-        <CheckBox x:Name="SaveTranscriptBox" Style="{StaticResource Check}" Content="{v:Loc set_save_transcript}" Checked="Changed" Unchecked="Changed"/>
-        <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_save_transcript_hint}" Margin="0,4,0,16"/>
-    </StackPanel>
+            <!-- ===== Window ===== -->
+            <StackPanel x:Name="CatWindow" Tag="window" Visibility="Collapsed">
+                <TextBlock Text="{v:Loc set_opacity}" Style="{StaticResource T.FieldLabel}"/>
+                <Slider x:Name="OpacitySlider" MaxWidth="480" HorizontalAlignment="Stretch" Minimum="0.75" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True"
+                        AutomationProperties.Name="{v:Loc set_opacity}" ValueChanged="SliderChanged"/>
+                <CheckBox x:Name="TopmostBox" Style="{StaticResource Check}" Content="{v:Loc set_topmost}" Margin="0,14,0,0" Checked="Changed" Unchecked="Changed"/>
+            </StackPanel>
+
+            <!-- ===== Hotkeys ===== -->
+            <StackPanel x:Name="CatHotkeys" Tag="hotkeys" Visibility="Collapsed">
+                <TextBlock Text="{v:Loc set_hk_toggle}" Style="{StaticResource T.FieldLabel}"/>
+                <TextBox x:Name="HkToggle" Style="{StaticResource HotkeyBox}" AutomationProperties.Name="{v:Loc set_hk_toggle}" TextChanged="Changed"/>
+                <v:InlineMessage x:Name="HkToggleError" MaxWidth="480" HorizontalAlignment="Left"/>
+                <TextBlock Text="{v:Loc set_hk_start}" Style="{StaticResource T.FieldLabel}"/>
+                <TextBox x:Name="HkStart" Style="{StaticResource HotkeyBox}" AutomationProperties.Name="{v:Loc set_hk_start}" TextChanged="Changed"/>
+                <v:InlineMessage x:Name="HkStartError" MaxWidth="480" HorizontalAlignment="Left"/>
+                <TextBlock Text="{v:Loc set_hk_manual}" Style="{StaticResource T.FieldLabel}"/>
+                <TextBox x:Name="HkManual" Style="{StaticResource HotkeyBox}" AutomationProperties.Name="{v:Loc set_hk_manual}" TextChanged="Changed"/>
+                <v:InlineMessage x:Name="HkManualError" MaxWidth="480" HorizontalAlignment="Left"/>
+            </StackPanel>
+
+            <!-- ===== Privacy ===== -->
+            <StackPanel x:Name="CatPrivacy" Tag="privacy" Visibility="Collapsed">
+                <CheckBox x:Name="SaveTranscriptBox" Style="{StaticResource Check}" Content="{v:Loc set_save_transcript}" Margin="0,14,0,0" Checked="Changed" Unchecked="Changed"/>
+                <!-- privacy statement: stays visible -->
+                <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_save_transcript_hint}" Margin="0,6,0,0"/>
+            </StackPanel>
+
+            <!-- ===== Updates (moved here from Account in rc.5) ===== -->
+            <StackPanel x:Name="CatUpdates" Tag="updates" Visibility="Collapsed">
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <TextBlock Style="{StaticResource AboutKey}" Text="{v:Loc about_version}"/>
+                    <TextBlock x:Name="UpdateVersion" Grid.Column="1" Style="{StaticResource AboutValue}" FlowDirection="LeftToRight" HorizontalAlignment="Left"/>
+                    <TextBlock Grid.Row="1" Style="{StaticResource AboutKey}" Text="{v:Loc about_channel}"/>
+                    <TextBlock x:Name="UpdateChannelText" Grid.Row="1" Grid.Column="1" Style="{StaticResource AboutValue}"/>
+                    <TextBlock Grid.Row="2" Style="{StaticResource AboutKey}" Text="{v:Loc about_build}"/>
+                    <TextBlock x:Name="UpdateCommit" Grid.Row="2" Grid.Column="1" Style="{StaticResource AboutValue}" FlowDirection="LeftToRight" HorizontalAlignment="Left"/>
+                </Grid>
+                <TextBlock Text="{v:Loc update_preference}" Style="{StaticResource T.FieldLabel}"/>
+                <!-- saved right away (not through the Save footer): it only takes effect after a restart -->
+                <ComboBox x:Name="ChannelBox" Style="{StaticResource Field}" MaxWidth="320" HorizontalAlignment="Left" MinWidth="220"
+                          SelectionChanged="Channel_Changed" AutomationProperties.Name="{v:Loc update_preference}">
+                    <ComboBoxItem Content="{v:Loc channel_stable}" Tag="stable"/>
+                    <ComboBoxItem Content="{v:Loc channel_beta}" Tag="beta"/>
+                </ComboBox>
+                <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_upd_pref_note}"/>
+                <WrapPanel Margin="{StaticResource S.ButtonRowMargin}">
+                    <Button x:Name="CheckUpdatesBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc set_upd_check}" Click="CheckUpdates_Click" Margin="{StaticResource S.ButtonGap}"/>
+                    <Button x:Name="RestartUpdateBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc restart_to_update}" Click="RestartUpdate_Click" Margin="{StaticResource S.ButtonGap}" Visibility="Collapsed"/>
+                </WrapPanel>
+                <TextBlock x:Name="UpdateStatus" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}" AutomationProperties.LiveSetting="Polite"/>
+                <!-- the install rule: stays visible -->
+                <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_upd_install_note}" Margin="0,8,0,0"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
 </UserControl>

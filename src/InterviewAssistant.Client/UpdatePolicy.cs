@@ -13,6 +13,9 @@ public static class UpdatePolicy
     public static bool ShouldCheck(bool sessionActive, DateTimeOffset? lastCheck, DateTimeOffset now, DateTimeOffset appStarted) =>
         !sessionActive && now - appStarted >= StartupDelay && (lastCheck == null || now - lastCheck.Value >= CheckInterval);
 
+    /// <summary>A user-initiated check ("Check for updates"): no interval, but never during a live session.</summary>
+    public static bool ShouldCheckNow(bool sessionActive) => !sessionActive;
+
     public static bool CanApplyNow(bool sessionActive, bool updateDownloaded) => updateDownloaded && !sessionActive;
 
     /// <summary>"stable" or "beta"; anything else is treated as stable.</summary>
