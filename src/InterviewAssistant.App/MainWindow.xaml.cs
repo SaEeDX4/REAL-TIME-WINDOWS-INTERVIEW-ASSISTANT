@@ -30,6 +30,7 @@ public partial class MainWindow : Window
         _vm.BulletsChanged += ScheduleFit;
         AnswerScroll.SizeChanged += (_, _) => ScheduleFit();
         AnswerContent.SizeChanged += (_, _) => { if (!_fitting) ScheduleFit(); };   // note/pending/thinking rows too
+        InitChrome();
         RestorePlacement();
         ApplyAppearance();
         Loaded += OnLoaded;
@@ -68,6 +69,7 @@ public partial class MainWindow : Window
         DiagPanel.Visibility = _vm.Settings.ShowDiagnostics ? Visibility.Visible : Visibility.Collapsed;
         ApplyCompact(_vm.Settings.CompactMode);
         _vm.RefreshFonts();
+        RefreshReadiness();   // texts composed in code follow the UI language
     }
 
     public void SetCompact(bool compact) { _vm.Settings.CompactMode = compact; ApplyCompact(compact); }
@@ -80,7 +82,7 @@ public partial class MainWindow : Window
         ManualBar.Visibility = v;
         QuestionHeader.Visibility = v;
         AnswerHeader.Visibility = v;
-        CompactIcon.Text = compact ? "" : "";
+        UpdateChrome();
     }
 
     private void RestorePlacement()
@@ -143,6 +145,7 @@ public partial class MainWindow : Window
 
     private void Header_MouseDown(object sender, MouseButtonEventArgs e)
     {
+        if (e.ClickCount == 2) { ToggleMaximize(); return; }   // like a native title bar
         if (e.ButtonState == MouseButtonState.Pressed) DragMove();
     }
 
@@ -162,13 +165,6 @@ public partial class MainWindow : Window
         await _vm.SubmitManualAsync(text);
     }
 
-    private void Compact_Click(object sender, RoutedEventArgs e)
-    {
-        _vm.Settings.CompactMode = !_vm.Settings.CompactMode;
-        ApplyCompact(_vm.Settings.CompactMode);
-        _vm.Settings.Save();
-    }
-
     private void Diagnostics_Click(object sender, RoutedEventArgs e)
     {
         _vm.Settings.ShowDiagnostics = !_vm.Settings.ShowDiagnostics;
@@ -176,10 +172,10 @@ public partial class MainWindow : Window
         _vm.Settings.Save();
     }
 
-    private void Settings_Click(object sender, RoutedEventArgs e) => OpenSettings();
-    private void Home_Click(object sender, RoutedEventArgs e) => OpenHome();
+    private void Settings_Click(object sender, RoutedEventArgs e) { CloseMore(); OpenSettings(); }
+    private void Home_Click(object sender, RoutedEventArgs e) { CloseMore(); OpenHome(); }
     private void Banner_Click(object sender, RoutedEventArgs e) => OpenHome("account");
-    private void Presentation_Click(object sender, RoutedEventArgs e) => _vm.ToggleCoach();
+    private void Presentation_Click(object sender, RoutedEventArgs e) { _vm.ToggleCoach(); UpdateChrome(); }
 
     /// <summary>Profile-gap card: opens Home on Profiles → Interview profile, where the missing personal answer can be added.</summary>
     private void AddToProfile_Click(object sender, RoutedEventArgs e)
@@ -189,6 +185,7 @@ public partial class MainWindow : Window
 
     private void Report_Click(object sender, RoutedEventArgs e)
     {
+        CloseMore();
         if (_vm.LastReportPath is { } p && File.Exists(p))
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(p) { UseShellExecute = true });
     }
@@ -261,7 +258,6 @@ public partial class MainWindow : Window
         if (BulletList.ItemContainerGenerator.ContainerFromIndex(index) is not FrameworkElement c) return double.NaN;
         return c.TransformToAncestor(AnswerScroll).Transform(new Point(0, c.ActualHeight)).Y;
     }
-    private void Readiness_Click(object sender, RoutedEventArgs e) => OpenReadiness(firstRun: false);
     private void Help_Click(object sender, RoutedEventArgs e) => _vm.ShowLiveIntro = !_vm.ShowLiveIntro;
     private void Adaptive_Click(object sender, RoutedEventArgs e) { _vm.ResetAdaptive(); Toasts.Show(Core.Languages.Loc.T("toast_adaptive_reset"), Views.ToastKind.Info); }
     private void IntroClose_Click(object sender, RoutedEventArgs e) => _vm.DismissLiveIntro(IntroDontShow.IsChecked == true);

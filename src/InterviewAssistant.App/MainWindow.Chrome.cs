@@ -1,0 +1,138 @@
+using System.ComponentModel;
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Media;
+using InterviewAssistant.App.Services;
+using InterviewAssistant.App.UiState;
+using InterviewAssistant.App.ViewModels;
+using InterviewAssistant.Core.Languages;
+
+namespace InterviewAssistant.App;
+
+/// <summary>
+/// Live Assistant header (rc.5): status, Start/Pause, Stop, the readiness indicator, Quick help, the More overflow menu
+/// and the window buttons. Which optional items show is decided by <see cref="LiveChrome"/> (setup vs interview mode,
+/// compact view, width); this file only applies that rule to the controls.
+/// </summary>
+public partial class MainWindow
+{
+    private Views.Popover _more = null!;
+
+    /// <summary>The layout currently applied (self-test).</summary>
+    internal LiveChromeLayout Chrome { get; private set; } = LiveChrome.For(false, false, LiveChrome.MinWidth);
+
+    private void InitChrome()
+    {
+        _more = new Views.Popover(this, MorePopup, MoreBtn);
+        // The snapshot is written on the checks' threads: marshal to the UI thread before touching controls.
+        _vm.Readiness.Changed += _ => Dispatcher.BeginInvoke(RefreshReadiness);
+        _vm.WorkspaceChanged += () => Dispatcher.BeginInvoke(RefreshReadiness);   // other account / interview → "Check again"
+        SettingsApplied += RefreshReadiness;                                       // other playback device → "Check again"
+        Activated += (_, _) => RefreshReadiness();
+        SizeChanged += (_, _) => UpdateChrome();
+        _vm.PropertyChanged += OnChromeProperty;
+        WindowPlacement.HookMaximizeToWorkArea(this);
+        StateChanged += (_, _) => OnWindowStateChanged();
+        RefreshReadiness();
+    }
+
+    private void OnChromeProperty(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(MainViewModel.IsListening) or nameof(MainViewModel.IsPaused) or nameof(MainViewModel.Question)
+            or nameof(MainViewModel.AdaptiveLabel) or nameof(MainViewModel.MinutesLeftLabel) or nameof(MainViewModel.PresentationLabel))
+            UpdateChrome();
+    }
+
+    private static Visibility Vis(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>Applies <see cref="LiveChrome"/> for the current session state, view and width.</summary>
+    private void UpdateChrome()
+    {
+        var width = ActualWidth > 0 ? ActualWidth : Width;
+        var c = LiveChrome.For(_vm.SessionActive, _vm.Settings.CompactMode, double.IsNaN(width) ? LiveChrome.MinWidth : width);
+        Chrome = c;
+        StartLabel.Visibility = Vis(c.StartLabel);
+        StartBtn.Padding = c.StartLabel ? new Thickness(12, 4, 12, 4) : new Thickness(9, 4, 9, 4);
+        AdaptiveBadge.Visibility = Vis(c.AdaptiveBadge && _vm.AdaptiveLabel.Length > 0);
+        PresentationChip.Visibility = Vis(c.PresentationChip);
+        MinutesText.Visibility = Vis(c.MinutesLabel && _vm.MinutesLeftLabel.Length > 0);
+        // the overflow takes what the header has no room for
+        MoreCoach.Visibility = Vis(c.PresentationInMore);
+        MoreCoachCheck.Visibility = Vis(_vm.Presentation == Core.Live.Presentation.Coach);
+        MoreMinutes.Visibility = Vis(c.MinutesInMore && _vm.MinutesLeftLabel.Length > 0);
+        MoreCompactCheck.Visibility = Vis(_vm.Settings.CompactMode);
+        ApplyReadinessIndicator(c.Readiness);
+        UpdateSetupMode(c);
+    }
+
+    // ---------------- readiness indicator ----------------
+
+    /// <summary>Re-renders the indicator from the one readiness snapshot (state, colour, tooltip with the counts).</summary>
+    private void RefreshReadiness()
+    {
+        var snap = _vm.Readiness.Snapshot;
+        var state = snap.StateFor(_vm.ReadinessContext);
+        var label = Loc.T(ReadinessSnapshot.StateKey(state));
+        ReadinessDot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, ReadinessSnapshot.BrushKey(state));
+        ReadinessLabel.Text = label;
+        var tip = state is ReadinessState.NotChecked or ReadinessState.Outdated
+            ? Loc.F("live_rd_tt_run", label)
+            : Loc.F("live_rd_tt", label, snap.Passed, snap.Total);
+        ReadinessBtn.ToolTip = tip;
+        AutomationProperties.SetName(ReadinessBtn, tip);
+    }
+
+    private void ApplyReadinessIndicator(ReadinessIndicator mode)
+    {
+        var label = mode == ReadinessIndicator.Label;
+        ReadinessLabel.Visibility = Vis(label);
+        // setup mode: a visible pill; during the interview: just the dot
+        if (label) { ReadinessBtn.SetResourceReference(BackgroundProperty, "B.Surface2"); ReadinessBtn.SetResourceReference(BorderBrushProperty, "B.Border"); }
+        else { ReadinessBtn.Background = Brushes.Transparent; ReadinessBtn.BorderBrush = Brushes.Transparent; }
+        ReadinessBtn.Padding = label ? new Thickness(9, 4, 10, 4) : new Thickness(8, 5, 8, 5);
+    }
+
+    /// <summary>Opens Home directly on the pre-interview check.</summary>
+    private void Readiness_Click(object sender, RoutedEventArgs e) => OpenHome("preinterview");
+
+    // ---------------- More (overflow) ----------------
+
+    private void More_Click(object sender, RoutedEventArgs e) { UpdateChrome(); _more.Toggle(); }
+    private void CloseMore() => _more.Close(restoreFocus: false);
+    internal bool MoreOpen => _more.IsOpen;
+
+    private void MoreCompact_Click(object sender, RoutedEventArgs e)
+    {
+        CloseMore();
+        _vm.Settings.CompactMode = !_vm.Settings.CompactMode;
+        ApplyCompact(_vm.Settings.CompactMode);
+        _vm.Settings.Save();
+    }
+
+    // ---------------- maximize / restore ----------------
+
+    private void Maximize_Click(object sender, RoutedEventArgs e) => ToggleMaximize();
+
+    /// <summary>Maximized = the monitor's work area (taskbar stays visible); Normal returns to the placement before.</summary>
+    internal void ToggleMaximize() => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+
+    private void OnWindowStateChanged()
+    {
+        var max = WindowState == WindowState.Maximized;
+        // no transparent resize margin, rounded corners or shadow gap when the window fills the work area
+        Root.Margin = ShadowLayer.Margin = new Thickness(max ? 0 : 8);
+        Root.CornerRadius = ShadowLayer.CornerRadius = new CornerRadius(max ? 0 : 14);
+        Dialogs.CornerRadius = new CornerRadius(max ? 0 : 13);
+        MaxIcon.Text = max ? "" : "";
+        UpdateChrome();
+    }
+
+    // ---------------- setup mode vs interview mode ----------------
+
+    private void UpdateSetupMode(LiveChromeLayout c) { }
+
+    // ---------------- Interview Focus ----------------
+
+    private void MoreFocus_Click(object sender, RoutedEventArgs e) => CloseMore();
+    private void MoreFocusRestore_Click(object sender, RoutedEventArgs e) => CloseMore();
+}
