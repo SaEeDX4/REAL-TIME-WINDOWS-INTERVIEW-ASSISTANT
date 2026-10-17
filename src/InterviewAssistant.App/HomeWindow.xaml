@@ -52,6 +52,13 @@
             <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
             <Setter Property="ItemContainerStyle" Value="{StaticResource ListItem.Row}"/>
         </Style>
+        <!-- one row of the header account menu -->
+        <Style x:Key="MenuItem" TargetType="Button" BasedOn="{StaticResource Btn.Ghost}">
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
+        </Style>
         <!-- Account dashboard: card heading and the gap between stacked cards -->
         <Style x:Key="CardTitle" TargetType="TextBlock" BasedOn="{StaticResource T.Label}">
             <Setter Property="TextWrapping" Value="Wrap"/>
@@ -82,17 +89,17 @@
             <Grid Grid.ColumnSpan="2" Margin="18,12,10,6" Background="Transparent" MouseLeftButtonDown="Header_MouseDown">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock x:Name="TitleText" Style="{StaticResource H1}" VerticalAlignment="Center"/>
-                    <Button x:Name="AccountBadge" Style="{StaticResource Btn.Ghost}" Margin="12,2,0,0" Padding="8,3" FontSize="12" Click="AccountBadge_Click" MaxWidth="320"
-                            ToolTip="{v:Loc tt_open_account}" AutomationProperties.Name="{v:Loc account}">
-                        <TextBlock x:Name="AccountBadgeText" TextTrimming="CharacterEllipsis"/>
-                    </Button>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button x:Name="HeaderSignOutBtn" Style="{StaticResource Btn.Ghost}" Click="SignOut_Click" Margin="0,0,8,0" Padding="10,4"
-                            ToolTip="{v:Loc tt_sign_out}" AutomationProperties.Name="{v:Loc sign_out}">
+                    <!-- one account button: avatar initial + e-mail; opens the account menu (signed out: "Sign in" → Account) -->
+                    <Button x:Name="AccountMenuBtn" Style="{StaticResource Btn.Ghost}" Click="AccountMenuBtn_Click" Margin="0,0,8,0" Padding="6,3" MaxWidth="300"
+                            ToolTip="{v:Loc tt_account_menu}" AutomationProperties.Name="{v:Loc acct_menu}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource T.Icon}" Text="&#xE748;" FontSize="12" Margin="0,0,6,0"/>
-                            <TextBlock Text="{v:Loc sign_out}" FontSize="12.5"/>
+                            <Border x:Name="AccountAvatar" Width="24" Height="24" CornerRadius="12" Background="{StaticResource B.AccentStrong}" Margin="0,0,8,0" VerticalAlignment="Center">
+                                <TextBlock x:Name="AccountAvatarText" Foreground="White" FontSize="11.5" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock x:Name="AccountMenuText" FontSize="12.5" Foreground="{StaticResource B.Text}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="220"/>
+                            <TextBlock x:Name="AccountMenuChevron" Style="{StaticResource T.Icon}" Text="&#xE70D;" FontSize="10" Margin="8,0,0,0"/>
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource Btn.Ghost}" Click="Minimize_Click" ToolTip="{v:Loc tt_minimize}" AutomationProperties.Name="{v:Loc tt_minimize}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE921;" FontSize="11"/></Button>
@@ -657,6 +664,28 @@
                 </Grid>
             </ScrollViewer>
             </DockPanel>
+
+            <!-- account menu: drops from the header account button (top end of the window, mirrored in RTL); an outside
+                 click, Escape or choosing an item closes it and focus returns to the button -->
+            <Grid x:Name="AccountMenuLayer" Grid.RowSpan="2" Grid.ColumnSpan="2" Visibility="Collapsed" Panel.ZIndex="50">
+                <Border Background="Transparent" MouseDown="AccountMenuBackdrop_MouseDown"/>
+                <Border x:Name="AccountMenuCard" Style="{StaticResource Card}" Padding="6" MinWidth="240" MaxWidth="340" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Effect="{StaticResource E.Shadow}" AutomationProperties.Name="{v:Loc acct_menu}" PreviewKeyDown="AccountMenu_PreviewKeyDown"
+                        KeyboardNavigation.TabNavigation="Cycle" KeyboardNavigation.DirectionalNavigation="Contained">
+                    <StackPanel x:Name="AccountMenuItems">
+                        <StackPanel Margin="10,8,10,10">
+                            <TextBlock x:Name="AccountMenuEmail" FontSize="13.5" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextTrimming="CharacterEllipsis"
+                                       FlowDirection="LeftToRight" HorizontalAlignment="Left"/>
+                            <TextBlock x:Name="AccountMenuPlan" Style="{StaticResource Hint}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <Border Style="{StaticResource Divider}" Margin="4,0,4,4"/>
+                        <Button x:Name="MenuManageAccount" Style="{StaticResource MenuItem}" Content="{v:Loc menu_manage_account}" Click="MenuManageAccount_Click"/>
+                        <Button x:Name="MenuSettings" Style="{StaticResource MenuItem}" Content="{v:Loc settings}" Click="MenuSettings_Click"/>
+                        <Button x:Name="MenuSwitchAccount" Style="{StaticResource MenuItem}" Content="{v:Loc switch_account}" Click="MenuSwitchAccount_Click"/>
+                        <Button x:Name="MenuSignOut" Style="{StaticResource MenuItem}" Content="{v:Loc sign_out}" Click="MenuSignOut_Click"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
 
             <!-- in-app dialogs: dim the whole window content (title bar and sidebar included) -->
             <v:DialogHost x:Name="Dialogs" Grid.RowSpan="2" Grid.ColumnSpan="2" CornerRadius="{Binding CornerRadius, ElementName=HomeRoot}"/>

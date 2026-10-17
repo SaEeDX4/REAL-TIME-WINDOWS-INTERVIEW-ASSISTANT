@@ -29,8 +29,7 @@ public partial class HomeWindow
     private void RefreshAccount()
     {
         var c = _vm.Cloud;
-        AccountBadgeText.Text = _vm.AccountLabel;
-        HeaderSignOutBtn.Visibility = c.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
+        RefreshAccountMenu();
         NotConfiguredPanel.Visibility = c.IsConfigured ? Visibility.Collapsed : Visibility.Visible;
         SignedOutPanel.Visibility = c.IsConfigured && !c.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
         SignedInPanel.Visibility = c.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
@@ -564,4 +563,78 @@ public partial class HomeWindow
         ShowPage("account");
         EmailBox.Focus();
     }
+
+    // ----- header account button and menu -----
+
+    private Button[] MenuButtons => new[] { MenuManageAccount, MenuSettings, MenuSwitchAccount, MenuSignOut };
+
+    /// <summary>Header button: avatar initial + e-mail (signed in) or "Sign in"; the menu shows the e-mail and the plan line.</summary>
+    private void RefreshAccountMenu()
+    {
+        var c = _vm.Cloud;
+        var signedIn = c.IsSignedIn;
+        var email = c.Account?.Email ?? c.Auth?.Session?.Email ?? "";
+        AccountAvatar.Visibility = AccountMenuChevron.Visibility = signedIn ? Visibility.Visible : Visibility.Collapsed;
+        AccountAvatarText.Text = AccountMenu.Initial(email);
+        // Signed out: "Sign in" (or the build's state, e.g. developer mode, when no account service is configured).
+        AccountMenuText.Text = signedIn ? email : c.IsConfigured ? T("sign_in") : _vm.AccountLabel;
+        AccountMenuText.FlowDirection = signedIn ? FlowDirection.LeftToRight : FlowDirection;   // an e-mail reads left-to-right in RTL too
+        AccountMenuBtn.ToolTip = signedIn ? T("tt_account_menu") : T("tt_open_account");
+        System.Windows.Automation.AutomationProperties.SetName(AccountMenuBtn, signedIn ? F("acct_menu_name", email) : AccountMenuText.Text);
+        AccountMenuEmail.Text = email;
+        AccountMenuPlan.Text = c.Account is { } a && signedIn ? MainViewModel.BillingLabel(a) : _vm.AccountLabel;
+        for (int i = 0; i < AccountMenu.Items.Count; i++) MenuButtons[i].Content = T(AccountMenu.LabelKey(AccountMenu.Items[i]));
+        if (!signedIn && IsAccountMenuOpen) CloseAccountMenu(returnFocus: false);
+    }
+
+    internal bool IsAccountMenuOpen => AccountMenuLayer.Visibility == Visibility.Visible;
+
+    /// <summary>Enter, Space or a click: signed in, the menu opens with focus on its first entry; signed out, Account opens.</summary>
+    private void AccountMenuBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (!AccountMenu.OpensMenu(_vm.Cloud.IsSignedIn)) { Navigate("account"); return; }
+        if (IsAccountMenuOpen) CloseAccountMenu(returnFocus: true); else OpenAccountMenu();
+    }
+
+    internal void OpenAccountMenu()
+    {
+        RefreshAccountMenu();
+        // Under the button, its end edge aligned with the button's end edge (both mirror in right-to-left layouts).
+        var layer = (FrameworkElement)AccountMenuLayer.Parent;
+        var corner = AccountMenuBtn.TranslatePoint(new Point(AccountMenuBtn.ActualWidth, AccountMenuBtn.ActualHeight), layer);
+        AccountMenuCard.Margin = new Thickness(0, Math.Max(0, corner.Y + 4), Math.Max(8, layer.ActualWidth - corner.X), 0);
+        AccountMenuLayer.Visibility = Visibility.Visible;
+        Dispatcher.BeginInvoke(() => { if (IsAccountMenuOpen) MenuManageAccount.Focus(); }, System.Windows.Threading.DispatcherPriority.Input);
+    }
+
+    internal void CloseAccountMenu(bool returnFocus)
+    {
+        if (!IsAccountMenuOpen) return;
+        AccountMenuLayer.Visibility = Visibility.Collapsed;
+        if (returnFocus) AccountMenuBtn.Focus();
+    }
+
+    private void AccountMenuBackdrop_MouseDown(object sender, MouseButtonEventArgs e) { e.Handled = true; CloseAccountMenu(returnFocus: false); }
+
+    /// <summary>Arrow keys move between the entries (wrapping), Home/End jump, Escape closes and returns focus to the button.</summary>
+    private void AccountMenu_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        var buttons = MenuButtons;
+        var current = Array.IndexOf(buttons, Keyboard.FocusedElement as Button);
+        int? next = e.Key switch
+        {
+            Key.Down => AccountMenu.Move(current, buttons.Length, down: true),
+            Key.Up => AccountMenu.Move(current, buttons.Length, down: false),
+            Key.Home => 0,
+            Key.End => buttons.Length - 1,
+            _ => null,
+        };
+        if (e.Key == Key.Escape) { e.Handled = true; CloseAccountMenu(returnFocus: true); return; }
+        if (next is int i && i >= 0) { e.Handled = true; buttons[i].Focus(); }
+    }
+
+    private void MenuManageAccount_Click(object sender, RoutedEventArgs e) { CloseAccountMenu(returnFocus: true); Navigate(AccountMenu.Route(AccountMenuItem.ManageAccount)!); }
+    private void MenuSettings_Click(object sender, RoutedEventArgs e) { CloseAccountMenu(returnFocus: true); Navigate(AccountMenu.Route(AccountMenuItem.Settings)!); }
+    private void MenuSwitchAccount_Click(object sender, RoutedEventArgs e) { CloseAccountMenu(returnFocus: true); SwitchAccount_Click(sender, e); }
+    private void MenuSignOut_Click(object sender, RoutedEventArgs e) { CloseAccountMenu(returnFocus: true); SignOut_Click(sender, e); }
 }

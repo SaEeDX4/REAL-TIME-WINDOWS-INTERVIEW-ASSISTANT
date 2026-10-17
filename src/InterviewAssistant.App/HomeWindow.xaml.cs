@@ -355,7 +355,6 @@ public partial class HomeWindow : Window
 
     private void RefreshAll()
     {
-        HeaderSignOutBtn.Visibility = _vm.Cloud.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
         RefreshUpdates();
         RefreshProfiles();
         RefreshReports(SelectedReportId());
@@ -365,7 +364,6 @@ public partial class HomeWindow : Window
     }
 
     private void Nav_Click(object sender, RoutedEventArgs e) => Navigate((string)((Button)sender).Tag);
-    private void AccountBadge_Click(object sender, RoutedEventArgs e) => Navigate("account");
     private void GoInterviews_Click(object sender, RoutedEventArgs e) => Navigate("interviews");
     private void GoInterviewProfile_Click(object sender, RoutedEventArgs e) => ShowInterviewProfile();
 
