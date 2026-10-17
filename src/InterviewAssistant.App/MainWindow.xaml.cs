@@ -178,14 +178,13 @@ public partial class MainWindow : Window
 
     private void Settings_Click(object sender, RoutedEventArgs e) => OpenSettings();
     private void Home_Click(object sender, RoutedEventArgs e) => OpenHome();
-    private void Banner_Click(object sender, RoutedEventArgs e) { OpenHome(); _home?.Navigate("account"); }
+    private void Banner_Click(object sender, RoutedEventArgs e) => OpenHome("account");
     private void Presentation_Click(object sender, RoutedEventArgs e) => _vm.ToggleCoach();
 
     /// <summary>Profile-gap card: opens Home on Profiles → Interview profile, where the missing personal answer can be added.</summary>
     private void AddToProfile_Click(object sender, RoutedEventArgs e)
     {
-        OpenHome();
-        _home?.ShowInterviewProfile();
+        OpenHome("profiles/personal");
     }
 
     private void Report_Click(object sender, RoutedEventArgs e)
@@ -196,16 +195,22 @@ public partial class MainWindow : Window
 
     private HomeWindow? _home;
 
-    /// <summary>Dashboard: onboarding, profiles, interviews (targets + preparation), reports, account. Non-modal.</summary>
-    public void OpenHome()
+    /// <summary>
+    /// Dashboard: onboarding, profiles, interviews (targets + preparation), reports, account. Non-modal.
+    /// <paramref name="route"/> ("settings/audio", "preinterview", "account") is resolved before the window shows or is
+    /// brought forward: a new window is built on that page; an open one switches first and is activated after.
+    /// </summary>
+    public async void OpenHome(string? route = null)
     {
-        if (_home is { IsLoaded: true })
+        var target = route == null ? null : UiState.HomeRoute.Parse(route);
+        if (_home is { IsLoaded: true } home)
         {
-            if (_home.WindowState == WindowState.Minimized) _home.WindowState = WindowState.Normal;
-            _home.Activate();
+            if (target != null && !await home.NavigateAsync(target)) return;   // the user stayed with unsaved edits (asked in Home)
+            if (home.WindowState == WindowState.Minimized) home.WindowState = WindowState.Normal;
+            home.Activate();
             return;
         }
-        _home = new HomeWindow(_vm, this) { Owner = this };
+        _home = new HomeWindow(_vm, this, target) { Owner = this };
         _home.Closed += (_, _) => _home = null;
         _home.Show();
     }
@@ -267,11 +272,7 @@ public partial class MainWindow : Window
     /// Settings live in Home (a page, not a separate window): brings Home forward on the Settings page, optionally
     /// scrolled to a section ("audio", "answers", "listening", "window", "hotkeys", "privacy").
     /// </summary>
-    public void OpenSettings(string? section = null)
-    {
-        OpenHome();
-        _home?.ShowSettings(section);
-    }
+    public void OpenSettings(string? section = null) => OpenHome(section == null ? "settings" : "settings/" + section);
 
     /// <summary>Raised after saved settings were applied (the pre-interview check re-runs its checks).</summary>
     public event Action? SettingsApplied;

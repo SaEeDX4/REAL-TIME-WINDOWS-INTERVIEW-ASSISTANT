@@ -102,7 +102,9 @@ public partial class HomeWindow : Window
         public void RaiseAll() => PropertyChanged?.Invoke(this, new(""));
     }
 
-    public HomeWindow(MainViewModel vm, MainWindow main)
+    /// <param name="initial">Deep link to open on (Settings from the Live gear, the pre-interview check, Account): the
+    /// window is built on that page, so no other page is ever shown first.</param>
+    public HomeWindow(MainViewModel vm, MainWindow main, HomeRoute? initial = null)
     {
         // Building the window and filling its pickers raises change events: none of that is a user edit.
         using (_profileGuard.Suspend())
@@ -159,7 +161,8 @@ public partial class HomeWindow : Window
         if (_vm.Cloud.IsSignedIn && _vm.Cloud.State == CloudState.SignedIn && _vm.Cloud.Account != null) _sections.Summary.Loaded(DateTimeOffset.Now);
         RefreshAll();
         UpdateDirtyIndicators();
-        ShowPage(!_vm.HasWorkspace && _vm.Cloud.IsConfigured ? "account" : _vm.Settings.AuthorizedUseAcknowledged && _vm.Settings.FirstRunCompleted ? "interviews" : "start");
+        var route = initial ?? new HomeRoute(!_vm.HasWorkspace && _vm.Cloud.IsConfigured ? "account" : _vm.Settings.AuthorizedUseAcknowledged && _vm.Settings.FirstRunCompleted ? "interviews" : "start");
+        ShowRoute(route);
     }
 
     private void OnUpdatesChanged() => Dispatcher.BeginInvoke(RefreshUpdates);
@@ -293,21 +296,38 @@ public partial class HomeWindow : Window
     // ================= navigation =================
 
     /// <summary>User navigation: asks about unsaved edits of the page being left; refused = nothing changes.</summary>
-    public async void Navigate(string tag, string? section = null)
+    public async void Navigate(string tag, string? section = null) => await NavigateAsync(new HomeRoute(tag, section));
+
+    /// <summary>
+    /// Deep-link navigation (Live gear, pre-interview check, account banner). The route is resolved first and the page
+    /// switched in one step; only then does the caller bring the window forward. False = the user chose to stay.
+    /// </summary>
+    public async Task<bool> NavigateAsync(HomeRoute route)
     {
-        if (tag != _page && !await _nav.CanProceedAsync(ChangeReason.Navigate, GuardsOfPage(_page))) return;
-        ShowPage(tag);
-        if (tag == "settings") PageSettings.ShowSection(section);
+        var target = route.Gate(SignedOutGate);
+        if (target.Page != _page && !await _nav.CanProceedAsync(ChangeReason.Navigate, GuardsOfPage(_page))) return false;
+        ShowRoute(target);
+        return true;
+    }
+
+    /// <summary>Shows a page and its section (no unsaved-changes question).</summary>
+    private void ShowRoute(HomeRoute route)
+    {
+        ShowPage(route.Page);
+        if (_page == "settings") PageSettings.ShowSection(route.Section);
+        if (_page == "profiles" && route.Section is "personal" or "facts") SetProfileTab(route.Section);
     }
 
     /// <summary>Opens the Settings page (deep link from the Live Assistant gear and the pre-interview check).</summary>
     public void ShowSettings(string? section = null) => Navigate("settings", section);
 
+    private bool SignedOutGate => _vm.Cloud.IsConfigured && _vm.UsingCloud && !_vm.HasWorkspace;
+
     /// <summary>Switches the visible page (no unsaved-changes question: callers that leave edits use <see cref="Navigate"/>).</summary>
     internal void ShowPage(string tag)
     {
-        var signedOutGate = _vm.Cloud.IsConfigured && _vm.UsingCloud && !_vm.HasWorkspace;
-        if (signedOutGate && tag is "profiles" or "interviews" or "reports") tag = "account";
+        var signedOutGate = SignedOutGate;
+        tag = new HomeRoute(tag).Gate(signedOutGate).Page;
         var entering = tag != _page;
         _page = tag;
         PageStart.Visibility = tag == "start" ? Visibility.Visible : Visibility.Collapsed;

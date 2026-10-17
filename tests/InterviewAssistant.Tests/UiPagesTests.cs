@@ -265,7 +265,7 @@ public class UiPagesTests
         Assert.Contains("{v:Loc live_gap_subtitle}", card);
         Assert.Contains("x:Name=\"BulletList\"", card);               // the guidance bullets are inside the card
         Assert.Contains("Click=\"AddToProfile_Click\"", Element(card, "AddToProfileBtn"));
-        Assert.Contains("_home?.ShowInterviewProfile()", Method(App("MainWindow.xaml.cs"), "private void AddToProfile_Click("));
+        Assert.Contains("OpenHome(\"profiles/personal\")", Method(App("MainWindow.xaml.cs"), "private void AddToProfile_Click("));   // rc.5: deep link, no other page first
         Assert.Contains("SetProfileTab(\"personal\")", Method(App("HomeWindow.xaml.cs"), "public async void ShowInterviewProfile("));
     }
 

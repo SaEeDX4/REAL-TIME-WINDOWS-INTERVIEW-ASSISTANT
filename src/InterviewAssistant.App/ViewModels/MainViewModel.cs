@@ -424,6 +424,12 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public string? ActiveTargetId { get; private set; }
     public bool HasWorkspace => Workspace != null;
 
+    /// <summary>The one readiness snapshot every surface shows (pre-interview page, Get started, Interviews, indicators).</summary>
+    public UiState.ReadinessStore Readiness { get; } = new();
+    /// <summary>What a readiness result is valid for: this account, the active interview and the playback device.</summary>
+    public string ReadinessContext => UiState.ReadinessStore.ContextOf(CurrentOwner, ActiveTargetId, Settings.PlaybackDeviceId);
+    public UiState.ReadinessState ReadinessState => Readiness.Snapshot.StateFor(ReadinessContext);
+
     /// <summary>Selects the interview used by the Live Assistant (stored per account workspace).</summary>
     public void SetActive(string? profileId, string? targetId)
     {
@@ -530,6 +536,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         if (SessionActive) await StopAsync();
         await EndLeaseAsync();
         await Cloud.SignOutAsync();
+        Readiness.Clear();   // the checks belonged to the previous account
         OpenWorkspaceForCurrentAccount();
         Toast(Loc.T("toast_signed_out"), Views.ToastKind.Info, Loc.T("toast_signed_out_detail"));
     }
