@@ -215,7 +215,7 @@ public partial class HomeWindow : Window
             RefreshAbout();
             RefreshUpdates();
             SetCreateMode(_createMode);
-            foreach (var m in new[] { AuthMessage, SecurityMessage, PrivacyMessage, TargetMessage }) { m.Text = Loc.Relocalize(m.Text) ?? m.Text; m.Detail = Loc.Relocalize(m.Detail) ?? m.Detail; }
+            foreach (var m in new[] { AuthMessage, SecurityMessage, PrivacyMessage, DangerMessage, TargetMessage }) { m.Text = Loc.Relocalize(m.Text) ?? m.Text; m.Detail = Loc.Relocalize(m.Detail) ?? m.Detail; }
             PageSettings.Relocalize();
             UpdateDirtyIndicators();
         }

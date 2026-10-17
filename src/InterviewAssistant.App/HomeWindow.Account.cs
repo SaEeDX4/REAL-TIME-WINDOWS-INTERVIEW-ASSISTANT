@@ -55,24 +55,16 @@ public partial class HomeWindow
         }
         SignUpLegal.Text = LegalSentence();
 
+        SecurityEmail.Text = c.IsSignedIn ? email ?? "" : "";
         if (c.Account is { } a && c.IsSignedIn)
         {
-            PlanText.Text = MainViewModel.BillingLabel(a);
-            var e = a.Entitlements;
-            var trial = a.BillingState is BillingStates.Trial or BillingStates.TrialExhausted;
-            var plan = trial ? e.TrialMinutes : e.LiveMinutesPerPeriod;
-            var used = a.Usage.LiveSecondsUsed / 60;
-            var remaining = a.Usage.LiveSecondsRemaining / 60;
-            var rows = new List<(string, string)>
-            {
-                (T("usage_minutes_used"), F("usage_minutes_used_value", used, plan)),
-                (T("usage_remaining_period"), F("usage_remaining_period_value", remaining, a.Usage.PeriodEndUtc.ToLocalTime().ToString("d", Loc.Culture))),
-            };
-            if (a.Usage.LiveSecondsAvailableToday >= 0)
-                rows.Add((T("usage_available_today"), F("usage_available_today_value", Math.Min(a.Usage.LiveSecondsAvailableToday / 60, remaining), a.Usage.DailyLiveMinutesCap)));
-            rows.Add((T("usage_preparations"), F("usage_preparations_value", a.Usage.PrepJobsRemaining)));
-            rows.Add((T("usage_limits"), F("usage_limits_value", e.MaxDevices, e.MaxProfiles)));
-            FillGrid(UsageGrid, rows);
+            // Plan name + state badge, then the metric cards (minutes, today, preparations, limits) with usage bars.
+            PlanText.Text = a.Entitlements.PlanName;
+            var label = MainViewModel.BillingLabel(a);
+            PlanSubText.Text = label != a.Entitlements.PlanName ? label : "";
+            ShowPlanBadge(a.BillingState);
+            UsageMetrics.ItemsSource = PlanView.Metrics(a, d => d.ToLocalTime().ToString("d", Loc.Culture)).Select(MetricRow.From).ToList();
+            ShowDevices(_devices);   // row texts follow the UI language
             BillingNotice.Text = a.BillingState switch
             {
                 BillingStates.PastDue => F("bill_notice_past_due", a.Subscription?.GraceUntilUtc?.ToLocalTime().ToString("d", Loc.Culture)),
@@ -84,7 +76,7 @@ public partial class HomeWindow
                 _ => "",
             };
             var pro = c.Plans.FirstOrDefault(x => x.Purchasable);
-            var paid = CloudService.IsPaidState(a.BillingState) || a.BillingState == BillingStates.Paused;
+            var paid = PlanView.IsPaid(a.BillingState);   // Upgrade is the card's primary action only on a plan that is not paid
             UpgradeBtn.Visibility = pro != null && !paid ? Visibility.Visible : Visibility.Collapsed;
             UpgradeBtn.Content = pro?.PriceDisplay is { } price ? F("upgrade_to_price", pro.Name, price) : F("upgrade_to", pro?.Name);
             UpgradeBtn.IsEnabled = !c.UpgradePending && !_sections.Billing.IsLoading;
@@ -97,10 +89,11 @@ public partial class HomeWindow
         {
             // No account data (signed out, or this account's data is not loaded yet): never leave the previous
             // account's plan, minutes or devices on screen.
-            PlanText.Text = ""; BillingNotice.Text = ""; UpgradeStatus.Text = ""; BillingTerms.Text = "";
-            UsageGrid.Children.Clear(); UsageGrid.RowDefinitions.Clear();
+            PlanText.Text = ""; PlanSubText.Text = ""; BillingNotice.Text = ""; UpgradeStatus.Text = ""; BillingTerms.Text = "";
+            PlanBadge.Visibility = Visibility.Collapsed;
+            UsageMetrics.ItemsSource = null;
             UpgradeBtn.Visibility = ManageBillingBtn.Visibility = Visibility.Collapsed;
-            if (!c.IsSignedIn) { DeviceList.ItemsSource = null; SecurityMessage.Clear(); PrivacyMessage.Clear(); }
+            if (!c.IsSignedIn) { _devices = new(); DeviceList.ItemsSource = null; DevicesEmpty.Visibility = Visibility.Collapsed; SecurityMessage.Clear(); PrivacyMessage.Clear(); DangerMessage.Clear(); }
         }
         RenderSections();
         RefreshLegal();
@@ -127,17 +120,53 @@ public partial class HomeWindow
         RefreshAccountBtn.IsEnabled = !_sections.Summary.IsLoading && !_sections.Devices.IsLoading;
     }
 
-    private void FillGrid(Grid g, IReadOnlyList<(string Label, string Value)> rows)
+    /// <summary>The plan's state as a small badge next to its name (Trial, Active, Payment problem …).</summary>
+    private void ShowPlanBadge(string billingState)
     {
-        g.Children.Clear(); g.RowDefinitions.Clear();
-        for (int i = 0; i < rows.Count; i++)
+        var key = PlanView.BadgeTone(billingState) switch
         {
-            g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            var k = new TextBlock { Text = rows[i].Label, Foreground = (Brush)FindResource("B.TextDim"), FontSize = 12.5, Margin = new Thickness(0, 2, 16, 2), TextWrapping = TextWrapping.Wrap, MaxWidth = 260 };
-            var v = new TextBlock { Text = rows[i].Value, Foreground = (Brush)FindResource("B.Text"), FontSize = 12.5, Margin = new Thickness(0, 2, 0, 2), TextWrapping = TextWrapping.Wrap };
-            Grid.SetRow(k, i); Grid.SetRow(v, i); Grid.SetColumn(v, 1);
-            g.Children.Add(k); g.Children.Add(v);
+            PlanTone.Positive => "B.Listening",
+            PlanTone.Warning => "B.Thinking",
+            PlanTone.Problem => "B.Error",
+            PlanTone.Accent => "B.Accent",
+            _ => "B.TextDim",
+        };
+        var c = ((SolidColorBrush)FindResource(key)).Color;
+        PlanBadge.Background = new SolidColorBrush(Color.FromArgb(0x24, c.R, c.G, c.B));
+        PlanBadge.BorderBrush = new SolidColorBrush(Color.FromArgb(0x66, c.R, c.G, c.B));
+        PlanBadgeText.Foreground = (Brush)FindResource("B.Text");
+        PlanBadgeText.Text = T(PlanView.BadgeKey(billingState));
+        System.Windows.Automation.AutomationProperties.SetName(PlanBadge, PlanBadgeText.Text);
+        PlanBadge.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>One metric card of "Plan and usage" (bound in XAML): the bar is two star columns, so it scales with the card.</summary>
+    public sealed record MetricRow(string Label, string Value, string Detail, Visibility DetailVisibility, Visibility BarVisibility,
+        GridLength Filled, GridLength Rest, string BarName, Brush BarBrush)
+    {
+        public static MetricRow From(UsageMetric m)
+        {
+            var p = m.Progress ?? 0;
+            var brush = (Brush)Application.Current.Resources[p >= 0.9 ? "B.Thinking" : "B.Accent"];
+            return new MetricRow(m.Label, m.Value, m.Detail, m.Detail.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
+                m.Progress != null ? Visibility.Visible : Visibility.Collapsed,
+                new GridLength(p, GridUnitType.Star), new GridLength(1 - p, GridUnitType.Star), $"{m.Label}: {m.Value}", brush);
         }
+    }
+
+    /// <summary>One registered device (bound in XAML): name, "This PC" tag, version and last seen, its own Remove action.</summary>
+    public sealed record DeviceRow(DeviceDto Device, string Name, string Meta, Visibility ThisPcVisibility, string RemoveName, bool CanRemove);
+
+    /// <summary>Two columns (Plan and Devices | Security, Privacy, Danger zone) on wide content, one column below the breakpoint.</summary>
+    private void AccountDashboard_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (!e.WidthChanged) return;
+        var two = AccountLayout.DashboardColumns(e.NewSize.Width) == 2;
+        AccountColGap.Width = two ? (GridLength)FindResource("S.PaneGap") : new GridLength(0);
+        AccountColSide.Width = two ? new GridLength(2, GridUnitType.Star) : new GridLength(0);
+        Grid.SetRow(AccountSideColumn, two ? 0 : 1);
+        Grid.SetColumn(AccountSideColumn, two ? 2 : 0);
+        Grid.SetColumnSpan(AccountSideColumn, two ? 1 : 3);
     }
 
     private string LegalSentence()
@@ -374,13 +403,7 @@ public partial class HomeWindow
             var devices = await api.DevicesAsync(CancellationToken.None);
             if (_vm.Cloud.Auth?.Session?.UserId != requestedFor) return;   // the account changed while loading
             if (!_sections.Devices.Succeed(ticket, DateTimeOffset.Now)) return;
-            var selected = (DeviceList.SelectedItem as Item<DeviceDto>)?.Value.Id;
-            var items = devices.Where(d => !d.Revoked)
-                .Select(d => new Item<DeviceDto>(F("device_row", d.Name, d.ClientVersion, d.LastSeenUtc.ToLocalTime().ToString("g", Loc.Culture))
-                    + (d.Id == _vm.Settings.CloudDeviceId ? " · " + T("device_this_pc") : ""), d)).ToList();
-            DeviceList.ItemsSource = items;
-            DeviceList.SelectedItem = items.FirstOrDefault(i => i.Value.Id == selected);
-            RemoveDeviceBtn.IsEnabled = DeviceList.SelectedItem != null;
+            ShowDevices(devices.Where(d => !d.Revoked).ToList());
         }
         catch (Exception ex) when (ex is BackendException or System.Net.Http.HttpRequestException or TaskCanceledException)
         {
@@ -389,6 +412,20 @@ public partial class HomeWindow
             if (_vm.Cloud.Auth?.Session?.UserId == requestedFor) _sections.Devices.Fail(ticket, CloudService.Describe(ex, includeReference: false));
         }
         finally { RenderSections(); }
+    }
+
+    private List<DeviceDto> _devices = new();
+    private bool _deviceBusy;
+
+    /// <summary>Rich device rows: this PC first, then the most recently seen.</summary>
+    private void ShowDevices(List<DeviceDto> devices)
+    {
+        _devices = devices;
+        bool IsThisPc(DeviceDto d) => d.IsCurrent || d.Id == _vm.Settings.CloudDeviceId;
+        DeviceList.ItemsSource = devices.OrderByDescending(IsThisPc).ThenByDescending(d => d.LastSeenUtc)
+            .Select(d => new DeviceRow(d, d.Name, F("acct_device_meta", d.ClientVersion, d.LastSeenUtc.ToLocalTime().ToString("g", Loc.Culture)),
+                IsThisPc(d) ? Visibility.Visible : Visibility.Collapsed, F("acct_device_remove_name", d.Name), !_deviceBusy)).ToList();
+        DevicesEmpty.Visibility = devices.Count == 0 && _sections.Devices.HasData ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private async void SummaryRetry_Click(object sender, RoutedEventArgs e) { await LoadSummaryAsync(); ApplyAccountLimits(); }
@@ -436,21 +473,20 @@ public partial class HomeWindow
         else if (!_vm.Cloud.IsSignedIn && _vm.Cloud.Message is { Length: > 0 } m) Notify(m, ToastKind.Warning);
     }
 
-    private void DeviceList_SelectionChanged(object sender, SelectionChangedEventArgs e) => RemoveDeviceBtn.IsEnabled = DeviceList.SelectedItem != null;
-
-    private async void RevokeDevice_Click(object sender, RoutedEventArgs e)
+    /// <summary>Remove on a device row: confirmed (destructive, Cancel is the default) before the device is revoked.</summary>
+    private async void RemoveDevice_Click(object sender, RoutedEventArgs e)
     {
-        if ((DeviceList.SelectedItem as Item<DeviceDto>)?.Value is not { } d || _vm.Cloud.Api == null) return;
+        if ((sender as FrameworkElement)?.Tag is not DeviceRow { Device: var d } || _vm.Cloud.Api == null || _deviceBusy) return;
         if (!await AppDialog.ConfirmAsync(this, F("confirm_remove_device", d.Name), T("dlg_remove"), destructive: true) || _vm.Cloud.Api == null) return;
-        RemoveDeviceBtn.IsEnabled = false;
+        _deviceBusy = true; ShowDevices(_devices);
         try { await _vm.Cloud.Api.RevokeDeviceAsync(d.Id, CancellationToken.None); Notify(T("toast_device_removed"), ToastKind.Success); }
-        catch (BackendException ex)
+        catch (Exception ex) when (ex is BackendException or System.Net.Http.HttpRequestException or TaskCanceledException)
         {
-            AppLog.Warn($"Device removal failed: {ex.Code} (ref {ex.CorrelationId})");
+            AppLog.Warn($"Device removal failed: {(ex as BackendException)?.Code ?? ex.GetType().Name} (ref {(ex as BackendException)?.CorrelationId})");
             DevicesMessage.Show(T("acct_device_remove_failed"), MessageKind.Error, CloudService.Describe(ex, includeReference: false));
-            RemoveDeviceBtn.IsEnabled = DeviceList.SelectedItem != null;
             return;
         }
+        finally { _deviceBusy = false; ShowDevices(_devices); }
         await LoadDevicesAsync();
     }
 
@@ -474,7 +510,7 @@ public partial class HomeWindow
     {
         if (_vm.Cloud.Api == null) return;
         if (!await AppDialog.ConfirmAsync(this, T("confirm_delete_account"), T("dlg_delete_account"), destructive: true)) return;
-        if (!await ReauthenticateAsync("reauth_reason_delete", PrivacyMessage) || _vm.Cloud.Api == null) return;
+        if (!await ReauthenticateAsync("reauth_reason_delete", DangerMessage) || _vm.Cloud.Api == null) return;
         try
         {
             if (_vm.SessionActive) await _vm.StopAsync();
@@ -496,7 +532,7 @@ public partial class HomeWindow
                 Notify(T("toast_local_data_deleted"), ToastKind.Info);
             }
         }
-        catch (BackendException ex) { AppLog.Warn($"Account deletion failed: {ex.Code} (ref {ex.CorrelationId})"); PrivacyMessage.Show(CloudService.Describe(ex, includeReference: false), MessageKind.Error); }
+        catch (BackendException ex) { AppLog.Warn($"Account deletion failed: {ex.Code} (ref {ex.CorrelationId})"); DangerMessage.Show(CloudService.Describe(ex, includeReference: false), MessageKind.Error); }
         RefreshAll();
     }
 

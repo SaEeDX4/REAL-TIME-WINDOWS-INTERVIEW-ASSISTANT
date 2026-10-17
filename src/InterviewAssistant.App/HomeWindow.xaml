@@ -52,6 +52,13 @@
             <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
             <Setter Property="ItemContainerStyle" Value="{StaticResource ListItem.Row}"/>
         </Style>
+        <!-- Account dashboard: card heading and the gap between stacked cards -->
+        <Style x:Key="CardTitle" TargetType="TextBlock" BasedOn="{StaticResource T.Label}">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,2,0,10"/>
+            <Setter Property="AutomationProperties.HeadingLevel" Value="Level2"/>
+        </Style>
+        <Thickness x:Key="S.CardGap">0,0,0,16</Thickness>
         <!-- a page that fills the visible height of the content area (minus the page's bottom margin) -->
         <v:Offset x:Key="FillViewport" By="-8"/>
     </Window.Resources>
@@ -450,8 +457,8 @@
                     </StackPanel>
 
                     <!-- ===== Account ===== -->
-                    <StackPanel x:Name="PageAccount" Visibility="Collapsed" MaxWidth="{StaticResource S.PageMaxWidth}" HorizontalAlignment="Left">
-                        <TextBlock Style="{StaticResource H1}" Text="{v:Loc account}"/>
+                    <StackPanel x:Name="PageAccount" Visibility="Collapsed" MaxWidth="{StaticResource S.ContentMaxWidth}">
+                        <TextBlock x:Name="AccountTitle" Style="{StaticResource H1}" Text="{v:Loc account}"/>
                         <!-- account-wide state only (signed in as …, connecting, update required); request failures are shown in their own section -->
                         <TextBlock x:Name="AccountStatus" Style="{StaticResource Hint}" Foreground="{StaticResource B.TextDim}" FontSize="13" AutomationProperties.LiveSetting="Polite"/>
 
@@ -483,61 +490,151 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- signed in: independently loaded sections, each with its own inline status -->
-                        <StackPanel x:Name="SignedInPanel" Margin="0,12,0,0">
-                            <Border Style="{StaticResource Card}">
-                                <StackPanel>
-                                    <DockPanel>
-                                        <Button x:Name="RefreshAccountBtn" DockPanel.Dock="Right" Style="{StaticResource Btn.Ghost}" Click="RefreshAccount_Click" ToolTip="{v:Loc tt_refresh_account}"
-                                                AutomationProperties.Name="{v:Loc refresh}" VerticalAlignment="Top" Margin="8,0,0,0">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Style="{StaticResource T.Icon}" Text="&#xE72C;" FontSize="12" Margin="0,0,6,0"/>
-                                                <TextBlock Text="{v:Loc refresh}"/>
-                                            </StackPanel>
-                                        </Button>
-                                        <TextBlock x:Name="PlanText" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                                    </DockPanel>
-                                    <Grid x:Name="UsageGrid" Margin="0,8,0,0">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                    </Grid>
-                                    <v:InlineMessage x:Name="SummaryMessage" ActionClick="SummaryRetry_Click"/>
-                                    <TextBlock x:Name="BillingNotice" Style="{StaticResource Hint}" Foreground="{StaticResource B.Thinking}" FontSize="12.5"/>
-                                    <WrapPanel Margin="0,12,0,0">
-                                        <Button x:Name="UpgradeBtn" Style="{StaticResource Btn.FormPrimary}" Click="Upgrade_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_upgrade}"/>
-                                        <Button x:Name="ManageBillingBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc manage_billing}" Click="Portal_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_manage_billing}"/>
-                                    </WrapPanel>
-                                    <v:InlineMessage x:Name="BillingMessage" ActionClick="BillingRetry_Click"/>
-                                    <TextBlock x:Name="UpgradeStatus" Style="{StaticResource Hint}"/>
-                                    <TextBlock x:Name="BillingTerms" Style="{StaticResource Hint}"/>
-                                </StackPanel>
-                            </Border>
-                            <TextBlock Text="{v:Loc devices}" Style="{StaticResource Section}"/>
-                            <ListBox x:Name="DeviceList" Style="{StaticResource List}" MinHeight="60" MaxHeight="180" AutomationProperties.Name="{v:Loc devices}" SelectionChanged="DeviceList_SelectionChanged"/>
-                            <v:InlineMessage x:Name="DevicesMessage" ActionClick="DevicesRetry_Click"/>
-                            <Button x:Name="RemoveDeviceBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc remove_device}" Click="RevokeDevice_Click" HorizontalAlignment="Left" Margin="0,8,0,0" IsEnabled="False"/>
-                            <TextBlock Text="{v:Loc security}" Style="{StaticResource Section}"/>
-                            <WrapPanel>
-                                <Button Style="{StaticResource Btn.Form}" Content="{v:Loc change_password}" Click="ChangePassword_Click" Margin="{StaticResource S.ButtonGap}"/>
-                                <Button Style="{StaticResource Btn.Form}" Content="{v:Loc sign_in_another}" Click="SwitchAccount_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_sign_in_another}"/>
-                                <Button Style="{StaticResource Btn.Form}" Content="{v:Loc sign_out}" Click="SignOut_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_sign_out}"/>
-                            </WrapPanel>
-                            <v:InlineMessage x:Name="SecurityMessage"/>
-                            <TextBlock Text="{v:Loc privacy}" Style="{StaticResource Section}"/>
-                            <WrapPanel>
-                                <Button Style="{StaticResource Btn.Form}" Content="{v:Loc export_my_data}" Click="ExportAccount_Click" Margin="{StaticResource S.ButtonGap}"/>
-                                <Button Style="{StaticResource Btn.Form}" Content="{v:Loc delete_account}" Click="DeleteAccount_Click" Margin="{StaticResource S.ButtonGap}"/>
-                            </WrapPanel>
-                            <v:InlineMessage x:Name="PrivacyMessage"/>
-                            <TextBlock Style="{StaticResource Hint}" Text="{v:Loc reauth_hint}"/>
-                        </StackPanel>
+                        <!-- signed in: a responsive dashboard (two columns on wide content, one below ~900 px). Every card loads
+                             and reports independently: a failed request is shown in its own card, next to the data it concerns. -->
+                        <Grid x:Name="SignedInPanel" Margin="0,12,0,0" SizeChanged="AccountDashboard_SizeChanged">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition x:Name="AccountColMain" Width="3*"/>
+                                <ColumnDefinition x:Name="AccountColGap" Width="{StaticResource S.PaneGap}"/>
+                                <ColumnDefinition x:Name="AccountColSide" Width="2*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+
+                            <StackPanel x:Name="AccountMainColumn">
+                                <!-- Plan & usage -->
+                                <Border Style="{StaticResource Card}" Margin="{StaticResource S.CardGap}">
+                                    <StackPanel>
+                                        <DockPanel>
+                                            <Button x:Name="RefreshAccountBtn" DockPanel.Dock="Right" Style="{StaticResource Btn.Ghost}" Click="RefreshAccount_Click" ToolTip="{v:Loc tt_refresh_account}"
+                                                    AutomationProperties.Name="{v:Loc refresh}" VerticalAlignment="Top" Margin="8,-4,-6,0">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Style="{StaticResource T.Icon}" Text="&#xE72C;" FontSize="12" Margin="0,0,6,0"/>
+                                                    <TextBlock Text="{v:Loc refresh}"/>
+                                                </StackPanel>
+                                            </Button>
+                                            <TextBlock Text="{v:Loc acct_card_plan}" Style="{StaticResource CardTitle}"/>
+                                        </DockPanel>
+                                        <WrapPanel>
+                                            <TextBlock x:Name="PlanText" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource B.Text}"
+                                                       TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                            <Border x:Name="PlanBadge" CornerRadius="10" Padding="9,2" BorderThickness="1" VerticalAlignment="Center" Visibility="Collapsed">
+                                                <TextBlock x:Name="PlanBadgeText" FontSize="11.5" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </WrapPanel>
+                                        <TextBlock x:Name="PlanSubText" Style="{StaticResource Hint}"/>
+                                        <v:InlineMessage x:Name="SummaryMessage" ActionClick="SummaryRetry_Click"/>
+                                        <!-- metric cards: two per row, each with an optional usage bar -->
+                                        <ItemsControl x:Name="UsageMetrics" Margin="0,12,-8,0" Focusable="False" AutomationProperties.Name="{v:Loc acct_card_plan}">
+                                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{StaticResource B.Surface2}" CornerRadius="{StaticResource R.Control}" Padding="12,10" Margin="0,0,8,8">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Label}" Style="{StaticResource T.Label}" Margin="0,0,0,4" TextWrapping="Wrap"/>
+                                                            <TextBlock Text="{Binding Value}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
+                                                            <TextBlock Text="{Binding Detail}" Style="{StaticResource Hint}" Visibility="{Binding DetailVisibility}"/>
+                                                            <Border Visibility="{Binding BarVisibility}" Height="6" Margin="0,8,0,0" CornerRadius="3" Background="{StaticResource B.Surface3}"
+                                                                    AutomationProperties.Name="{Binding BarName}">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="{Binding Filled}"/><ColumnDefinition Width="{Binding Rest}"/></Grid.ColumnDefinitions>
+                                                                    <Border CornerRadius="3" Background="{Binding BarBrush}"/>
+                                                                </Grid>
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock x:Name="BillingNotice" Style="{StaticResource Hint}" Foreground="{StaticResource B.Thinking}" FontSize="12.5"/>
+                                        <WrapPanel Margin="0,12,0,0">
+                                            <Button x:Name="UpgradeBtn" Style="{StaticResource Btn.FormPrimary}" Click="Upgrade_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_upgrade}"/>
+                                            <Button x:Name="ManageBillingBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc manage_billing}" Click="Portal_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_manage_billing}"/>
+                                        </WrapPanel>
+                                        <v:InlineMessage x:Name="BillingMessage" ActionClick="BillingRetry_Click"/>
+                                        <TextBlock x:Name="UpgradeStatus" Style="{StaticResource Hint}" AutomationProperties.LiveSetting="Polite"/>
+                                        <TextBlock x:Name="BillingTerms" Style="{StaticResource Hint}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Devices: one row per device with its own Remove action -->
+                                <Border Style="{StaticResource Card}" Margin="{StaticResource S.CardGap}">
+                                    <StackPanel>
+                                        <TextBlock Text="{v:Loc devices}" Style="{StaticResource CardTitle}"/>
+                                        <v:InlineMessage x:Name="DevicesMessage" ActionClick="DevicesRetry_Click" Margin="0,0,0,8"/>
+                                        <ItemsControl x:Name="DeviceList" Focusable="False" AutomationProperties.Name="{v:Loc devices}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border BorderBrush="{StaticResource B.Border}" BorderThickness="0,1,0,0" Padding="0,10">
+                                                        <DockPanel>
+                                                            <Button DockPanel.Dock="Right" Style="{StaticResource Btn.Form}" Content="{v:Loc dlg_remove}" Click="RemoveDevice_Click" Tag="{Binding}"
+                                                                    AutomationProperties.Name="{Binding RemoveName}" ToolTip="{v:Loc tt_remove_device}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                                                    IsEnabled="{Binding CanRemove}"/>
+                                                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource T.Icon}" Text="&#xE7F8;" FontSize="18" Foreground="{StaticResource B.TextDim}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                                                            <StackPanel VerticalAlignment="Center">
+                                                                <WrapPanel>
+                                                                    <TextBlock Text="{Binding Name}" FontSize="13.5" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
+                                                                    <Border Visibility="{Binding ThisPcVisibility}" CornerRadius="9" Padding="7,1" Background="{StaticResource B.AccentSoft}" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{v:Loc acct_device_this_pc_tag}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource B.Text}"/>
+                                                                    </Border>
+                                                                </WrapPanel>
+                                                                <TextBlock Text="{Binding Meta}" Style="{StaticResource Hint}" Margin="0,2,0,0"/>
+                                                            </StackPanel>
+                                                        </DockPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock x:Name="DevicesEmpty" Style="{StaticResource Hint}" Text="{v:Loc acct_devices_empty}" Visibility="Collapsed"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel x:Name="AccountSideColumn" Grid.Column="2">
+                                <!-- Security -->
+                                <Border Style="{StaticResource Card}" Margin="{StaticResource S.CardGap}">
+                                    <StackPanel>
+                                        <TextBlock Text="{v:Loc security}" Style="{StaticResource CardTitle}"/>
+                                        <TextBlock x:Name="SecurityEmail" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}" FlowDirection="LeftToRight" HorizontalAlignment="Left"
+                                                   TextTrimming="CharacterEllipsis" Margin="0,0,0,10"/>
+                                        <WrapPanel>
+                                            <Button x:Name="ChangePasswordBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc change_password}" Click="ChangePassword_Click" Margin="{StaticResource S.ButtonGap}"/>
+                                            <Button x:Name="SwitchAccountBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc switch_account}" Click="SwitchAccount_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_sign_in_another}"/>
+                                        </WrapPanel>
+                                        <v:InlineMessage x:Name="SecurityMessage"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Privacy & data -->
+                                <Border Style="{StaticResource Card}" Margin="{StaticResource S.CardGap}">
+                                    <StackPanel>
+                                        <TextBlock Text="{v:Loc acct_card_privacy}" Style="{StaticResource CardTitle}"/>
+                                        <WrapPanel>
+                                            <Button x:Name="ExportAccountBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc export_my_data}" Click="ExportAccount_Click" Margin="{StaticResource S.ButtonGap}"/>
+                                        </WrapPanel>
+                                        <v:InlineMessage x:Name="PrivacyMessage"/>
+                                        <TextBlock Style="{StaticResource Hint}" Text="{v:Loc reauth_hint}"/>
+                                        <TextBlock x:Name="LegalHeader" Text="{v:Loc legal_support}" Style="{StaticResource T.Label}" Margin="0,16,0,4"/>
+                                        <WrapPanel x:Name="LegalLinks" Margin="-6,0,0,0"/>
+                                        <TextBlock x:Name="SupportEmailText" Style="{StaticResource Hint}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Danger zone: set apart, red outline -->
+                                <Border x:Name="DangerZone" Style="{StaticResource Card}" BorderBrush="{StaticResource B.Error}" Margin="{StaticResource S.CardGap}">
+                                    <StackPanel>
+                                        <TextBlock Text="{v:Loc acct_card_danger}" Style="{StaticResource CardTitle}" Foreground="{StaticResource B.Error}"/>
+                                        <TextBlock Style="{StaticResource T.Body}" Text="{v:Loc acct_danger_hint}"/>
+                                        <Button x:Name="DeleteAccountBtn" Style="{StaticResource Btn.Form}" Foreground="{StaticResource B.Error}" BorderBrush="{StaticResource B.Error}" Content="{v:Loc delete_account}"
+                                                Click="DeleteAccount_Click" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+                                        <v:InlineMessage x:Name="DangerMessage"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
 
                         <StackPanel x:Name="NotConfiguredPanel" Margin="0,12,0,0">
                             <TextBlock Style="{StaticResource Hint}" FontSize="13" Text="{v:Loc not_configured_install}"/>
                         </StackPanel>
-
-                        <TextBlock x:Name="LegalHeader" Text="{v:Loc legal_support}" Style="{StaticResource Section}"/>
-                        <WrapPanel x:Name="LegalLinks"/>
-                        <TextBlock x:Name="SupportEmailText" Style="{StaticResource Hint}"/>
 
                         <TextBlock Text="{v:Loc updates}" Style="{StaticResource Section}"/>
                         <TextBlock x:Name="BuildChannelText" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}"/>
