@@ -90,5 +90,12 @@ public class AcousticAnalyzerTests
         var perFrameMs = sw.Elapsed.TotalMilliseconds / frames.Count;
         _out.WriteLine($"{perFrameMs:0.000} ms per 100 ms frame");
         Assert.True(perFrameMs < 10, $"{perFrameMs} ms per frame");
+        // rc.5: the engine path also follows pitch runs across frames (PitchRunTracker) — same budget.
+        var runs = new PitchRunTracker();
+        sw.Restart();
+        foreach (var f in frames) AcousticAnalyzer.Analyze(f, runs);
+        var trackedMs = sw.Elapsed.TotalMilliseconds / frames.Count;
+        _out.WriteLine($"{trackedMs:0.000} ms per 100 ms frame with pitch-run tracking");
+        Assert.True(trackedMs < 10, $"{trackedMs} ms per frame with pitch-run tracking");
     }
 }
