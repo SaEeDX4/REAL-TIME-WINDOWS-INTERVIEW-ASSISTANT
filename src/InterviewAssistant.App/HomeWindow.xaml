@@ -197,7 +197,8 @@
                             <Button x:Name="ImportResumeBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc import_resume}" Click="NewProfile_Click" Margin="{StaticResource S.StackGap}" ToolTip="{v:Loc tt_import_resume}"/>
                             <Button x:Name="AddDocumentBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc add_document}" Click="AddResume_Click" Margin="{StaticResource S.StackGap}" ToolTip="{v:Loc tt_add_document}"/>
                             <Button x:Name="NewEmptyProfileBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc new_empty_profile}" Click="NewEmptyProfile_Click" Margin="{StaticResource S.StackGap}" ToolTip="{v:Loc tt_new_empty_profile}"/>
-                            <Button x:Name="ExportProfileBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc export_ellipsis}" Click="ExportProfile_Click" ToolTip="{v:Loc tt_export_profile}"/>
+                            <Button x:Name="ExportProfileBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc export_ellipsis}" Click="ExportProfile_Click" Margin="{StaticResource S.StackGap}" ToolTip="{v:Loc exp_tt_export_profile}"/>
+                            <Button x:Name="ImportBackupBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc exp_import_backup}" Click="ImportProfileBackup_Click" ToolTip="{v:Loc exp_tt_import_backup}"/>
                             <Border Style="{StaticResource Divider}"/>
                             <Button x:Name="DeleteProfileBtn" Style="{StaticResource Btn.FormDanger}" Content="{v:Loc delete_profile}" Click="DeleteProfile_Click" ToolTip="{v:Loc tt_delete_profile}"/>
                             <TextBlock Style="{StaticResource Hint}" Text="{v:Loc profile_local_hint}" Margin="0,12,0,0"/>

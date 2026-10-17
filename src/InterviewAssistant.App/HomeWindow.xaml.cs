@@ -828,22 +828,10 @@ public partial class HomeWindow : Window
         return true;
     }
 
-    private void ExportProfile_Click(object sender, RoutedEventArgs e)
+    // Data export center (HomeWindow.DataExport.cs): readable HTML, .iaprofile backup or raw ZIP.
+    private async void ExportProfile_Click(object sender, RoutedEventArgs e)
     {
-        if (_profile == null || Store == null) return;
-        var dlg = new SaveFileDialog { FileName = "interview-assistant-profile.zip", Filter = T("file_filter_zip") + " (*.zip)|*.zip" };
-        if (dlg.ShowDialog(this) != true) return;
-        try
-        {
-            using (var fs = File.Create(dlg.FileName)) Store.ExportProfile(_profile.Id, fs);
-        }
-        catch (Exception ex) when (IsStorageError(ex))
-        {
-            AppLog.Error("Profile export failed", ex);
-            Notify(T("err_profile_export"), ToastKind.Error);
-            return;
-        }
-        Notify(T("toast_profile_exported"), ToastKind.Success);
+        await ExportProfileAsync();
     }
 
     private async void DeleteProfile_Click(object sender, RoutedEventArgs e)
@@ -1683,20 +1671,10 @@ public partial class HomeWindow : Window
         await LoadDevicesAsync();
     }
 
+    // Data export center (HomeWindow.DataExport.cs): readable HTML report or raw JSON, secrets filtered.
     private async void ExportAccount_Click(object sender, RoutedEventArgs e)
     {
-        if (_vm.Cloud.Api == null) return;
-        if (!await ReauthenticateAsync("reauth_reason_export", PrivacyMessage)) return;
-        var dlg = new SaveFileDialog { FileName = "interview-assistant-account-export.json", Filter = T("file_filter_json") + " (*.json)|*.json" };
-        if (dlg.ShowDialog(this) != true || _vm.Cloud.Api == null) return;
-        try
-        {
-            var json = await _vm.Cloud.Api.ExportAsync(CancellationToken.None);
-            await File.WriteAllTextAsync(dlg.FileName, JsonSerializer.Serialize(json, new JsonSerializerOptions { WriteIndented = true }));
-            PrivacyMessage.Clear();
-            Notify(T("toast_account_exported"), ToastKind.Success);
-        }
-        catch (BackendException ex) { AppLog.Warn($"Export failed: {ex.Code} (ref {ex.CorrelationId})"); PrivacyMessage.Show(CloudService.Describe(ex, includeReference: false), MessageKind.Error); }
+        await ExportAccountDataAsync();
     }
 
     private async void DeleteAccount_Click(object sender, RoutedEventArgs e)

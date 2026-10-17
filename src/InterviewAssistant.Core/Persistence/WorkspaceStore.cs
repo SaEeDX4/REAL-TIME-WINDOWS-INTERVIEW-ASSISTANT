@@ -164,18 +164,24 @@ public sealed class WorkspaceStore
         lock (_lock) if (File.Exists(p)) File.Delete(p);
     }
 
-    /// <summary>Exports a profile with its targets, packs and sessions as a plain (unencrypted) ZIP of JSON files.</summary>
+    /// <summary>
+    /// "Raw data (ZIP, advanced)": the profile with everything it owns — the same set <see cref="DeleteProfile"/> removes
+    /// (interviews, prepared packs, sessions/reports) — as a plain (unencrypted) ZIP of JSON files, for other tools and
+    /// data-portability requests. Passed through <see cref="SecretFilter"/>. Not importable: the restorable backup with
+    /// a manifest and hashes is <see cref="ProfileBundle"/> (.iaprofile).
+    /// </summary>
     public void ExportProfile(string profileId, Stream output)
     {
         var profile = GetProfile(profileId) ?? throw new KeyNotFoundException("profile");
-        var pretty = new JsonSerializerOptions { WriteIndented = true };
         using var zip = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true);
-        void Add(string name, object v)
+        void Text(string name, string text)
         {
             using var w = new StreamWriter(zip.CreateEntry(name).Open());
-            w.Write(JsonSerializer.Serialize(v, pretty));
+            w.Write(text);
         }
-        Add("README.txt", "Export format v1: profile.json, targets/*.json, packs/*.json, sessions/*.json. Source document text is included in profile/target JSON.");
+        void Add<T>(string name, T v) => Text(name, SecretFilter.ToJson(v));
+        Text("README.txt", "Export format v1 (raw data): profile.json, targets/*.json, packs/*.json, sessions/*.json. Source document text is included in profile/target JSON. "
+            + "Passwords, tokens and keys are never included. To restore or move a profile to another PC, use the .iaprofile backup instead.");
         Add("profile.json", profile);
         foreach (var t in Targets(profileId))
         {
