@@ -42,8 +42,20 @@ if ($Version -match '-rc\.(\d+)$' -and [int]$Matches[1] -ge 2) {
             elseif ($n -ge 3 -and -not ((Get-Content "docs/release/RC2_$d.md" -Raw).Contains("rc.$n"))) { $failures += "docs/release/RC2_$d.md was not updated for rc.$n" }
         }
         if ($n -ge 3) { $r = Test-Doc "docs/release/RC${n}_LAUNCH_BLOCKERS.md" 800; if ($r) { $failures += $r } }
+    } elseif ($n -ge 5) {
+        # rc.5 and later: the commercial-hardening audit set (readiness, design system, account/auth, export data,
+        # security & privacy are candidate documents of their own) ...
+        foreach ($d in "ROOT_CAUSES", "ENGINE_AUDIT", "READINESS_UX_AUDIT", "UI_UX_AUDIT", "DESIGN_SYSTEM_AUDIT", "ACCOUNT_AUTH_AUDIT",
+                       "EXPORT_DATA_AUDIT", "LOCALIZATION_AUDIT", "ACCESSIBILITY_AUDIT", "PERFORMANCE_AUDIT", "SECURITY_PRIVACY_AUDIT",
+                       "ERROR_STATE_AUDIT", "MANUAL_REGRESSION", "COMMERCIALIZATION_READINESS") {
+            $r = Test-Doc "docs/release/RC${n}_$d.md" 800; if ($r) { $failures += $r }
+            elseif (-not ((Get-Content "docs/release/RC${n}_$d.md" -Raw).Contains("rc.$n"))) { $failures += "docs/release/RC${n}_$d.md does not name rc.$n" }
+        }
+        # ... and the standing dependency/licence audit, re-reviewed for this candidate.
+        $r = Test-Doc "docs/release/RC2_DEPENDENCY_LICENSE_AUDIT.md" 800; if ($r) { $failures += $r }
+        elseif (-not ((Get-Content "docs/release/RC2_DEPENDENCY_LICENSE_AUDIT.md" -Raw).Contains("rc.$n"))) { $failures += "docs/release/RC2_DEPENDENCY_LICENSE_AUDIT.md was not re-reviewed for rc.$n" }
     } else {
-        # rc.4 and later: the candidate's own audit set ...
+        # rc.4: the candidate's own audit set ...
         foreach ($d in "ROOT_CAUSES", "ENGINE_AUDIT", "UI_UX_AUDIT", "LOCALIZATION_AUDIT", "DATA_INTEGRITY_AUDIT", "ERROR_STATE_AUDIT",
                        "ACCESSIBILITY_AUDIT", "PERFORMANCE_AUDIT", "MANUAL_REGRESSION", "COMMERCIALIZATION_READINESS") {
             $r = Test-Doc "docs/release/RC${n}_$d.md" 800; if ($r) { $failures += $r }
