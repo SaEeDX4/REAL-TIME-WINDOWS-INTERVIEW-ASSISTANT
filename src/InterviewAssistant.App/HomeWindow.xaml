@@ -99,6 +99,7 @@
                 <Button x:Name="NavStart" Style="{StaticResource Nav}" Click="Nav_Click" Tag="start" Content="{v:Loc nav_start}"/>
                 <Button x:Name="NavProfiles" Style="{StaticResource Nav}" Click="Nav_Click" Tag="profiles" Content="{v:Loc profiles}"/>
                 <Button x:Name="NavInterviews" Style="{StaticResource Nav}" Click="Nav_Click" Tag="interviews" Content="{v:Loc interviews}"/>
+                <Button x:Name="NavPreInterview" Style="{StaticResource Nav}" Click="Nav_Click" Tag="preinterview" Content="{v:Loc preflight}"/>
                 <Button x:Name="NavReports" Style="{StaticResource Nav}" Click="Nav_Click" Tag="reports" Content="{v:Loc reports}"/>
                 <Button x:Name="NavAccount" Style="{StaticResource Nav}" Click="Nav_Click" Tag="account" Content="{v:Loc account}"/>
                 <Button x:Name="NavSettings" Style="{StaticResource Nav}" Click="Nav_Click" Tag="settings" Content="{v:Loc settings}"/>
@@ -111,7 +112,8 @@
             </StackPanel>
 
             <!-- content -->
-            <DockPanel Grid.Row="1" Grid.Column="1" Margin="8,8,8,12">
+            <!-- Local tab scope: the page content comes before its sticky action bar (Tab order follows reading order) -->
+            <DockPanel Grid.Row="1" Grid.Column="1" Margin="8,8,8,12" KeyboardNavigation.TabNavigation="Local">
             <!-- Settings: sticky save bar (explicit Save; shows when there are unsaved changes) -->
             <Border x:Name="SettingsFooter" DockPanel.Dock="Bottom" Visibility="Collapsed" Margin="8,8,16,0" Padding="14,8" CornerRadius="{StaticResource R.Card}"
                     Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1">
@@ -126,7 +128,23 @@
                     </StackPanel>
                 </DockPanel>
             </Border>
-            <ScrollViewer x:Name="ContentScroll" VerticalScrollBarVisibility="Auto">
+            <!-- Pre-interview check: sticky action bar (one primary: Start interview, enabled when nothing blocks) -->
+            <Border x:Name="PreInterviewFooter" DockPanel.Dock="Bottom" Visibility="Collapsed" Margin="8,8,16,0" Padding="14,8" CornerRadius="{StaticResource R.Card}"
+                    Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="PfSettingsBtn" Style="{StaticResource Btn.Ghost}" Content="{v:Loc rd_open_settings}" Click="PfSettings_Click" Margin="0,0,8,0" MinHeight="{StaticResource S.ButtonHeight}"/>
+                        <Button x:Name="PfRunBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc pf_run_all}" Click="PfRun_Click" Margin="0,0,8,0"/>
+                        <Button x:Name="PfStartBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc pf_start_interview}" Click="PfStart_Click" ToolTip="{v:Loc tt_pf_start}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
+                        <Ellipse x:Name="PfFooterDot" Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="PfFooterText" Style="{StaticResource T.Body}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                   AutomationProperties.LiveSetting="Polite"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+            <ScrollViewer x:Name="ContentScroll" VerticalScrollBarVisibility="Auto" KeyboardNavigation.TabIndex="0">
                 <!-- pages fill the width up to the content maximum, starting at the reading-order start (left in LTR, right in RTL) -->
                 <Grid Margin="{StaticResource S.PageMargin}">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="{StaticResource S.ContentMaxWidth}"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -557,6 +575,9 @@
 
                     <!-- ===== Settings ===== -->
                     <v:SettingsPage x:Name="PageSettings" Visibility="Collapsed"/>
+
+                    <!-- ===== Pre-interview check (renders the one readiness snapshot) ===== -->
+                    <v:PreInterviewPage x:Name="PagePreInterview" Visibility="Collapsed"/>
                 </Grid>
             </ScrollViewer>
             </DockPanel>

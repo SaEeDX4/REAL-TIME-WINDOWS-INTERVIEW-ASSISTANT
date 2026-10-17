@@ -137,6 +137,7 @@ public partial class HomeWindow : Window
         PageSettings.Initialize(vm, main);
         PageSettings.Guard.Save = () => { if (PageSettings.Save()) return true; ShowPage("settings"); PageSettings.ShowSection("hotkeys"); return false; };
         PageSettings.Saved += () => Notify(T("toast_settings_saved"), ToastKind.Success);
+        InitializeReadiness();
         foreach (var box in new Control[] { EmailBox, PasswordBox, ConfirmBox, TargetTitle }) Field.ClearOnEdit(box);
 
         _vm.Updates.Changed += OnUpdatesChanged;
@@ -149,6 +150,7 @@ public partial class HomeWindow : Window
             _vm.Cloud.Changed -= OnCloudChanged; _vm.Updates.Changed -= OnUpdatesChanged; _vm.WorkspaceChanged -= OnWorkspaceChanged;
             _vm.ReportSaved -= OnReportSaved; Loc.LanguageChanged -= OnLanguageChanged; _prepCts?.Cancel();
             PageSettings.Guard.Discard?.Invoke();   // an unsaved audio-device preview never outlives the page
+            DetachReadiness();   // probes and listeners of the pre-interview check stop with the window
         };
         WindowPlacement.HookMaximizeToWorkArea(this);
         WindowPlacement.Restore(this, _vm.Settings.HomeLeft, _vm.Settings.HomeTop, _vm.Settings.HomeWidth, _vm.Settings.HomeHeight, _vm.Settings.HomeMaximized);
@@ -217,6 +219,7 @@ public partial class HomeWindow : Window
             SetCreateMode(_createMode);
             foreach (var m in new[] { AuthMessage, SecurityMessage, PrivacyMessage, TargetMessage }) { m.Text = Loc.Relocalize(m.Text) ?? m.Text; m.Detail = Loc.Relocalize(m.Detail) ?? m.Detail; }
             PageSettings.Relocalize();
+            RelocalizeReadiness();
             UpdateDirtyIndicators();
         }
         ContentScroll.ScrollToVerticalOffset(scroll);
@@ -329,6 +332,7 @@ public partial class HomeWindow : Window
         var signedOutGate = SignedOutGate;
         tag = new HomeRoute(tag).Gate(signedOutGate).Page;
         var entering = tag != _page;
+        var leftPreInterview = entering && _page == "preinterview";
         _page = tag;
         PageStart.Visibility = tag == "start" ? Visibility.Visible : Visibility.Collapsed;
         PageProfiles.Visibility = tag == "profiles" ? Visibility.Visible : Visibility.Collapsed;
@@ -336,6 +340,7 @@ public partial class HomeWindow : Window
         PageReports.Visibility = tag == "reports" ? Visibility.Visible : Visibility.Collapsed;
         PageAccount.Visibility = tag == "account" ? Visibility.Visible : Visibility.Collapsed;
         PageSettings.Visibility = tag == "settings" ? Visibility.Visible : Visibility.Collapsed;
+        PagePreInterview.Visibility = PreInterviewFooter.Visibility = tag == "preinterview" ? Visibility.Visible : Visibility.Collapsed;
         PageHelp.Visibility = tag == "help" ? Visibility.Visible : Visibility.Collapsed;
         SettingsFooter.Visibility = tag == "settings" ? Visibility.Visible : Visibility.Collapsed;
         foreach (var nav in new[] { NavProfiles, NavInterviews, NavReports }) nav.Visibility = signedOutGate ? Visibility.Collapsed : Visibility.Visible;
@@ -343,8 +348,10 @@ public partial class HomeWindow : Window
         if (tag == "help") RefreshAbout();
         if (tag == "reports") RefreshReports(SelectedReportId());
         if (tag == "settings") PageSettings.LoadFromSettings();   // stored values unless edits are pending
+        if (leftPreInterview) PagePreInterview.OnHidden();       // open-ended probes stop when the page is left
+        if (entering && tag == "preinterview") PagePreInterview.OnShown();   // runs the checks when there is no current result
         if (entering) ContentScroll.ScrollToTop();
-        foreach (var nav in new[] { NavStart, NavProfiles, NavInterviews, NavReports, NavAccount, NavSettings, NavHelp })
+        foreach (var nav in new[] { NavStart, NavProfiles, NavInterviews, NavPreInterview, NavReports, NavAccount, NavSettings, NavHelp })
         {
             var active = (string)nav.Tag == tag;
             nav.Background = active ? (Brush)FindResource("B.Surface2") : Brushes.Transparent;
@@ -375,7 +382,7 @@ public partial class HomeWindow : Window
         if (_page != "profiles" && !await _nav.CanProceedAsync(ChangeReason.Navigate, GuardsOfPage(_page))) return;
         ShowPage("profiles"); SetProfileTab("personal");
     }
-    private void Readiness_Click(object sender, RoutedEventArgs e) => _main.OpenReadiness(firstRun: false);
+    private void Readiness_Click(object sender, RoutedEventArgs e) => Navigate("preinterview");
 
     private void SettingsSave_Click(object sender, RoutedEventArgs e) => PageSettings.Save();
     private void SettingsDiscard_Click(object sender, RoutedEventArgs e) => PageSettings.Discard();
@@ -456,6 +463,7 @@ public partial class HomeWindow : Window
         Step4Title.Text = (prepared > 0 ? "✓ " : "4 · ") + T("start_step4");
         Step4Status.Text = prepared == 0 ? T("start_interview_hint") : F("start_interview_status", prepared, _vm.ActiveLabel);
         DoneBtn.IsEnabled = _vm.Settings.AuthorizedUseAcknowledged;
+        PagePreInterview.Refresh();   // the account or the active interview may have changed: readiness follows (all surfaces)
     }
 
     private void Ack_Changed(object sender, RoutedEventArgs e)

@@ -186,16 +186,20 @@ public static class SelfTest
                     ScanTexts(w, english, leftovers);
                     var home = new HomeWindow(vm, w) { Owner = w };
                     home.Show(); await Idle();
-                    foreach (var page in HomePages) { home.ShowPage(page); await Idle(); ScanTexts(home, english, leftovers); }
+                    foreach (var page in HomePages)
+                    {
+                        home.ShowPage(page); await Idle();
+                        if (page == "preinterview") { await home.PreInterviewPageForTest.CheckLocalAsync(); await Idle(); }   // check results on screen too
+                        ScanTexts(home, english, leftovers);
+                    }
                     // an in-app dialog (localized buttons, RTL)
                     var dialog = Views.AppDialog.ConfirmAsync(home, Core.Languages.Loc.T("confirm_delete_report"), Core.Languages.Loc.T("dlg_delete"), destructive: true);
                     await Idle(); ScanTexts(home, english, leftovers);
                     PressKey(home, System.Windows.Input.Key.Escape); await Task.WhenAny(dialog, Task.Delay(2000));
                     var rtlOk = lang != "fa" || home.FlowDirection == FlowDirection.RightToLeft;
-                    home.Close();
-                    var r = new ReadinessWindow(vm, w, autoRun: false) { Owner = w }; r.Show(); await Idle(); r.CheckLocal(); await Idle(); ScanTexts(r, english, leftovers); r.Close();
+                    home.Close(); await Idle();
                     var mainRtl = lang != "fa" || w.FlowDirection == FlowDirection.RightToLeft;
-                    return (leftovers.Count == 0 && rtlOk && mainRtl && dialog.IsCompleted, leftovers.Count == 0 ? $"3 windows, {HomePages.Length} home pages and a dialog scanned; {(lang == "fa" ? "right-to-left" : "left-to-right")}" : "English left: " + string.Join(" | ", leftovers.Take(12)));
+                    return (leftovers.Count == 0 && rtlOk && mainRtl && dialog.IsCompleted, leftovers.Count == 0 ? $"2 windows, {HomePages.Length} home pages (pre-interview check included) and a dialog scanned; {(lang == "fa" ? "right-to-left" : "left-to-right")}" : "English left: " + string.Join(" | ", leftovers.Take(12)));
                 }
                 finally { vm.Settings.UiLanguage = "en"; w.ApplyAppearance(); await Idle(); }
             });
@@ -355,13 +359,24 @@ public static class SelfTest
             var ok = named && equal && movedRight && movedBack && deleteSeparated && states && fourActions && listShare is > 0.2 and < 0.5;
             return (ok, $"segments named {named}, equal {equal}, → {movedRight}, ← {movedBack}; delete destructive {deleteSeparated}; reports {(any ? "two panes" : "empty state")} {states}; actions {fourActions}; list share {listShare:P0}");
         });
-        await Check("Pre-interview window XAML + local checks", async () =>
+        await Check("Pre-interview check: a Home page opened by deep link, local checks written to the readiness store, no separate window", async () =>
         {
-            var r = new ReadinessWindow(vm, w, autoRun: false) { Owner = w };
-            r.Show(); await Idle();
-            r.CheckLocal(); await Idle();
-            var ok = r.IsLoaded; var verdict = r.Verdict; r.Close();
-            return (ok, $"opened, local checks ran ({verdict}), closed");
+            w.OpenReadiness(firstRun: false); await Idle(); await Idle();
+            var home = w.Home;
+            if (home == null) return (false, "Home did not open");
+            var page = home.PreInterviewPageForTest;
+            var onPage = home.CurrentPage == "preinterview" && page.IsVisible;
+            await page.CheckLocalAsync(); await Idle();
+            var snap = vm.Readiness.Snapshot;
+            var local = new[] { UiState.ReadinessCheckId.PlaybackDevice, UiState.ReadinessCheckId.InterviewPrepared, UiState.ReadinessCheckId.PreparedAnswers, UiState.ReadinessCheckId.WindowOnTop };
+            var written = snap.Context == vm.ReadinessContext && local.All(id => snap.Get(id) is { } r && r.Outcome != UiState.CheckOutcome.Pending);
+            // the page renders the store: every row shows the store's outcome for its check
+            var rendered = page.RowsForTest.Count == 8 && page.RowsForTest.All(row => row.Status == Core.Languages.Loc.T(UiState.ReadinessPresentation.StatusKey(snap.Get(row.Id)?.Outcome)));
+            var noWindow = !Application.Current.Windows.OfType<Window>().Any(x => x.GetType().Name.Contains("Readiness"));
+            var state = vm.ReadinessState;
+            home.Close(); await Idle();
+            var notStuck = !vm.Readiness.Snapshot.IsRunning;   // closing Home cancels the run: never "checking" forever
+            return (onPage && written && rendered && noWindow && notStuck, $"page {home.CurrentPage}; local checks in store {written}; rows render the store {rendered}; separate window {(noWindow ? "none" : "FOUND")}; state {state}; after close running {!notStuck}");
         });
         await Check("Compact mode toggle", async () => { w.SetCompact(true); await Idle(); w.SetCompact(false); await Idle(); return (true, "on/off"); });
         await Check("Diagnostics panel", async () => { vm.Settings.ShowDiagnostics = true; w.ApplyAppearance(); await Task.Delay(1300); var d = vm.Diagnostics; vm.Settings.ShowDiagnostics = false; w.ApplyAppearance(); return (d.Contains("Questions"), d.Split('\n')[0]); });
@@ -412,7 +427,7 @@ public static class SelfTest
         return passed ? 0 : 1;
     }
 
-    private static readonly string[] HomePages = { "start", "profiles", "interviews", "reports", "account", "settings", "help" };
+    private static readonly string[] HomePages = { "start", "profiles", "interviews", "preinterview", "reports", "account", "settings", "help" };
 
     /// <summary>Sends a key to the focused element of <paramref name="window"/> (tunnelling, like a real key press).</summary>
     private static void PressKey(Window window, System.Windows.Input.Key key)

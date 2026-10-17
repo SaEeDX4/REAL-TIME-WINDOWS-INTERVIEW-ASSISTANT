@@ -274,7 +274,7 @@ public partial class MainWindow : Window
     /// </summary>
     public void OpenSettings(string? section = null) => OpenHome(section == null ? "settings" : "settings/" + section);
 
-    /// <summary>Raised after saved settings were applied (the pre-interview check re-runs its checks).</summary>
+    /// <summary>Raised after saved settings were applied (the pre-interview page re-runs its checks).</summary>
     public event Action? SettingsApplied;
 
     /// <summary>
@@ -299,19 +299,15 @@ public partial class MainWindow : Window
         SettingsApplied?.Invoke();
     }
 
-    private ReadinessWindow? _readiness;
-
-    /// <summary>Non-modal: the main window (manual questions, close button) stays usable while checks run.</summary>
+    /// <summary>
+    /// The pre-interview check is a page in Home (rc.5; no separate window): Home opens — or switches — directly on it.
+    /// Non-modal, so the Live Assistant (manual questions, close button) stays usable while the checks run. Reaching the
+    /// check from onboarding completes the first run once the authorized-use acknowledgement was given.
+    /// </summary>
     public void OpenReadiness(bool firstRun)
     {
-        if (_readiness is { IsLoaded: true }) { _readiness.Activate(); return; }
-        _readiness = new ReadinessWindow(_vm, this) { Owner = this };
-        _readiness.Closed += (_, _) =>
-        {
-            _readiness = null;
-            if (firstRun) { _vm.Settings.FirstRunCompleted = true; _vm.Settings.Save(); }
-        };
-        _readiness.Show();
+        if (firstRun && _vm.Settings.AuthorizedUseAcknowledged && !_vm.Settings.FirstRunCompleted) { _vm.Settings.FirstRunCompleted = true; _vm.Settings.Save(); }
+        OpenHome("preinterview");
     }
 
     public void ShowTransientError(string message) => Toasts.Show(message, Views.ToastKind.Error);
