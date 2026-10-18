@@ -244,6 +244,43 @@ public static class SelfTest
             return (onPage && one && ackUi && steps && stateTexts && noDevButton,
                 $"{primary.Count} primary action(s) '{(primary.Count > 0 ? primary[0].Content : "")}' (expected '{expected}', enabled {(primary.Count > 0 && primary[0].IsEnabled)}, acknowledged {ack}); acknowledgement card {ackUi}; four steps {steps}, status texts {stateTexts}");
         });
+        await Check("Account: signed-out page renders, forgot-password state (e-mail only), header account menu opens/closes, delete dialog: Keep account cancels", async () =>
+        {
+            var home = new HomeWindow(vm, w) { Owner = w };
+            home.Show(); await Idle();
+            home.ShowPage("account"); await Idle();
+            var formShown = !vm.Cloud.IsConfigured || vm.Cloud.IsSignedIn;   // only checkable signed out with a service
+            var forgot = formShown;
+            if (!formShown)
+            {
+                formShown = home.SignedOutPanel.IsVisible && home.AuthCard.IsVisible && home.AuthHeading.Text.Length > 0 && home.AuthSubmitBtn.IsVisible
+                            && home.AccountHeader.Visibility != Visibility.Visible && home.AuthStateForTest.Mode == UiState.AuthMode.SignIn;
+                home.EmailBox.Text = "selftest@example.test";
+                home.ShowForgotPasswordForTest(); await Idle();
+                forgot = home.AuthStateForTest.Mode == UiState.AuthMode.ForgotPassword && home.EmailPanel.IsVisible && !home.PasswordPanel.IsVisible
+                         && !home.ConfirmPanel.IsVisible && home.EmailBox.Text == "selftest@example.test"
+                         && home.AuthSubmitBtn.Content as string == Core.Languages.Loc.T("auth_send_reset_link");
+                home.AuthStateForTest.ToSignIn(); await Idle();
+                forgot &= home.PasswordPanel.IsVisible;
+                home.EmailBox.Text = "";
+            }
+            // header menu: opens (signed out too, through the hook), Escape closes it
+            home.OpenAccountMenu(); await Idle(); await Idle();
+            var opened = home.IsAccountMenuOpen && home.MenuManageAccount.IsVisible && home.MenuSettings.IsVisible && home.MenuSwitchAccount.IsVisible && home.MenuSignOut.IsVisible;
+            if (PresentationSource.FromVisual(home) is { } src)
+                home.MenuManageAccount.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice, src, 0, System.Windows.Input.Key.Escape) { RoutedEvent = System.Windows.Input.Keyboard.PreviewKeyDownEvent });
+            await Idle();
+            var closed = !home.IsAccountMenuOpen;
+            // delete dialog: in-app, "Keep account" is the default and Escape cancels
+            var dialog = Views.DeleteAccountDialog.ConfirmAsync(home, subscriptionBlocks: false);
+            await Idle(); await Idle();
+            var dialogOpen = Views.AppDialog.IsOpen(home);
+            PressKey(home, System.Windows.Input.Key.Escape);
+            var kept = await Task.WhenAny(dialog, Task.Delay(2000)) == dialog && !dialog.Result && !Views.AppDialog.IsOpen(home);
+            home.Close(); await Idle();
+            return (formShown && forgot && opened && closed && dialogOpen && kept,
+                $"sign-in form {formShown}; forgot state e-mail only {forgot}; menu opened {opened}, Escape closed {closed}; delete dialog shown {dialogOpen}, Keep account cancelled {kept}");
+        });
         await Check("Profile → confirm facts → prepare → load (isolated DPAPI workspace)", async () =>
         {
             var root = Path.Combine(AppPaths.Local, "selftest-workspace");

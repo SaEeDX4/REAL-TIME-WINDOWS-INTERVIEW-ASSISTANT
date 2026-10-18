@@ -215,6 +215,8 @@ public partial class HomeWindow
     }
 
     /// <summary>Sign in: the service account (a developer build switches back from its own-key mode first).</summary>
+    private void StepAccountLink_Click(object sender, RoutedEventArgs e) => GoAccount();
+
     private void GoAccount()
     {
         if (_vm.Settings.Mode != "cloud" && !_vm.SessionActive) { _vm.Settings.Mode = "cloud"; _vm.Settings.Save(); _vm.OpenWorkspaceForCurrentAccount(); _vm.BuildEngine(); }

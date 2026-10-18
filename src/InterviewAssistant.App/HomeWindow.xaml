@@ -52,6 +52,20 @@
             <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
             <Setter Property="ItemContainerStyle" Value="{StaticResource ListItem.Row}"/>
         </Style>
+        <!-- one row of the header account menu -->
+        <Style x:Key="MenuItem" TargetType="Button" BasedOn="{StaticResource Btn.Ghost}">
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
+        </Style>
+        <!-- Account dashboard: card heading and the gap between stacked cards -->
+        <Style x:Key="CardTitle" TargetType="TextBlock" BasedOn="{StaticResource T.Label}">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,2,0,10"/>
+            <Setter Property="AutomationProperties.HeadingLevel" Value="Level2"/>
+        </Style>
+        <Thickness x:Key="S.CardGap">0,0,0,16</Thickness>
         <!-- a page that fills the visible height of the content area (minus the page's bottom margin) -->
         <v:Offset x:Key="FillViewport" By="-8"/>
     </Window.Resources>
@@ -75,10 +89,6 @@
             <Grid Grid.ColumnSpan="2" Margin="18,12,10,6" Background="Transparent" MouseLeftButtonDown="Header_MouseDown">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock x:Name="TitleText" Style="{StaticResource H1}" VerticalAlignment="Center"/>
-                    <Button x:Name="AccountBadge" Style="{StaticResource Btn.Ghost}" Margin="12,2,0,0" Padding="8,3" FontSize="12" Click="AccountBadge_Click" MaxWidth="320"
-                            ToolTip="{v:Loc tt_open_account}" AutomationProperties.Name="{v:Loc account}">
-                        <TextBlock x:Name="AccountBadgeText" TextTrimming="CharacterEllipsis"/>
-                    </Button>
                     <!-- readiness indicator: state dot + label (never colour alone); opens the pre-interview check -->
                     <Button x:Name="ReadinessPill" Style="{StaticResource Btn.Chip}" Margin="6,2,0,0" Padding="10,3" Click="ReadinessPill_Click" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
@@ -88,11 +98,15 @@
                     </Button>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button x:Name="HeaderSignOutBtn" Style="{StaticResource Btn.Ghost}" Click="SignOut_Click" Margin="0,0,8,0" Padding="10,4"
-                            ToolTip="{v:Loc tt_sign_out}" AutomationProperties.Name="{v:Loc sign_out}">
+                    <!-- one account button: avatar initial + e-mail; opens the account menu (signed out: "Sign in" → Account) -->
+                    <Button x:Name="AccountMenuBtn" Style="{StaticResource Btn.Ghost}" Click="AccountMenuBtn_Click" Margin="0,0,8,0" Padding="6,3" MaxWidth="300"
+                            ToolTip="{v:Loc tt_account_menu}" AutomationProperties.Name="{v:Loc acct_menu}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource T.Icon}" Text="&#xE748;" FontSize="12" Margin="0,0,6,0"/>
-                            <TextBlock Text="{v:Loc sign_out}" FontSize="12.5"/>
+                            <Border x:Name="AccountAvatar" Width="24" Height="24" CornerRadius="12" Background="{StaticResource B.AccentStrong}" Margin="0,0,8,0" VerticalAlignment="Center">
+                                <TextBlock x:Name="AccountAvatarText" Foreground="White" FontSize="11.5" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock x:Name="AccountMenuText" FontSize="12.5" Foreground="{StaticResource B.Text}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="220"/>
+                            <TextBlock x:Name="AccountMenuChevron" Style="{StaticResource T.Icon}" Text="&#xE70D;" FontSize="10" Margin="8,0,0,0"/>
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource Btn.Ghost}" Click="Minimize_Click" ToolTip="{v:Loc tt_minimize}" AutomationProperties.Name="{v:Loc tt_minimize}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE921;" FontSize="11"/></Button>
@@ -234,7 +248,7 @@
                                     <TextBlock x:Name="StepTitle0" Style="{StaticResource StepTitle}" Text="{v:Loc account}"/>
                                     <TextBlock x:Name="StepDetail0" Style="{StaticResource StepDetail}"/>
                                     <WrapPanel Style="{StaticResource StepLinks}">
-                                        <Button x:Name="StepAccountLink" Style="{StaticResource Btn.Link}" Content="{v:Loc rd_fix_open_account}" Click="AccountBadge_Click"/>
+                                        <Button x:Name="StepAccountLink" Style="{StaticResource Btn.Link}" Content="{v:Loc rd_fix_open_account}" Click="StepAccountLink_Click"/>
                                         <Button x:Name="DeveloperModeBtn" Style="{StaticResource Btn.Link}" Content="{v:Loc start_developer_mode}" Click="DeveloperMode_Click"/>
                                     </WrapPanel>
                                 </StackPanel>
@@ -584,96 +598,251 @@
                     </StackPanel>
 
                     <!-- ===== Account ===== -->
-                    <StackPanel x:Name="PageAccount" Visibility="Collapsed" MaxWidth="{StaticResource S.PageMaxWidth}" HorizontalAlignment="Left">
-                        <TextBlock Style="{StaticResource H1}" Text="{v:Loc account}"/>
-                        <!-- account-wide state only (signed in as …, connecting, update required); request failures are shown in their own section -->
-                        <TextBlock x:Name="AccountStatus" Style="{StaticResource Hint}" Foreground="{StaticResource B.TextDim}" FontSize="13" AutomationProperties.LiveSetting="Polite"/>
-
-                        <!-- signed out: e-mail + password -->
-                        <Border x:Name="SignedOutPanel" Style="{StaticResource Card}" Margin="0,12,0,0" MaxWidth="460" HorizontalAlignment="Left">
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                    <Button x:Name="ModeSignInBtn" Style="{StaticResource Btn.Chip}" Content="{v:Loc sign_in}" Click="ModeSignIn_Click" Margin="0,0,6,0"/>
-                                    <Button x:Name="ModeCreateBtn" Style="{StaticResource Btn.Chip}" Content="{v:Loc create_account}" Click="ModeCreate_Click"/>
-                                </StackPanel>
-                                <TextBlock x:Name="EmailLabel" Text="{v:Loc email}" Style="{StaticResource T.FieldLabel}"/>
-                                <TextBox x:Name="EmailBox" AutomationProperties.Name="{v:Loc email}" TabIndex="1" FlowDirection="LeftToRight" KeyDown="Email_KeyDown"/>
-                                <TextBlock x:Name="PasswordLabel" Text="{v:Loc password}" Style="{StaticResource T.FieldLabel}"/>
-                                <PasswordBox x:Name="PasswordBox" AutomationProperties.Name="{v:Loc password}" TabIndex="2" KeyDown="Password_KeyDown" FlowDirection="LeftToRight"/>
-                                <StackPanel x:Name="ConfirmPanel" Visibility="Collapsed">
-                                    <TextBlock Text="{v:Loc confirm_password}" Style="{StaticResource T.FieldLabel}"/>
-                                    <PasswordBox x:Name="ConfirmBox" AutomationProperties.Name="{v:Loc confirm_password}" TabIndex="3" KeyDown="Password_KeyDown" FlowDirection="LeftToRight"/>
-                                    <TextBlock Style="{StaticResource Hint}" Text="{v:Loc password_rules}"/>
-                                    <TextBlock x:Name="SignUpLegal" Style="{StaticResource Hint}"/>
-                                </StackPanel>
-                                <!-- the form's own result: errors right under the fields, reset and confirmation notices -->
-                                <v:InlineMessage x:Name="AuthMessage" Margin="0,12,0,0"/>
-                                <WrapPanel Margin="{StaticResource S.ButtonRowMargin}">
-                                    <Button x:Name="AuthSubmitBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc sign_in}" Click="AuthSubmit_Click" Margin="0,0,10,8" TabIndex="4" MinWidth="120"/>
-                                    <Button x:Name="ForgotBtn" Style="{StaticResource Btn.Ghost}" Content="{v:Loc forgot_password}" Click="Forgot_Click" TabIndex="5" Margin="0,0,0,8"/>
-                                </WrapPanel>
-                                <WrapPanel x:Name="ProviderButtons" Margin="0,2,0,0"/>
-                                <TextBlock Style="{StaticResource Hint}" Text="{v:Loc password_privacy_hint}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- signed in: independently loaded sections, each with its own inline status -->
-                        <StackPanel x:Name="SignedInPanel" Margin="0,12,0,0">
-                            <Border Style="{StaticResource Card}">
-                                <StackPanel>
-                                    <DockPanel>
-                                        <Button x:Name="RefreshAccountBtn" DockPanel.Dock="Right" Style="{StaticResource Btn.Ghost}" Click="RefreshAccount_Click" ToolTip="{v:Loc tt_refresh_account}"
-                                                AutomationProperties.Name="{v:Loc refresh}" VerticalAlignment="Top" Margin="8,0,0,0">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Style="{StaticResource T.Icon}" Text="&#xE72C;" FontSize="12" Margin="0,0,6,0"/>
-                                                <TextBlock Text="{v:Loc refresh}"/>
-                                            </StackPanel>
-                                        </Button>
-                                        <TextBlock x:Name="PlanText" FontSize="16" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                                    </DockPanel>
-                                    <Grid x:Name="UsageGrid" Margin="0,8,0,0">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                    </Grid>
-                                    <v:InlineMessage x:Name="SummaryMessage" ActionClick="SummaryRetry_Click"/>
-                                    <TextBlock x:Name="BillingNotice" Style="{StaticResource Hint}" Foreground="{StaticResource B.Thinking}" FontSize="12.5"/>
-                                    <WrapPanel Margin="0,12,0,0">
-                                        <Button x:Name="UpgradeBtn" Style="{StaticResource Btn.FormPrimary}" Click="Upgrade_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_upgrade}"/>
-                                        <Button x:Name="ManageBillingBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc manage_billing}" Click="Portal_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_manage_billing}"/>
-                                    </WrapPanel>
-                                    <v:InlineMessage x:Name="BillingMessage" ActionClick="BillingRetry_Click"/>
-                                    <TextBlock x:Name="UpgradeStatus" Style="{StaticResource Hint}"/>
-                                    <TextBlock x:Name="BillingTerms" Style="{StaticResource Hint}"/>
-                                </StackPanel>
-                            </Border>
-                            <TextBlock Text="{v:Loc devices}" Style="{StaticResource Section}"/>
-                            <ListBox x:Name="DeviceList" Style="{StaticResource List}" MinHeight="60" MaxHeight="180" AutomationProperties.Name="{v:Loc devices}" SelectionChanged="DeviceList_SelectionChanged"/>
-                            <v:InlineMessage x:Name="DevicesMessage" ActionClick="DevicesRetry_Click"/>
-                            <Button x:Name="RemoveDeviceBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc remove_device}" Click="RevokeDevice_Click" HorizontalAlignment="Left" Margin="0,8,0,0" IsEnabled="False"/>
-                            <TextBlock Text="{v:Loc security}" Style="{StaticResource Section}"/>
-                            <WrapPanel>
-                                <Button Style="{StaticResource Btn.Form}" Content="{v:Loc change_password}" Click="ChangePassword_Click" Margin="{StaticResource S.ButtonGap}"/>
-                                <Button Style="{StaticResource Btn.Form}" Content="{v:Loc sign_in_another}" Click="SwitchAccount_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_sign_in_another}"/>
-                                <Button Style="{StaticResource Btn.Form}" Content="{v:Loc sign_out}" Click="SignOut_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_sign_out}"/>
-                            </WrapPanel>
-                            <v:InlineMessage x:Name="SecurityMessage"/>
-                            <TextBlock Text="{v:Loc privacy}" Style="{StaticResource Section}"/>
-                            <WrapPanel>
-                                <Button Style="{StaticResource Btn.Form}" Content="{v:Loc export_my_data}" Click="ExportAccount_Click" Margin="{StaticResource S.ButtonGap}"/>
-                                <Button Style="{StaticResource Btn.Form}" Content="{v:Loc delete_account}" Click="DeleteAccount_Click" Margin="{StaticResource S.ButtonGap}"/>
-                            </WrapPanel>
-                            <v:InlineMessage x:Name="PrivacyMessage"/>
-                            <TextBlock Style="{StaticResource Hint}" Text="{v:Loc reauth_hint}"/>
+                    <StackPanel x:Name="PageAccount" Visibility="Collapsed" MaxWidth="{StaticResource S.ContentMaxWidth}" SizeChanged="PageAccount_SizeChanged">
+                        <!-- page header (signed in / not configured; the signed-out form has its own heading) -->
+                        <StackPanel x:Name="AccountHeader">
+                            <TextBlock x:Name="AccountTitle" Style="{StaticResource H1}" Text="{v:Loc account}"/>
+                            <!-- account-wide state only (signed in as …, connecting, update required); request failures are shown in their own section -->
+                            <TextBlock x:Name="AccountStatus" Style="{StaticResource Hint}" Foreground="{StaticResource B.TextDim}" FontSize="13" AutomationProperties.LiveSetting="Polite"/>
                         </StackPanel>
+
+                        <!-- signed out: product column + the auth form card, centred (max width); one centred column on narrow
+                             content. One form for every state (sign in, create account, forgot password, link sent, switch
+                             account): labels above fields, the error under its field, one primary button, links to switch. -->
+                        <Grid x:Name="SignedOutPanel" Margin="0,24,0,0" MaxWidth="940">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition x:Name="AuthColHero" Width="*"/>
+                                <ColumnDefinition x:Name="AuthColForm" Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+
+                            <!-- product, value proposition, factual trust points -->
+                            <StackPanel x:Name="AuthHero" Margin="0,8,40,24" VerticalAlignment="Top">
+                                <TextBlock x:Name="AuthProductName" FontFamily="{StaticResource F.Display}" FontSize="26" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
+                                <TextBlock Style="{StaticResource T.Body}" FontSize="15" Margin="0,8,0,20" Text="{v:Loc auth_hero_value}"/>
+                                <StackPanel x:Name="AuthTrustPoints">
+                                    <DockPanel Margin="0,0,0,12">
+                                        <Border DockPanel.Dock="Left" Width="22" Height="22" CornerRadius="11" Background="{StaticResource B.AccentSoft}" Margin="0,0,12,0" VerticalAlignment="Top">
+                                            <TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;" FontSize="11" Foreground="{StaticResource B.Text}" HorizontalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="{v:Loc auth_trust_local}" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                    <DockPanel Margin="0,0,0,12">
+                                        <Border DockPanel.Dock="Left" Width="22" Height="22" CornerRadius="11" Background="{StaticResource B.AccentSoft}" Margin="0,0,12,0" VerticalAlignment="Top">
+                                            <TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;" FontSize="11" Foreground="{StaticResource B.Text}" HorizontalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="{v:Loc auth_trust_paddle}" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                    <DockPanel Margin="0,0,0,12">
+                                        <Border DockPanel.Dock="Left" Width="22" Height="22" CornerRadius="11" Background="{StaticResource B.AccentSoft}" Margin="0,0,12,0" VerticalAlignment="Top">
+                                            <TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;" FontSize="11" Foreground="{StaticResource B.Text}" HorizontalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="{v:Loc auth_trust_cancel}" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel x:Name="AuthFormColumn" Grid.Column="1">
+                                <Border x:Name="AuthCard" Style="{StaticResource Card}" Padding="28,24">
+                                    <StackPanel>
+                                        <TextBlock x:Name="AuthHeading" Style="{StaticResource H1}" TextWrapping="Wrap"/>
+                                        <TextBlock x:Name="AuthSubtitle" Style="{StaticResource T.Body}" Margin="0,2,0,4"/>
+                                        <!-- the service's state when it blocks sign-in (session expired, account disabled, update required, offline) -->
+                                        <v:InlineMessage x:Name="AuthStatusMessage"/>
+
+                                        <StackPanel x:Name="EmailPanel">
+                                            <TextBlock x:Name="EmailLabel" Text="{v:Loc email}" Style="{StaticResource T.FieldLabel}"/>
+                                            <TextBox x:Name="EmailBox" AutomationProperties.Name="{v:Loc email}" FlowDirection="LeftToRight" KeyDown="Email_KeyDown"/>
+                                            <v:InlineMessage x:Name="EmailError" Margin="0,6,0,0"/>
+                                        </StackPanel>
+                                        <StackPanel x:Name="PasswordPanel">
+                                            <TextBlock x:Name="PasswordLabel" Text="{v:Loc password}" Style="{StaticResource T.FieldLabel}"/>
+                                            <PasswordBox x:Name="PasswordBox" AutomationProperties.Name="{v:Loc password}" KeyDown="Password_KeyDown" FlowDirection="LeftToRight"/>
+                                            <v:InlineMessage x:Name="PasswordError" Margin="0,6,0,0"/>
+                                            <Button x:Name="ForgotBtn" Style="{StaticResource Btn.Link}" Content="{v:Loc forgot_password}" Click="Forgot_Click" HorizontalAlignment="Right" Margin="0,4,-6,0"/>
+                                        </StackPanel>
+                                        <StackPanel x:Name="ConfirmPanel" Visibility="Collapsed">
+                                            <TextBlock Text="{v:Loc confirm_password}" Style="{StaticResource T.FieldLabel}"/>
+                                            <PasswordBox x:Name="ConfirmBox" AutomationProperties.Name="{v:Loc confirm_password}" KeyDown="Password_KeyDown" FlowDirection="LeftToRight"/>
+                                            <v:InlineMessage x:Name="ConfirmError" Margin="0,6,0,0"/>
+                                            <TextBlock Style="{StaticResource Hint}" Text="{v:Loc password_rules}"/>
+                                            <TextBlock x:Name="SignUpLegal" Style="{StaticResource Hint}"/>
+                                        </StackPanel>
+
+                                        <!-- the form's own result: sign-in failures, the reset notice, the confirmation e-mail -->
+                                        <v:InlineMessage x:Name="AuthMessage" Margin="0,12,0,0" ActionClick="AuthMessage_ActionClick"/>
+                                        <Button x:Name="AuthSubmitBtn" Style="{StaticResource Btn.FormPrimary}" Click="AuthSubmit_Click" HorizontalAlignment="Stretch" Margin="0,16,0,0"/>
+                                        <Button x:Name="ResendBtn" Style="{StaticResource Btn.Link}" Click="Resend_Click" HorizontalAlignment="Center" Margin="0,10,0,0" Visibility="Collapsed"/>
+
+                                        <StackPanel x:Name="ProviderPanel">
+                                            <Grid Margin="0,16,0,12">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <Border Height="1" Background="{StaticResource B.Border}" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="{v:Loc auth_or}" Style="{StaticResource T.Body}" FontSize="12" Margin="10,0"/>
+                                                <Border Grid.Column="2" Height="1" Background="{StaticResource B.Border}" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <StackPanel x:Name="ProviderButtons"/>
+                                        </StackPanel>
+
+                                        <!-- mode switch: links, not chips -->
+                                        <WrapPanel x:Name="ModeLinks" HorizontalAlignment="Center" Margin="0,16,0,0">
+                                            <TextBlock x:Name="ModePrompt" Style="{StaticResource T.Body}" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                                            <Button x:Name="ModeLinkBtn" Style="{StaticResource Btn.Link}" Click="ModeLink_Click"/>
+                                        </WrapPanel>
+                                        <TextBlock x:Name="PasswordPrivacyHint" Style="{StaticResource Hint}" Text="{v:Loc password_privacy_hint}" Margin="0,16,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <WrapPanel x:Name="AuthLegalLinks" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- signed in: a responsive dashboard (two columns on wide content, one below ~900 px). Every card loads
+                             and reports independently: a failed request is shown in its own card, next to the data it concerns. -->
+                        <Grid x:Name="SignedInPanel" Margin="0,12,0,0" SizeChanged="AccountDashboard_SizeChanged">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition x:Name="AccountColMain" Width="3*"/>
+                                <ColumnDefinition x:Name="AccountColGap" Width="{StaticResource S.PaneGap}"/>
+                                <ColumnDefinition x:Name="AccountColSide" Width="2*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+
+                            <StackPanel x:Name="AccountMainColumn">
+                                <!-- Plan & usage -->
+                                <Border Style="{StaticResource Card}" Margin="{StaticResource S.CardGap}">
+                                    <StackPanel>
+                                        <DockPanel>
+                                            <Button x:Name="RefreshAccountBtn" DockPanel.Dock="Right" Style="{StaticResource Btn.Ghost}" Click="RefreshAccount_Click" ToolTip="{v:Loc tt_refresh_account}"
+                                                    AutomationProperties.Name="{v:Loc refresh}" VerticalAlignment="Top" Margin="8,-4,-6,0">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Style="{StaticResource T.Icon}" Text="&#xE72C;" FontSize="12" Margin="0,0,6,0"/>
+                                                    <TextBlock Text="{v:Loc refresh}"/>
+                                                </StackPanel>
+                                            </Button>
+                                            <TextBlock Text="{v:Loc acct_card_plan}" Style="{StaticResource CardTitle}"/>
+                                        </DockPanel>
+                                        <WrapPanel>
+                                            <TextBlock x:Name="PlanText" FontFamily="{StaticResource F.Display}" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource B.Text}"
+                                                       TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                            <Border x:Name="PlanBadge" CornerRadius="10" Padding="9,2" BorderThickness="1" VerticalAlignment="Center" Visibility="Collapsed">
+                                                <TextBlock x:Name="PlanBadgeText" FontSize="11.5" FontWeight="SemiBold"/>
+                                            </Border>
+                                        </WrapPanel>
+                                        <TextBlock x:Name="PlanSubText" Style="{StaticResource Hint}"/>
+                                        <v:InlineMessage x:Name="SummaryMessage" ActionClick="SummaryRetry_Click"/>
+                                        <!-- metric cards: two per row, each with an optional usage bar -->
+                                        <ItemsControl x:Name="UsageMetrics" Margin="0,12,-8,0" Focusable="False" AutomationProperties.Name="{v:Loc acct_card_plan}">
+                                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{StaticResource B.Surface2}" CornerRadius="{StaticResource R.Control}" Padding="12,10" Margin="0,0,8,8">
+                                                        <StackPanel>
+                                                            <TextBlock Text="{Binding Label}" Style="{StaticResource T.Label}" Margin="0,0,0,4" TextWrapping="Wrap"/>
+                                                            <TextBlock Text="{Binding Value}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
+                                                            <TextBlock Text="{Binding Detail}" Style="{StaticResource Hint}" Visibility="{Binding DetailVisibility}"/>
+                                                            <Border Visibility="{Binding BarVisibility}" Height="6" Margin="0,8,0,0" CornerRadius="3" Background="{StaticResource B.Surface3}"
+                                                                    AutomationProperties.Name="{Binding BarName}">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="{Binding Filled}"/><ColumnDefinition Width="{Binding Rest}"/></Grid.ColumnDefinitions>
+                                                                    <Border CornerRadius="3" Background="{Binding BarBrush}"/>
+                                                                </Grid>
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock x:Name="BillingNotice" Style="{StaticResource Hint}" Foreground="{StaticResource B.Thinking}" FontSize="12.5"/>
+                                        <WrapPanel Margin="0,12,0,0">
+                                            <Button x:Name="UpgradeBtn" Style="{StaticResource Btn.FormPrimary}" Click="Upgrade_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_upgrade}"/>
+                                            <Button x:Name="ManageBillingBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc manage_billing}" Click="Portal_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_manage_billing}"/>
+                                        </WrapPanel>
+                                        <v:InlineMessage x:Name="BillingMessage" ActionClick="BillingRetry_Click"/>
+                                        <TextBlock x:Name="UpgradeStatus" Style="{StaticResource Hint}" AutomationProperties.LiveSetting="Polite"/>
+                                        <TextBlock x:Name="BillingTerms" Style="{StaticResource Hint}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Devices: one row per device with its own Remove action -->
+                                <Border Style="{StaticResource Card}" Margin="{StaticResource S.CardGap}">
+                                    <StackPanel>
+                                        <TextBlock Text="{v:Loc devices}" Style="{StaticResource CardTitle}"/>
+                                        <v:InlineMessage x:Name="DevicesMessage" ActionClick="DevicesRetry_Click" Margin="0,0,0,8"/>
+                                        <ItemsControl x:Name="DeviceList" Focusable="False" AutomationProperties.Name="{v:Loc devices}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border BorderBrush="{StaticResource B.Border}" BorderThickness="0,1,0,0" Padding="0,10">
+                                                        <DockPanel>
+                                                            <Button DockPanel.Dock="Right" Style="{StaticResource Btn.Form}" Content="{v:Loc dlg_remove}" Click="RemoveDevice_Click" Tag="{Binding}"
+                                                                    AutomationProperties.Name="{Binding RemoveName}" ToolTip="{v:Loc tt_remove_device}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                                                    IsEnabled="{Binding CanRemove}"/>
+                                                            <TextBlock DockPanel.Dock="Left" Style="{StaticResource T.Icon}" Text="&#xE7F8;" FontSize="18" Foreground="{StaticResource B.TextDim}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                                                            <StackPanel VerticalAlignment="Center">
+                                                                <WrapPanel>
+                                                                    <TextBlock Text="{Binding Name}" FontSize="13.5" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
+                                                                    <Border Visibility="{Binding ThisPcVisibility}" CornerRadius="9" Padding="7,1" Background="{StaticResource B.AccentSoft}" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{v:Loc acct_device_this_pc_tag}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource B.Text}"/>
+                                                                    </Border>
+                                                                </WrapPanel>
+                                                                <TextBlock Text="{Binding Meta}" Style="{StaticResource Hint}" Margin="0,2,0,0"/>
+                                                            </StackPanel>
+                                                        </DockPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock x:Name="DevicesEmpty" Style="{StaticResource Hint}" Text="{v:Loc acct_devices_empty}" Visibility="Collapsed"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel x:Name="AccountSideColumn" Grid.Column="2">
+                                <!-- Security -->
+                                <Border Style="{StaticResource Card}" Margin="{StaticResource S.CardGap}">
+                                    <StackPanel>
+                                        <TextBlock Text="{v:Loc security}" Style="{StaticResource CardTitle}"/>
+                                        <TextBlock x:Name="SecurityEmail" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}" FlowDirection="LeftToRight" HorizontalAlignment="Left"
+                                                   TextTrimming="CharacterEllipsis" Margin="0,0,0,10"/>
+                                        <WrapPanel>
+                                            <Button x:Name="ChangePasswordBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc change_password}" Click="ChangePassword_Click" Margin="{StaticResource S.ButtonGap}"/>
+                                            <Button x:Name="SwitchAccountBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc switch_account}" Click="SwitchAccount_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_sign_in_another}"/>
+                                        </WrapPanel>
+                                        <v:InlineMessage x:Name="SecurityMessage"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Privacy & data -->
+                                <Border Style="{StaticResource Card}" Margin="{StaticResource S.CardGap}">
+                                    <StackPanel>
+                                        <TextBlock Text="{v:Loc acct_card_privacy}" Style="{StaticResource CardTitle}"/>
+                                        <WrapPanel>
+                                            <Button x:Name="ExportAccountBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc export_my_data}" Click="ExportAccount_Click" Margin="{StaticResource S.ButtonGap}"/>
+                                        </WrapPanel>
+                                        <v:InlineMessage x:Name="PrivacyMessage"/>
+                                        <TextBlock Style="{StaticResource Hint}" Text="{v:Loc reauth_hint}"/>
+                                        <TextBlock x:Name="LegalHeader" Text="{v:Loc legal_support}" Style="{StaticResource T.Label}" Margin="0,16,0,4"/>
+                                        <WrapPanel x:Name="LegalLinks" Margin="-6,0,0,0"/>
+                                        <TextBlock x:Name="SupportEmailText" Style="{StaticResource Hint}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Danger zone: set apart, red outline -->
+                                <Border x:Name="DangerZone" Style="{StaticResource Card}" BorderBrush="{StaticResource B.Error}" Margin="{StaticResource S.CardGap}">
+                                    <StackPanel>
+                                        <TextBlock Text="{v:Loc acct_card_danger}" Style="{StaticResource CardTitle}" Foreground="{StaticResource B.Error}"/>
+                                        <TextBlock Style="{StaticResource T.Body}" Text="{v:Loc acct_danger_hint}"/>
+                                        <Button x:Name="DeleteAccountBtn" Style="{StaticResource Btn.Form}" Foreground="{StaticResource B.Error}" BorderBrush="{StaticResource B.Error}" Content="{v:Loc delete_account}"
+                                                Click="DeleteAccount_Click" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+                                        <v:InlineMessage x:Name="DangerMessage"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
 
                         <StackPanel x:Name="NotConfiguredPanel" Margin="0,12,0,0">
                             <TextBlock Style="{StaticResource Hint}" FontSize="13" Text="{v:Loc not_configured_install}"/>
                         </StackPanel>
 
-                        <TextBlock x:Name="LegalHeader" Text="{v:Loc legal_support}" Style="{StaticResource Section}"/>
-                        <WrapPanel x:Name="LegalLinks"/>
-                        <TextBlock x:Name="SupportEmailText" Style="{StaticResource Hint}"/>
-
-                        <!-- Updates moved to Settings → Updates in rc.5 -->
+                        <!-- Updates moved to Settings → Updates in rc.5; legal/support links live in the Privacy & data card -->
                     </StackPanel>
 
                     <!-- ===== Settings ===== -->
@@ -684,6 +853,28 @@
                 </Grid>
             </ScrollViewer>
             </DockPanel>
+
+            <!-- account menu: drops from the header account button (top end of the window, mirrored in RTL); an outside
+                 click, Escape or choosing an item closes it and focus returns to the button -->
+            <Grid x:Name="AccountMenuLayer" Grid.RowSpan="2" Grid.ColumnSpan="2" Visibility="Collapsed" Panel.ZIndex="50">
+                <Border Background="Transparent" MouseDown="AccountMenuBackdrop_MouseDown"/>
+                <Border x:Name="AccountMenuCard" Style="{StaticResource Card}" Padding="6" MinWidth="240" MaxWidth="340" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        Effect="{StaticResource E.Shadow}" AutomationProperties.Name="{v:Loc acct_menu}" PreviewKeyDown="AccountMenu_PreviewKeyDown"
+                        KeyboardNavigation.TabNavigation="Cycle" KeyboardNavigation.DirectionalNavigation="Contained">
+                    <StackPanel x:Name="AccountMenuItems">
+                        <StackPanel Margin="10,8,10,10">
+                            <TextBlock x:Name="AccountMenuEmail" FontSize="13.5" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextTrimming="CharacterEllipsis"
+                                       FlowDirection="LeftToRight" HorizontalAlignment="Left"/>
+                            <TextBlock x:Name="AccountMenuPlan" Style="{StaticResource Hint}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <Border Style="{StaticResource Divider}" Margin="4,0,4,4"/>
+                        <Button x:Name="MenuManageAccount" Style="{StaticResource MenuItem}" Content="{v:Loc menu_manage_account}" Click="MenuManageAccount_Click"/>
+                        <Button x:Name="MenuSettings" Style="{StaticResource MenuItem}" Content="{v:Loc settings}" Click="MenuSettings_Click"/>
+                        <Button x:Name="MenuSwitchAccount" Style="{StaticResource MenuItem}" Content="{v:Loc switch_account}" Click="MenuSwitchAccount_Click"/>
+                        <Button x:Name="MenuSignOut" Style="{StaticResource MenuItem}" Content="{v:Loc sign_out}" Click="MenuSignOut_Click"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
 
             <!-- in-app dialogs: dim the whole window content (title bar and sidebar included) -->
             <v:DialogHost x:Name="Dialogs" Grid.RowSpan="2" Grid.ColumnSpan="2" CornerRadius="{Binding CornerRadius, ElementName=HomeRoot}"/>

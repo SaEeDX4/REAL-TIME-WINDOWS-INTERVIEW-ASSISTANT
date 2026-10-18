@@ -324,6 +324,33 @@ public class CloudAuthTests
         finally { Core.Languages.Loc.Language = before; }
     }
 
+    /// <summary>rc.5: the forgot-password state shows the same neutral notice for known and unknown addresses in every UI language.</summary>
+    [Theory]
+    [InlineData("en")] [InlineData("es")] [InlineData("fr")] [InlineData("de")] [InlineData("pt")]
+    [InlineData("it")] [InlineData("ar")] [InlineData("fa")] [InlineData("zh")] [InlineData("hi")]
+    public async Task PasswordReset_NeutralNotice_IsIdenticalForKnownAndUnknown_InEveryLanguage(string lang)
+    {
+        // The language is passed explicitly: switching the global UI language would race with tests running in parallel.
+        async Task<(string? Shown, string Outcome)> Reset(string email)
+        {
+            var stub = new Stub((r, b) => b.Contains("known@example.test") && !b.Contains("unknown@")
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}") }
+                : Err(HttpStatusCode.NotFound, "user_not_found", "User not found"));
+            var auth = new SupabaseAuth(new HttpClient(stub), Opt, new MemoryStore());
+            string? shown = null;
+            try { await auth.RecoverPasswordAsync(email, TimeSpan.FromMilliseconds(200), default, () => shown = App.UiState.PasswordResetCopy.RequestedIn(lang)); }
+            catch (Exception ex) { return (shown, ex.GetType().Name); }
+            return (shown, "completed");
+        }
+        var known = await Reset("known@example.test");
+        var unknown = await Reset("unknown@example.test");
+        Assert.Equal(Core.Languages.Loc.TableFor(lang)["acct_reset_requested"], known.Shown);
+        Assert.Equal(known, unknown);
+        Assert.DoesNotContain("example.test", known.Shown);
+        Assert.DoesNotContain("{0}", known.Shown);
+        if (lang != "en") Assert.NotEqual(Core.Languages.Loc.TableFor("en")["acct_reset_requested"], known.Shown);
+    }
+
     [Fact]
     public async Task PasswordReset_StillReportsTheGeneralRateLimit()
     {
