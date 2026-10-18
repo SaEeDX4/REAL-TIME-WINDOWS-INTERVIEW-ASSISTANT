@@ -16,7 +16,8 @@ public class RepositoryHygieneTests
         if (dir == null) return; // not running from a source checkout
         var secret = new Regex(@"sk-(proj-)?[A-Za-z0-9_\-]{20,}|(api[_-]?key|secret)\s*[:=]\s*[""']?[A-Za-z0-9_\-]{16,}", RegexOptions.IgnoreCase);
         var offenders = Directory.EnumerateFiles(dir.FullName, "*", SearchOption.AllDirectories)
-            .Where(f => !Regex.IsMatch(f, @"[\\/](bin|obj|\.git|artifacts)[\\/]"))
+            // Local agent worktrees (.claude/worktrees, git-ignored) are separate checkouts scanned by their own runs.
+            .Where(f => !Regex.IsMatch(f, @"[\\/](bin|obj|\.git|artifacts)[\\/]|[\\/]\.claude[\\/]worktrees[\\/]"))
             .Where(f => new FileInfo(f).Length < 2_000_000)
             // Deliberately fake values in tests are allowed only on lines explicitly marked as such.
             .Where(f => File.ReadLines(f).Any(l => secret.IsMatch(l) && !l.Contains(FakeMarker)))
