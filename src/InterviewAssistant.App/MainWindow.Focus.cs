@@ -52,11 +52,8 @@ public partial class MainWindow
         }
         var track = new Border { Child = options };
         track.SetResourceReference(StyleProperty, "Seg.Track");
-        var label = new TextBlock { Text = Loc.T("focus_position") };
-        label.SetResourceReference(StyleProperty, "T.FieldLabel");
         var body = new StackPanel();
-        body.Children.Add(label);
-        body.Children.Add(track);
+        body.Children.Add(new FormField { Label = Loc.T("focus_position"), Content = track });
 
         var actions = new List<DialogAction> { new() { Text = Loc.T("dlg_cancel"), Result = AppDialogResult.Cancel, IsCancel = true } };
         if (HasFocusRestore) actions.Add(new DialogAction { Text = Loc.T("focus_restore"), Result = AppDialogResult.Secondary });

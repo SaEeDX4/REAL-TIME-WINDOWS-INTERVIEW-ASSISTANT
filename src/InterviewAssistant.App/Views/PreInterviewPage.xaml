@@ -9,11 +9,7 @@
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="AutomationProperties.HeadingLevel" Value="Level2"/>
         </Style>
-        <Style x:Key="Hint" TargetType="TextBlock" BasedOn="{StaticResource T.Body}">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="{StaticResource B.TextFaint}"/>
-            <Setter Property="Margin" Value="{StaticResource S.HintMargin}"/>
-        </Style>
+        <Style x:Key="Hint" TargetType="TextBlock" BasedOn="{StaticResource T.Hint}"/>
         <!-- status badge: icon + text in the state's colour (never colour alone) -->
         <Style x:Key="Badge" TargetType="Border">
             <Setter Property="CornerRadius" Value="10"/>

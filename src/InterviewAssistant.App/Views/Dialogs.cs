@@ -10,18 +10,10 @@ namespace InterviewAssistant.App.Views;
 /// <summary>Building blocks for the forms shown inside <see cref="AppDialog"/> (same controls and spacing as the pages).</summary>
 internal static class DialogForm
 {
-    public static TextBlock Label(string text, UIElement target)
-    {
-        var l = new TextBlock { Text = text, Style = (Style)Application.Current.Resources["T.FieldLabel"] };
-        if (target is FrameworkElement fe) AutomationProperties.SetLabeledBy(fe, l);
-        return l;
-    }
+    /// <summary>A labelled field in the app's one form-field layout (<see cref="FormField"/>: same label, spacing and width rules as the pages).</summary>
+    public static FormField Labelled(string label, UIElement input, string? hint = null) => new() { Label = label, Content = input, Hint = hint ?? "" };
 
-    public static TextBlock Hint(string text) => new()
-    {
-        Text = text, Foreground = (Brush)Application.Current.Resources["B.TextFaint"], FontSize = 11.5, TextWrapping = TextWrapping.Wrap,
-        Margin = (Thickness)Application.Current.Resources["S.HintMargin"],
-    };
+    public static TextBlock Hint(string text) => new() { Text = text, Style = (Style)Application.Current.Resources["T.Hint"] };
 
     /// <summary>E-mail addresses and passwords read left-to-right also in Arabic/Persian.</summary>
     public static PasswordBox Password(string nameKey)
@@ -49,12 +41,12 @@ public static class FactEditor
         foreach (var k in Kinds) kind.Items.Add(new ComboBoxItem { Content = Loc.T("fact_kind_" + k.ToString().ToLowerInvariant()), Tag = k });
         kind.SelectedIndex = Math.Max(0, Array.IndexOf(Kinds, f?.Kind ?? FactKind.Achievement));
         AutomationProperties.SetName(kind, Loc.T("fact_kind"));
-        body.Children.Add(DialogForm.Label(Loc.T("fact_kind"), kind)); body.Children.Add(kind);
+        body.Children.Add(DialogForm.Labelled(Loc.T("fact_kind"), kind));
 
-        var text = new TextBox { Style = (Style)res["Input.Multiline"], MaxLength = 800, Text = f?.Text ?? "", MaxHeight = 180 };
+        var text = new TextBox { Style = (Style)res["Input.Multiline"], MaxLength = 800, Text = f?.Text ?? "", MaxHeight = (double)res["S.MultilineTallHeight"] };
         AutomationProperties.SetName(text, Loc.T("fact_text"));
         Field.ClearOnEdit(text);
-        body.Children.Add(DialogForm.Label(Loc.T("fact_text"), text)); body.Children.Add(text);
+        body.Children.Add(DialogForm.Labelled(Loc.T("fact_text"), text));
 
         var roleGrid = new Grid();
         roleGrid.ColumnDefinitions.Add(new ColumnDefinition());
@@ -64,11 +56,10 @@ public static class FactEditor
         roleGrid.ColumnDefinitions.Add(new ColumnDefinition());
         TextBox Field_(int col, string labelKey, string value)
         {
-            var sp = new StackPanel();
             var tb = new TextBox { Text = value, MaxLength = 120 };
             AutomationProperties.SetName(tb, Loc.T(labelKey));
-            sp.Children.Add(DialogForm.Label(Loc.T(labelKey), tb)); sp.Children.Add(tb);
-            Grid.SetColumn(sp, col); roleGrid.Children.Add(sp);
+            var field = DialogForm.Labelled(Loc.T(labelKey), tb);
+            Grid.SetColumn(field, col); roleGrid.Children.Add(field);
             return tb;
         }
         var company = Field_(0, "fact_company", f?.Company ?? "");
@@ -125,7 +116,7 @@ public static class Prompt
         var body = new StackPanel();
         if (email.Length > 0) body.Children.Add(new TextBlock { Text = email, Foreground = (Brush)res["B.Text"], FontSize = 12.5, FlowDirection = FlowDirection.LeftToRight, HorizontalAlignment = HorizontalAlignment.Left });
         var box = DialogForm.Password("password_current");
-        body.Children.Add(DialogForm.Label(Loc.T("password_current"), box)); body.Children.Add(box);
+        body.Children.Add(DialogForm.Labelled(Loc.T("password_current"), box));
         var error = new InlineMessage();
         body.Children.Add(error);
         var choice = await AppDialog.ShowAsync(owner, new DialogRequest
@@ -161,9 +152,8 @@ public static class Prompt
         var box = DialogForm.Password("password_new");
         var again = DialogForm.Password("confirm_password");
         var error = new InlineMessage();
-        body.Children.Add(DialogForm.Label(Loc.T("password_new"), box)); body.Children.Add(box);
-        body.Children.Add(DialogForm.Label(Loc.T("confirm_password"), again)); body.Children.Add(again);
-        body.Children.Add(DialogForm.Hint(Loc.T("password_rules")));
+        body.Children.Add(DialogForm.Labelled(Loc.T("password_new"), box));
+        body.Children.Add(DialogForm.Labelled(Loc.T("confirm_password"), again, Loc.T("password_rules")));
         body.Children.Add(error);
         string? result = null;
         var choice = await AppDialog.ShowAsync(owner, new DialogRequest

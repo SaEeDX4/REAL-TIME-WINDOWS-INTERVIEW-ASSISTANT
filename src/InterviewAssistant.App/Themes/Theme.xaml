@@ -91,6 +91,22 @@
     <!-- divider that separates a destructive action from the others -->
     <Thickness x:Key="S.DividerMargin">0,8,0,16</Thickness>
 
+    <!-- ===== Layout tokens (rc.5): every page width, form column and field width comes from here — never a literal ===== -->
+    <!-- reading pages (Get started, Help & about): comfortable line length -->
+    <sys:Double x:Key="S.ReadingMaxWidth">760</sys:Double>
+    <!-- centred two-column layouts (the sign-in page: product column + form card) -->
+    <sys:Double x:Key="S.SplitMaxWidth">940</sys:Double>
+    <!-- a single form column (Settings category content, the sign-in card's fields) -->
+    <sys:Double x:Key="S.FormMaxWidth">620</sys:Double>
+    <!-- a field whose value is short (hotkey, channel, font size): starts at the column start, never stretches -->
+    <sys:Double x:Key="S.FieldShortWidth">320</sys:Double>
+    <!-- a long multi-line field (job description) -->
+    <sys:Double x:Key="S.MultilineTallHeight">170</sys:Double>
+    <!-- the vertical gap between two fields of a form -->
+    <Thickness x:Key="S.FieldGap">0,0,0,4</Thickness>
+    <!-- inner padding of every card -->
+    <Thickness x:Key="S.CardPadding">18,14</Thickness>
+
     <DropShadowEffect x:Key="E.Shadow" BlurRadius="24" ShadowDepth="4" Direction="270" Opacity="0.35" Color="Black"/>
 
     <!-- Keyboard focus ring for controls that keep the system focus visual (the default dotted one is invisible on the dark theme) -->
@@ -123,6 +139,23 @@
         <Setter Property="Foreground" Value="{StaticResource B.TextDim}"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
+    <!-- a secondary line under a field or a section (one style everywhere: no page-local hint styles) -->
+    <Style x:Key="T.Hint" TargetType="TextBlock" BasedOn="{StaticResource T.Body}">
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{StaticResource B.TextFaint}"/>
+        <Setter Property="TextWrapping" Value="Wrap"/>
+        <Setter Property="Margin" Value="{StaticResource S.HintMargin}"/>
+    </Style>
+    <!-- key / value rows (About, Settings → Updates, Help → Diagnostics, usage figures) -->
+    <Style x:Key="T.MetaKey" TargetType="TextBlock" BasedOn="{StaticResource T.Body}">
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="Margin" Value="0,3,16,3"/>
+    </Style>
+    <Style x:Key="T.MetaValue" TargetType="TextBlock" BasedOn="{StaticResource T.Body}">
+        <Setter Property="FontSize" Value="12.5"/>
+        <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
+        <Setter Property="Margin" Value="0,3,0,3"/>
+    </Style>
     <Style x:Key="T.Icon" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource F.Icons}"/>
         <Setter Property="FontSize" Value="14"/>
@@ -135,7 +168,7 @@
         <Setter Property="BorderBrush" Value="{StaticResource B.Border}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="{StaticResource R.Card}"/>
-        <Setter Property="Padding" Value="18,14"/>
+        <Setter Property="Padding" Value="{StaticResource S.CardPadding}"/>
     </Style>
 
     <!-- ===== Buttons ===== -->
@@ -674,5 +707,37 @@
         <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
         <Setter Property="TextAlignment" Value="Center"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+    <!-- ===== Form field (rc.5): label row (label · ⓘ · accessory at the end), the field, an optional hint =====
+         The one field layout of the app — see Views/FormField.cs. -->
+    <Style TargetType="v:FormField">
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Margin" Value="{StaticResource S.FieldGap}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="v:FormField">
+                    <StackPanel>
+                        <DockPanel Margin="{StaticResource S.FieldLabelMargin}" LastChildFill="True">
+                            <ContentPresenter DockPanel.Dock="Right" Content="{TemplateBinding Accessory}" VerticalAlignment="Bottom" Margin="8,0,0,0"/>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
+                                <TextBlock x:Name="PART_Label" Text="{TemplateBinding Label}" Style="{StaticResource T.Label}" Margin="0" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                <v:InfoTip x:Name="PART_Info" Text="{TemplateBinding Info}" Margin="4,-4,0,-4"/>
+                            </StackPanel>
+                        </DockPanel>
+                        <ContentPresenter x:Name="PART_Content" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>
+                        <TextBlock x:Name="PART_Hint" Text="{TemplateBinding Hint}" Style="{StaticResource T.Hint}"/>
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Hint" Value=""><Setter TargetName="PART_Hint" Property="Visibility" Value="Collapsed"/></Trigger>
+                        <Trigger Property="Hint" Value="{x:Null}"><Setter TargetName="PART_Hint" Property="Visibility" Value="Collapsed"/></Trigger>
+                        <Trigger Property="IsShort" Value="True">
+                            <Setter TargetName="PART_Content" Property="MaxWidth" Value="{StaticResource S.FieldShortWidth}"/>
+                            <Setter TargetName="PART_Content" Property="Width" Value="{StaticResource S.FieldShortWidth}"/>
+                            <Setter TargetName="PART_Content" Property="HorizontalAlignment" Value="Left"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 </ResourceDictionary>

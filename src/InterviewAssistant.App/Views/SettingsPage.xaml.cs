@@ -76,7 +76,7 @@ public partial class SettingsPage : UserControl
         {
             // Customer builds: AI runs through the Interview Assistant service; models are chosen server-side.
             DeveloperKeyPanel.Visibility = Visibility.Collapsed;
-            foreach (var el in new FrameworkElement[] { ModelLabel, ModelBox, SttLabel, SttBox, ProtocolLabel, ProtocolBox }) el.Visibility = Visibility.Collapsed;
+            foreach (var el in new FrameworkElement[] { ModelField, SttField, ProtocolField }) el.Visibility = Visibility.Collapsed;
         }
         using (Guard.Suspend())
         {

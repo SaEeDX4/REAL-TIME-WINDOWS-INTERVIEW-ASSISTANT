@@ -359,11 +359,12 @@ public class Rc5SettingsTests
     public void SecondaryHints_AreInfoTips_EssentialStatementsStayVisible()
     {
         var home = App("HomeWindow.xaml");
-        Assert.Contains("<v:InfoTip Text=\"{v:Loc ui_language_hint}\"/>", home);
+        // rc.5 design system: the ⓘ is part of the field layout (FormField.Info renders a v:InfoTip)
+        Assert.Contains("Info=\"{v:Loc ui_language_hint}\"", home);
         Assert.DoesNotMatch(@"<TextBlock[^>]*\{v:Loc ui_language_hint\}", home);
         var xaml = App("Views/SettingsPage.xaml");
         Assert.Contains("<v:InfoTip Text=\"{v:Loc set_save_hint}\"", xaml);
-        Assert.Contains("<v:InfoTip Text=\"{v:Loc set_end_wait_hint}\"/>", xaml);
+        Assert.Contains("Info=\"{v:Loc set_end_wait_hint}\"", xaml);
         foreach (var hint in new[] { "set_save_hint", "set_end_wait_hint", "set_audio_hint", "set_hotkeys_hint" })
             Assert.DoesNotMatch($@"<TextBlock[^>]*\{{v:Loc {hint}\}}", xaml);
         Assert.Contains("\"set_audio_hint\"", App("Views/SettingsPage.xaml.cs"));     // ⓘ next to the category heading

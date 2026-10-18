@@ -175,7 +175,7 @@ public class UiPagesTests
             Assert.Contains("Width=\"{StaticResource S.SidePaneWidth}\"", body);
             Assert.Contains("Width=\"{StaticResource S.PaneGap}\"", body);
             Assert.Contains("Width=\"{StaticResource S.ColumnGap}\"", body);
-            Assert.Contains("Style=\"{StaticResource T.FieldLabel}\"", body);
+            Assert.Contains("<v:FormField ", body);   // rc.5: labels come from the one field layout (Rc5DesignSystemTests)
             Assert.DoesNotContain("Btn.Base", body);   // only the form button family (one height) on these pages
         }
         foreach (var name in new[] { "ProfileHeaderGrid", "TargetFieldGrid" }) Element(xaml, name);

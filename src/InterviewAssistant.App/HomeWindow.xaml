@@ -19,24 +19,9 @@
             <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
             <Setter Property="Margin" Value="0,0,0,4"/>
         </Style>
-        <Style x:Key="Hint" TargetType="TextBlock" BasedOn="{StaticResource T.Body}">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="{StaticResource B.TextFaint}"/>
-            <Setter Property="TextWrapping" Value="Wrap"/>
-            <Setter Property="Margin" Value="{StaticResource S.HintMargin}"/>
-        </Style>
-        <Style x:Key="AboutKey" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource B.TextDim}"/>
-            <Setter Property="FontSize" Value="12.5"/>
-            <Setter Property="Margin" Value="0,3,16,3"/>
-            <Setter Property="TextWrapping" Value="Wrap"/>
-        </Style>
-        <Style x:Key="AboutValue" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
-            <Setter Property="FontSize" Value="12.5"/>
-            <Setter Property="Margin" Value="0,3,0,3"/>
-            <Setter Property="TextWrapping" Value="Wrap"/>
-        </Style>
+        <Style x:Key="Hint" TargetType="TextBlock" BasedOn="{StaticResource T.Hint}"/>
+        <Style x:Key="AboutKey" TargetType="TextBlock" BasedOn="{StaticResource T.MetaKey}"/>
+        <Style x:Key="AboutValue" TargetType="TextBlock" BasedOn="{StaticResource T.MetaValue}"/>
         <Style x:Key="Nav" TargetType="Button" BasedOn="{StaticResource Btn.Ghost}">
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
             <Setter Property="Padding" Value="12,9"/>
@@ -127,12 +112,10 @@
                 <Button x:Name="NavHelp" Style="{StaticResource Nav}" Click="Nav_Click" Tag="help" Content="{v:Loc nav_help}"/>
                 <Border Height="1" Background="{StaticResource B.Border}" Margin="6,12"/>
                 <!-- the hint is secondary: an ⓘ next to the label instead of a paragraph (rc.5) -->
-                <StackPanel Orientation="Horizontal" Margin="12,0,0,4">
-                    <TextBlock Text="{v:Loc ui_language}" Style="{StaticResource T.Label}" Margin="0" VerticalAlignment="Center"/>
-                    <v:InfoTip Text="{v:Loc ui_language_hint}"/>
-                </StackPanel>
-                <ComboBox x:Name="UiLanguageBox" Margin="6,0" SelectionChanged="UiLanguage_Changed" DisplayMemberPath="DisplayName"
-                          ToolTip="{v:Loc tt_ui_language}" AutomationProperties.Name="{v:Loc ui_language}"/>
+                <v:FormField Label="{v:Loc ui_language}" Info="{v:Loc ui_language_hint}" Margin="6,-8,6,0">
+                    <ComboBox x:Name="UiLanguageBox" SelectionChanged="UiLanguage_Changed" DisplayMemberPath="DisplayName"
+                              ToolTip="{v:Loc tt_ui_language}" AutomationProperties.Name="{v:Loc ui_language}"/>
+                </v:FormField>
             </StackPanel>
 
             <!-- content -->
@@ -176,7 +159,7 @@
                     <!-- ===== Get started: the interview readiness dashboard =====
                          Four steps (Done / Current / Upcoming, from SetupPlanner) and exactly ONE primary action: the next step.
                          Everything else is a ghost or link button. -->
-                    <StackPanel x:Name="PageStart" MaxWidth="760" HorizontalAlignment="Left">
+                    <StackPanel x:Name="PageStart" MaxWidth="{StaticResource S.ReadingMaxWidth}" HorizontalAlignment="Left">
                         <StackPanel.Resources>
                             <Style x:Key="StepCard" TargetType="Border" BasedOn="{StaticResource Card}">
                                 <Setter Property="Margin" Value="0,10,0,0"/>
@@ -338,13 +321,16 @@
                             <!-- header fields: one grid, labels above the fields, equal columns, field height from the shared input style -->
                             <Grid x:Name="ProfileHeaderGrid">
                                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="{StaticResource S.ColumnGap}"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                                <TextBlock x:Name="ProfileNameLabel" Text="{v:Loc profile_name}" Style="{StaticResource T.FieldLabel}"/>
-                                <TextBox x:Name="ProfileName" Grid.Row="1" TextChanged="ProfileField_Changed" AutomationProperties.Name="{v:Loc profile_name}"/>
-                                <TextBlock Grid.Column="2" Text="{v:Loc profile_preferred_name}" Style="{StaticResource T.FieldLabel}"/>
-                                <TextBox x:Name="ProfilePreferred" Grid.Row="1" Grid.Column="2" TextChanged="ProfileField_Changed" AutomationProperties.Name="{v:Loc profile_preferred_name}"/>
-                                <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Text="{v:Loc profile_headline}" Style="{StaticResource T.FieldLabel}"/>
-                                <TextBox x:Name="ProfileHeadline" Grid.Row="3" Grid.ColumnSpan="3" TextChanged="ProfileField_Changed" AutomationProperties.Name="{v:Loc profile_headline}"/>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                <v:FormField x:Name="ProfileNameField" Label="{v:Loc profile_name}">
+                                    <TextBox x:Name="ProfileName" TextChanged="ProfileField_Changed" AutomationProperties.Name="{v:Loc profile_name}"/>
+                                </v:FormField>
+                                <v:FormField Grid.Column="2" Label="{v:Loc profile_preferred_name}">
+                                    <TextBox x:Name="ProfilePreferred" TextChanged="ProfileField_Changed" AutomationProperties.Name="{v:Loc profile_preferred_name}"/>
+                                </v:FormField>
+                                <v:FormField Grid.Row="1" Grid.ColumnSpan="3" Label="{v:Loc profile_headline}">
+                                    <TextBox x:Name="ProfileHeadline" TextChanged="ProfileField_Changed" AutomationProperties.Name="{v:Loc profile_headline}"/>
+                                </v:FormField>
                             </Grid>
 
                             <!-- section switch: two equal segments across the content width (Tab focuses the selected one, Left/Right switch) -->
@@ -452,23 +438,28 @@
                             </Border>
                             <Grid x:Name="TargetFieldGrid">
                                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="{StaticResource S.ColumnGap}"/><ColumnDefinition/></Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                                <TextBlock Text="{v:Loc job_title}" Style="{StaticResource T.FieldLabel}"/>
-                                <TextBox x:Name="TargetTitle" Grid.Row="1" TextChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc job_title}"/>
-                                <TextBlock Grid.Column="2" Text="{v:Loc company}" Style="{StaticResource T.FieldLabel}"/>
-                                <TextBox x:Name="TargetCompany" Grid.Row="1" Grid.Column="2" TextChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc company}"/>
-                                <TextBlock Grid.Row="2" Text="{v:Loc interview_language}" Style="{StaticResource T.FieldLabel}"/>
-                                <ComboBox x:Name="TargetLanguage" Grid.Row="3" SelectionChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc interview_language}"/>
-                                <TextBlock Grid.Row="2" Grid.Column="2" Text="{v:Loc answer_language}" Style="{StaticResource T.FieldLabel}"/>
-                                <ComboBox x:Name="TargetAnswerLanguage" Grid.Row="3" Grid.Column="2" SelectionChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc answer_language}"/>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                <v:FormField Label="{v:Loc job_title}">
+                                    <TextBox x:Name="TargetTitle" TextChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc job_title}"/>
+                                </v:FormField>
+                                <v:FormField Grid.Column="2" Label="{v:Loc company}">
+                                    <TextBox x:Name="TargetCompany" TextChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc company}"/>
+                                </v:FormField>
+                                <v:FormField Grid.Row="1" Label="{v:Loc interview_language}">
+                                    <ComboBox x:Name="TargetLanguage" SelectionChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc interview_language}"/>
+                                </v:FormField>
+                                <v:FormField Grid.Row="1" Grid.Column="2" Label="{v:Loc answer_language}">
+                                    <ComboBox x:Name="TargetAnswerLanguage" SelectionChanged="TargetField_Changed" AutomationProperties.Name="{v:Loc answer_language}"/>
+                                </v:FormField>
                             </Grid>
                             <TextBlock Style="{StaticResource Hint}" Text="{v:Loc language_separation_hint}"/>
-                            <DockPanel Margin="0,12,0,6">
-                                <Button DockPanel.Dock="Right" Style="{StaticResource Btn.Form}" Content="{v:Loc import_file}" Click="ImportJd_Click" Margin="8,0,0,0" VerticalAlignment="Bottom"/>
-                                <TextBlock Text="{v:Loc job_description}" Style="{StaticResource T.FieldLabel}" Margin="0,0,0,2" VerticalAlignment="Bottom"/>
-                            </DockPanel>
-                            <TextBox x:Name="TargetJd" Style="{StaticResource Input.Multiline}" Height="170" TextChanged="TargetField_Changed"
-                                     AutomationProperties.Name="{v:Loc job_description}"/>
+                            <v:FormField Label="{v:Loc job_description}" Margin="0,8,0,0">
+                                <v:FormField.Accessory>
+                                    <Button Style="{StaticResource Btn.Form}" Content="{v:Loc import_file}" Click="ImportJd_Click" Margin="0,0,0,2"/>
+                                </v:FormField.Accessory>
+                                <TextBox x:Name="TargetJd" Style="{StaticResource Input.Multiline}" Height="{StaticResource S.MultilineTallHeight}" TextChanged="TargetField_Changed"
+                                         AutomationProperties.Name="{v:Loc job_description}"/>
+                            </v:FormField>
                             <TextBlock Style="{StaticResource Hint}" Text="{v:Loc documents_are_data}"/>
                             <v:InlineMessage x:Name="TargetMessage"/>
                             <!-- action bar: primary first, then the secondary actions, state text last -->
@@ -559,7 +550,7 @@
                     </Grid>
 
                     <!-- ===== Help & about ===== -->
-                    <StackPanel x:Name="PageHelp" Visibility="Collapsed" MaxWidth="820" HorizontalAlignment="Left" IsVisibleChanged="PageHelp_IsVisibleChanged">
+                    <StackPanel x:Name="PageHelp" Visibility="Collapsed" MaxWidth="{StaticResource S.PageMaxWidth}" HorizontalAlignment="Left" IsVisibleChanged="PageHelp_IsVisibleChanged">
                         <TextBlock Style="{StaticResource H1}" Text="{v:Loc nav_help}"/>
                         <TextBlock Text="{v:Loc help_getting_started}" Style="{StaticResource Section}"/>
                         <TextBlock Style="{StaticResource T.Body}" TextWrapping="Wrap" Text="{v:Loc help_getting_started_body}"/>
@@ -634,7 +625,7 @@
                         <!-- signed out: product column + the auth form card, centred (max width); one centred column on narrow
                              content. One form for every state (sign in, create account, forgot password, link sent, switch
                              account): labels above fields, the error under its field, one primary button, links to switch. -->
-                        <Grid x:Name="SignedOutPanel" Margin="0,24,0,0" MaxWidth="940">
+                        <Grid x:Name="SignedOutPanel" Margin="0,24,0,0" MaxWidth="{StaticResource S.SplitMaxWidth}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition x:Name="AuthColHero" Width="*"/>
                                 <ColumnDefinition x:Name="AuthColForm" Width="*"/>
@@ -675,22 +666,29 @@
                                         <!-- the service's state when it blocks sign-in (session expired, account disabled, update required, offline) -->
                                         <v:InlineMessage x:Name="AuthStatusMessage"/>
 
-                                        <StackPanel x:Name="EmailPanel">
-                                            <TextBlock x:Name="EmailLabel" Text="{v:Loc email}" Style="{StaticResource T.FieldLabel}"/>
-                                            <TextBox x:Name="EmailBox" AutomationProperties.Name="{v:Loc email}" FlowDirection="LeftToRight" KeyDown="Email_KeyDown"/>
-                                            <v:InlineMessage x:Name="EmailError" Margin="0,6,0,0"/>
-                                        </StackPanel>
-                                        <StackPanel x:Name="PasswordPanel">
-                                            <TextBlock x:Name="PasswordLabel" Text="{v:Loc password}" Style="{StaticResource T.FieldLabel}"/>
-                                            <PasswordBox x:Name="PasswordBox" AutomationProperties.Name="{v:Loc password}" KeyDown="Password_KeyDown" FlowDirection="LeftToRight"/>
-                                            <v:InlineMessage x:Name="PasswordError" Margin="0,6,0,0"/>
-                                            <Button x:Name="ForgotBtn" Style="{StaticResource Btn.Link}" Content="{v:Loc forgot_password}" Click="Forgot_Click" HorizontalAlignment="Right" Margin="0,4,-6,0"/>
-                                        </StackPanel>
+                                        <v:FormField x:Name="EmailPanel" Label="{v:Loc email}">
+                                            <StackPanel>
+                                                <TextBox x:Name="EmailBox" AutomationProperties.Name="{v:Loc email}" FlowDirection="LeftToRight" KeyDown="Email_KeyDown"/>
+                                                <v:InlineMessage x:Name="EmailError" Margin="0,6,0,0"/>
+                                            </StackPanel>
+                                        </v:FormField>
+                                        <v:FormField x:Name="PasswordPanel" Label="{v:Loc password}">
+                                            <!-- "Forgot password?" sits at the end of the label row, where people look for it -->
+                                            <v:FormField.Accessory>
+                                                <Button x:Name="ForgotBtn" Style="{StaticResource Btn.Link}" Content="{v:Loc forgot_password}" Click="Forgot_Click" Margin="0,0,-6,-2"/>
+                                            </v:FormField.Accessory>
+                                            <StackPanel>
+                                                <PasswordBox x:Name="PasswordBox" AutomationProperties.Name="{v:Loc password}" KeyDown="Password_KeyDown" FlowDirection="LeftToRight"/>
+                                                <v:InlineMessage x:Name="PasswordError" Margin="0,6,0,0"/>
+                                            </StackPanel>
+                                        </v:FormField>
                                         <StackPanel x:Name="ConfirmPanel" Visibility="Collapsed">
-                                            <TextBlock Text="{v:Loc confirm_password}" Style="{StaticResource T.FieldLabel}"/>
-                                            <PasswordBox x:Name="ConfirmBox" AutomationProperties.Name="{v:Loc confirm_password}" KeyDown="Password_KeyDown" FlowDirection="LeftToRight"/>
-                                            <v:InlineMessage x:Name="ConfirmError" Margin="0,6,0,0"/>
-                                            <TextBlock Style="{StaticResource Hint}" Text="{v:Loc password_rules}"/>
+                                            <v:FormField Label="{v:Loc confirm_password}" Hint="{v:Loc password_rules}">
+                                                <StackPanel>
+                                                    <PasswordBox x:Name="ConfirmBox" AutomationProperties.Name="{v:Loc confirm_password}" KeyDown="Password_KeyDown" FlowDirection="LeftToRight"/>
+                                                    <v:InlineMessage x:Name="ConfirmError" Margin="0,6,0,0"/>
+                                                </StackPanel>
+                                            </v:FormField>
                                             <TextBlock x:Name="SignUpLegal" Style="{StaticResource Hint}"/>
                                         </StackPanel>
 

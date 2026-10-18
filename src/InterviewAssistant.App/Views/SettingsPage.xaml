@@ -4,34 +4,12 @@
              xmlns:v="clr-namespace:InterviewAssistant.App.Views">
     <UserControl.Resources>
         <v:LevelToWidth x:Key="LevelW" Max="200"/>
-        <Style x:Key="Hint" TargetType="TextBlock" BasedOn="{StaticResource T.Body}">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="{StaticResource B.TextFaint}"/>
-            <Setter Property="Margin" Value="{StaticResource S.HintMargin}"/>
-        </Style>
-        <!-- a field label with an optional ⓘ next to it -->
-        <Style x:Key="LabelRow" TargetType="StackPanel">
-            <Setter Property="Orientation" Value="Horizontal"/>
-            <Setter Property="Margin" Value="{StaticResource S.FieldLabelMargin}"/>
-        </Style>
-        <Style x:Key="RowLabel" TargetType="TextBlock" BasedOn="{StaticResource T.Label}">
-            <Setter Property="Margin" Value="0"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="TextWrapping" Value="Wrap"/>
-        </Style>
+        <Style x:Key="Hint" TargetType="TextBlock" BasedOn="{StaticResource T.Hint}"/>
         <Style x:Key="HotkeyBox" TargetType="TextBox" BasedOn="{StaticResource Input}">
-            <Setter Property="MaxWidth" Value="320"/>
-            <Setter Property="HorizontalAlignment" Value="Left"/>
-            <Setter Property="MinWidth" Value="220"/>
             <Setter Property="FlowDirection" Value="LeftToRight"/>
         </Style>
-        <Style x:Key="AboutKey" TargetType="TextBlock" BasedOn="{StaticResource T.Body}">
-            <Setter Property="Margin" Value="0,3,16,3"/>
-        </Style>
-        <Style x:Key="AboutValue" TargetType="TextBlock" BasedOn="{StaticResource T.Body}">
-            <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
-            <Setter Property="Margin" Value="0,3,0,3"/>
-        </Style>
+        <Style x:Key="AboutKey" TargetType="TextBlock" BasedOn="{StaticResource T.MetaKey}"/>
+        <Style x:Key="AboutValue" TargetType="TextBlock" BasedOn="{StaticResource T.MetaValue}"/>
 
         <!-- category list row: title + one-line description; the selected row has an accent bar on the reading-order
              start side (mirrors in RTL) and a filled background, visible with and without keyboard focus -->
@@ -120,7 +98,7 @@
         <!-- ===== the selected category (one at a time) =====
              a form-width column at the reading-order start (a capped star column: fields stretch to it, never centre) -->
         <Grid Grid.Row="1" Grid.Column="2">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="620"/></Grid.ColumnDefinitions>
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="{StaticResource S.FormMaxWidth}"/></Grid.ColumnDefinitions>
         <StackPanel>
             <DockPanel>
                 <Button x:Name="ResetSectionBtn" DockPanel.Dock="Right" Style="{StaticResource Btn.Ghost}" VerticalAlignment="Top" Click="ResetSection_Click" Margin="8,0,0,0"
@@ -140,14 +118,15 @@
 
             <!-- ===== Audio ===== -->
             <StackPanel x:Name="CatAudio" Tag="audio">
-                <TextBlock Text="{v:Loc set_audio_device}" Style="{StaticResource T.FieldLabel}"/>
-                <Grid>
-                    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <ComboBox x:Name="DeviceBox" SelectionChanged="DeviceBox_SelectionChanged" AutomationProperties.Name="{v:Loc set_audio_device}"/>
-                    <Button Grid.Column="1" Style="{StaticResource Btn.Form}" Click="RefreshDevices_Click" ToolTip="{v:Loc set_refresh_devices}" AutomationProperties.Name="{v:Loc set_refresh_devices}" Margin="8,0,0,0">
-                        <TextBlock Style="{StaticResource T.Icon}" Text="&#xE72C;"/>
-                    </Button>
-                </Grid>
+                <v:FormField Label="{v:Loc set_audio_device}">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <ComboBox x:Name="DeviceBox" SelectionChanged="DeviceBox_SelectionChanged" AutomationProperties.Name="{v:Loc set_audio_device}"/>
+                        <Button Grid.Column="1" Style="{StaticResource Btn.Form}" Click="RefreshDevices_Click" ToolTip="{v:Loc set_refresh_devices}" AutomationProperties.Name="{v:Loc set_refresh_devices}" Margin="8,0,0,0">
+                            <TextBlock Style="{StaticResource T.Icon}" Text="&#xE72C;"/>
+                        </Button>
+                    </Grid>
+                </v:FormField>
                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                     <TextBlock Text="{v:Loc set_level}" Foreground="{StaticResource B.TextDim}" FontSize="12" VerticalAlignment="Center" MinWidth="40" Margin="0,0,8,0"/>
                     <Border Width="200" Height="6" CornerRadius="3" Background="{StaticResource B.Surface3}" VerticalAlignment="Center" AutomationProperties.Name="{v:Loc set_level}">
@@ -160,60 +139,73 @@
             <StackPanel x:Name="CatAnswers" Tag="answers" Visibility="Collapsed">
                 <!-- developer builds only -->
                 <StackPanel x:Name="DeveloperKeyPanel">
-                    <TextBlock Text="{v:Loc set_dev_key}" Style="{StaticResource T.FieldLabel}"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                        <PasswordBox x:Name="KeyBox" AutomationProperties.Name="{v:Loc set_dev_key}" FlowDirection="LeftToRight" PasswordChanged="Changed"/>
-                        <Button Grid.Column="1" Style="{StaticResource Btn.Form}" Content="{v:Loc set_test}" Click="TestKey_Click" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Style="{StaticResource Btn.Ghost}" Content="{v:Loc set_remove}" Click="RemoveKey_Click" Margin="4,0,0,0"/>
-                    </Grid>
+                    <v:FormField Label="{v:Loc set_dev_key}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <PasswordBox x:Name="KeyBox" AutomationProperties.Name="{v:Loc set_dev_key}" FlowDirection="LeftToRight" PasswordChanged="Changed"/>
+                            <Button Grid.Column="1" Style="{StaticResource Btn.Form}" Content="{v:Loc set_test}" Click="TestKey_Click" Margin="8,0,0,0"/>
+                            <Button Grid.Column="2" Style="{StaticResource Btn.Ghost}" Content="{v:Loc set_remove}" Click="RemoveKey_Click" Margin="4,0,0,0"/>
+                        </Grid>
+                    </v:FormField>
                     <TextBlock x:Name="KeyStatus" Style="{StaticResource Hint}" AutomationProperties.LiveSetting="Polite"/>
                     <!-- security statement: stays visible -->
                     <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_dev_key_hint}"/>
                 </StackPanel>
-                <TextBlock x:Name="ModelLabel" Text="{v:Loc set_answer_model}" Style="{StaticResource T.FieldLabel}"/>
-                <ComboBox x:Name="ModelBox" IsEditable="True" AutomationProperties.Name="{v:Loc set_answer_model}" FlowDirection="LeftToRight"/>
-                <TextBlock x:Name="SttLabel" Text="{v:Loc set_stt_model}" Style="{StaticResource T.FieldLabel}"/>
-                <ComboBox x:Name="SttBox" IsEditable="True" AutomationProperties.Name="{v:Loc set_stt_model}" FlowDirection="LeftToRight"/>
-                <TextBlock x:Name="ProtocolLabel" Text="{v:Loc set_protocol}" Style="{StaticResource T.FieldLabel}"/>
-                <ComboBox x:Name="ProtocolBox" AutomationProperties.Name="{v:Loc set_protocol}" SelectionChanged="Changed"/>
-                <TextBlock Text="{v:Loc set_font_size}" Style="{StaticResource T.FieldLabel}"/>
-                <ComboBox x:Name="FontBox" AutomationProperties.Name="{v:Loc set_font_size}" SelectionChanged="Changed"/>
+                <v:FormField x:Name="ModelField" Label="{v:Loc set_answer_model}">
+                    <ComboBox x:Name="ModelBox" IsEditable="True" AutomationProperties.Name="{v:Loc set_answer_model}" FlowDirection="LeftToRight"/>
+                </v:FormField>
+                <v:FormField x:Name="SttField" Label="{v:Loc set_stt_model}">
+                    <ComboBox x:Name="SttBox" IsEditable="True" AutomationProperties.Name="{v:Loc set_stt_model}" FlowDirection="LeftToRight"/>
+                </v:FormField>
+                <v:FormField x:Name="ProtocolField" Label="{v:Loc set_protocol}" IsShort="True">
+                    <ComboBox x:Name="ProtocolBox" AutomationProperties.Name="{v:Loc set_protocol}" SelectionChanged="Changed"/>
+                </v:FormField>
+                <v:FormField Label="{v:Loc set_font_size}" IsShort="True">
+                    <ComboBox x:Name="FontBox" AutomationProperties.Name="{v:Loc set_font_size}" SelectionChanged="Changed"/>
+                </v:FormField>
                 <CheckBox x:Name="FastCacheBox" Style="{StaticResource Check}" Content="{v:Loc set_fast_cache}" Margin="0,14,0,0" Checked="Changed" Unchecked="Changed"/>
             </StackPanel>
 
             <!-- ===== Listening ===== -->
             <StackPanel x:Name="CatListening" Tag="listening" Visibility="Collapsed">
-                <StackPanel Style="{StaticResource LabelRow}">
-                    <TextBlock Text="{v:Loc set_end_wait}" Style="{StaticResource RowLabel}"/>
-                    <v:InfoTip Text="{v:Loc set_end_wait_hint}"/>
-                </StackPanel>
-                <DockPanel>
-                    <TextBlock DockPanel.Dock="Left" Text="{v:Loc set_faster}" FontSize="11.5" Foreground="{StaticResource B.TextDim}" VerticalAlignment="Center" MinWidth="46" Margin="0,0,8,0"/>
-                    <TextBlock DockPanel.Dock="Right" Text="{v:Loc set_waits_longer}" FontSize="11.5" Foreground="{StaticResource B.TextDim}" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                    <Slider x:Name="VadSlider" Minimum="0.6" Maximum="1.8" TickFrequency="0.1" IsSnapToTickEnabled="True" AutomationProperties.Name="{v:Loc set_end_wait}" ValueChanged="SliderChanged"/>
-                </DockPanel>
+                <v:FormField Label="{v:Loc set_end_wait}" Info="{v:Loc set_end_wait_hint}">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Left" Text="{v:Loc set_faster}" FontSize="11.5" Foreground="{StaticResource B.TextDim}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock DockPanel.Dock="Right" Text="{v:Loc set_waits_longer}" FontSize="11.5" Foreground="{StaticResource B.TextDim}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <Slider x:Name="VadSlider" Minimum="0.6" Maximum="1.8" TickFrequency="0.1" IsSnapToTickEnabled="True" AutomationProperties.Name="{v:Loc set_end_wait}" ValueChanged="SliderChanged"/>
+                    </DockPanel>
+                </v:FormField>
             </StackPanel>
 
             <!-- ===== Window ===== -->
             <StackPanel x:Name="CatWindow" Tag="window" Visibility="Collapsed">
-                <TextBlock Text="{v:Loc set_opacity}" Style="{StaticResource T.FieldLabel}"/>
-                <Slider x:Name="OpacitySlider" Minimum="0.75" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True"
-                        AutomationProperties.Name="{v:Loc set_opacity}" ValueChanged="SliderChanged"/>
+                <v:FormField Label="{v:Loc set_opacity}">
+                    <Slider x:Name="OpacitySlider" Minimum="0.75" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True"
+                            AutomationProperties.Name="{v:Loc set_opacity}" ValueChanged="SliderChanged"/>
+                </v:FormField>
                 <CheckBox x:Name="TopmostBox" Style="{StaticResource Check}" Content="{v:Loc set_topmost}" Margin="0,14,0,0" Checked="Changed" Unchecked="Changed"/>
             </StackPanel>
 
             <!-- ===== Hotkeys ===== -->
             <StackPanel x:Name="CatHotkeys" Tag="hotkeys" Visibility="Collapsed">
-                <TextBlock Text="{v:Loc set_hk_toggle}" Style="{StaticResource T.FieldLabel}"/>
-                <TextBox x:Name="HkToggle" Style="{StaticResource HotkeyBox}" AutomationProperties.Name="{v:Loc set_hk_toggle}" TextChanged="Changed"/>
-                <v:InlineMessage x:Name="HkToggleError" MaxWidth="480" HorizontalAlignment="Left"/>
-                <TextBlock Text="{v:Loc set_hk_start}" Style="{StaticResource T.FieldLabel}"/>
-                <TextBox x:Name="HkStart" Style="{StaticResource HotkeyBox}" AutomationProperties.Name="{v:Loc set_hk_start}" TextChanged="Changed"/>
-                <v:InlineMessage x:Name="HkStartError" MaxWidth="480" HorizontalAlignment="Left"/>
-                <TextBlock Text="{v:Loc set_hk_manual}" Style="{StaticResource T.FieldLabel}"/>
-                <TextBox x:Name="HkManual" Style="{StaticResource HotkeyBox}" AutomationProperties.Name="{v:Loc set_hk_manual}" TextChanged="Changed"/>
-                <v:InlineMessage x:Name="HkManualError" MaxWidth="480" HorizontalAlignment="Left"/>
+                <v:FormField Label="{v:Loc set_hk_toggle}" IsShort="True">
+                    <StackPanel>
+                        <TextBox x:Name="HkToggle" Style="{StaticResource HotkeyBox}" AutomationProperties.Name="{v:Loc set_hk_toggle}" TextChanged="Changed"/>
+                        <v:InlineMessage x:Name="HkToggleError"/>
+                    </StackPanel>
+                </v:FormField>
+                <v:FormField Label="{v:Loc set_hk_start}" IsShort="True">
+                    <StackPanel>
+                        <TextBox x:Name="HkStart" Style="{StaticResource HotkeyBox}" AutomationProperties.Name="{v:Loc set_hk_start}" TextChanged="Changed"/>
+                        <v:InlineMessage x:Name="HkStartError"/>
+                    </StackPanel>
+                </v:FormField>
+                <v:FormField Label="{v:Loc set_hk_manual}" IsShort="True">
+                    <StackPanel>
+                        <TextBox x:Name="HkManual" Style="{StaticResource HotkeyBox}" AutomationProperties.Name="{v:Loc set_hk_manual}" TextChanged="Changed"/>
+                        <v:InlineMessage x:Name="HkManualError"/>
+                    </StackPanel>
+                </v:FormField>
             </StackPanel>
 
             <!-- ===== Privacy ===== -->
@@ -235,14 +227,13 @@
                     <TextBlock Grid.Row="2" Style="{StaticResource AboutKey}" Text="{v:Loc about_build}"/>
                     <TextBlock x:Name="UpdateCommit" Grid.Row="2" Grid.Column="1" Style="{StaticResource AboutValue}" FlowDirection="LeftToRight" HorizontalAlignment="Left"/>
                 </Grid>
-                <TextBlock Text="{v:Loc update_preference}" Style="{StaticResource T.FieldLabel}"/>
                 <!-- saved right away (not through the Save footer): it only takes effect after a restart -->
-                <ComboBox x:Name="ChannelBox" MaxWidth="320" HorizontalAlignment="Left" MinWidth="220"
-                          SelectionChanged="Channel_Changed" AutomationProperties.Name="{v:Loc update_preference}">
-                    <ComboBoxItem Content="{v:Loc channel_stable}" Tag="stable"/>
-                    <ComboBoxItem Content="{v:Loc channel_beta}" Tag="beta"/>
-                </ComboBox>
-                <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_upd_pref_note}"/>
+                <v:FormField Label="{v:Loc update_preference}" Hint="{v:Loc set_upd_pref_note}" IsShort="True">
+                    <ComboBox x:Name="ChannelBox" SelectionChanged="Channel_Changed" AutomationProperties.Name="{v:Loc update_preference}">
+                        <ComboBoxItem Content="{v:Loc channel_stable}" Tag="stable"/>
+                        <ComboBoxItem Content="{v:Loc channel_beta}" Tag="beta"/>
+                    </ComboBox>
+                </v:FormField>
                 <WrapPanel Margin="{StaticResource S.ButtonRowMargin}">
                     <Button x:Name="CheckUpdatesBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc set_upd_check}" Click="CheckUpdates_Click" Margin="{StaticResource S.ButtonGap}"/>
                     <Button x:Name="RestartUpdateBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc restart_to_update}" Click="RestartUpdate_Click" Margin="{StaticResource S.ButtonGap}" Visibility="Collapsed"/>

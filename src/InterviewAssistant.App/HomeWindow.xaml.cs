@@ -39,7 +39,8 @@ public partial class HomeWindow : Window
     private InterviewTarget? _target;
     private readonly ObservableCollection<FactRow> _facts = new();
     private readonly Dictionary<string, TextBox> _personalBoxes = new();
-    private readonly List<(TextBlock Block, Func<string> Text)> _personalTexts = new();
+    /// <summary>Re-renders the questionnaire's texts in the current UI language (section headings, field labels and prompts).</summary>
+    private readonly List<Action> _personalTexts = new();
     private CancellationTokenSource? _prepCts;
     private string _page = "start";
 
@@ -207,7 +208,7 @@ public partial class HomeWindow : Window
         using (_targetGuard.Suspend())
         {
             BuildLanguagePickers();
-            foreach (var (block, text) in _personalTexts) block.Text = text();
+            foreach (var render in _personalTexts) render();
             foreach (var (key, box) in _personalBoxes) System.Windows.Automation.AutomationProperties.SetName(box, T($"pc_{key}_label"));
             foreach (var r in _facts) r.RaiseAll();
             UpdateFactSummary();
@@ -546,31 +547,23 @@ public partial class HomeWindow : Window
         PersonalFields.Children.Clear();
         _personalBoxes.Clear();
         _personalTexts.Clear();
-        TextBlock Text(Func<string> text, Style? style = null)
-        {
-            var tb = new TextBlock { Text = text(), TextWrapping = TextWrapping.Wrap };
-            if (style != null) tb.Style = style;
-            _personalTexts.Add((tb, text));
-            return tb;
-        }
         foreach (var section in PersonalCategories.All.GroupBy(c => c.Section))
         {
             var key = section.Key;
-            PersonalFields.Children.Add(Text(() => T("pcs_" + key), (Style)FindResource("Section")));
+            var heading = new TextBlock { Style = (Style)FindResource("Section") };
+            void RenderHeading() => heading.Text = T("pcs_" + key);
+            RenderHeading(); _personalTexts.Add(RenderHeading);
+            PersonalFields.Children.Add(heading);
             foreach (var c in section)
             {
-                var label = Text(() => T($"pc_{c.Key}_label"));
-                label.Foreground = (Brush)FindResource("B.Text"); label.FontSize = 13; label.FontWeight = FontWeights.SemiBold; label.Margin = new Thickness(0, 10, 0, 2);
-                var prompt = Text(() => T($"pc_{c.Key}_prompt"), (Style)FindResource("Hint"));
-                prompt.Margin = new Thickness(0, 0, 0, 6);
+                // the app's one field layout: label above, the answer box, the guiding question under it
                 var box = new TextBox { AcceptsReturn = true, MinHeight = (double)FindResource("S.ControlHeight"), MaxHeight = 110, MaxLength = 600, Tag = c.Key };
-                System.Windows.Automation.AutomationProperties.SetName(box, T($"pc_{c.Key}_label"));
-                System.Windows.Automation.AutomationProperties.SetLabeledBy(box, label);
+                var field = new FormField { Content = box };
+                void Render() { field.Label = T($"pc_{c.Key}_label"); field.Hint = T($"pc_{c.Key}_prompt"); }
+                Render(); _personalTexts.Add(Render);
                 box.TextChanged += (_, _) => _profileGuard.MarkDirty();
                 _personalBoxes[c.Key] = box;
-                PersonalFields.Children.Add(label);
-                PersonalFields.Children.Add(prompt);
-                PersonalFields.Children.Add(box);
+                PersonalFields.Children.Add(field);
             }
         }
     }
