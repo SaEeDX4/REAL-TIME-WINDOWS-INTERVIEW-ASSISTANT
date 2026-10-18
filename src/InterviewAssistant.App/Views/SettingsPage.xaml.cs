@@ -65,7 +65,7 @@ public partial class SettingsPage : UserControl
         Guard.Save = Save;
         Guard.Discard = RevertPreview;
         BuildCategoryList();
-        SelectCategory(SettingsCategories.Audio, focusField: false);
+        SelectCategory(SettingsCategories.Parse(null, s_lastCategory), focusField: false);
     }
 
     public void Initialize(MainViewModel vm, MainWindow main)

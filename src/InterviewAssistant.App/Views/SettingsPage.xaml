@@ -19,10 +19,6 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
-        <Style x:Key="Field" TargetType="ComboBox" BasedOn="{StaticResource Combo}">
-            <Setter Property="MaxWidth" Value="420"/>
-            <Setter Property="HorizontalAlignment" Value="Stretch"/>
-        </Style>
         <Style x:Key="HotkeyBox" TargetType="TextBox" BasedOn="{StaticResource Input}">
             <Setter Property="MaxWidth" Value="320"/>
             <Setter Property="HorizontalAlignment" Value="Left"/>
@@ -80,7 +76,8 @@
         </Style>
     </UserControl.Resources>
 
-    <Grid MaxWidth="1000" HorizontalAlignment="Stretch">
+    <!-- fills the content area (Home caps it at S.ContentMaxWidth); the category column is about a quarter, 180–250 px -->
+    <Grid>
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="1*" MinWidth="180" MaxWidth="250"/>
@@ -120,8 +117,11 @@
             </Button>
         </StackPanel>
 
-        <!-- ===== the selected category (one at a time) ===== -->
-        <StackPanel Grid.Row="1" Grid.Column="2" MaxWidth="{StaticResource S.PageMaxWidth}" HorizontalAlignment="Stretch">
+        <!-- ===== the selected category (one at a time) =====
+             a form-width column at the reading-order start (a capped star column: fields stretch to it, never centre) -->
+        <Grid Grid.Row="1" Grid.Column="2">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="620"/></Grid.ColumnDefinitions>
+        <StackPanel>
             <DockPanel>
                 <Button x:Name="ResetSectionBtn" DockPanel.Dock="Right" Style="{StaticResource Btn.Ghost}" VerticalAlignment="Top" Click="ResetSection_Click" Margin="8,0,0,0"
                         AutomationProperties.Name="{v:Loc set_reset_section}">
@@ -141,7 +141,7 @@
             <!-- ===== Audio ===== -->
             <StackPanel x:Name="CatAudio" Tag="audio">
                 <TextBlock Text="{v:Loc set_audio_device}" Style="{StaticResource T.FieldLabel}"/>
-                <Grid MaxWidth="480" HorizontalAlignment="Stretch">
+                <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <ComboBox x:Name="DeviceBox" SelectionChanged="DeviceBox_SelectionChanged" AutomationProperties.Name="{v:Loc set_audio_device}"/>
                     <Button Grid.Column="1" Style="{StaticResource Btn.Form}" Click="RefreshDevices_Click" ToolTip="{v:Loc set_refresh_devices}" AutomationProperties.Name="{v:Loc set_refresh_devices}" Margin="8,0,0,0">
@@ -161,7 +161,7 @@
                 <!-- developer builds only -->
                 <StackPanel x:Name="DeveloperKeyPanel">
                     <TextBlock Text="{v:Loc set_dev_key}" Style="{StaticResource T.FieldLabel}"/>
-                    <Grid MaxWidth="560" HorizontalAlignment="Stretch">
+                    <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                         <PasswordBox x:Name="KeyBox" AutomationProperties.Name="{v:Loc set_dev_key}" FlowDirection="LeftToRight" PasswordChanged="Changed"/>
                         <Button Grid.Column="1" Style="{StaticResource Btn.Form}" Content="{v:Loc set_test}" Click="TestKey_Click" Margin="8,0,0,0"/>
@@ -172,13 +172,13 @@
                     <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_dev_key_hint}"/>
                 </StackPanel>
                 <TextBlock x:Name="ModelLabel" Text="{v:Loc set_answer_model}" Style="{StaticResource T.FieldLabel}"/>
-                <ComboBox x:Name="ModelBox" Style="{StaticResource Field}" IsEditable="True" AutomationProperties.Name="{v:Loc set_answer_model}" FlowDirection="LeftToRight"/>
+                <ComboBox x:Name="ModelBox" IsEditable="True" AutomationProperties.Name="{v:Loc set_answer_model}" FlowDirection="LeftToRight"/>
                 <TextBlock x:Name="SttLabel" Text="{v:Loc set_stt_model}" Style="{StaticResource T.FieldLabel}"/>
-                <ComboBox x:Name="SttBox" Style="{StaticResource Field}" IsEditable="True" AutomationProperties.Name="{v:Loc set_stt_model}" FlowDirection="LeftToRight"/>
+                <ComboBox x:Name="SttBox" IsEditable="True" AutomationProperties.Name="{v:Loc set_stt_model}" FlowDirection="LeftToRight"/>
                 <TextBlock x:Name="ProtocolLabel" Text="{v:Loc set_protocol}" Style="{StaticResource T.FieldLabel}"/>
-                <ComboBox x:Name="ProtocolBox" Style="{StaticResource Field}" AutomationProperties.Name="{v:Loc set_protocol}" SelectionChanged="Changed"/>
+                <ComboBox x:Name="ProtocolBox" AutomationProperties.Name="{v:Loc set_protocol}" SelectionChanged="Changed"/>
                 <TextBlock Text="{v:Loc set_font_size}" Style="{StaticResource T.FieldLabel}"/>
-                <ComboBox x:Name="FontBox" Style="{StaticResource Field}" AutomationProperties.Name="{v:Loc set_font_size}" SelectionChanged="Changed"/>
+                <ComboBox x:Name="FontBox" AutomationProperties.Name="{v:Loc set_font_size}" SelectionChanged="Changed"/>
                 <CheckBox x:Name="FastCacheBox" Style="{StaticResource Check}" Content="{v:Loc set_fast_cache}" Margin="0,14,0,0" Checked="Changed" Unchecked="Changed"/>
             </StackPanel>
 
@@ -188,7 +188,7 @@
                     <TextBlock Text="{v:Loc set_end_wait}" Style="{StaticResource RowLabel}"/>
                     <v:InfoTip Text="{v:Loc set_end_wait_hint}"/>
                 </StackPanel>
-                <DockPanel MaxWidth="480" HorizontalAlignment="Stretch">
+                <DockPanel>
                     <TextBlock DockPanel.Dock="Left" Text="{v:Loc set_faster}" FontSize="11.5" Foreground="{StaticResource B.TextDim}" VerticalAlignment="Center" MinWidth="46" Margin="0,0,8,0"/>
                     <TextBlock DockPanel.Dock="Right" Text="{v:Loc set_waits_longer}" FontSize="11.5" Foreground="{StaticResource B.TextDim}" VerticalAlignment="Center" Margin="8,0,0,0"/>
                     <Slider x:Name="VadSlider" Minimum="0.6" Maximum="1.8" TickFrequency="0.1" IsSnapToTickEnabled="True" AutomationProperties.Name="{v:Loc set_end_wait}" ValueChanged="SliderChanged"/>
@@ -198,7 +198,7 @@
             <!-- ===== Window ===== -->
             <StackPanel x:Name="CatWindow" Tag="window" Visibility="Collapsed">
                 <TextBlock Text="{v:Loc set_opacity}" Style="{StaticResource T.FieldLabel}"/>
-                <Slider x:Name="OpacitySlider" MaxWidth="480" HorizontalAlignment="Stretch" Minimum="0.75" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True"
+                <Slider x:Name="OpacitySlider" Minimum="0.75" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True"
                         AutomationProperties.Name="{v:Loc set_opacity}" ValueChanged="SliderChanged"/>
                 <CheckBox x:Name="TopmostBox" Style="{StaticResource Check}" Content="{v:Loc set_topmost}" Margin="0,14,0,0" Checked="Changed" Unchecked="Changed"/>
             </StackPanel>
@@ -237,7 +237,7 @@
                 </Grid>
                 <TextBlock Text="{v:Loc update_preference}" Style="{StaticResource T.FieldLabel}"/>
                 <!-- saved right away (not through the Save footer): it only takes effect after a restart -->
-                <ComboBox x:Name="ChannelBox" Style="{StaticResource Field}" MaxWidth="320" HorizontalAlignment="Left" MinWidth="220"
+                <ComboBox x:Name="ChannelBox" MaxWidth="320" HorizontalAlignment="Left" MinWidth="220"
                           SelectionChanged="Channel_Changed" AutomationProperties.Name="{v:Loc update_preference}">
                     <ComboBoxItem Content="{v:Loc channel_stable}" Tag="stable"/>
                     <ComboBoxItem Content="{v:Loc channel_beta}" Tag="beta"/>
@@ -252,5 +252,6 @@
                 <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_upd_install_note}" Margin="0,8,0,0"/>
             </StackPanel>
         </StackPanel>
+        </Grid>
     </Grid>
 </UserControl>
