@@ -131,5 +131,15 @@ public partial class MainWindow
 
     // ---------------- setup mode vs interview mode ----------------
 
-    private void UpdateSetupMode(LiveChromeLayout c) { }
+    /// <summary>
+    /// Setup mode (no session): a calm empty state and a link to Home while no question is on screen. Interview mode:
+    /// only the interview controls; an empty question card says it is waiting for the interviewer.
+    /// </summary>
+    private void UpdateSetupMode(LiveChromeLayout c)
+    {
+        var noQuestion = _vm.Question.Length == 0;
+        SetupEmpty.Visibility = Vis(c.SetupEmptyState && noQuestion);
+        SetupHomeLink.Visibility = Vis(c.HomeLink);
+        WaitingText.Visibility = Vis(!c.SetupEmptyState && noQuestion);
+    }
 }

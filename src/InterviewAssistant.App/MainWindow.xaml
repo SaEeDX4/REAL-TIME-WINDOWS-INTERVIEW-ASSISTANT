@@ -74,7 +74,7 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- status pill: shrinks first when the header is tight (status text trims, details in the tooltip) -->
-                <Border Grid.Column="0" Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" CornerRadius="14" Padding="10,5,12,5"
+                <Border x:Name="StatusPill" Grid.Column="0" Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" CornerRadius="14" Padding="10,5,12,5"
                         HorizontalAlignment="Left" ToolTip="{Binding StatusDetail}">
                     <DockPanel>
                         <Ellipse DockPanel.Dock="Left" Width="8" Height="8" Fill="{Binding StatusBrush}" VerticalAlignment="Center">
@@ -132,7 +132,7 @@
                 </StackPanel>
 
                 <!-- window controls: always last -->
-                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,0,0">
+                <StackPanel x:Name="WindowControls" Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,0,0">
                     <Button Style="{StaticResource Btn.HeaderIcon}" Click="Minimize_Click" ToolTip="{v:Loc tt_minimize}" AutomationProperties.Name="{v:Loc tt_minimize}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE921;" FontSize="11"/></Button>
                     <Button x:Name="MaxBtn" Style="{StaticResource Btn.HeaderIcon}" Click="Maximize_Click" ToolTip="{v:Loc tt_maximize}" AutomationProperties.Name="{v:Loc tt_maximize}"><TextBlock x:Name="MaxIcon" Style="{StaticResource T.Icon}" Text="&#xE922;" FontSize="11"/></Button>
                     <Button Style="{StaticResource Btn.HeaderIcon}" Click="Close_Click" ToolTip="{v:Loc tt_close}" AutomationProperties.Name="{v:Loc tt_close}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE8BB;" FontSize="11"/></Button>
@@ -172,8 +172,20 @@
                                    ToolTip="{Binding ContextSummary}" Visibility="{Binding ContextSummary, Converter={StaticResource StrVis}}">
                             <Run Text="{v:Loc live_context}" FontWeight="SemiBold"/><Run Text=": "/><Run Text="{Binding ContextSummary, Mode=OneWay}"/>
                         </TextBlock>
-                        <TextBlock Text="{Binding LWaiting}" FontSize="{Binding QuestionFontSize}" Foreground="{StaticResource B.TextFaint}"
-                                   Visibility="{Binding Question, Converter={StaticResource StrVisInv}}"/>
+                        <!-- no question yet. Interview mode (listening / paused): "Waiting for the interviewer…". Setup mode (no session):
+                             a calm empty state with a link to Home. Which one shows is LiveChrome's rule (MainWindow.UpdateSetupMode). -->
+                        <TextBlock x:Name="WaitingText" Text="{Binding LWaiting}" FontSize="{Binding QuestionFontSize}" Foreground="{StaticResource B.TextFaint}" Visibility="Collapsed"/>
+                        <StackPanel x:Name="SetupEmpty" Visibility="Collapsed">
+                            <TextBlock x:Name="SetupEmptyText" Text="{v:Loc live_empty_setup}" FontSize="{Binding QuestionFontSize}" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap"
+                                       AutomationProperties.LiveSetting="Polite"/>
+                            <Button x:Name="SetupHomeLink" Style="{StaticResource Btn.Link}" HorizontalAlignment="Left" Margin="-6,6,0,0" Click="Home_Click" ToolTip="{v:Loc tt_home}"
+                                    AutomationProperties.Name="{v:Loc live_open_home}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource T.Icon}" Text="&#xE80F;" FontSize="12" Margin="0,0,6,0"/>
+                                    <TextBlock Text="{v:Loc live_open_home}"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
                         <TextBlock Text="{Binding LiveTranscript}" FlowDirection="{Binding LiveTranscriptFlowDirection}" Margin="0,8,0,0" FontSize="13" FontStyle="Italic" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap"
                                    Visibility="{Binding LiveTranscript, Converter={StaticResource StrVis}}"/>
                     </StackPanel>

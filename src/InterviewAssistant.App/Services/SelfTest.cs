@@ -374,6 +374,28 @@ public static class SelfTest
             return (ok, $"opened, local checks ran ({verdict}), closed");
         });
         await Check("Compact mode toggle", async () => { w.SetCompact(true); await Idle(); w.SetCompact(false); await Idle(); return (true, "on/off"); });
+        await Check("Live header: fits at the minimum width without clipping (primary items first, overflow last); setup vs interview mode follows LiveChrome", async () =>
+        {
+            var width = w.Width;
+            w.Width = w.MinWidth; await Task.Delay(150); await Idle(); await Idle();
+            var header = w.Header;
+            var inter = (FrameworkElement)w.FindName("InterviewControls");
+            var controls = (FrameworkElement)w.FindName("WindowControls");
+            var pill = (FrameworkElement)w.FindName("StatusPill");
+            var right = controls.TranslatePoint(new Point(controls.ActualWidth, 0), header).X;
+            var fits = right <= header.ActualWidth + 0.5 && inter.ActualWidth >= inter.DesiredSize.Width - 0.5 && controls.ActualWidth >= controls.DesiredSize.Width - 0.5 && pill.ActualWidth >= 60;
+            var narrow = w.Chrome;
+            w.Width = Math.Max(width, UiState.LiveChrome.ReadinessLabelWidth + 20); await Task.Delay(150); await Idle(); await Idle();
+            var wide = w.Chrome;
+            var expected = UiState.LiveChrome.For(vm.SessionActive, vm.Settings.CompactMode, w.ActualWidth);
+            var label = (FrameworkElement)w.FindName("ReadinessLabel");
+            var setup = vm.SessionActive || (wide.Readiness == UiState.ReadinessIndicator.Label && label.Visibility == Visibility.Visible
+                        && ((FrameworkElement)w.FindName("SetupEmpty")).Visibility == (vm.Question.Length == 0 ? Visibility.Visible : Visibility.Collapsed));
+            var tip = ((FrameworkElement)w.FindName("ReadinessBtn")).ToolTip as string ?? "";
+            w.Width = width; await Task.Delay(150); await Idle();
+            return (fits && narrow.Readiness == UiState.ReadinessIndicator.Dot && !narrow.StartLabel && wide == expected && setup && tip.Length > 0,
+                $"at {w.MinWidth:0}px: window buttons end {right:0}/{header.ActualWidth:0}px, status pill {pill.ActualWidth:0}px, fits {fits}; wide layout {wide}; setup affordances {setup}; readiness tooltip '{tip}'");
+        });
         await Check("Interview Focus: honest first-use dialog (Escape cancels, nothing moves), every preset inside the work area, restore returns to the previous placement", async () =>
         {
             await Idle();
