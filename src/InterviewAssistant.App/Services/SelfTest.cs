@@ -225,6 +225,25 @@ public static class SelfTest
             return (ok, $"{HomePages.Length} pages rendered; no unsaved edits after opening and paging: {cleanAtStart}; sign-in form {(signInForm ? "shown" : "MISSING")}; developer button {(noDevButton ? "hidden" : "VISIBLE")}; "
                         + $"password field {home.PasswordBox.ActualHeight:0}px = e-mail field {home.EmailBox.ActualHeight:0}px: {sameHeight}; placeholder tracking {tracksFilled && tracksEmpty}");
         });
+        await Check("Get started: readiness dashboard, four steps, exactly one primary action (the next step), first-run acknowledgement", async () =>
+        {
+            w.OpenHome("start"); await Idle(); await Idle();
+            var home = w.Home;
+            if (home == null) return (false, "Home did not open");
+            var onPage = home.CurrentPage == "start";
+            var ack = vm.Settings.AuthorizedUseAcknowledged;
+            var primary = home.StartPrimaryButtonsForTest;
+            var expected = Core.Languages.Loc.T(UiState.SetupPlanner.ActionKey(home.PrimaryActionForTest));
+            var one = primary.Count == 1 && primary[0].Content as string == expected && primary[0].IsEnabled == ack;
+            // the acknowledgement card until acknowledged, then only the note
+            var ackUi = (home.AckCard.Visibility == Visibility.Visible) == !ack && (home.AckNote.Visibility == Visibility.Visible) == ack;
+            var steps = new FrameworkElement[] { home.StepCard0, home.StepCard1, home.StepCard2, home.StepCard3 }.All(c => c.IsVisible);
+            var stateTexts = new[] { home.StepState0, home.StepState1, home.StepState2, home.StepState3 }.All(t => t.Text.Length > 0);
+            var noDevButton = BuildFlavor.Developer || home.DeveloperModeBtn.Visibility != Visibility.Visible;
+            home.Close(); await Idle();
+            return (onPage && one && ackUi && steps && stateTexts && noDevButton,
+                $"{primary.Count} primary action(s) '{(primary.Count > 0 ? primary[0].Content : "")}' (expected '{expected}', enabled {(primary.Count > 0 && primary[0].IsEnabled)}, acknowledged {ack}); acknowledgement card {ackUi}; four steps {steps}, status texts {stateTexts}");
+        });
         await Check("Profile → confirm facts → prepare → load (isolated DPAPI workspace)", async () =>
         {
             var root = Path.Combine(AppPaths.Local, "selftest-workspace");
