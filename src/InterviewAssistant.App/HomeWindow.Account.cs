@@ -636,10 +636,15 @@ public partial class HomeWindow
         catch (BackendException ex) { AppLog.Warn($"Export failed: {ex.Code} (ref {ex.CorrelationId})"); PrivacyMessage.Show(CloudService.Describe(ex, includeReference: false), MessageKind.Error); }
     }
 
+    /// <summary>
+    /// Delete account: (1) the in-app dialog listing what is deleted ("Keep account" is the default), (2) re-authentication
+    /// as the confirmation, then the deletion; afterwards a SEPARATE question about this PC's copy of the data.
+    /// </summary>
     private async void DeleteAccount_Click(object sender, RoutedEventArgs e)
     {
         if (_vm.Cloud.Api == null) return;
-        if (!await AppDialog.ConfirmAsync(this, T("confirm_delete_account"), T("dlg_delete_account"), destructive: true)) return;
+        DangerMessage.Clear();
+        if (!await DeleteAccountDialog.ConfirmAsync(this, AccountDeletion.SubscriptionBlocks(_vm.Cloud.Account?.Subscription))) return;
         if (!await ReauthenticateAsync("reauth_reason_delete", DangerMessage) || _vm.Cloud.Api == null) return;
         try
         {
@@ -648,13 +653,14 @@ public partial class HomeWindow
             var localRoot = _vm.Workspace?.Store.Root;
             var viewer = _vm.Workspace?.ViewerDir;
             _profileGuard.MarkClean(); _targetGuard.MarkClean();   // the account and its data are gone
-            await _vm.SignOutAsync();
+            await _vm.SignOutAsync(quiet: true);   // the form below says the account was deleted
+            _auth.Reset();
             // The service removes the sign-in too; if the auth provider was unreachable it finishes that automatically.
             RefreshAll();
             AuthMessage.Show(T(deleted?.Identity == "pending" ? "acct_deleted_identity_pending" : "acct_deleted"), MessageKind.Success);
             // The service data is gone; this PC's copy of the account's profiles, interviews and reports is the
             // user's to keep or remove.
-            if (localRoot != null && await AppDialog.ConfirmAsync(this, T("confirm_delete_local_data"), T("dlg_delete"), destructive: true))
+            if (localRoot != null && await DeleteAccountDialog.AskDeleteLocalDataAsync(this))
             {
                 foreach (var dir in new[] { localRoot, viewer })
                     try { if (dir != null && Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
@@ -662,7 +668,12 @@ public partial class HomeWindow
                 Notify(T("toast_local_data_deleted"), ToastKind.Info);
             }
         }
-        catch (BackendException ex) { AppLog.Warn($"Account deletion failed: {ex.Code} (ref {ex.CorrelationId})"); DangerMessage.Show(CloudService.Describe(ex, includeReference: false), MessageKind.Error); }
+        catch (Exception ex) when (ex is BackendException or System.Net.Http.HttpRequestException or TaskCanceledException)
+        {
+            // e.g. subscription_active: the service refuses while the subscription can still charge (contextual copy, no raw text)
+            AppLog.Warn($"Account deletion failed: {(ex as BackendException)?.Code ?? ex.GetType().Name} (ref {(ex as BackendException)?.CorrelationId})");
+            DangerMessage.Show(CloudService.Describe(ex, includeReference: false), MessageKind.Error);
+        }
         RefreshAll();
     }
 
