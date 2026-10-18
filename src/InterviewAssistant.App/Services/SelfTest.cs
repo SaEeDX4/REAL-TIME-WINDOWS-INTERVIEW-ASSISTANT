@@ -374,6 +374,22 @@ public static class SelfTest
             return (ok, $"opened, local checks ran ({verdict}), closed");
         });
         await Check("Compact mode toggle", async () => { w.SetCompact(true); await Idle(); w.SetCompact(false); await Idle(); return (true, "on/off"); });
+        await Check("Live window: maximize fills the work area without the rounded margin, content keeps a readable width, restore keeps the placement", async () =>
+        {
+            await Idle();
+            var before = new Rect(w.Left, w.Top, w.Width, w.Height);
+            w.ToggleMaximize(); await Task.Delay(200); await Idle(); await Idle();
+            var work = WindowPlacement.WorkAreaOf(w);
+            var maximized = w.WindowState == WindowState.Maximized && w.Root.Margin == new Thickness(0) && w.Root.CornerRadius == new CornerRadius(0);
+            var fills = w.ActualWidth >= work.Width - 16 && w.ActualHeight >= work.Height - 16;
+            var readable = w.LiveBody.ActualWidth <= 981 && w.ActionBar.ActualWidth <= 981 && w.ManualBar.ActualWidth <= 981;
+            var maxIcon = ((System.Windows.Controls.TextBlock)w.FindName("MaxIcon")).Text == "";
+            w.ToggleMaximize(); await Task.Delay(200); await Idle(); await Idle();
+            var restored = w.WindowState == WindowState.Normal && w.Root.Margin == new Thickness(8)
+                           && Math.Abs(w.Left - before.Left) < 1 && Math.Abs(w.Top - before.Top) < 1 && Math.Abs(w.Width - before.Width) < 1 && Math.Abs(w.Height - before.Height) < 1;
+            return (maximized && fills && readable && maxIcon && restored,
+                $"maximized {maximized} ({w.ActualWidth:0}x{w.ActualHeight:0} of work area {work.Width:0}x{work.Height:0}: {fills}); readable column {readable}; restore icon {maxIcon}; restored to {before} {restored}");
+        });
         // rc.5: no diagnostics panel in the Live window any more — the technical lines are refreshed on demand for Copy
         // diagnostics, and Help & about → Diagnostics shows a friendly summary plus the in-app health check.
         await Check("Diagnostics: technical lines on demand; Help & about → Diagnostics renders a friendly summary and the health check, no raw errors or credentials", async () =>

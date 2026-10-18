@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:v="clr-namespace:InterviewAssistant.App.Views"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         Title="Interview Assistant" Icon="Assets/app.ico"
         Width="720" Height="560" MinWidth="440" MinHeight="260"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
@@ -18,6 +19,8 @@
         <v:StringToVisibility x:Key="StrVisInv" Invert="True"/>
         <v:LevelToWidth x:Key="LevelW"/>
         <v:Multiply x:Key="LineH" Factor="1.42"/>
+        <!-- wide windows (maximized, 4K): question, answer and action bar share one centred, readable column -->
+        <sys:Double x:Key="LiveReadableWidth">980</sys:Double>
         <!-- header icon buttons: slightly tighter than Btn.Ghost so the header fits at the default width -->
         <Style x:Key="Btn.HeaderIcon" TargetType="Button" BasedOn="{StaticResource Btn.Ghost}">
             <Setter Property="Padding" Value="6,6"/>
@@ -137,7 +140,7 @@
             </Grid>
 
             <!-- ===== Body ===== -->
-            <Grid Grid.Row="1" Margin="14,4,14,8">
+            <Grid x:Name="LiveBody" Grid.Row="1" Margin="14,4,14,8" MaxWidth="{StaticResource LiveReadableWidth}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -290,7 +293,7 @@
             </Grid>
 
             <!-- ===== Answer actions ===== -->
-            <Grid x:Name="ActionBar" Grid.Row="2" Margin="14,0,14,4">
+            <Grid x:Name="ActionBar" Grid.Row="2" Margin="14,0,14,4" MaxWidth="{StaticResource LiveReadableWidth}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -314,7 +317,7 @@
             </Grid>
 
             <!-- ===== Manual question (always-available fallback) ===== -->
-            <Grid x:Name="ManualBar" Grid.Row="3" Margin="14,0,14,12">
+            <Grid x:Name="ManualBar" Grid.Row="3" Margin="14,0,14,12" MaxWidth="{StaticResource LiveReadableWidth}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="{StaticResource S.ColumnGap}"/>

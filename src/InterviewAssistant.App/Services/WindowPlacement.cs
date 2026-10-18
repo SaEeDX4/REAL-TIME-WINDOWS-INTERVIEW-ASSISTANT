@@ -59,7 +59,7 @@ public static class WindowPlacement
     }
 
     /// <summary>Work area (DIPs) of the monitor showing the window; the primary work area when unknown.</summary>
-    private static Rect WorkAreaOf(Window w)
+    public static Rect WorkAreaOf(Window w)
     {
         var hwnd = new WindowInteropHelper(w).Handle;
         var monitor = hwnd == IntPtr.Zero ? IntPtr.Zero : MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);

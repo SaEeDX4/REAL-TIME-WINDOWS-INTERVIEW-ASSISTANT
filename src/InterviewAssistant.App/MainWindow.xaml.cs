@@ -106,7 +106,9 @@ public partial class MainWindow : Window
     private void SavePlacement()
     {
         var s = _vm.Settings;
-        if (WindowState == WindowState.Normal) { s.Left = Left; s.Top = Top; s.Width = Width; s.Height = Height; }
+        // Maximized or minimized: the placement to come back to is the restore bounds, never the work area.
+        var r = WindowState == WindowState.Normal ? new Rect(Left, Top, Width, Height) : RestoreBounds;
+        if (!r.IsEmpty && r.Width > 0) { s.Left = r.Left; s.Top = r.Top; s.Width = r.Width; s.Height = r.Height; }
         s.Save();
     }
 
