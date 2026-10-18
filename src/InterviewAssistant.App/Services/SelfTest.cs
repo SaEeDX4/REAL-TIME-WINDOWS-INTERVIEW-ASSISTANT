@@ -561,13 +561,17 @@ public static class SelfTest
         await Check("Live header: fits at the minimum width without clipping (primary items first, overflow last); setup vs interview mode follows LiveChrome", async () =>
         {
             var width = w.Width;
-            w.Width = w.MinWidth; await Task.Delay(150); await Idle(); await Idle();
+            w.Width = w.MinWidth;
+            await WaitFor(() => w.ActualWidth <= w.MinWidth + 1, 2000); w.UpdateLayout(); await Idle(); await Idle();
             var header = w.Header;
             var inter = (FrameworkElement)w.FindName("InterviewControls");
             var controls = (FrameworkElement)w.FindName("WindowControls");
             var pill = (FrameworkElement)w.FindName("StatusPill");
+            // DesiredSize includes an element's margin, ActualWidth does not: compare like with like
+            static bool Whole(FrameworkElement e) => e.ActualWidth + e.Margin.Left + e.Margin.Right >= e.DesiredSize.Width - 0.5;
             var right = controls.TranslatePoint(new Point(controls.ActualWidth, 0), header).X;
-            var fits = right <= header.ActualWidth + 0.5 && inter.ActualWidth >= inter.DesiredSize.Width - 0.5 && controls.ActualWidth >= controls.DesiredSize.Width - 0.5 && pill.ActualWidth >= 60;
+            var inside = right <= header.ActualWidth + 0.5;
+            var fits = inside && Whole(inter) && Whole(controls) && pill.ActualWidth >= 60;
             var narrow = w.Chrome;
             w.Width = Math.Max(width, UiState.LiveChrome.ReadinessLabelWidth + 20); await Task.Delay(150); await Idle(); await Idle();
             var wide = w.Chrome;
@@ -578,7 +582,7 @@ public static class SelfTest
             var tip = ((FrameworkElement)w.FindName("ReadinessBtn")).ToolTip as string ?? "";
             w.Width = width; await Task.Delay(150); await Idle();
             return (fits && narrow.Readiness == UiState.ReadinessIndicator.Dot && !narrow.StartLabel && wide == expected && setup && tip.Length > 0,
-                $"at {w.MinWidth:0}px: window buttons end {right:0}/{header.ActualWidth:0}px, status pill {pill.ActualWidth:0}px, fits {fits}; wide layout {wide}; setup affordances {setup}; readiness tooltip '{tip}'");
+                $"at {w.MinWidth:0}px (window {w.ActualWidth:0}px): window buttons end {right:0}/{header.ActualWidth:0}px (inside {inside}), interview controls whole {Whole(inter)}, window buttons whole {Whole(controls)}, status pill {pill.ActualWidth:0}px, fits {fits}; narrow layout {narrow}; wide layout {wide}; setup affordances {setup}; readiness tooltip '{tip}'");
         });
         await Check("Interview Focus: honest first-use dialog (Escape cancels, nothing moves), every preset inside the work area, restore returns to the previous placement", async () =>
         {
