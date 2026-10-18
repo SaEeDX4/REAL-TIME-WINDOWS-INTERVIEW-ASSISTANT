@@ -464,40 +464,95 @@
                     </StackPanel>
 
                     <!-- ===== Account ===== -->
-                    <StackPanel x:Name="PageAccount" Visibility="Collapsed" MaxWidth="{StaticResource S.ContentMaxWidth}">
-                        <TextBlock x:Name="AccountTitle" Style="{StaticResource H1}" Text="{v:Loc account}"/>
-                        <!-- account-wide state only (signed in as …, connecting, update required); request failures are shown in their own section -->
-                        <TextBlock x:Name="AccountStatus" Style="{StaticResource Hint}" Foreground="{StaticResource B.TextDim}" FontSize="13" AutomationProperties.LiveSetting="Polite"/>
+                    <StackPanel x:Name="PageAccount" Visibility="Collapsed" MaxWidth="{StaticResource S.ContentMaxWidth}" SizeChanged="PageAccount_SizeChanged">
+                        <!-- page header (signed in / not configured; the signed-out form has its own heading) -->
+                        <StackPanel x:Name="AccountHeader">
+                            <TextBlock x:Name="AccountTitle" Style="{StaticResource H1}" Text="{v:Loc account}"/>
+                            <!-- account-wide state only (signed in as …, connecting, update required); request failures are shown in their own section -->
+                            <TextBlock x:Name="AccountStatus" Style="{StaticResource Hint}" Foreground="{StaticResource B.TextDim}" FontSize="13" AutomationProperties.LiveSetting="Polite"/>
+                        </StackPanel>
 
-                        <!-- signed out: e-mail + password -->
-                        <Border x:Name="SignedOutPanel" Style="{StaticResource Card}" Margin="0,12,0,0" MaxWidth="460" HorizontalAlignment="Left">
-                            <StackPanel>
-                                <TextBlock x:Name="AuthHeading" Style="{StaticResource H1}" FontSize="18"/>
-                                <TextBlock x:Name="AuthSubtitle" Style="{StaticResource Hint}" Margin="0,0,0,10"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                    <Button x:Name="ModeSignInBtn" Style="{StaticResource Btn.Chip}" Content="{v:Loc sign_in}" Click="ModeSignIn_Click" Margin="0,0,6,0"/>
-                                    <Button x:Name="ModeCreateBtn" Style="{StaticResource Btn.Chip}" Content="{v:Loc create_account}" Click="ModeCreate_Click"/>
-                                </StackPanel>
-                                <TextBlock x:Name="EmailLabel" Text="{v:Loc email}" Style="{StaticResource T.FieldLabel}"/>
-                                <TextBox x:Name="EmailBox" AutomationProperties.Name="{v:Loc email}" TabIndex="1" FlowDirection="LeftToRight" KeyDown="Email_KeyDown"/>
-                                <TextBlock x:Name="PasswordLabel" Text="{v:Loc password}" Style="{StaticResource T.FieldLabel}"/>
-                                <PasswordBox x:Name="PasswordBox" AutomationProperties.Name="{v:Loc password}" TabIndex="2" KeyDown="Password_KeyDown" FlowDirection="LeftToRight"/>
-                                <StackPanel x:Name="ConfirmPanel" Visibility="Collapsed">
-                                    <TextBlock Text="{v:Loc confirm_password}" Style="{StaticResource T.FieldLabel}"/>
-                                    <PasswordBox x:Name="ConfirmBox" AutomationProperties.Name="{v:Loc confirm_password}" TabIndex="3" KeyDown="Password_KeyDown" FlowDirection="LeftToRight"/>
-                                    <TextBlock Style="{StaticResource Hint}" Text="{v:Loc password_rules}"/>
-                                    <TextBlock x:Name="SignUpLegal" Style="{StaticResource Hint}"/>
-                                </StackPanel>
-                                <!-- the form's own result: errors right under the fields, reset and confirmation notices -->
-                                <v:InlineMessage x:Name="AuthMessage" Margin="0,12,0,0"/>
-                                <WrapPanel Margin="{StaticResource S.ButtonRowMargin}">
-                                    <Button x:Name="AuthSubmitBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc sign_in}" Click="AuthSubmit_Click" Margin="0,0,10,8" TabIndex="4" MinWidth="120"/>
-                                    <Button x:Name="ForgotBtn" Style="{StaticResource Btn.Ghost}" Content="{v:Loc forgot_password}" Click="Forgot_Click" TabIndex="5" Margin="0,0,0,8"/>
-                                </WrapPanel>
-                                <WrapPanel x:Name="ProviderButtons" Margin="0,2,0,0"/>
-                                <TextBlock Style="{StaticResource Hint}" Text="{v:Loc password_privacy_hint}"/>
+                        <!-- signed out: product column + the auth form card, centred (max width); one centred column on narrow
+                             content. One form for every state (sign in, create account, forgot password, link sent, switch
+                             account): labels above fields, the error under its field, one primary button, links to switch. -->
+                        <Grid x:Name="SignedOutPanel" Margin="0,24,0,0" MaxWidth="940">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition x:Name="AuthColHero" Width="*"/>
+                                <ColumnDefinition x:Name="AuthColForm" Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+
+                            <!-- product, value proposition, factual trust points -->
+                            <StackPanel x:Name="AuthHero" Margin="0,8,40,24" VerticalAlignment="Top">
+                                <TextBlock x:Name="AuthProductName" FontFamily="{StaticResource F.Display}" FontSize="26" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
+                                <TextBlock Style="{StaticResource T.Body}" FontSize="15" Margin="0,8,0,20" Text="{v:Loc auth_hero_value}"/>
+                                <ItemsControl x:Name="AuthTrustPoints" Focusable="False">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel Margin="0,0,0,12">
+                                                <Border DockPanel.Dock="Left" Width="22" Height="22" CornerRadius="11" Background="{StaticResource B.AccentSoft}" Margin="0,0,12,0" VerticalAlignment="Top">
+                                                    <TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;" FontSize="11" Foreground="{StaticResource B.Text}" HorizontalAlignment="Center"/>
+                                                </Border>
+                                                <TextBlock Text="{Binding}" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}" VerticalAlignment="Center"/>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
-                        </Border>
+
+                            <StackPanel x:Name="AuthFormColumn" Grid.Column="1">
+                                <Border x:Name="AuthCard" Style="{StaticResource Card}" Padding="28,24">
+                                    <StackPanel>
+                                        <TextBlock x:Name="AuthHeading" Style="{StaticResource H1}" TextWrapping="Wrap"/>
+                                        <TextBlock x:Name="AuthSubtitle" Style="{StaticResource T.Body}" Margin="0,2,0,4"/>
+                                        <!-- the service's state when it blocks sign-in (session expired, account disabled, update required, offline) -->
+                                        <v:InlineMessage x:Name="AuthStatusMessage"/>
+
+                                        <StackPanel x:Name="EmailPanel">
+                                            <TextBlock x:Name="EmailLabel" Text="{v:Loc email}" Style="{StaticResource T.FieldLabel}"/>
+                                            <TextBox x:Name="EmailBox" AutomationProperties.Name="{v:Loc email}" FlowDirection="LeftToRight" KeyDown="Email_KeyDown"/>
+                                            <v:InlineMessage x:Name="EmailError" Margin="0,6,0,0"/>
+                                        </StackPanel>
+                                        <StackPanel x:Name="PasswordPanel">
+                                            <TextBlock x:Name="PasswordLabel" Text="{v:Loc password}" Style="{StaticResource T.FieldLabel}"/>
+                                            <PasswordBox x:Name="PasswordBox" AutomationProperties.Name="{v:Loc password}" KeyDown="Password_KeyDown" FlowDirection="LeftToRight"/>
+                                            <v:InlineMessage x:Name="PasswordError" Margin="0,6,0,0"/>
+                                            <Button x:Name="ForgotBtn" Style="{StaticResource Btn.Link}" Content="{v:Loc forgot_password}" Click="Forgot_Click" HorizontalAlignment="Right" Margin="0,4,-6,0"/>
+                                        </StackPanel>
+                                        <StackPanel x:Name="ConfirmPanel" Visibility="Collapsed">
+                                            <TextBlock Text="{v:Loc confirm_password}" Style="{StaticResource T.FieldLabel}"/>
+                                            <PasswordBox x:Name="ConfirmBox" AutomationProperties.Name="{v:Loc confirm_password}" KeyDown="Password_KeyDown" FlowDirection="LeftToRight"/>
+                                            <v:InlineMessage x:Name="ConfirmError" Margin="0,6,0,0"/>
+                                            <TextBlock Style="{StaticResource Hint}" Text="{v:Loc password_rules}"/>
+                                            <TextBlock x:Name="SignUpLegal" Style="{StaticResource Hint}"/>
+                                        </StackPanel>
+
+                                        <!-- the form's own result: sign-in failures, the reset notice, the confirmation e-mail -->
+                                        <v:InlineMessage x:Name="AuthMessage" Margin="0,12,0,0" ActionClick="AuthMessage_ActionClick"/>
+                                        <Button x:Name="AuthSubmitBtn" Style="{StaticResource Btn.FormPrimary}" Click="AuthSubmit_Click" HorizontalAlignment="Stretch" Margin="0,16,0,0"/>
+                                        <Button x:Name="ResendBtn" Style="{StaticResource Btn.Link}" Click="Resend_Click" HorizontalAlignment="Center" Margin="0,10,0,0" Visibility="Collapsed"/>
+
+                                        <StackPanel x:Name="ProviderPanel">
+                                            <Grid Margin="0,16,0,12">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                <Border Height="1" Background="{StaticResource B.Border}" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="{v:Loc auth_or}" Style="{StaticResource T.Body}" FontSize="12" Margin="10,0"/>
+                                                <Border Grid.Column="2" Height="1" Background="{StaticResource B.Border}" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <StackPanel x:Name="ProviderButtons"/>
+                                        </StackPanel>
+
+                                        <!-- mode switch: links, not chips -->
+                                        <WrapPanel x:Name="ModeLinks" HorizontalAlignment="Center" Margin="0,16,0,0">
+                                            <TextBlock x:Name="ModePrompt" Style="{StaticResource T.Body}" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                                            <Button x:Name="ModeLinkBtn" Style="{StaticResource Btn.Link}" Click="ModeLink_Click"/>
+                                        </WrapPanel>
+                                        <TextBlock x:Name="PasswordPrivacyHint" Style="{StaticResource Hint}" Text="{v:Loc password_privacy_hint}" Margin="0,16,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <WrapPanel x:Name="AuthLegalLinks" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Grid>
 
                         <!-- signed in: a responsive dashboard (two columns on wide content, one below ~900 px). Every card loads
                              and reports independently: a failed request is shown in its own card, next to the data it concerns. -->
