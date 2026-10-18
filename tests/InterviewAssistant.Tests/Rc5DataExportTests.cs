@@ -65,7 +65,7 @@ public class Rc5DataExportTests
 
     [Theory]
     [InlineData(FakeApiKey)] [InlineData(FakeJwt)] [InlineData("Authorization: Bearer abcdefghijklmnop0123456789")] [InlineData("pdl_live_apikey_01abcdefghijklmnop")]
-    [InlineData("AKIAABCDEFGHIJKLMNOP")] [InlineData("password=hunter2")] [InlineData("-----BEGIN RSA PRIVATE KEY-----\nMIIE\n-----END RSA PRIVATE KEY-----")]
+    [InlineData("AKIAABCDEFGHIJKLMNOP")] [InlineData("password=hunter2")] [InlineData("-----BEGIN RSA PRIVATE KEY-----\nMIIE\n-----END RSA PRIVATE KEY-----")]   // fake-credential: test fixture
     public void CredentialShapedValuesAreDetected(string value)
     {
         Assert.True(SecretFilter.LooksSecret(value));
