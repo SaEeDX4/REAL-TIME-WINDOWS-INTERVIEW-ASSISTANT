@@ -382,7 +382,6 @@ public partial class HomeWindow : Window
         if (_page != "profiles" && !await _nav.CanProceedAsync(ChangeReason.Navigate, GuardsOfPage(_page))) return;
         ShowPage("profiles"); SetProfileTab("personal");
     }
-    private void Readiness_Click(object sender, RoutedEventArgs e) => Navigate("preinterview");
 
     private void SettingsSave_Click(object sender, RoutedEventArgs e) => PageSettings.Save();
     private void SettingsDiscard_Click(object sender, RoutedEventArgs e) => PageSettings.Discard();
@@ -438,65 +437,7 @@ public partial class HomeWindow : Window
         catch (Exception ex) when (ex is Win32Exception or IOException) { Notify(T("toast_logs_failed"), ToastKind.Error); }
     }
 
-    // ================= onboarding =================
-
-    private void RefreshChecklist()
-    {
-        var profiles = Store?.Profiles() ?? Array.Empty<CandidateProfileRecord>();
-        var prepared = Store == null ? 0 : profiles.SelectMany(p => Store.Targets(p.Id)).Count(t => t.Preparation == PreparationState.Prepared);
-        Step1Title.Text = (_vm.Settings.AuthorizedUseAcknowledged ? "✓ " : "1 · ") + T("start_step1");
-        var devMode = BuildFlavor.Developer && !_vm.UsingCloud;
-        var accountOk = _vm.Cloud.IsSignedIn || (devMode && SecretStore.HasKey);
-        Step2Title.Text = (accountOk ? "✓ " : "2 · ") + T("account");
-        Step2Status.Text = devMode ? T(SecretStore.HasKey ? "start_dev_key" : "start_dev_no_key")
-            : !_vm.Cloud.IsConfigured ? T("acct_not_configured_long")
-            : _vm.Cloud.IsSignedIn ? F("start_signed_in", _vm.AccountLabel)
-            : Loc.Relocalize(_vm.Cloud.Message) ?? T("start_account_hint");
-        DeveloperModeBtn.Visibility = BuildFlavor.Developer ? Visibility.Visible : Visibility.Collapsed;
-        GoAccountBtn.Visibility = _vm.Cloud.IsConfigured && !_vm.Cloud.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
-        var stats = profiles.Select(p => p.Stats).ToList();
-        Step3Title.Text = (profiles.Any(p => p.ConfirmedFacts.Any()) ? "✓ " : "3 · ") + T("start_step3");
-        Step3Status.Text = !_vm.HasWorkspace ? T("start_sign_in_first")
-            : profiles.Count == 0 ? T("start_profile_hint")
-            : F("start_profile_status", profiles.Count, stats.Sum(s => s.ConfirmedExperience), stats.Sum(s => s.ConfirmedProfileAnswers), stats.Sum(s => s.ToReview));
-        StartImportBtn.IsEnabled = StartInterviewProfileBtn.IsEnabled = StartAddInterviewBtn.IsEnabled = _vm.HasWorkspace;
-        Step4Title.Text = (prepared > 0 ? "✓ " : "4 · ") + T("start_step4");
-        Step4Status.Text = prepared == 0 ? T("start_interview_hint") : F("start_interview_status", prepared, _vm.ActiveLabel);
-        DoneBtn.IsEnabled = _vm.Settings.AuthorizedUseAcknowledged;
-        PagePreInterview.Refresh();   // the account or the active interview may have changed: readiness follows (all surfaces)
-    }
-
-    private void Ack_Changed(object sender, RoutedEventArgs e)
-    {
-        _vm.Settings.AuthorizedUseAcknowledged = AckBox.IsChecked == true;
-        _vm.Settings.Save();
-        RefreshChecklist();
-    }
-
-    private void DeveloperMode_Click(object sender, RoutedEventArgs e)
-    {
-        if (!BuildFlavor.Developer || _vm.SessionActive) return;
-        _vm.Settings.Mode = "developer";
-        _vm.Settings.Save();
-        _vm.OpenWorkspaceForCurrentAccount();
-        _vm.BuildEngine();
-        RefreshAll();
-        Navigate("settings");
-    }
-
-    private void Done_Click(object sender, RoutedEventArgs e)
-    {
-        _vm.Settings.FirstRunCompleted = true;
-        _vm.Settings.Save();
-        _main.Activate();
-        Close();   // asks first when edits are pending
-    }
-
-    private void GoAccount_Click(object sender, RoutedEventArgs e)
-    {
-        if (_vm.Settings.Mode != "cloud" && !_vm.SessionActive) { _vm.Settings.Mode = "cloud"; _vm.Settings.Save(); _vm.OpenWorkspaceForCurrentAccount(); _vm.BuildEngine(); }
-        Navigate("account");
-    }
+    // ================= onboarding: see HomeWindow.Start.cs (interview readiness dashboard) =================
 
     // ================= profiles =================
 
