@@ -486,18 +486,26 @@
                             <StackPanel x:Name="AuthHero" Margin="0,8,40,24" VerticalAlignment="Top">
                                 <TextBlock x:Name="AuthProductName" FontFamily="{StaticResource F.Display}" FontSize="26" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
                                 <TextBlock Style="{StaticResource T.Body}" FontSize="15" Margin="0,8,0,20" Text="{v:Loc auth_hero_value}"/>
-                                <ItemsControl x:Name="AuthTrustPoints" Focusable="False">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <DockPanel Margin="0,0,0,12">
-                                                <Border DockPanel.Dock="Left" Width="22" Height="22" CornerRadius="11" Background="{StaticResource B.AccentSoft}" Margin="0,0,12,0" VerticalAlignment="Top">
-                                                    <TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;" FontSize="11" Foreground="{StaticResource B.Text}" HorizontalAlignment="Center"/>
-                                                </Border>
-                                                <TextBlock Text="{Binding}" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}" VerticalAlignment="Center"/>
-                                            </DockPanel>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <StackPanel x:Name="AuthTrustPoints">
+                                    <DockPanel Margin="0,0,0,12">
+                                        <Border DockPanel.Dock="Left" Width="22" Height="22" CornerRadius="11" Background="{StaticResource B.AccentSoft}" Margin="0,0,12,0" VerticalAlignment="Top">
+                                            <TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;" FontSize="11" Foreground="{StaticResource B.Text}" HorizontalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="{v:Loc auth_trust_local}" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                    <DockPanel Margin="0,0,0,12">
+                                        <Border DockPanel.Dock="Left" Width="22" Height="22" CornerRadius="11" Background="{StaticResource B.AccentSoft}" Margin="0,0,12,0" VerticalAlignment="Top">
+                                            <TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;" FontSize="11" Foreground="{StaticResource B.Text}" HorizontalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="{v:Loc auth_trust_paddle}" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                    <DockPanel Margin="0,0,0,12">
+                                        <Border DockPanel.Dock="Left" Width="22" Height="22" CornerRadius="11" Background="{StaticResource B.AccentSoft}" Margin="0,0,12,0" VerticalAlignment="Top">
+                                            <TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;" FontSize="11" Foreground="{StaticResource B.Text}" HorizontalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="{v:Loc auth_trust_cancel}" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                </StackPanel>
                             </StackPanel>
 
                             <StackPanel x:Name="AuthFormColumn" Grid.Column="1">

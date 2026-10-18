@@ -817,7 +817,7 @@
  "auth_resend_in": "Resend in {0} s",
  "auth_or": "or",
  "auth_reset_link_expired": "The reset link wasn't opened on this PC within 15 minutes. Send a new link to try again.",
- "auth_reset_request_timeout": "The reset request took too long. Check your internet connection and try again.",
+ "auth_reset_request_timeout": "The reset request could not reach the sign-in service in time. Check your internet connection and try again.",
  "auth_hero_value": "Real-time help in your interviews, grounded in your own experience.",
  "auth_trust_local": "Your profiles are stored encrypted on this PC",
  "auth_trust_paddle": "Payments handled by Paddle",

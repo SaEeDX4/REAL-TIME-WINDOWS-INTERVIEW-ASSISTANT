@@ -171,18 +171,23 @@ public sealed class CloudService
 
     // ---------------- authentication ----------------
 
+    /// <summary>The exception of the last failed sign-in action (the UI picks contextual copy, e.g. a reset link that timed out).</summary>
+    public Exception? LastAuthError { get; private set; }
+
     private async Task<(bool Ok, string? Error)> AuthAction(Func<Task> action, string log)
     {
         if (Auth == null) return (false, Message);
         try
         {
             if (!Options.AuthReady) await RefreshAsync(CancellationToken.None);   // fetch sign-in config on first use
+            LastAuthError = null;
             await action();
             AppLog.Info(log);
             return (true, null);
         }
         catch (Exception ex) when (ex is AuthException or TimeoutException or BackendException)
         {
+            LastAuthError = ex;
             AppLog.Warn($"{log} failed: {(ex as AuthException)?.Code ?? (ex as BackendException)?.Code ?? ex.GetType().Name}");
             return (false, Describe(ex));
         }

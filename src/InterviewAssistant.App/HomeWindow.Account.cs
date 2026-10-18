@@ -23,8 +23,6 @@ namespace InterviewAssistant.App;
 /// <summary>Home → Account: sign-in, sign-up and password reset, plan and usage, devices, security, privacy and account deletion.</summary>
 public partial class HomeWindow
 {
-    private bool _createMode;
-    private bool _authBusy;
     /// <summary>State of the signed-out form (sign in, create account, forgot password, reset sent, switch account).</summary>
     private readonly AuthFormState _auth = new();
 
@@ -43,18 +41,24 @@ public partial class HomeWindow
             : c.State == CloudState.Connecting ? T("acct_connecting_service") : Loc.Relocalize(c.Message) ?? "";
         AccountStatus.Foreground = (Brush)FindResource(c.State is CloudState.AccountDisabled or CloudState.UpdateRequired or CloudState.SessionExpired
             || c.State == CloudState.ServiceUnavailable && !c.IsSignedIn ? "B.Thinking" : "B.TextDim");
-        SetCreateMode(_createMode);
 
         // Sign-in options come from the service (publishable configuration only).
         ForgotBtn.Visibility = c.Options.EmailPassword ? Visibility.Visible : Visibility.Collapsed;
         ProviderButtons.Children.Clear();
         foreach (var p in c.Options.OAuthProviders)
         {
-            var b = new Button { Content = F("continue_with", ProviderName(p)), Style = (Style)FindResource("Btn.Form"), Margin = (Thickness)FindResource("S.ButtonGap"), Tag = p, IsEnabled = !_authBusy };
+            var b = new Button { Content = F("continue_with", ProviderName(p)), Style = (Style)FindResource("Btn.Form"), Margin = (Thickness)FindResource("S.StackGap"), Tag = p, HorizontalAlignment = HorizontalAlignment.Stretch, IsEnabled = !_auth.Busy };
             b.Click += async (_, _) => await RunAuth(() => _vm.Cloud.SignInWithProviderAsync(p), T("acct_continue_in_browser"));
             ProviderButtons.Children.Add(b);
         }
         SignUpLegal.Text = LegalSentence();
+        // Signed out: the service state that blocks sign-in is shown inside the form (the page header is hidden).
+        AccountHeader.Visibility = Vis(SignedOutPanel.Visibility != Visibility.Visible);
+        var blocking = !c.IsSignedIn && c.State is CloudState.SessionExpired or CloudState.AccountDisabled or CloudState.UpdateRequired or CloudState.ServiceUnavailable or CloudState.Connecting;
+        var status = c.State == CloudState.Connecting ? T("acct_connecting_service") : Loc.Relocalize(c.Message);
+        if (blocking && status is { Length: > 0 }) AuthStatusMessage.Show(status, c.State == CloudState.Connecting ? MessageKind.Info : MessageKind.Warning);
+        else AuthStatusMessage.Clear();
+        ApplyAuthState();
 
         SecurityEmail.Text = c.IsSignedIn ? email ?? "" : "";
         if (c.Account is { } a && c.IsSignedIn)
@@ -196,41 +200,104 @@ public partial class HomeWindow
 
     private static string ProviderName(string p) => p switch { "google" => "Google", "azure" => "Microsoft", "github" => "GitHub", "apple" => "Apple", _ => p };
 
-    private void ModeSignIn_Click(object sender, RoutedEventArgs e) { SetCreateMode(false); AuthMessage.Clear(); EmailBox.Focus(); }
-    private void ModeCreate_Click(object sender, RoutedEventArgs e) { SetCreateMode(true); AuthMessage.Clear(); EmailBox.Focus(); }
+    // ----- signed-out form: one card, five states (UiState/AuthFormState) -----
 
-    private void SetCreateMode(bool create)
+    private string? _authBusyText;
+    private Func<Task>? _authRetry;
+    private System.Windows.Threading.DispatcherTimer? _resendTimer;
+
+    /// <summary>Constructor wiring: a field's inline error clears as soon as it is edited; the state machine drives the form.</summary>
+    private void InitAuthForm()
     {
-        _createMode = create;
-        if (create) _auth.ToCreateAccount(); else if (_auth.Mode == AuthMode.CreateAccount) _auth.ToSignIn();
-        AuthHeading.Text = T(_auth.HeadingKey);
-        AuthSubtitle.Text = _auth.SubtitleKey is { } sub ? F(sub, _auth.PreviousEmail) : "";
-        ConfirmPanel.Visibility = create ? Visibility.Visible : Visibility.Collapsed;
-        if (!_authBusy) AuthSubmitBtn.Content = T(create ? "create_account" : "sign_in");
-        ModeSignInBtn.FontWeight = create ? FontWeights.Normal : FontWeights.SemiBold;
-        ModeCreateBtn.FontWeight = create ? FontWeights.SemiBold : FontWeights.Normal;
-        ModeSignInBtn.Opacity = create ? 0.65 : 1; ModeCreateBtn.Opacity = create ? 1 : 0.65;
-        // The chosen mode is announced and part of the tab order before the fields.
-        System.Windows.Automation.AutomationProperties.SetItemStatus(ModeSignInBtn, create ? "" : T("auth_mode_selected"));
-        System.Windows.Automation.AutomationProperties.SetItemStatus(ModeCreateBtn, create ? T("auth_mode_selected") : "");
+        EmailBox.TextChanged += (_, _) => EmailError.Clear();
+        PasswordBox.PasswordChanged += (_, _) => PasswordError.Clear();
+        ConfirmBox.PasswordChanged += (_, _) => ConfirmError.Clear();
+        AuthProductName.Text = Branding.ProductName;
+        _auth.Changed += ApplyAuthState;
+        ApplyAuthState();
     }
 
-    /// <summary>Busy state of the sign-in form: the submit button shows the progress text and every submit path is disabled (no double submit).</summary>
-    private void SetAuthBusy(bool busy, string? busyText = null)
+    private static Visibility Vis(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
+
+    /// <summary>Renders the current state: heading, subtitle, visible fields, the one primary button, the links.</summary>
+    private void ApplyAuthState()
     {
-        _authBusy = busy;
-        AuthSubmitBtn.IsEnabled = ModeSignInBtn.IsEnabled = ModeCreateBtn.IsEnabled = !busy;
-        ForgotBtn.IsEnabled = !busy;
-        EmailBox.IsReadOnly = busy;
-        foreach (var b in ProviderButtons.Children.OfType<Button>()) b.IsEnabled = !busy;
-        AuthSubmitBtn.Content = busy && busyText != null ? busyText : T(_createMode ? "create_account" : "sign_in");
+        var s = _auth;
+        AuthHeading.Text = T(s.HeadingKey);
+        AuthSubtitle.Text = s.SubtitleKey is { } sub ? F(sub, s.PreviousEmail) : "";
+        AuthSubtitle.Visibility = Vis(AuthSubtitle.Text.Length > 0);
+        EmailPanel.Visibility = Vis(s.Shows(AuthField.Email));
+        PasswordPanel.Visibility = Vis(s.Shows(AuthField.Password));
+        ConfirmPanel.Visibility = Vis(s.Shows(AuthField.ConfirmPassword));
+        ForgotBtn.Visibility = Vis(s.ShowsForgotLink && _vm.Cloud.Options.EmailPassword);
+        ProviderPanel.Visibility = Vis(s.ShowsProviders && ProviderButtons.Children.Count > 0);
+        SignUpLegal.Visibility = Vis(s.ShowsLegal && SignUpLegal.Text.Length > 0);
+        PasswordPrivacyHint.Visibility = Vis(s.Shows(AuthField.Password));
+        // Mode switch through links: "New here? Create an account" / "Already have an account? Sign in" / "Back to sign in".
+        (ModePrompt.Text, ModeLinkBtn.Content) = s.ShowsCreateLink ? (T("auth_new_here"), T("auth_create_link"))
+            : s.ShowsSignInLink ? (T("auth_have_account"), T("sign_in"))
+            : (string.Empty, T("auth_back_to_sign_in"));
+        ModePrompt.Visibility = Vis(ModePrompt.Text.Length > 0);
+        ModeLinks.Visibility = Vis(s.ShowsCreateLink || s.ShowsSignInLink || s.ShowsBackLink);
+        // One primary button; while its request runs it shows the progress text and nothing can be submitted twice.
+        AuthSubmitBtn.Content = s.Busy && (_authBusyText ?? (s.BusyKey is { } b ? T(b) : null)) is { } busy ? busy : T(s.PrimaryKey);
+        System.Windows.Automation.AutomationProperties.SetName(AuthSubmitBtn, AuthSubmitBtn.Content as string ?? "");
+        AuthSubmitBtn.IsEnabled = ModeLinkBtn.IsEnabled = ForgotBtn.IsEnabled = !s.Busy;
+        EmailBox.IsReadOnly = s.Busy;
+        foreach (var btn in ProviderButtons.Children.OfType<Button>()) btn.IsEnabled = !s.Busy;
+        UpdateResend();
+    }
+
+    /// <summary>"Resend" in the link-sent state: disabled with a countdown until the cooldown ends.</summary>
+    private void UpdateResend()
+    {
+        var now = DateTimeOffset.Now;
+        var left = _auth.ResendSecondsLeft(now);
+        ResendBtn.Visibility = Vis(_auth.ShowsResend);
+        ResendBtn.Content = left > 0 ? F("auth_resend_in", left) : T("auth_resend");
+        ResendBtn.IsEnabled = _auth.CanResend(now);
+        if (_auth.ShowsResend && left > 0)
+        {
+            _resendTimer ??= new System.Windows.Threading.DispatcherTimer(TimeSpan.FromSeconds(1), System.Windows.Threading.DispatcherPriority.Background, (_, _) => UpdateResend(), Dispatcher);
+            _resendTimer.Start();
+        }
+        else _resendTimer?.Stop();
+    }
+
+    private void ClearAuthErrors()
+    {
+        AuthMessage.Clear(); EmailError.Clear(); PasswordError.Clear(); ConfirmError.Clear();
+        foreach (var f in new Control[] { EmailBox, PasswordBox, ConfirmBox }) Field.SetHasError(f, false);
+        _authRetry = null;
+    }
+
+    /// <summary>Focus after a state change: the first visible field (caret at the end), else the primary button.</summary>
+    private void FocusAuthForm() => Dispatcher.BeginInvoke(() =>
+    {
+        if (EmailPanel.IsVisible) { EmailBox.Focus(); EmailBox.CaretIndex = EmailBox.Text.Length; }
+        else AuthSubmitBtn.Focus();
+    }, System.Windows.Threading.DispatcherPriority.Input);
+
+    private void ModeLink_Click(object sender, RoutedEventArgs e)
+    {
+        if (!(_auth.ShowsCreateLink ? _auth.ToCreateAccount() : _auth.ToSignIn())) return;
+        ClearAuthErrors();
+        FocusAuthForm();
+    }
+
+    /// <summary>"Forgot password?": the dedicated reset state — e-mail only, pre-filled with what was typed.</summary>
+    private void Forgot_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_auth.ToForgotPassword()) return;
+        ClearAuthErrors();
+        FocusAuthForm();
     }
 
     private async void Email_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter) return;
         e.Handled = true;
-        if (PasswordBox.SecurePassword.Length == 0) { PasswordBox.Focus(); return; }
+        if (_auth.Shows(AuthField.Password) && PasswordBox.SecurePassword.Length == 0) { PasswordBox.Focus(); return; }
         await SubmitAuthAsync();
     }
 
@@ -238,47 +305,62 @@ public partial class HomeWindow
     {
         if (e.Key != Key.Enter) return;
         e.Handled = true;
-        if (_createMode && sender == PasswordBox && ConfirmBox.SecurePassword.Length == 0) { ConfirmBox.Focus(); return; }
+        if (_auth.Shows(AuthField.ConfirmPassword) && sender == PasswordBox && ConfirmBox.SecurePassword.Length == 0) { ConfirmBox.Focus(); return; }
         await SubmitAuthAsync();
     }
 
-    private async void AuthSubmit_Click(object sender, RoutedEventArgs e) => await SubmitAuthAsync();
+    private async void AuthSubmit_Click(object sender, RoutedEventArgs e)
+    {
+        if (_auth.PrimarySubmits) { await SubmitAuthAsync(); return; }
+        if (_auth.ToSignIn()) { ClearAuthErrors(); FocusAuthForm(); }   // link sent: "Back to sign in"
+    }
+
+    private async void AuthMessage_ActionClick(object sender, RoutedEventArgs e)
+    {
+        if (_authRetry is { } retry && !_auth.Busy) await retry();
+    }
 
     private static bool ValidEmail(string email) => System.Text.RegularExpressions.Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");
 
-    private void FieldError(Control field, string message)
+    /// <summary>A validation error appears right under its field, which turns red and takes the focus.</summary>
+    private static void FieldError(Control field, InlineMessage message, string text)
     {
         Field.SetHasError(field, true);
-        AuthMessage.Show(message, MessageKind.Error);
+        message.Show(text, MessageKind.Error);
         field.Focus();
     }
 
     private async Task SubmitAuthAsync()
     {
-        if (_authBusy) return;
+        if (_auth.Busy || !_auth.PrimarySubmits) return;
         var email = EmailBox.Text.Trim();
+        ClearAuthErrors();
+        if (!ValidEmail(email)) { FieldError(EmailBox, EmailError, T("err_email_invalid")); return; }
+        if (_auth.Mode == AuthMode.ForgotPassword) { await RequestResetAsync(email, force: false); return; }
         var pw = PasswordBox.Password;
-        AuthMessage.Clear();
-        if (!ValidEmail(email)) { FieldError(EmailBox, T("err_email_invalid")); return; }
-        if (pw.Length == 0) { FieldError(PasswordBox, T("err_password_empty")); return; }
-        if (_createMode)
+        if (pw.Length == 0) { FieldError(PasswordBox, PasswordError, T("err_password_empty")); return; }
+        if (_auth.Mode == AuthMode.CreateAccount)
         {
-            if (pw.Length < 8) { FieldError(PasswordBox, T("err_password_short")); return; }
-            if (pw != ConfirmBox.Password) { FieldError(ConfirmBox, T("err_password_mismatch")); return; }
+            if (pw.Length < 8) { FieldError(PasswordBox, PasswordError, T("err_password_short")); return; }
+            if (pw != ConfirmBox.Password) { FieldError(ConfirmBox, ConfirmError, T("err_password_mismatch")); return; }
+            var confirm = false;
             await RunAuth(async () =>
             {
-                var (ok, confirm, error) = await _vm.Cloud.SignUpAsync(email, pw);
-                if (ok && confirm) Dispatcher.Invoke(() => { SetCreateMode(false); AuthMessage.Show(F("acct_confirm_email_sent", email), MessageKind.Success); });
+                var (ok, needsConfirmation, error) = await _vm.Cloud.SignUpAsync(email, pw);
+                confirm = ok && needsConfirmation;
                 return (ok, error);
-            }, T("acct_creating"));
+            });
+            if (confirm && !_vm.Cloud.IsSignedIn && _auth.ToSignIn()) AuthMessage.Show(F("acct_confirm_email_sent", email), MessageKind.Success);
         }
-        else await RunAuth(() => _vm.Cloud.SignInAsync(email, pw), T("acct_signing_in"));
+        else await RunAuth(() => _vm.Cloud.SignInAsync(email, pw));
     }
 
-    private async Task RunAuth(Func<Task<(bool Ok, string? Error)>> action, string busyText)
+    /// <param name="busyText">Progress text instead of the state's own (provider sign-in: "Continue in your browser…").</param>
+    private async Task RunAuth(Func<Task<(bool Ok, string? Error)>> action, string? busyText = null)
     {
-        if (_authBusy) return;
-        SetAuthBusy(true, busyText);
+        if (_auth.Busy) return;
+        _authBusyText = busyText;
+        _auth.SetBusy(true);
         try
         {
             var (ok, error) = await action();
@@ -297,44 +379,87 @@ public partial class HomeWindow
                 }
             }
         }
-        finally { SetAuthBusy(false); RefreshAll(); }
+        finally { _authBusyText = null; _auth.SetBusy(false); RefreshAll(); }
     }
 
-    // The pending reset waits up to 15 minutes for the link. A new request (e.g. a corrected address) replaces it.
+    // The pending reset waits up to 15 minutes for the link. A new request (e.g. a corrected address, or Resend) replaces it.
     private CancellationTokenSource? _resetCts;
     private string? _resetEmail;
+    /// <summary>The address of the last accepted reset request ("Resend" sends to it again).</summary>
+    private string? _resetSentTo;
 
     /// <summary>
-    /// Password reset. Enumeration-safe: the same neutral notice appears for every syntactically valid address, whether
-    /// or not an account exists, and it never claims that an e-mail was delivered. Rate limits are still reported.
+    /// Password reset (the "Send reset link" button of the forgot-password state). Enumeration-safe: the same neutral
+    /// notice appears for every syntactically valid address, whether or not an account exists, and it never claims that
+    /// an e-mail was delivered. Rate limits are still reported; a timeout gets its own copy; every error offers a retry.
     /// </summary>
-    private async void Forgot_Click(object sender, RoutedEventArgs e)
+    private async Task RequestResetAsync(string email, bool force)
     {
-        if (_authBusy) return;
-        var email = EmailBox.Text.Trim();
-        AuthMessage.Clear();
-        if (!ValidEmail(email)) { FieldError(EmailBox, T("err_email_first")); return; }
-        void Requested() => AuthMessage.Show(PasswordResetCopy.Requested, MessageKind.Info, T("acct_reset_requested_hint"));
-        // Same address again while its link is awaited: nothing new to send. Another address: the old wait ends.
-        if (_resetCts != null && string.Equals(_resetEmail, email, StringComparison.OrdinalIgnoreCase)) { Requested(); return; }
+        void Requested()
+        {
+            _resetSentTo = email;
+            _auth.SetBusy(false);
+            _auth.ResetRequested(DateTimeOffset.Now);
+            AuthMessage.Show(PasswordResetCopy.Requested, MessageKind.Success, T("acct_reset_requested_hint"));
+        }
+        // Same address again while its link is awaited: nothing new to send (Resend sends again on purpose). Another address: the old wait ends.
+        if (!force && _resetCts != null && string.Equals(_resetEmail, email, StringComparison.OrdinalIgnoreCase)) { Requested(); return; }
         _resetCts?.Cancel();
         var cts = _resetCts = new CancellationTokenSource();
         _resetEmail = email;
+        var accepted = false;
+        _auth.SetBusy(true);
         try
         {
             var (ok, error) = await _vm.Cloud.ResetPasswordAsync(email, () => Prompt.NewPasswordAsync(this),
-                requested: () => Dispatcher.Invoke(Requested), ct: cts.Token);
+                requested: () => Dispatcher.Invoke(() => { accepted = true; if (!cts.IsCancellationRequested) Requested(); }), ct: cts.Token);
             if (cts.IsCancellationRequested) return;   // replaced by a newer request
-            if (ok) { AuthMessage.Show(T("acct_password_reset_done"), MessageKind.Success); _vm.OpenWorkspaceForCurrentAccount(); }
-            else AuthMessage.Show(error ?? T("err_reset_failed"), MessageKind.Error);
+            if (ok)
+            {
+                _auth.Reset();
+                AuthMessage.Show(T("acct_password_reset_done"), MessageKind.Success);
+                Notify(T("acct_password_reset_done"), ToastKind.Success);
+                _vm.OpenWorkspaceForCurrentAccount();
+            }
+            else ShowResetError(error, accepted, email);
         }
         catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
         finally
         {
-            if (ReferenceEquals(_resetCts, cts)) { _resetCts = null; _resetEmail = null; }
+            if (ReferenceEquals(_resetCts, cts)) { _resetCts = null; _resetEmail = null; _auth.SetBusy(false); }
             cts.Dispose();
             RefreshAll();
         }
+    }
+
+    /// <summary>A failed reset: back to the e-mail step with contextual copy and "Try again" (sends a new link).</summary>
+    private void ShowResetError(string? error, bool accepted, string email)
+    {
+        var timedOut = _vm.Cloud.LastAuthError is TimeoutException || !accepted && _vm.Cloud.LastAuthError is AuthException { Code: "network" };
+        var text = timedOut ? T(accepted ? "auth_reset_link_expired" : "auth_reset_request_timeout") : error ?? T("err_reset_failed");
+        _auth.ResetFailed();
+        if (_auth.Mode != AuthMode.ForgotPassword) { AppLog.Info("Password reset ended after the form left the reset state"); return; }
+        AuthMessage.Show(text, MessageKind.Error, null, T("dlg_retry"));
+        _authRetry = () => RequestResetAsync(email, force: true);
+    }
+
+    private async void Resend_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_auth.CanResend(DateTimeOffset.Now) || _resetSentTo is not { } email) return;
+        await RequestResetAsync(email, force: true);
+    }
+
+    /// <summary>Two columns (product | form) on wide content; one centred column below the breakpoint.</summary>
+    private void PageAccount_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (!e.WidthChanged) return;
+        var two = AccountLayout.AuthColumns(e.NewSize.Width) == 2;
+        SignedOutPanel.MaxWidth = two ? AccountLayout.AuthMaxWidth : AccountLayout.AuthNarrowMaxWidth;
+        AuthColForm.Width = two ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+        Grid.SetRow(AuthFormColumn, two ? 0 : 1);
+        Grid.SetColumn(AuthFormColumn, two ? 1 : 0);
+        Grid.SetColumnSpan(AuthFormColumn, two ? 1 : 2);
+        AuthHero.Margin = two ? new Thickness(0, 8, 40, 24) : new Thickness(0, 0, 0, 20);
     }
 
     /// <summary>

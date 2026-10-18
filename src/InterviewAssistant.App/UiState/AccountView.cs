@@ -10,6 +10,8 @@ public static class AccountLayout
     public const double TwoColumnMinWidth = 900;
     /// <summary>Content width from which the signed-out page shows the product column next to the form.</summary>
     public const double AuthTwoColumnMinWidth = 760;
+    /// <summary>Maximum width of the signed-out page (product column + form), and of its single centred column.</summary>
+    public const double AuthMaxWidth = 940, AuthNarrowMaxWidth = 460;
 
     public static int DashboardColumns(double contentWidth) => contentWidth >= TwoColumnMinWidth ? 2 : 1;
     public static int AuthColumns(double contentWidth) => contentWidth >= AuthTwoColumnMinWidth ? 2 : 1;

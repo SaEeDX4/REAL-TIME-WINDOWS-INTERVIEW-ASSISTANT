@@ -817,7 +817,7 @@
  "auth_resend_in": "Erneut senden in {0} s",
  "auth_or": "oder",
  "auth_reset_link_expired": "Der Link wurde nicht innerhalb von 15 Minuten auf diesem PC geöffnet. Senden Sie einen neuen Link, um es erneut zu versuchen.",
- "auth_reset_request_timeout": "Die Anfrage hat zu lange gedauert. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.",
+ "auth_reset_request_timeout": "Die Anfrage hat den Anmeldedienst nicht rechtzeitig erreicht. Prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.",
  "auth_hero_value": "Hilfe in Echtzeit während Ihrer Interviews, gestützt auf Ihre eigene Erfahrung.",
  "auth_trust_local": "Ihre Profile werden verschlüsselt auf diesem PC gespeichert",
  "auth_trust_paddle": "Zahlungen über Paddle",

@@ -817,7 +817,7 @@
  "auth_resend_in": "{0} 秒后可重新发送",
  "auth_or": "或",
  "auth_reset_link_expired": "重置链接未在 15 分钟内在此电脑上打开。请发送新链接后重试。",
- "auth_reset_request_timeout": "请求耗时过长。请检查网络连接后重试。",
+ "auth_reset_request_timeout": "请求未能及时到达登录服务。请检查网络连接后重试。",
  "auth_hero_value": "面试中的实时帮助，基于你自己的经历。",
  "auth_trust_local": "你的档案以加密方式保存在此电脑上",
  "auth_trust_paddle": "付款由 Paddle 处理",

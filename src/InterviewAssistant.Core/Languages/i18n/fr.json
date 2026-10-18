@@ -817,7 +817,7 @@
  "auth_resend_in": "Renvoyer dans {0} s",
  "auth_or": "ou",
  "auth_reset_link_expired": "Le lien n'a pas été ouvert sur ce PC dans les 15 minutes. Envoyez un nouveau lien pour réessayer.",
- "auth_reset_request_timeout": "La demande a pris trop de temps. Vérifiez votre connexion Internet et réessayez.",
+ "auth_reset_request_timeout": "La demande n'a pas pu joindre le service de connexion à temps. Vérifiez votre connexion Internet et réessayez.",
  "auth_hero_value": "Une aide en temps réel pendant vos entretiens, fondée sur votre propre expérience.",
  "auth_trust_local": "Vos profils sont stockés chiffrés sur ce PC",
  "auth_trust_paddle": "Paiements gérés par Paddle",

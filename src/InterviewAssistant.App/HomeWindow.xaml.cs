@@ -138,6 +138,7 @@ public partial class HomeWindow : Window
         PageSettings.Guard.Save = () => { if (PageSettings.Save()) return true; ShowPage("settings"); PageSettings.ShowSection("hotkeys"); return false; };
         PageSettings.Saved += () => Notify(T("toast_settings_saved"), ToastKind.Success);
         foreach (var box in new Control[] { EmailBox, PasswordBox, ConfirmBox, TargetTitle }) Field.ClearOnEdit(box);
+        InitAuthForm();
 
         _vm.Updates.Changed += OnUpdatesChanged;
         _vm.Cloud.Changed += OnCloudChanged;
@@ -214,8 +215,8 @@ public partial class HomeWindow : Window
             RefreshAccount();
             RefreshAbout();
             RefreshUpdates();
-            SetCreateMode(_createMode);
-            foreach (var m in new[] { AuthMessage, SecurityMessage, PrivacyMessage, DangerMessage, TargetMessage }) { m.Text = Loc.Relocalize(m.Text) ?? m.Text; m.Detail = Loc.Relocalize(m.Detail) ?? m.Detail; }
+            ApplyAuthState();
+            foreach (var m in new[] { AuthMessage, EmailError, PasswordError, ConfirmError, SecurityMessage, PrivacyMessage, DangerMessage, TargetMessage }) { m.Text = Loc.Relocalize(m.Text) ?? m.Text; m.Detail = Loc.Relocalize(m.Detail) ?? m.Detail; }
             PageSettings.Relocalize();
             UpdateDirtyIndicators();
         }
