@@ -138,6 +138,7 @@ public partial class HomeWindow : Window
         PageSettings.Saved += () => Notify(T("toast_settings_saved"), ToastKind.Success);
         PageSettings.DefaultsRestored += category => Notify(category == null ? T("toast_defaults_restored")
             : F("toast_section_reset", T(SettingsCategories.All[SettingsCategories.IndexOf(category)].TitleKey)), ToastKind.Success);
+        InitializeReadiness();
         foreach (var box in new Control[] { EmailBox, PasswordBox, ConfirmBox, TargetTitle }) Field.ClearOnEdit(box);
 
         _vm.Updates.Changed += OnUpdatesChanged;
@@ -150,6 +151,7 @@ public partial class HomeWindow : Window
             _vm.Cloud.Changed -= OnCloudChanged; _vm.Updates.Changed -= OnUpdatesChanged; _vm.WorkspaceChanged -= OnWorkspaceChanged;
             _vm.ReportSaved -= OnReportSaved; Loc.LanguageChanged -= OnLanguageChanged; _prepCts?.Cancel();
             PageSettings.Guard.Discard?.Invoke();   // an unsaved audio-device preview never outlives the page
+            DetachReadiness();   // probes and listeners of the pre-interview check stop with the window
         };
         WindowPlacement.HookMaximizeToWorkArea(this);
         WindowPlacement.Restore(this, _vm.Settings.HomeLeft, _vm.Settings.HomeTop, _vm.Settings.HomeWidth, _vm.Settings.HomeHeight, _vm.Settings.HomeMaximized);
@@ -218,6 +220,7 @@ public partial class HomeWindow : Window
             SetCreateMode(_createMode);
             foreach (var m in new[] { AuthMessage, SecurityMessage, PrivacyMessage, TargetMessage }) { m.Text = Loc.Relocalize(m.Text) ?? m.Text; m.Detail = Loc.Relocalize(m.Detail) ?? m.Detail; }
             PageSettings.Relocalize();
+            RelocalizeReadiness();
             UpdateDirtyIndicators();
         }
         ContentScroll.ScrollToVerticalOffset(scroll);
@@ -330,6 +333,7 @@ public partial class HomeWindow : Window
         var signedOutGate = SignedOutGate;
         tag = new HomeRoute(tag).Gate(signedOutGate).Page;
         var entering = tag != _page;
+        var leftPreInterview = entering && _page == "preinterview";
         _page = tag;
         PageStart.Visibility = tag == "start" ? Visibility.Visible : Visibility.Collapsed;
         PageProfiles.Visibility = tag == "profiles" ? Visibility.Visible : Visibility.Collapsed;
@@ -337,15 +341,19 @@ public partial class HomeWindow : Window
         PageReports.Visibility = tag == "reports" ? Visibility.Visible : Visibility.Collapsed;
         PageAccount.Visibility = tag == "account" ? Visibility.Visible : Visibility.Collapsed;
         PageSettings.Visibility = tag == "settings" ? Visibility.Visible : Visibility.Collapsed;
+        PagePreInterview.Visibility = PreInterviewFooter.Visibility = tag == "preinterview" ? Visibility.Visible : Visibility.Collapsed;
         PageHelp.Visibility = tag == "help" ? Visibility.Visible : Visibility.Collapsed;
         SettingsFooter.Visibility = tag == "settings" ? Visibility.Visible : Visibility.Collapsed;
         foreach (var nav in new[] { NavProfiles, NavInterviews, NavReports }) nav.Visibility = signedOutGate ? Visibility.Collapsed : Visibility.Visible;
         if (tag == "account" && _vm.Cloud.IsSignedIn) _ = RefreshAccountSectionsAsync(summary: !_sections.Summary.HasData);
         if (tag == "help") RefreshAbout();
+        if (tag == "start") RenderDashboard();
         if (tag == "reports") RefreshReports(SelectedReportId());
         if (tag == "settings") PageSettings.LoadFromSettings();   // stored values unless edits are pending
+        if (leftPreInterview) PagePreInterview.OnHidden();       // open-ended probes stop when the page is left
+        if (entering && tag == "preinterview") PagePreInterview.OnShown();   // runs the checks when there is no current result
         if (entering) ContentScroll.ScrollToTop();
-        foreach (var nav in new[] { NavStart, NavProfiles, NavInterviews, NavReports, NavAccount, NavSettings, NavHelp })
+        foreach (var nav in new[] { NavStart, NavProfiles, NavInterviews, NavPreInterview, NavReports, NavAccount, NavSettings, NavHelp })
         {
             var active = (string)nav.Tag == tag;
             nav.Background = active ? (Brush)FindResource("B.Surface2") : Brushes.Transparent;
@@ -376,7 +384,6 @@ public partial class HomeWindow : Window
         if (_page != "profiles" && !await _nav.CanProceedAsync(ChangeReason.Navigate, GuardsOfPage(_page))) return;
         ShowPage("profiles"); SetProfileTab("personal");
     }
-    private void Readiness_Click(object sender, RoutedEventArgs e) => _main.OpenReadiness(firstRun: false);
 
     private void SettingsSave_Click(object sender, RoutedEventArgs e) => PageSettings.Save();
     private void SettingsDiscard_Click(object sender, RoutedEventArgs e) => PageSettings.Discard();
@@ -432,64 +439,7 @@ public partial class HomeWindow : Window
         catch (Exception ex) when (ex is Win32Exception or IOException) { Notify(T("toast_logs_failed"), ToastKind.Error); }
     }
 
-    // ================= onboarding =================
-
-    private void RefreshChecklist()
-    {
-        var profiles = Store?.Profiles() ?? Array.Empty<CandidateProfileRecord>();
-        var prepared = Store == null ? 0 : profiles.SelectMany(p => Store.Targets(p.Id)).Count(t => t.Preparation == PreparationState.Prepared);
-        Step1Title.Text = (_vm.Settings.AuthorizedUseAcknowledged ? "✓ " : "1 · ") + T("start_step1");
-        var devMode = BuildFlavor.Developer && !_vm.UsingCloud;
-        var accountOk = _vm.Cloud.IsSignedIn || (devMode && SecretStore.HasKey);
-        Step2Title.Text = (accountOk ? "✓ " : "2 · ") + T("account");
-        Step2Status.Text = devMode ? T(SecretStore.HasKey ? "start_dev_key" : "start_dev_no_key")
-            : !_vm.Cloud.IsConfigured ? T("acct_not_configured_long")
-            : _vm.Cloud.IsSignedIn ? F("start_signed_in", _vm.AccountLabel)
-            : Loc.Relocalize(_vm.Cloud.Message) ?? T("start_account_hint");
-        DeveloperModeBtn.Visibility = BuildFlavor.Developer ? Visibility.Visible : Visibility.Collapsed;
-        GoAccountBtn.Visibility = _vm.Cloud.IsConfigured && !_vm.Cloud.IsSignedIn ? Visibility.Visible : Visibility.Collapsed;
-        var stats = profiles.Select(p => p.Stats).ToList();
-        Step3Title.Text = (profiles.Any(p => p.ConfirmedFacts.Any()) ? "✓ " : "3 · ") + T("start_step3");
-        Step3Status.Text = !_vm.HasWorkspace ? T("start_sign_in_first")
-            : profiles.Count == 0 ? T("start_profile_hint")
-            : F("start_profile_status", profiles.Count, stats.Sum(s => s.ConfirmedExperience), stats.Sum(s => s.ConfirmedProfileAnswers), stats.Sum(s => s.ToReview));
-        StartImportBtn.IsEnabled = StartInterviewProfileBtn.IsEnabled = StartAddInterviewBtn.IsEnabled = _vm.HasWorkspace;
-        Step4Title.Text = (prepared > 0 ? "✓ " : "4 · ") + T("start_step4");
-        Step4Status.Text = prepared == 0 ? T("start_interview_hint") : F("start_interview_status", prepared, _vm.ActiveLabel);
-        DoneBtn.IsEnabled = _vm.Settings.AuthorizedUseAcknowledged;
-    }
-
-    private void Ack_Changed(object sender, RoutedEventArgs e)
-    {
-        _vm.Settings.AuthorizedUseAcknowledged = AckBox.IsChecked == true;
-        _vm.Settings.Save();
-        RefreshChecklist();
-    }
-
-    private void DeveloperMode_Click(object sender, RoutedEventArgs e)
-    {
-        if (!BuildFlavor.Developer || _vm.SessionActive) return;
-        _vm.Settings.Mode = "developer";
-        _vm.Settings.Save();
-        _vm.OpenWorkspaceForCurrentAccount();
-        _vm.BuildEngine();
-        RefreshAll();
-        Navigate("settings");
-    }
-
-    private void Done_Click(object sender, RoutedEventArgs e)
-    {
-        _vm.Settings.FirstRunCompleted = true;
-        _vm.Settings.Save();
-        _main.Activate();
-        Close();   // asks first when edits are pending
-    }
-
-    private void GoAccount_Click(object sender, RoutedEventArgs e)
-    {
-        if (_vm.Settings.Mode != "cloud" && !_vm.SessionActive) { _vm.Settings.Mode = "cloud"; _vm.Settings.Save(); _vm.OpenWorkspaceForCurrentAccount(); _vm.BuildEngine(); }
-        Navigate("account");
-    }
+    // ================= onboarding: see HomeWindow.Start.cs (interview readiness dashboard) =================
 
     // ================= profiles =================
 
@@ -941,6 +891,7 @@ public partial class HomeWindow : Window
         var pack = t != null ? Store?.GetPack(t.Id) : null;
         PrepSummary.Text = pack == null ? "" : F("prep_summary", pack.Questions.Count, pack.Stories.Count, pack.Gaps.Count, pack.CreatedUtc.ToLocalTime().ToString("g", Loc.Culture));
         UseBtn.IsEnabled = t?.Preparation is PreparationState.Prepared or PreparationState.Stale;
+        RenderInterviewReadiness();
     }
 
     private void TargetField_Changed(object sender, RoutedEventArgs e) => _targetGuard.MarkDirty();
