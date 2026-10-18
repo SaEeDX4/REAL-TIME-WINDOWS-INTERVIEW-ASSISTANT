@@ -789,4 +789,8 @@ public partial class HomeWindow
     private void MenuSettings_Click(object sender, RoutedEventArgs e) { CloseAccountMenu(returnFocus: true); Navigate(AccountMenu.Route(AccountMenuItem.Settings)!); }
     private void MenuSwitchAccount_Click(object sender, RoutedEventArgs e) { CloseAccountMenu(returnFocus: true); SwitchAccount_Click(sender, e); }
     private void MenuSignOut_Click(object sender, RoutedEventArgs e) { CloseAccountMenu(returnFocus: true); SignOut_Click(sender, e); }
+
+    // ----- self-test hooks (the in-app self-test drives the real window) -----
+    internal AuthFormState AuthStateForTest => _auth;
+    internal void ShowForgotPasswordForTest() => Forgot_Click(this, new RoutedEventArgs());
 }

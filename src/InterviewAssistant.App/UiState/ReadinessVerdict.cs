@@ -24,4 +24,6 @@ public static class PasswordResetCopy
 {
     /// <summary>Shown after the reset request was accepted — for existing and unknown e-mail addresses alike.</summary>
     public static string Requested => Core.Languages.Loc.T("acct_reset_requested");
+    /// <summary>The same notice in a given UI language (tests check every language without switching the app's language).</summary>
+    public static string RequestedIn(string language) => Core.Languages.Loc.Format(language, "acct_reset_requested");
 }
