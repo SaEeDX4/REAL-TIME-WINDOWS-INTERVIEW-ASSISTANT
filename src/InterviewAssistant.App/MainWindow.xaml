@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:v="clr-namespace:InterviewAssistant.App.Views"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         Title="Interview Assistant" Icon="Assets/app.ico"
         Width="720" Height="560" MinWidth="440" MinHeight="260"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
@@ -18,9 +19,29 @@
         <v:StringToVisibility x:Key="StrVisInv" Invert="True"/>
         <v:LevelToWidth x:Key="LevelW"/>
         <v:Multiply x:Key="LineH" Factor="1.42"/>
+        <!-- wide windows (maximized, 4K): question, answer and action bar share one centred, readable column -->
+        <sys:Double x:Key="LiveReadableWidth">980</sys:Double>
         <!-- header icon buttons: slightly tighter than Btn.Ghost so the header fits at the default width -->
         <Style x:Key="Btn.HeaderIcon" TargetType="Button" BasedOn="{StaticResource Btn.Ghost}">
             <Setter Property="Padding" Value="6,6"/>
+        </Style>
+        <!-- rows of the header popovers (More menu): full-width ghost buttons, text in the window's reading direction -->
+        <Style x:Key="Btn.MenuRow" TargetType="Button" BasedOn="{StaticResource Btn.Ghost}">
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="FontSize" Value="12.5"/>
+        </Style>
+        <Style x:Key="Popover.Card" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource B.Surface2}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource B.Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="{StaticResource R.Card}"/>
+            <Setter Property="Margin" Value="8,0,8,12"/>
+            <Setter Property="Effect" Value="{StaticResource E.Shadow}"/>
+            <Setter Property="KeyboardNavigation.TabNavigation" Value="Cycle"/>
+            <Setter Property="KeyboardNavigation.DirectionalNavigation" Value="Cycle"/>
         </Style>
 
         <Storyboard x:Key="Pulse" RepeatBehavior="Forever" AutoReverse="True">
@@ -49,10 +70,11 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- status pill: shrinks first when the header is tight (status text trims, details in the tooltip) -->
-                <Border Grid.Column="0" Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" CornerRadius="14" Padding="10,5,12,5"
+                <Border x:Name="StatusPill" Grid.Column="0" Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" CornerRadius="14" Padding="10,5,12,5"
                         HorizontalAlignment="Left" ToolTip="{Binding StatusDetail}">
                     <DockPanel>
                         <Ellipse DockPanel.Dock="Left" Width="8" Height="8" Fill="{Binding StatusBrush}" VerticalAlignment="Center">
@@ -76,41 +98,49 @@
                     </DockPanel>
                 </Border>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,6,0">
+                <!-- optional chips: shed first when the header is narrow (LiveChrome); the More menu takes what does not fit -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,4,0">
                     <Button x:Name="AdaptiveBadge" Style="{StaticResource Btn.Chip}" Padding="8,2" Background="{StaticResource B.AccentSoft}" BorderBrush="Transparent" Margin="0,0,6,0"
-                            Visibility="{Binding AdaptiveLabel, Converter={StaticResource StrVis}}" ToolTip="{v:Loc tt_adaptive}" AutomationProperties.Name="{v:Loc tt_adaptive}" Click="Adaptive_Click">
+                            Visibility="Collapsed" ToolTip="{v:Loc tt_adaptive}" AutomationProperties.Name="{v:Loc tt_adaptive}" Click="Adaptive_Click">
                         <TextBlock Text="{Binding AdaptiveLabel}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource B.Accent}"/>
                     </Button>
-                    <Button Style="{StaticResource Btn.Chip}" Padding="8,2" BorderBrush="Transparent" Margin="0,0,6,0" ToolTip="{v:Loc tt_presentation}" AutomationProperties.Name="{v:Loc tt_presentation}" Click="Presentation_Click">
+                    <Button x:Name="PresentationChip" Style="{StaticResource Btn.Chip}" Padding="8,2" BorderBrush="Transparent" Margin="0,0,6,0" ToolTip="{v:Loc tt_presentation}" AutomationProperties.Name="{v:Loc tt_presentation}" Click="Presentation_Click">
                         <TextBlock x:Name="PresentationText" Text="{Binding PresentationLabel}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource B.TextDim}"/>
                     </Button>
-                    <TextBlock Text="{Binding MinutesLeftLabel}" FontSize="10.5" Foreground="{StaticResource B.TextFaint}" VerticalAlignment="Center"
-                               Visibility="{Binding MinutesLeftLabel, Converter={StaticResource StrVis}}" ToolTip="{Binding MinutesTooltip}"/>
+                    <TextBlock x:Name="MinutesText" Text="{Binding MinutesLeftLabel}" FontSize="10.5" Foreground="{StaticResource B.TextFaint}" VerticalAlignment="Center" Margin="0,0,6,0"
+                               ToolTip="{Binding MinutesTooltip}"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="StartBtn" Style="{StaticResource Btn.Primary}" Command="{Binding StartPauseCommand}" Padding="12,4" Margin="0,0,6,0" ToolTip="{v:Loc tt_start_pause}" AutomationProperties.Name="{Binding StartPauseLabel}">
+                <!-- interview controls: primary first (Start/Pause), then Stop, readiness, quick help and the overflow menu -->
+                <StackPanel x:Name="InterviewControls" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="StartBtn" Style="{StaticResource Btn.Primary}" Command="{Binding StartPauseCommand}" Padding="12,4" Margin="0,0,4,0" ToolTip="{v:Loc tt_start_pause}" AutomationProperties.Name="{Binding StartPauseLabel}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="StartIcon" Style="{StaticResource T.Icon}" Text="&#xE768;" FontSize="12" Margin="0,0,6,0"/>
-                            <TextBlock Text="{Binding StartPauseLabel}" MaxWidth="140" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock x:Name="StartIcon" Style="{StaticResource T.Icon}" Text="&#xE768;" FontSize="12"/>
+                            <TextBlock x:Name="StartLabel" Text="{Binding StartPauseLabel}" Margin="6,0,0,0" MaxWidth="140" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource Btn.HeaderIcon}" Command="{Binding StopCommand}" ToolTip="{v:Loc tt_stop}" AutomationProperties.Name="{v:Loc tt_stop}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE71A;"/></Button>
-                    <Button Style="{StaticResource Btn.HeaderIcon}" Click="Compact_Click" ToolTip="{v:Loc tt_compact}" AutomationProperties.Name="{v:Loc tt_compact}"><TextBlock x:Name="CompactIcon" Style="{StaticResource T.Icon}" Text="&#xE73F;"/></Button>
-                    <Button Style="{StaticResource Btn.HeaderIcon}" Click="Home_Click" ToolTip="{v:Loc tt_home}" AutomationProperties.Name="{v:Loc tt_home}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE80F;"/></Button>
-                    <Button x:Name="ReportBtn" Style="{StaticResource Btn.HeaderIcon}" Click="Report_Click" ToolTip="{v:Loc tt_last_report}" AutomationProperties.Name="{v:Loc tt_last_report}"
-                            Visibility="{Binding LastReportPath, Converter={StaticResource StrVis}}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE9F9;"/></Button>
-                    <Button Style="{StaticResource Btn.HeaderIcon}" Click="Help_Click" ToolTip="{v:Loc tt_help}" AutomationProperties.Name="{v:Loc tt_help}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE897;"/></Button>
-                    <Button Style="{StaticResource Btn.HeaderIcon}" Click="Diagnostics_Click" ToolTip="{v:Loc tt_diagnostics}" AutomationProperties.Name="{v:Loc tt_diagnostics}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE9D9;"/></Button>
-                    <Button Style="{StaticResource Btn.HeaderIcon}" Click="Readiness_Click" ToolTip="{v:Loc tt_preflight}" AutomationProperties.Name="{v:Loc tt_preflight}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE73E;"/></Button>
-                    <Button Style="{StaticResource Btn.HeaderIcon}" Click="Settings_Click" ToolTip="{v:Loc tt_settings}" AutomationProperties.Name="{v:Loc tt_settings}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE713;"/></Button>
+                    <Button x:Name="StopBtn" Style="{StaticResource Btn.HeaderIcon}" Command="{Binding StopCommand}" ToolTip="{v:Loc tt_stop}" AutomationProperties.Name="{v:Loc tt_stop}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE71A;"/></Button>
+                    <!-- readiness (the one pre-interview snapshot): a labelled pill in setup mode, a dot during the interview -->
+                    <Button x:Name="ReadinessBtn" Style="{StaticResource Btn.HeaderIcon}" Padding="8,5" Margin="2,0" Click="Readiness_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="ReadinessDot" Width="8" Height="8" VerticalAlignment="Center" Fill="{StaticResource B.TextFaint}"/>
+                            <TextBlock x:Name="ReadinessLabel" Margin="6,0,0,0" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" MaxWidth="150" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="HelpBtn" Style="{StaticResource Btn.HeaderIcon}" Click="Help_Click" ToolTip="{v:Loc tt_help}" AutomationProperties.Name="{v:Loc tt_help}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE897;"/></Button>
+                    <Button x:Name="MoreBtn" Style="{StaticResource Btn.HeaderIcon}" Click="More_Click" ToolTip="{v:Loc tt_more}" AutomationProperties.Name="{v:Loc tt_more}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE712;"/></Button>
+                </StackPanel>
+
+                <!-- window controls: always last -->
+                <StackPanel x:Name="WindowControls" Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,0,0">
                     <Button Style="{StaticResource Btn.HeaderIcon}" Click="Minimize_Click" ToolTip="{v:Loc tt_minimize}" AutomationProperties.Name="{v:Loc tt_minimize}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE921;" FontSize="11"/></Button>
+                    <Button x:Name="MaxBtn" Style="{StaticResource Btn.HeaderIcon}" Click="Maximize_Click" ToolTip="{v:Loc tt_maximize}" AutomationProperties.Name="{v:Loc tt_maximize}"><TextBlock x:Name="MaxIcon" Style="{StaticResource T.Icon}" Text="&#xE922;" FontSize="11"/></Button>
                     <Button Style="{StaticResource Btn.HeaderIcon}" Click="Close_Click" ToolTip="{v:Loc tt_close}" AutomationProperties.Name="{v:Loc tt_close}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE8BB;" FontSize="11"/></Button>
                 </StackPanel>
             </Grid>
 
             <!-- ===== Body ===== -->
-            <Grid Grid.Row="1" Margin="14,4,14,8">
+            <Grid x:Name="LiveBody" Grid.Row="1" Margin="14,4,14,8" MaxWidth="{StaticResource LiveReadableWidth}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -142,8 +172,20 @@
                                    ToolTip="{Binding ContextSummary}" Visibility="{Binding ContextSummary, Converter={StaticResource StrVis}}">
                             <Run Text="{v:Loc live_context}" FontWeight="SemiBold"/><Run Text=": "/><Run Text="{Binding ContextSummary, Mode=OneWay}"/>
                         </TextBlock>
-                        <TextBlock Text="{Binding LWaiting}" FontSize="{Binding QuestionFontSize}" Foreground="{StaticResource B.TextFaint}"
-                                   Visibility="{Binding Question, Converter={StaticResource StrVisInv}}"/>
+                        <!-- no question yet. Interview mode (listening / paused): "Waiting for the interviewer…". Setup mode (no session):
+                             a calm empty state with a link to Home. Which one shows is LiveChrome's rule (MainWindow.UpdateSetupMode). -->
+                        <TextBlock x:Name="WaitingText" Text="{Binding LWaiting}" FontSize="{Binding QuestionFontSize}" Foreground="{StaticResource B.TextFaint}" Visibility="Collapsed"/>
+                        <StackPanel x:Name="SetupEmpty" Visibility="Collapsed">
+                            <TextBlock x:Name="SetupEmptyText" Text="{v:Loc live_empty_setup}" FontSize="{Binding QuestionFontSize}" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap"
+                                       AutomationProperties.LiveSetting="Polite"/>
+                            <Button x:Name="SetupHomeLink" Style="{StaticResource Btn.Link}" HorizontalAlignment="Left" Margin="-6,6,0,0" Click="Home_Click" ToolTip="{v:Loc tt_home}"
+                                    AutomationProperties.Name="{v:Loc live_open_home}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource T.Icon}" Text="&#xE80F;" FontSize="12" Margin="0,0,6,0"/>
+                                    <TextBlock Text="{v:Loc live_open_home}"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
                         <TextBlock Text="{Binding LiveTranscript}" FlowDirection="{Binding LiveTranscriptFlowDirection}" Margin="0,8,0,0" FontSize="13" FontStyle="Italic" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap"
                                    Visibility="{Binding LiveTranscript, Converter={StaticResource StrVis}}"/>
                     </StackPanel>
@@ -263,7 +305,7 @@
             </Grid>
 
             <!-- ===== Answer actions ===== -->
-            <Grid x:Name="ActionBar" Grid.Row="2" Margin="14,0,14,4">
+            <Grid x:Name="ActionBar" Grid.Row="2" Margin="14,0,14,4" MaxWidth="{StaticResource LiveReadableWidth}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
@@ -287,7 +329,7 @@
             </Grid>
 
             <!-- ===== Manual question (always-available fallback) ===== -->
-            <Grid x:Name="ManualBar" Grid.Row="3" Margin="14,0,14,12">
+            <Grid x:Name="ManualBar" Grid.Row="3" Margin="14,0,14,12" MaxWidth="{StaticResource LiveReadableWidth}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="{StaticResource S.ColumnGap}"/>
@@ -304,29 +346,82 @@
                 </Button>
             </Grid>
 
-            <!-- ===== Diagnostics ===== -->
-            <Border x:Name="DiagPanel" Grid.Row="4" Margin="14,0,14,12" Padding="12,8" CornerRadius="8" Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" Visibility="Collapsed"
-                    FlowDirection="LeftToRight">
-                <TextBlock Text="{Binding Diagnostics}" FontFamily="Cascadia Mono, Consolas" FontSize="10.5" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap"/>
-            </Border>
+            <!-- rc.5: no diagnostics panel here — technical details live in Home → Help & about → Diagnostics -->
 
-            <!-- first-time introduction (short; reopen with the ? button) -->
-            <Border x:Name="LiveIntro" Grid.Row="1" Grid.RowSpan="3" Margin="14,4,14,10" Padding="20,16" CornerRadius="12" Panel.ZIndex="5"
-                    Background="{StaticResource B.Surface2}" BorderBrush="{StaticResource B.Border}" BorderThickness="1" VerticalAlignment="Top"
-                    Visibility="{Binding ShowLiveIntro, Converter={StaticResource BoolVis}}">
-                <StackPanel>
-                    <TextBlock Text="{v:Loc live_intro_title}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" Margin="0,0,0,10"/>
-                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,5" Text="{v:Loc live_intro_1}"/>
-                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,5" Text="{v:Loc live_intro_2}"/>
-                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,5" Text="{v:Loc live_intro_3}"/>
-                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,5" Text="{v:Loc live_intro_4}"/>
-                    <TextBlock Style="{StaticResource T.Body}" Margin="0,0,0,12" Text="{v:Loc live_intro_5}"/>
-                    <DockPanel LastChildFill="False">
-                        <CheckBox x:Name="IntroDontShow" Style="{StaticResource Check}" Content="{v:Loc live_intro_dont_show}" VerticalAlignment="Center" Foreground="{StaticResource B.TextDim}"/>
-                        <Button DockPanel.Dock="Right" Style="{StaticResource Btn.Primary}" Content="{v:Loc live_intro_got_it}" Click="IntroClose_Click" Padding="18,6" IsCancel="True"/>
-                    </DockPanel>
-                </StackPanel>
-            </Border>
+            <!-- ===== Quick help: compact, context-aware popover under "?" (rc.5: replaces the big first-use overlay; opens by itself
+                 once on first use, then only on "?"; Escape / click outside closes and focus returns to the button) ===== -->
+            <Popup x:Name="QuickHelpPopup" PlacementTarget="{Binding ElementName=HelpBtn}" Placement="Custom" StaysOpen="True" AllowsTransparency="True" PopupAnimation="Fade">
+                <Border x:Name="QuickHelpCard" Style="{StaticResource Popover.Card}" Padding="16,14,16,12" Width="340" MaxWidth="340" FlowDirection="{v:LocFlow}"
+                        AutomationProperties.Name="{v:Loc tt_help}">
+                    <StackPanel>
+                        <StackPanel x:Name="QuickHelpBody"/>
+                        <DockPanel Margin="0,12,0,0" LastChildFill="False">
+                            <Button x:Name="QuickHelpClose" DockPanel.Dock="Right" Style="{StaticResource Btn.Primary}" Padding="16,5" Content="{v:Loc live_intro_got_it}" Click="QuickHelpClose_Click"/>
+                            <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center">
+                                <Button x:Name="QuickHelpAction" Style="{StaticResource Btn.Link}" HorizontalAlignment="Left" Click="QuickHelpAction_Click" Visibility="Collapsed"/>
+                                <Button x:Name="QuickHelpFull" Style="{StaticResource Btn.Link}" HorizontalAlignment="Left" Content="{v:Loc qh_full_help}" Click="QuickHelpFull_Click"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </StackPanel>
+                </Border>
+            </Popup>
+
+            <!-- ===== More (overflow) menu: anchored under its button, Escape / click outside closes, focus returns ===== -->
+            <Popup x:Name="MorePopup" PlacementTarget="{Binding ElementName=MoreBtn}" Placement="Custom" StaysOpen="True" AllowsTransparency="True" PopupAnimation="Fade">
+                <Border x:Name="MoreCard" Style="{StaticResource Popover.Card}" Padding="6" MinWidth="230" MaxWidth="320" FlowDirection="{v:LocFlow}" AutomationProperties.Name="{v:Loc tt_more}">
+                    <StackPanel>
+                        <Button x:Name="MoreCompact" Style="{StaticResource Btn.MenuRow}" Click="MoreCompact_Click" AutomationProperties.Name="{v:Loc more_compact}">
+                            <DockPanel>
+                                <TextBlock x:Name="MoreCompactCheck" DockPanel.Dock="Right" Style="{StaticResource T.Icon}" Text="&#xE73E;" FontSize="12" Foreground="{StaticResource B.Accent}" Margin="10,0,0,0"/>
+                                <TextBlock Style="{StaticResource T.Icon}" Text="&#xE73F;" FontSize="13" Margin="0,0,10,0" Foreground="{StaticResource B.TextDim}"/>
+                                <TextBlock Text="{v:Loc more_compact}" TextTrimming="CharacterEllipsis"/>
+                            </DockPanel>
+                        </Button>
+                        <Button x:Name="MoreCoach" Style="{StaticResource Btn.MenuRow}" Click="Presentation_Click" AutomationProperties.Name="{v:Loc more_coach}">
+                            <DockPanel>
+                                <TextBlock x:Name="MoreCoachCheck" DockPanel.Dock="Right" Style="{StaticResource T.Icon}" Text="&#xE73E;" FontSize="12" Foreground="{StaticResource B.Accent}" Margin="10,0,0,0"/>
+                                <TextBlock Style="{StaticResource T.Icon}" Text="&#xE8FD;" FontSize="13" Margin="0,0,10,0" Foreground="{StaticResource B.TextDim}"/>
+                                <TextBlock Text="{v:Loc more_coach}" TextTrimming="CharacterEllipsis"/>
+                            </DockPanel>
+                        </Button>
+                        <Button x:Name="MoreFocus" Style="{StaticResource Btn.MenuRow}" Click="MoreFocus_Click" AutomationProperties.Name="{v:Loc more_focus}">
+                            <DockPanel>
+                                <TextBlock Style="{StaticResource T.Icon}" Text="&#xE714;" FontSize="13" Margin="0,0,10,0" Foreground="{StaticResource B.TextDim}"/>
+                                <TextBlock Text="{v:Loc more_focus}" TextTrimming="CharacterEllipsis"/>
+                            </DockPanel>
+                        </Button>
+                        <Button x:Name="MoreFocusRestore" Style="{StaticResource Btn.MenuRow}" Click="MoreFocusRestore_Click" Visibility="Collapsed" AutomationProperties.Name="{v:Loc focus_restore}">
+                            <DockPanel>
+                                <TextBlock Style="{StaticResource T.Icon}" Text="&#xE7A7;" FontSize="13" Margin="0,0,10,0" Foreground="{StaticResource B.TextDim}"/>
+                                <TextBlock Text="{v:Loc focus_restore}" TextTrimming="CharacterEllipsis"/>
+                            </DockPanel>
+                        </Button>
+                        <Border Style="{StaticResource Divider}" Margin="8,4"/>
+                        <Button x:Name="MoreHome" Style="{StaticResource Btn.MenuRow}" Click="Home_Click" ToolTip="{v:Loc tt_home}" AutomationProperties.Name="{v:Loc more_home}">
+                            <DockPanel>
+                                <TextBlock Style="{StaticResource T.Icon}" Text="&#xE80F;" FontSize="13" Margin="0,0,10,0" Foreground="{StaticResource B.TextDim}"/>
+                                <TextBlock Text="{v:Loc more_home}" TextTrimming="CharacterEllipsis"/>
+                            </DockPanel>
+                        </Button>
+                        <Button x:Name="MoreReport" Style="{StaticResource Btn.MenuRow}" Click="Report_Click" ToolTip="{v:Loc tt_last_report}" AutomationProperties.Name="{v:Loc more_last_report}"
+                                Visibility="{Binding LastReportPath, Converter={StaticResource StrVis}}">
+                            <DockPanel>
+                                <TextBlock Style="{StaticResource T.Icon}" Text="&#xE9F9;" FontSize="13" Margin="0,0,10,0" Foreground="{StaticResource B.TextDim}"/>
+                                <TextBlock Text="{v:Loc more_last_report}" TextTrimming="CharacterEllipsis"/>
+                            </DockPanel>
+                        </Button>
+                        <Button x:Name="MoreSettings" Style="{StaticResource Btn.MenuRow}" Click="Settings_Click" AutomationProperties.Name="{v:Loc settings}">
+                            <DockPanel>
+                                <TextBlock Style="{StaticResource T.Icon}" Text="&#xE713;" FontSize="13" Margin="0,0,10,0" Foreground="{StaticResource B.TextDim}"/>
+                                <TextBlock Text="{v:Loc settings}" TextTrimming="CharacterEllipsis"/>
+                            </DockPanel>
+                        </Button>
+                        <!-- minutes left: here when the header has no room for the label -->
+                        <TextBlock x:Name="MoreMinutes" Text="{Binding MinutesLeftLabel}" ToolTip="{Binding MinutesTooltip}" FontSize="11" Foreground="{StaticResource B.TextFaint}" Margin="10,6,10,4"
+                                   TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                    </StackPanel>
+                </Border>
+            </Popup>
 
             <!-- notifications: bottom of the window, over the action/typing area — never over the answer text -->
             <v:ToastHost x:Name="Toasts" Grid.Row="2" Grid.RowSpan="3" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="12,0,12,10" Panel.ZIndex="10"/>

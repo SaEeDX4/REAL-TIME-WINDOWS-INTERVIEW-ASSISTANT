@@ -30,13 +30,23 @@ public static class SelfTest
         async Task Idle() => await w.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
         async Task<bool> WaitFor(Func<bool> cond, int ms) { var until = Environment.TickCount64 + ms; while (!cond() && Environment.TickCount64 < until) await Task.Delay(50); return cond(); }
 
-        await Check("Live Assistant introduction: shown on first use, dismissible", async () =>
+        // rc.5: the big introduction overlay became the Quick help popover. Same intent: shown on first use, dismissible.
+        await Check("Live Assistant introduction: Quick help opens by itself on first use, Escape closes it (once only), \"?\" reopens it with the configured hotkeys", async () =>
         {
-            await Idle();
-            var shown = vm.ShowLiveIntro && w.FindName("LiveIntro") is FrameworkElement f && f.Visibility == Visibility.Visible;
-            vm.DismissLiveIntro(dontShowAgain: false);
-            await Idle();
-            return (shown && !vm.ShowLiveIntro && !vm.Settings.LiveIntroDismissed, shown ? "shown, then dismissed for this session" : "not shown");
+            await Idle(); await Idle();
+            var shown = vm.ShowLiveIntro && w.QuickHelpOpen && w.QuickHelpTexts.Count > 0;
+            var noOptOut = w.FindName("IntroDontShow") == null && w.FindName("LiveIntro") == null;   // no "Don't show again", no overlay
+            PressKey(w, System.Windows.Input.Key.Escape); await Idle();
+            var closed = !w.QuickHelpOpen && !vm.ShowLiveIntro && vm.Settings.LiveIntroDismissed;
+            w.ToggleQuickHelp(); await Idle(); await Idle();
+            var texts = w.QuickHelpTexts;
+            var configured = new[] { vm.Settings.HotkeyStartPause, vm.Settings.HotkeyManualInput, vm.Settings.HotkeyToggleWindow, vm.Settings.HotkeyCoachToggle };
+            var reopened = w.QuickHelpOpen && texts.Any(configured.Contains);   // the user's own hotkeys (which ones depends on the state)
+            PressKey(w, System.Windows.Input.Key.Escape); await Idle();
+            var focusBack = System.Windows.Input.FocusManager.GetFocusedElement(w) == w.FindName("HelpBtn");
+            var closedAgain = !w.QuickHelpOpen && w.QuickHelpTexts.Count == 0;   // content leaves with the popover
+            return (shown && noOptOut && closed && reopened && closedAgain,
+                $"first use {(shown ? "shown" : "NOT shown")}; Escape closes {closed}; reopened with hotkeys {reopened} ({texts.Count} texts); closed again {closedAgain}; focus back on ? {focusBack}");
         });
         await Check("Build information: version, channel and commit", () =>
         {
@@ -548,7 +558,91 @@ public static class SelfTest
             return (onPage && written && rendered && noWindow && notStuck, $"page {home.CurrentPage}; local checks in store {written}; rows render the store {rendered}; separate window {(noWindow ? "none" : "FOUND")}; state {state}; after close running {!notStuck}");
         });
         await Check("Compact mode toggle", async () => { w.SetCompact(true); await Idle(); w.SetCompact(false); await Idle(); return (true, "on/off"); });
-        await Check("Diagnostics panel", async () => { vm.Settings.ShowDiagnostics = true; w.ApplyAppearance(); await Task.Delay(1300); var d = vm.Diagnostics; vm.Settings.ShowDiagnostics = false; w.ApplyAppearance(); return (d.Contains("Questions"), d.Split('\n')[0]); });
+        await Check("Live header: fits at the minimum width without clipping (primary items first, overflow last); setup vs interview mode follows LiveChrome", async () =>
+        {
+            var width = w.Width;
+            w.Width = w.MinWidth; await Task.Delay(150); await Idle(); await Idle();
+            var header = w.Header;
+            var inter = (FrameworkElement)w.FindName("InterviewControls");
+            var controls = (FrameworkElement)w.FindName("WindowControls");
+            var pill = (FrameworkElement)w.FindName("StatusPill");
+            var right = controls.TranslatePoint(new Point(controls.ActualWidth, 0), header).X;
+            var fits = right <= header.ActualWidth + 0.5 && inter.ActualWidth >= inter.DesiredSize.Width - 0.5 && controls.ActualWidth >= controls.DesiredSize.Width - 0.5 && pill.ActualWidth >= 60;
+            var narrow = w.Chrome;
+            w.Width = Math.Max(width, UiState.LiveChrome.ReadinessLabelWidth + 20); await Task.Delay(150); await Idle(); await Idle();
+            var wide = w.Chrome;
+            var expected = UiState.LiveChrome.For(vm.SessionActive, vm.Settings.CompactMode, w.ActualWidth);
+            var label = (FrameworkElement)w.FindName("ReadinessLabel");
+            var setup = vm.SessionActive || (wide.Readiness == UiState.ReadinessIndicator.Label && label.Visibility == Visibility.Visible
+                        && ((FrameworkElement)w.FindName("SetupEmpty")).Visibility == (vm.Question.Length == 0 ? Visibility.Visible : Visibility.Collapsed));
+            var tip = ((FrameworkElement)w.FindName("ReadinessBtn")).ToolTip as string ?? "";
+            w.Width = width; await Task.Delay(150); await Idle();
+            return (fits && narrow.Readiness == UiState.ReadinessIndicator.Dot && !narrow.StartLabel && wide == expected && setup && tip.Length > 0,
+                $"at {w.MinWidth:0}px: window buttons end {right:0}/{header.ActualWidth:0}px, status pill {pill.ActualWidth:0}px, fits {fits}; wide layout {wide}; setup affordances {setup}; readiness tooltip '{tip}'");
+        });
+        await Check("Interview Focus: honest first-use dialog (Escape cancels, nothing moves), every preset inside the work area, restore returns to the previous placement", async () =>
+        {
+            await Idle();
+            var before = new Rect(w.Left, w.Top, w.Width, w.Height);
+            var dialog = w.ShowFocusDialogAsync();
+            await Idle(); await Idle();
+            var open = Views.AppDialog.IsOpen(w);
+            PressKey(w, System.Windows.Input.Key.Escape);
+            var cancelled = await Task.WhenAny(dialog, Task.Delay(2000)) == dialog && dialog.Result == null && !Views.AppDialog.IsOpen(w);
+            var unmoved = Math.Abs(w.Left - before.Left) < 1 && Math.Abs(w.Width - before.Width) < 1;
+            var inside = true; var detail = new List<string>();
+            foreach (var preset in Enum.GetValues<UiState.FocusPreset>())
+            {
+                w.ApplyFocus(preset); await Task.Delay(150); await Idle();
+                var work = WindowPlacement.WorkAreaOf(w);
+                var ok = w.Left >= work.Left - 1 && w.Top >= work.Top - 1 && w.Left + w.ActualWidth <= work.Right + 1 && w.Top + w.ActualHeight <= work.Bottom + 1
+                         && w.ActualWidth <= Math.Max(work.Width * UiState.FocusPlacement.MaxShare, w.MinWidth) + 1
+                         && w.ActualHeight <= Math.Max(work.Height * UiState.FocusPlacement.MaxShare, w.MinHeight) + 1;
+                inside &= ok;
+                detail.Add($"{preset} {w.Left:0},{w.Top:0} {w.ActualWidth:0}x{w.ActualHeight:0}{(ok ? "" : " OUTSIDE")}");
+            }
+            var remembered = vm.Settings.InterviewFocusPreset == UiState.FocusPreset.TopRight.ToString() && w.HasFocusRestore;
+            w.RestoreFocusPlacement(); await Task.Delay(150); await Idle();
+            var restored = !w.HasFocusRestore && Math.Abs(w.Left - before.Left) < 1 && Math.Abs(w.Top - before.Top) < 1 && Math.Abs(w.Width - before.Width) < 1 && Math.Abs(w.Height - before.Height) < 1;
+            return (open && cancelled && unmoved && inside && remembered && restored,
+                $"dialog {open}, Escape cancels {cancelled}, unmoved {unmoved}; {string.Join("; ", detail)}; remembered {remembered}; restored {restored}");
+        });
+        await Check("Live window: maximize fills the work area without the rounded margin, content keeps a readable width, restore keeps the placement", async () =>
+        {
+            await Idle();
+            var before = new Rect(w.Left, w.Top, w.Width, w.Height);
+            w.ToggleMaximize(); await Task.Delay(200); await Idle(); await Idle();
+            var work = WindowPlacement.WorkAreaOf(w);
+            var maximized = w.WindowState == WindowState.Maximized && w.Root.Margin == new Thickness(0) && w.Root.CornerRadius == new CornerRadius(0);
+            var fills = w.ActualWidth >= work.Width - 16 && w.ActualHeight >= work.Height - 16;
+            var readable = w.LiveBody.ActualWidth <= 981 && w.ActionBar.ActualWidth <= 981 && w.ManualBar.ActualWidth <= 981;
+            var maxIcon = ((System.Windows.Controls.TextBlock)w.FindName("MaxIcon")).Text == "";
+            w.ToggleMaximize(); await Task.Delay(200); await Idle(); await Idle();
+            var restored = w.WindowState == WindowState.Normal && w.Root.Margin == new Thickness(8)
+                           && Math.Abs(w.Left - before.Left) < 1 && Math.Abs(w.Top - before.Top) < 1 && Math.Abs(w.Width - before.Width) < 1 && Math.Abs(w.Height - before.Height) < 1;
+            return (maximized && fills && readable && maxIcon && restored,
+                $"maximized {maximized} ({w.ActualWidth:0}x{w.ActualHeight:0} of work area {work.Width:0}x{work.Height:0}: {fills}); readable column {readable}; restore icon {maxIcon}; restored to {before} {restored}");
+        });
+        // rc.5: no diagnostics panel in the Live window any more — the technical lines are refreshed on demand for Copy
+        // diagnostics, and Help & about → Diagnostics shows a friendly summary plus the in-app health check.
+        await Check("Diagnostics: technical lines on demand; Help & about → Diagnostics renders a friendly summary and the health check, no raw errors or credentials", async () =>
+        {
+            vm.RefreshDiagnostics(); await Idle();
+            var technical = vm.Diagnostics.Contains("Questions");
+            var noPanel = w.FindName("DiagPanel") == null;
+            var home = new HomeWindow(vm, w) { Owner = w };
+            home.Show(); await Idle();
+            home.ShowPage("help"); await Idle();
+            var rows = await home.RunHealthCheckAsync(); await Idle();
+            var texts = home.HelpDiagnosticsTexts.ToList();
+            var friendly = texts.Count == 4 + rows.Count && texts.All(t => !string.IsNullOrWhiteSpace(t))
+                           && !texts.Any(t => t.Contains("Exception") || t.Contains("HRESULT") || System.Text.RegularExpressions.Regex.IsMatch(t, @"\bat [A-Z]\w*\.\w+"));
+            var copied = home.DiagnosticsText();
+            var noSecrets = !System.Text.RegularExpressions.Regex.IsMatch(copied, @"Bearer\s|sk-[A-Za-z0-9]{8}|eyJ[A-Za-z0-9_-]{12}|access_token|refresh_token", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            home.Close(); await Idle();
+            return (technical && noPanel && rows.Count == 4 && friendly && noSecrets && copied.Contains(BuildInfo.Version),
+                $"technical '{vm.Diagnostics.Split('\n')[0]}'; panel removed {noPanel}; {rows.Count} health rows ({UiState.HealthCheck.Passed(rows)} pass); summary friendly {friendly}; copy without credentials {noSecrets}");
+        });
         await Check("DPAPI credential protection round-trip", () => Task.FromResult((SecretStore.SelfTestRoundTrip(), "protect/unprotect ok, wrong entropy rejected")));
         await Check("Settings persistence", () =>
         {

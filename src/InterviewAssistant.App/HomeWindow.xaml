@@ -559,7 +559,7 @@
                     </Grid>
 
                     <!-- ===== Help & about ===== -->
-                    <StackPanel x:Name="PageHelp" Visibility="Collapsed" MaxWidth="820" HorizontalAlignment="Left">
+                    <StackPanel x:Name="PageHelp" Visibility="Collapsed" MaxWidth="820" HorizontalAlignment="Left" IsVisibleChanged="PageHelp_IsVisibleChanged">
                         <TextBlock Style="{StaticResource H1}" Text="{v:Loc nav_help}"/>
                         <TextBlock Text="{v:Loc help_getting_started}" Style="{StaticResource Section}"/>
                         <TextBlock Style="{StaticResource T.Body}" TextWrapping="Wrap" Text="{v:Loc help_getting_started_body}"/>
@@ -571,6 +571,31 @@
                         <TextBlock Style="{StaticResource T.Body}" TextWrapping="Wrap" Text="{v:Loc help_audio_body}"/>
                         <TextBlock Text="{v:Loc help_honesty}" Style="{StaticResource Section}"/>
                         <TextBlock Style="{StaticResource T.Body}" TextWrapping="Wrap" Text="{v:Loc help_honesty_body}"/>
+                        <!-- Diagnostics (rc.5: moved out of the Live window): a friendly summary — no raw errors, tokens or transcript -->
+                        <TextBlock x:Name="HelpDiagHeader" Text="{v:Loc help_diag}" Style="{StaticResource Section}"/>
+                        <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,8" Text="{v:Loc help_diag_hint}"/>
+                        <Border Style="{StaticResource Card}">
+                            <Grid x:Name="HelpDiagGrid">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" MinWidth="140" MaxWidth="260"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                                <TextBlock Style="{StaticResource AboutKey}" Text="{v:Loc help_diag_connection}"/>
+                                <TextBlock x:Name="HelpDiagConnection" Grid.Column="1" Style="{StaticResource AboutValue}" AutomationProperties.LiveSetting="Polite"/>
+                                <TextBlock Grid.Row="1" Style="{StaticResource AboutKey}" Text="{v:Loc help_diag_audio}"/>
+                                <TextBlock x:Name="HelpDiagAudio" Grid.Row="1" Grid.Column="1" Style="{StaticResource AboutValue}"/>
+                                <TextBlock Grid.Row="2" Style="{StaticResource AboutKey}" Text="{v:Loc help_diag_latency}"/>
+                                <TextBlock x:Name="HelpDiagLatency" Grid.Row="2" Grid.Column="1" Style="{StaticResource AboutValue}"/>
+                                <TextBlock Grid.Row="3" Style="{StaticResource AboutKey}" Text="{v:Loc help_diag_questions}"/>
+                                <TextBlock x:Name="HelpDiagQuestions" Grid.Row="3" Grid.Column="1" Style="{StaticResource AboutValue}"/>
+                            </Grid>
+                        </Border>
+                        <WrapPanel Margin="0,10,0,0">
+                            <Button x:Name="HelpDiagCopyBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc help_diag_copy}" Click="CopyDiagnostics_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_help_diag_copy}"/>
+                            <Button Style="{StaticResource Btn.Base}" Content="{v:Loc open_log_folder}" Click="OpenLogs_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_logs}"/>
+                            <Button x:Name="HelpDiagRunBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc help_diag_run}" Click="RunHealthCheck_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_help_diag_run}"/>
+                        </WrapPanel>
+                        <!-- in-app health check result: one pass / warn row per check -->
+                        <TextBlock x:Name="HelpDiagRunStatus" Style="{StaticResource Hint}" Visibility="Collapsed" AutomationProperties.LiveSetting="Polite"/>
+                        <StackPanel x:Name="HelpDiagRows" Margin="0,6,0,0"/>
                         <TextBlock Text="{v:Loc help_about}" Style="{StaticResource Section}"/>
                         <Border Style="{StaticResource Card}">
                             <Grid x:Name="AboutGrid">
@@ -594,7 +619,6 @@
                         </Border>
                         <WrapPanel Margin="0,10,0,0">
                             <Button Style="{StaticResource Btn.Base}" Content="{v:Loc copy_build_info}" Click="CopyBuildInfo_Click" Margin="0,0,8,0" ToolTip="{v:Loc tt_copy_build_info}"/>
-                            <Button Style="{StaticResource Btn.Base}" Content="{v:Loc open_log_folder}" Click="OpenLogs_Click" ToolTip="{v:Loc tt_logs}"/>
                         </WrapPanel>
                     </StackPanel>
 

@@ -61,11 +61,16 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>A report was saved (Home refreshes its Reports list immediately).</summary>
     public event Action<string>? ReportSaved;
 
+    /// <summary>The Live Assistant's Quick help popover is open (rc.5: replaces the big introduction overlay).</summary>
     private bool _showLiveIntro; public bool ShowLiveIntro { get => _showLiveIntro; set => Set(ref _showLiveIntro, value); }
-    public void DismissLiveIntro(bool dontShowAgain)
+    /// <summary>
+    /// Quick help closed. It opens by itself only once (first use): <paramref name="remember"/> records that in
+    /// <see cref="AppSettings.LiveIntroDismissed"/>; afterwards it opens only with "?" (there is no "Don't show again").
+    /// </summary>
+    public void DismissLiveIntro(bool remember = true)
     {
         ShowLiveIntro = false;
-        if (dontShowAgain) { Settings.LiveIntroDismissed = true; Settings.Save(); }
+        if (remember && !Settings.LiveIntroDismissed) { Settings.LiveIntroDismissed = true; Settings.Save(); }
     }
 
     public MainViewModel(Dispatcher ui)
@@ -83,7 +88,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _capture.FrameReady += OnAudioFrame;
         _capture.StatusChanged += s => Post(() => OnCaptureStatus(s));
         _diagTimer = new DispatcherTimer(DispatcherPriority.Background, ui) { Interval = TimeSpan.FromSeconds(1) };
-        _diagTimer.Tick += (_, _) => { RefreshDiagnostics(); PollConnection(); };
+        _diagTimer.Tick += (_, _) => { if (Settings.ShowDiagnostics) RefreshDiagnostics(); PollConnection(); };
         _diagTimer.Start();
 
         StartPauseCommand = new RelayCommand(async () => await ToggleListeningAsync());
@@ -1107,9 +1112,14 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
     // ---------------- diagnostics ----------------
 
-    private void RefreshDiagnostics()
+    /// <summary>
+    /// Technical lines for support (Help &amp; about → Copy diagnostics; English on purpose, never shown as UI text): audio,
+    /// counters, latency, resources and the last log lines. Refreshed on demand (rc.5: the Live window has no panel any
+    /// more; the legacy ShowDiagnostics setting still refreshes it every second).
+    /// </summary>
+    public void RefreshDiagnostics()
     {
-        if (!Settings.ShowDiagnostics || _engine == null) return;
+        if (_engine == null) return;
         var m = _engine.Metrics;
         var proc = Process.GetCurrentProcess();
         var cpuNow = proc.TotalProcessorTime;

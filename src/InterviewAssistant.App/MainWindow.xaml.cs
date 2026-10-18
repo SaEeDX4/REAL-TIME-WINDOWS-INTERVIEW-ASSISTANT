@@ -30,6 +30,7 @@ public partial class MainWindow : Window
         _vm.BulletsChanged += ScheduleFit;
         AnswerScroll.SizeChanged += (_, _) => ScheduleFit();
         AnswerContent.SizeChanged += (_, _) => { if (!_fitting) ScheduleFit(); };   // note/pending/thinking rows too
+        InitChrome();
         RestorePlacement();
         ApplyAppearance();
         Loaded += OnLoaded;
@@ -40,12 +41,13 @@ public partial class MainWindow : Window
     {
         var error = _vm.Initialize();
         if (error != null) { ShowTransientError(error); return; }
-        _vm.ShowLiveIntro = !_vm.Settings.LiveIntroDismissed;
+        _firstUseHelpPending = !_vm.Settings.LiveIntroDismissed;   // Quick help opens by itself once (first use)
         RegisterHotkeys();
         _vm.StartAudioPreview(); // meter works before the interview starts
         AppLog.Info("Main window loaded");
         if (App.SelfTestOutput is { } outPath)
         {
+            Dispatcher.BeginInvoke(ShowFirstUseHelp, DispatcherPriority.Loaded);
             Dispatcher.BeginInvoke(async () =>
             {
                 App.RequestedExitCode = await SelfTest.RunAsync(this, _vm, outPath);
@@ -54,8 +56,10 @@ public partial class MainWindow : Window
             return;
         }
         // First run: onboarding (authorized-use acknowledgement, account, profile, interview) in Home.
+        // Quick help then opens when the user comes back to the Live window (never over the onboarding).
         if (!_vm.Settings.AuthorizedUseAcknowledged || !_vm.Settings.FirstRunCompleted)
             Dispatcher.BeginInvoke(() => OpenHome(), DispatcherPriority.ApplicationIdle);
+        else Dispatcher.BeginInvoke(ShowFirstUseHelp, DispatcherPriority.ApplicationIdle);
     }
 
     // ---------------- appearance & placement ----------------
@@ -65,9 +69,9 @@ public partial class MainWindow : Window
         _vm.RefreshLanguage();
         Topmost = _vm.Settings.AlwaysOnTop;
         Root.Opacity = ShadowLayer.Opacity = Math.Clamp(_vm.Settings.WindowOpacity, 0.75, 1.0);
-        DiagPanel.Visibility = _vm.Settings.ShowDiagnostics ? Visibility.Visible : Visibility.Collapsed;
         ApplyCompact(_vm.Settings.CompactMode);
         _vm.RefreshFonts();
+        RefreshReadiness();   // texts composed in code follow the UI language
     }
 
     public void SetCompact(bool compact) { _vm.Settings.CompactMode = compact; ApplyCompact(compact); }
@@ -80,7 +84,7 @@ public partial class MainWindow : Window
         ManualBar.Visibility = v;
         QuestionHeader.Visibility = v;
         AnswerHeader.Visibility = v;
-        CompactIcon.Text = compact ? "" : "";
+        UpdateChrome();
     }
 
     private void RestorePlacement()
@@ -102,7 +106,9 @@ public partial class MainWindow : Window
     private void SavePlacement()
     {
         var s = _vm.Settings;
-        if (WindowState == WindowState.Normal) { s.Left = Left; s.Top = Top; s.Width = Width; s.Height = Height; }
+        // Maximized or minimized: the placement to come back to is the restore bounds, never the work area.
+        var r = WindowState == WindowState.Normal ? new Rect(Left, Top, Width, Height) : RestoreBounds;
+        if (!r.IsEmpty && r.Width > 0) { s.Left = r.Left; s.Top = r.Top; s.Width = r.Width; s.Height = r.Height; }
         s.Save();
     }
 
@@ -143,6 +149,7 @@ public partial class MainWindow : Window
 
     private void Header_MouseDown(object sender, MouseButtonEventArgs e)
     {
+        if (e.ClickCount == 2) { ToggleMaximize(); return; }   // like a native title bar
         if (e.ButtonState == MouseButtonState.Pressed) DragMove();
     }
 
@@ -162,24 +169,10 @@ public partial class MainWindow : Window
         await _vm.SubmitManualAsync(text);
     }
 
-    private void Compact_Click(object sender, RoutedEventArgs e)
-    {
-        _vm.Settings.CompactMode = !_vm.Settings.CompactMode;
-        ApplyCompact(_vm.Settings.CompactMode);
-        _vm.Settings.Save();
-    }
-
-    private void Diagnostics_Click(object sender, RoutedEventArgs e)
-    {
-        _vm.Settings.ShowDiagnostics = !_vm.Settings.ShowDiagnostics;
-        DiagPanel.Visibility = _vm.Settings.ShowDiagnostics ? Visibility.Visible : Visibility.Collapsed;
-        _vm.Settings.Save();
-    }
-
-    private void Settings_Click(object sender, RoutedEventArgs e) => OpenSettings();
-    private void Home_Click(object sender, RoutedEventArgs e) => OpenHome();
+    private void Settings_Click(object sender, RoutedEventArgs e) { CloseMore(); OpenSettings(); }
+    private void Home_Click(object sender, RoutedEventArgs e) { CloseMore(); OpenHome(); }
     private void Banner_Click(object sender, RoutedEventArgs e) => OpenHome("account");
-    private void Presentation_Click(object sender, RoutedEventArgs e) => _vm.ToggleCoach();
+    private void Presentation_Click(object sender, RoutedEventArgs e) { _vm.ToggleCoach(); UpdateChrome(); }
 
     /// <summary>Profile-gap card: opens Home on Profiles → Interview profile, where the missing personal answer can be added.</summary>
     private void AddToProfile_Click(object sender, RoutedEventArgs e)
@@ -189,6 +182,7 @@ public partial class MainWindow : Window
 
     private void Report_Click(object sender, RoutedEventArgs e)
     {
+        CloseMore();
         if (_vm.LastReportPath is { } p && File.Exists(p))
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(p) { UseShellExecute = true });
     }
@@ -261,10 +255,7 @@ public partial class MainWindow : Window
         if (BulletList.ItemContainerGenerator.ContainerFromIndex(index) is not FrameworkElement c) return double.NaN;
         return c.TransformToAncestor(AnswerScroll).Transform(new Point(0, c.ActualHeight)).Y;
     }
-    private void Readiness_Click(object sender, RoutedEventArgs e) => OpenReadiness(firstRun: false);
-    private void Help_Click(object sender, RoutedEventArgs e) => _vm.ShowLiveIntro = !_vm.ShowLiveIntro;
     private void Adaptive_Click(object sender, RoutedEventArgs e) { _vm.ResetAdaptive(); Toasts.Show(Core.Languages.Loc.T("toast_adaptive_reset"), Views.ToastKind.Info); }
-    private void IntroClose_Click(object sender, RoutedEventArgs e) => _vm.DismissLiveIntro(IntroDontShow.IsChecked == true);
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 

@@ -18,6 +18,7 @@ public sealed class AppSettings
     public bool UseFastCache { get; set; } = true;
     public bool CompactMode { get; set; }
     public bool AlwaysOnTop { get; set; } = true;
+    /// <summary>Legacy (kept so older settings files load): no UI toggle since rc.5 — diagnostics live in Help &amp; about.</summary>
     public bool ShowDiagnostics { get; set; }
     public bool SaveSessionTranscript { get; set; }          // privacy: off by default
     public string HotkeyToggleWindow { get; set; } = "Ctrl+Alt+Space";
@@ -45,8 +46,17 @@ public sealed class AppSettings
     public double Width { get; set; } = 720;
     public double Height { get; set; } = 560;
     public bool FirstRunCompleted { get; set; }
-    /// <summary>The short Live Assistant introduction was dismissed with "Don't show again" (reopen with the ? button).</summary>
+    /// <summary>The Live Assistant's Quick help has opened by itself once (first use); afterwards only the ? button opens it.</summary>
     public bool LiveIntroDismissed { get; set; }
+    /// <summary>Interview Focus (rc.5): the preset chosen last (TopCentre, TopLeft, TopRight; null = never used).</summary>
+    public string? InterviewFocusPreset { get; set; }
+    /// <summary>The "Keep your eye line natural" explanation was shown (first use of Interview Focus).</summary>
+    public bool InterviewFocusIntroSeen { get; set; }
+    /// <summary>The Live window placement before Interview Focus moved it ("Restore previous size"); null when not in focus.</summary>
+    public double? FocusRestoreLeft { get; set; }
+    public double? FocusRestoreTop { get; set; }
+    public double? FocusRestoreWidth { get; set; }
+    public double? FocusRestoreHeight { get; set; }
     // Home window placement (the live window uses Left/Top/Width/Height above).
     public double? HomeLeft { get; set; }
     public double? HomeTop { get; set; }
@@ -62,6 +72,8 @@ public sealed class AppSettings
 
     public static string? OverridePath { get; set; } // self-test isolation
     private static string FilePath => OverridePath ?? Path.Combine(AppPaths.Roaming, "settings.json");
+    /// <summary>Where the settings are stored (Help → Diagnostics health check reads it back).</summary>
+    public static string CurrentPath => FilePath;
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
 
     public static AppSettings Load()
