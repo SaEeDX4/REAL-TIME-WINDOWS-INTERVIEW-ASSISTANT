@@ -427,6 +427,53 @@ public static class SelfTest
             home.SettingsPageForTest.Discard(); home.Close(); await Idle();
             return (open && defaultCancel && cancelled && asked && stayed && !home.IsLoaded, $"overlay {open}; default Cancel {defaultCancel}; Escape → cancel {cancelled}; close asked {asked}, stayed {stayed}");
         });
+        await Check("Data export: format choice in the in-app dialog (options with descriptions, first preselected), Escape and Cancel close it", async () =>
+        {
+            w.OpenHome(); await Idle();
+            var home = w.Home!;
+            var account = Views.ExportDialog.ChooseAccountFormatAsync(home);
+            await Idle(); await Idle();
+            var open = Views.AppDialog.IsOpen(home);
+            var list = Descendants<Views.ExportChoiceList>(Views.DialogHost.Find(home)?.TopCard).FirstOrDefault();
+            var twoOptions = list?.Buttons.Count == 2 && list.SelectedKey == Views.ExportDialog.AccountHtml
+                             && list.Buttons.All(b => System.Windows.Automation.AutomationProperties.GetHelpText(b).Length > 0);
+            PressKey(home, System.Windows.Input.Key.Escape);
+            var escaped = await Task.WhenAny(account, Task.Delay(2000)) == account && account.Result == null && !Views.AppDialog.IsOpen(home);
+            var profile = Views.ExportDialog.ChooseProfileFormatAsync(home, "Jane Example");
+            await Idle(); await Idle();
+            var card = Views.DialogHost.Find(home)?.TopCard;
+            var threeOptions = Descendants<Views.ExportChoiceList>(card).FirstOrDefault()?.Buttons.Count == 3;
+            var cancel = Descendants<System.Windows.Controls.Button>(card).FirstOrDefault(b => b.Content as string == Core.Languages.Loc.T("dlg_cancel"));
+            cancel?.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            var cancelled = await Task.WhenAny(profile, Task.Delay(2000)) == profile && profile.Result == null && !Views.AppDialog.IsOpen(home);
+            home.Close(); await Idle();
+            return (open && twoOptions && escaped && threeOptions && cancelled, $"overlay {open}; account options {twoOptions}; Escape closes {escaped}; profile options {threeOptions}; Cancel closes {cancelled}");
+        });
+        await Check("Data export: readable profile HTML renders; .iaprofile backup round trip imports a new profile (isolated DPAPI workspace)", async () =>
+        {
+            var root = Path.Combine(AppPaths.Local, "selftest-export-workspace");
+            try { if (Directory.Exists(root)) Directory.Delete(root, true); } catch (IOException) { }
+            var ws = new Workspace(root, new DpapiProtector());
+            var profile = new Core.Domain.CandidateProfileRecord { Name = "Jane Example" };
+            Core.Domain.ProfileService.AddResume(profile, Core.Domain.ProfileService.CreateDocument("cv.txt", Core.Domain.DocumentKind.Resume,
+                "Jane Example\nProduct Manager\nBerlin\n\nEXPERIENCE\nSenior Product Manager — Contoso Payments (2019 – 2024)\n- Launched instant payouts used by 40,000 merchants\n- Reduced checkout drop-off by 18% through A/B testing\n\nSKILLS\nRoadmapping, SQL, Stakeholder management"));
+            profile.ConfirmAll();
+            Core.Domain.ProfileService.SetPersonal(profile, "hobby", "Sailing");
+            ws.Store.SaveProfile(profile);
+            var target = new Core.Domain.InterviewTarget { ProfileId = profile.Id, JobTitle = "Product Manager", Company = "Fabrikam" };
+            ws.Store.SaveTarget(target);
+            ws.Store.SaveSession(new Core.Persistence.StoredSession { ProfileId = profile.Id, TargetId = target.Id, EndedUtc = DateTime.UtcNow });
+            var html = Core.Reports.ProfileExportRenderer.Render(profile, "en", Branding.ProductName);
+            var htmlOk = html.Contains("Jane Example") && html.Contains("Contoso Payments") && html.Contains("Content-Security-Policy") && html.Contains("Hobbies");
+            var bundle = new MemoryStream();
+            await Task.Run(() => Core.Persistence.ProfileBundle.Write(ws.Store, profile.Id, bundle, BuildInfo.Version));
+            var content = Core.Persistence.ProfileBundle.Read(new MemoryStream(bundle.ToArray()));
+            var imported = Core.Persistence.ProfileBundle.Import(ws.Store, content, "Jane Example (imported)");
+            var ok = htmlOk && imported.Id != profile.Id && ws.Store.Profiles().Count == 2 && ws.Store.Targets(imported.Id).Count == 1
+                     && ws.Store.Targets(profile.Id).Count == 1 && ws.Store.Sessions().Count(x => x.ProfileId == imported.Id) == 1 && content.Preview.Interviews == 1;
+            try { Directory.Delete(root, true); } catch (IOException) { }
+            return (ok, $"profile HTML {html.Length} chars ({htmlOk}); bundle {bundle.Length} bytes, {content.Manifest.Entries.Count} entries; imported as new profile {imported.Id != profile.Id}");
+        });
         await Check("Placeholder: inside the field, never hit-testable, hidden while focused or filled", async () =>
         {
             var box = w.ManualInput;
@@ -550,6 +597,19 @@ public static class SelfTest
     }
 
     private static readonly string[] HomePages = { "start", "profiles", "interviews", "preinterview", "reports", "account", "settings", "help" };
+
+    /// <summary>Every element of type <typeparamref name="T"/> below <paramref name="root"/> (logical tree, e.g. inside a dialog card).</summary>
+    private static IEnumerable<T> Descendants<T>(DependencyObject? root) where T : DependencyObject
+    {
+        if (root == null) yield break;
+        var stack = new Stack<DependencyObject>(); stack.Push(root);
+        while (stack.Count > 0)
+        {
+            var d = stack.Pop();
+            if (d is T t) yield return t;
+            foreach (var c in LogicalTreeHelper.GetChildren(d)) if (c is DependencyObject child) stack.Push(child);
+        }
+    }
 
     /// <summary>Sends a key to the focused element of <paramref name="window"/> (tunnelling, like a real key press).</summary>
     private static void PressKey(Window window, System.Windows.Input.Key key)

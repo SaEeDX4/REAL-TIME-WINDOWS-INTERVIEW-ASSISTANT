@@ -620,21 +620,8 @@ public partial class HomeWindow
         await LoadDevicesAsync();
     }
 
-    private async void ExportAccount_Click(object sender, RoutedEventArgs e)
-    {
-        if (_vm.Cloud.Api == null) return;
-        if (!await ReauthenticateAsync("reauth_reason_export", PrivacyMessage)) return;
-        var dlg = new SaveFileDialog { FileName = "interview-assistant-account-export.json", Filter = T("file_filter_json") + " (*.json)|*.json" };
-        if (dlg.ShowDialog(this) != true || _vm.Cloud.Api == null) return;
-        try
-        {
-            var json = await _vm.Cloud.Api.ExportAsync(CancellationToken.None);
-            await File.WriteAllTextAsync(dlg.FileName, JsonSerializer.Serialize(json, new JsonSerializerOptions { WriteIndented = true }));
-            PrivacyMessage.Clear();
-            Notify(T("toast_account_exported"), ToastKind.Success);
-        }
-        catch (BackendException ex) { AppLog.Warn($"Export failed: {ex.Code} (ref {ex.CorrelationId})"); PrivacyMessage.Show(CloudService.Describe(ex, includeReference: false), MessageKind.Error); }
-    }
+    // Data export center (HomeWindow.DataExport.cs): readable HTML report or raw JSON, secrets filtered.
+    private async void ExportAccount_Click(object sender, RoutedEventArgs e) => await ExportAccountDataAsync();
 
     /// <summary>
     /// Delete account: (1) the in-app dialog listing what is deleted ("Keep account" is the default), (2) re-authentication

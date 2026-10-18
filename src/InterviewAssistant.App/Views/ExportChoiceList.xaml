@@ -1,0 +1,56 @@
+<UserControl x:Class="InterviewAssistant.App.Views.ExportChoiceList"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="clr-namespace:InterviewAssistant.App.Views">
+    <UserControl.Resources>
+        <!-- one option of a format choice: a card with a radio mark, a title and a one-line description; the whole card is the target -->
+        <Style x:Key="ChoiceCard" TargetType="RadioButton">
+            <Setter Property="FontFamily" Value="{StaticResource F.Ui}"/>
+            <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Margin" Value="{StaticResource S.StackGap}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid>
+                            <Border x:Name="Bd" Background="{StaticResource B.Surface2}" BorderBrush="{StaticResource B.Border}" BorderThickness="{StaticResource S.BorderThickness}"
+                                    CornerRadius="{StaticResource R.Control}" Padding="12,10">
+                                <DockPanel>
+                                    <Grid DockPanel.Dock="Left" Width="18" Height="18" Margin="0,1,12,0" VerticalAlignment="Top">
+                                        <Ellipse x:Name="Ring" Stroke="{StaticResource B.InputBorder}" StrokeThickness="1.5"/>
+                                        <Ellipse x:Name="Dot" Width="8" Height="8" Fill="{StaticResource B.Accent}" Visibility="Collapsed"/>
+                                    </Grid>
+                                    <ContentPresenter/>
+                                </DockPanel>
+                            </Border>
+                            <Border x:Name="Focus" CornerRadius="{StaticResource R.FocusRing}" BorderBrush="{StaticResource B.Accent}" BorderThickness="2"
+                                    Margin="{StaticResource S.FocusRingMargin}" Visibility="Collapsed" IsHitTestVisible="False"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource B.InputBorder}"/></Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource B.Accent}"/>
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource B.AccentSoft}"/>
+                                <Setter TargetName="Ring" Property="Stroke" Value="{StaticResource B.Accent}"/>
+                                <Setter TargetName="Dot" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Visibility" Value="Visible"/></Trigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsOn, Source={x:Static v:HighContrast.Instance}}" Value="True"/>
+                                    <Condition Binding="{Binding IsChecked, RelativeSource={RelativeSource Self}}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                                <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}"/>
+                            </MultiDataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    <!-- one tab stop for the group; arrow keys move the selection (handled in code) -->
+    <StackPanel x:Name="Options" KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained" Margin="0,4,0,0"/>
+</UserControl>

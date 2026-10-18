@@ -778,22 +778,10 @@ public partial class HomeWindow : Window
         return true;
     }
 
-    private void ExportProfile_Click(object sender, RoutedEventArgs e)
+    // Data export center (HomeWindow.DataExport.cs): readable HTML, .iaprofile backup or raw ZIP.
+    private async void ExportProfile_Click(object sender, RoutedEventArgs e)
     {
-        if (_profile == null || Store == null) return;
-        var dlg = new SaveFileDialog { FileName = "interview-assistant-profile.zip", Filter = T("file_filter_zip") + " (*.zip)|*.zip" };
-        if (dlg.ShowDialog(this) != true) return;
-        try
-        {
-            using (var fs = File.Create(dlg.FileName)) Store.ExportProfile(_profile.Id, fs);
-        }
-        catch (Exception ex) when (IsStorageError(ex))
-        {
-            AppLog.Error("Profile export failed", ex);
-            Notify(T("err_profile_export"), ToastKind.Error);
-            return;
-        }
-        Notify(T("toast_profile_exported"), ToastKind.Success);
+        await ExportProfileAsync();
     }
 
     private async void DeleteProfile_Click(object sender, RoutedEventArgs e)
