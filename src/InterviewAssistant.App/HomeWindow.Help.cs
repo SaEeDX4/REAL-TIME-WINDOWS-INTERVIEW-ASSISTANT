@@ -16,7 +16,7 @@ namespace InterviewAssistant.App;
 /// Help &amp; about → Diagnostics (rc.5; the Live window no longer has a diagnostics panel): a friendly summary
 /// (connection, audio device, last answer time, questions answered — never raw errors, tokens or interview text),
 /// Copy diagnostics (support line + the technical lines, English on purpose), Open log folder, and Run self-test: a
-/// quick in-app health check shown as pass / warn rows (not the CI --selftest).
+/// quick in-app health check shown as pass / warn rows (not the CI self-test run).
 /// </summary>
 public partial class HomeWindow
 {
