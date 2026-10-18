@@ -374,6 +374,33 @@ public static class SelfTest
             return (ok, $"opened, local checks ran ({verdict}), closed");
         });
         await Check("Compact mode toggle", async () => { w.SetCompact(true); await Idle(); w.SetCompact(false); await Idle(); return (true, "on/off"); });
+        await Check("Interview Focus: honest first-use dialog (Escape cancels, nothing moves), every preset inside the work area, restore returns to the previous placement", async () =>
+        {
+            await Idle();
+            var before = new Rect(w.Left, w.Top, w.Width, w.Height);
+            var dialog = w.ShowFocusDialogAsync();
+            await Idle(); await Idle();
+            var open = Views.AppDialog.IsOpen(w);
+            PressKey(w, System.Windows.Input.Key.Escape);
+            var cancelled = await Task.WhenAny(dialog, Task.Delay(2000)) == dialog && dialog.Result == null && !Views.AppDialog.IsOpen(w);
+            var unmoved = Math.Abs(w.Left - before.Left) < 1 && Math.Abs(w.Width - before.Width) < 1;
+            var inside = true; var detail = new List<string>();
+            foreach (var preset in Enum.GetValues<UiState.FocusPreset>())
+            {
+                w.ApplyFocus(preset); await Task.Delay(150); await Idle();
+                var work = WindowPlacement.WorkAreaOf(w);
+                var ok = w.Left >= work.Left - 1 && w.Top >= work.Top - 1 && w.Left + w.ActualWidth <= work.Right + 1 && w.Top + w.ActualHeight <= work.Bottom + 1
+                         && w.ActualWidth <= Math.Max(work.Width * UiState.FocusPlacement.MaxShare, w.MinWidth) + 1
+                         && w.ActualHeight <= Math.Max(work.Height * UiState.FocusPlacement.MaxShare, w.MinHeight) + 1;
+                inside &= ok;
+                detail.Add($"{preset} {w.Left:0},{w.Top:0} {w.ActualWidth:0}x{w.ActualHeight:0}{(ok ? "" : " OUTSIDE")}");
+            }
+            var remembered = vm.Settings.InterviewFocusPreset == UiState.FocusPreset.TopRight.ToString() && w.HasFocusRestore;
+            w.RestoreFocusPlacement(); await Task.Delay(150); await Idle();
+            var restored = !w.HasFocusRestore && Math.Abs(w.Left - before.Left) < 1 && Math.Abs(w.Top - before.Top) < 1 && Math.Abs(w.Width - before.Width) < 1 && Math.Abs(w.Height - before.Height) < 1;
+            return (open && cancelled && unmoved && inside && remembered && restored,
+                $"dialog {open}, Escape cancels {cancelled}, unmoved {unmoved}; {string.Join("; ", detail)}; remembered {remembered}; restored {restored}");
+        });
         await Check("Live window: maximize fills the work area without the rounded margin, content keeps a readable width, restore keeps the placement", async () =>
         {
             await Idle();

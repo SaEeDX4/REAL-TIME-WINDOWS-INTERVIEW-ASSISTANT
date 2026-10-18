@@ -62,6 +62,7 @@ public partial class MainWindow
         MoreCoachCheck.Visibility = Vis(_vm.Presentation == Core.Live.Presentation.Coach);
         MoreMinutes.Visibility = Vis(c.MinutesInMore && _vm.MinutesLeftLabel.Length > 0);
         MoreCompactCheck.Visibility = Vis(_vm.Settings.CompactMode);
+        UpdateFocusMenu();
         ApplyReadinessIndicator(c.Readiness);
         UpdateSetupMode(c);
     }
@@ -131,9 +132,4 @@ public partial class MainWindow
     // ---------------- setup mode vs interview mode ----------------
 
     private void UpdateSetupMode(LiveChromeLayout c) { }
-
-    // ---------------- Interview Focus ----------------
-
-    private void MoreFocus_Click(object sender, RoutedEventArgs e) => CloseMore();
-    private void MoreFocusRestore_Click(object sender, RoutedEventArgs e) => CloseMore();
 }

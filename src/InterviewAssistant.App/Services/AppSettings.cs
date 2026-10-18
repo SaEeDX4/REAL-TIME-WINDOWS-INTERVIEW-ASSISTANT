@@ -48,6 +48,15 @@ public sealed class AppSettings
     public bool FirstRunCompleted { get; set; }
     /// <summary>The Live Assistant's Quick help has opened by itself once (first use); afterwards only the ? button opens it.</summary>
     public bool LiveIntroDismissed { get; set; }
+    /// <summary>Interview Focus (rc.5): the preset chosen last (TopCentre, TopLeft, TopRight; null = never used).</summary>
+    public string? InterviewFocusPreset { get; set; }
+    /// <summary>The "Keep your eye line natural" explanation was shown (first use of Interview Focus).</summary>
+    public bool InterviewFocusIntroSeen { get; set; }
+    /// <summary>The Live window placement before Interview Focus moved it ("Restore previous size"); null when not in focus.</summary>
+    public double? FocusRestoreLeft { get; set; }
+    public double? FocusRestoreTop { get; set; }
+    public double? FocusRestoreWidth { get; set; }
+    public double? FocusRestoreHeight { get; set; }
     // Home window placement (the live window uses Left/Top/Width/Height above).
     public double? HomeLeft { get; set; }
     public double? HomeTop { get; set; }
