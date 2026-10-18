@@ -890,6 +890,7 @@ public partial class HomeWindow : Window
         var pack = t != null ? Store?.GetPack(t.Id) : null;
         PrepSummary.Text = pack == null ? "" : F("prep_summary", pack.Questions.Count, pack.Stories.Count, pack.Gaps.Count, pack.CreatedUtc.ToLocalTime().ToString("g", Loc.Culture));
         UseBtn.IsEnabled = t?.Preparation is PreparationState.Prepared or PreparationState.Stale;
+        RenderInterviewReadiness();
     }
 
     private void TargetField_Changed(object sender, RoutedEventArgs e) => _targetGuard.MarkDirty();

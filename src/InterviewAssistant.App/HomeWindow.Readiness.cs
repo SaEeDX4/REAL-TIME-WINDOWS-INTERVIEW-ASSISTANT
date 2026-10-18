@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Media;
 using InterviewAssistant.App.UiState;
 using InterviewAssistant.App.Views;
@@ -33,9 +34,46 @@ public partial class HomeWindow
         PfFooterText.Text = $"{T(ReadinessSnapshot.StateKey(state))} · {PreInterviewPage.SummaryText(_vm)}";
         PfRunBtn.IsEnabled = !PagePreInterview.IsRunning;
         PfStartBtn.IsEnabled = PagePreInterview.CanStart;
+        RenderInterviewReadiness();
+        RenderReadinessPill();
         // Get started reads the workspace (profiles, interviews): only rendered while it is the visible page.
         if (_page == "start") RenderDashboard();
     }
+
+    /// <summary>
+    /// Interviews page: compact readiness of the active interview (state badge, n of 8, Run check / Open check). When
+    /// another interview is selected, the card says which interview the checks are for.
+    /// </summary>
+    private void RenderInterviewReadiness()
+    {
+        var state = _vm.ReadinessState;
+        var brush = (Brush)FindResource(ReadinessSnapshot.BrushKey(state));
+        IvBadge.BorderBrush = IvBadgeIcon.Foreground = IvBadgeText.Foreground = brush;
+        IvBadgeIcon.Text = ReadinessPresentation.Icon(state);
+        IvBadgeText.Text = T(ReadinessSnapshot.StateKey(state));
+        IvSummary.Text = PreInterviewPage.SummaryText(_vm);
+        var otherSelected = _target != null && _vm.ActiveTargetId != null && _target.Id != _vm.ActiveTargetId && _vm.ActiveLabel.Length > 0;
+        IvApplies.Text = otherSelected ? F("rd_card_applies", _vm.ActiveLabel) : "";
+        IvApplies.Visibility = otherSelected ? Visibility.Visible : Visibility.Collapsed;
+        InterviewCheckBtn.Content = T(ReadinessPresentation.ShouldAutoRun(state) ? "rd_run_check" : "rd_open_check");
+        AutomationProperties.SetName(InterviewReadinessCard, string.Join(". ", new[] { T("preflight"), IvBadgeText.Text, IvSummary.Text, IvApplies.Text }.Where(x => x.Length > 0)));
+    }
+
+    /// <summary>
+    /// Title-bar indicator: state dot + label, opens the pre-interview page; the tool tip carries the summary line.
+    /// </summary>
+    private void RenderReadinessPill()
+    {
+        var state = _vm.ReadinessState;
+        ReadinessDot.Fill = (Brush)FindResource(ReadinessSnapshot.BrushKey(state));
+        ReadinessPillText.Text = T(ReadinessSnapshot.StateKey(state));
+        var summary = state == ReadinessState.NotChecked ? T("rd_hint_not_checked") : PreInterviewPage.SummaryText(_vm);
+        ReadinessPill.ToolTip = summary;
+        AutomationProperties.SetName(ReadinessPill, F("rd_pill_name", ReadinessPillText.Text));
+        AutomationProperties.SetHelpText(ReadinessPill, summary);
+    }
+
+    private void ReadinessPill_Click(object sender, RoutedEventArgs e) => Navigate("preinterview");
 
     private void PfRun_Click(object sender, RoutedEventArgs e) => _ = PagePreInterview.RunAllAsync();
     private void PfSettings_Click(object sender, RoutedEventArgs e) => Navigate("settings", "audio");

@@ -79,6 +79,13 @@
                             ToolTip="{v:Loc tt_open_account}" AutomationProperties.Name="{v:Loc account}">
                         <TextBlock x:Name="AccountBadgeText" TextTrimming="CharacterEllipsis"/>
                     </Button>
+                    <!-- readiness indicator: state dot + label (never colour alone); opens the pre-interview check -->
+                    <Button x:Name="ReadinessPill" Style="{StaticResource Btn.Chip}" Margin="6,2,0,0" Padding="10,3" Click="ReadinessPill_Click" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="ReadinessDot" Width="8" Height="8" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="ReadinessPillText" FontSize="12" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button x:Name="HeaderSignOutBtn" Style="{StaticResource Btn.Ghost}" Click="SignOut_Click" Margin="0,0,8,0" Padding="10,4"
@@ -408,6 +415,23 @@
                             <Button x:Name="DeleteTargetBtn" Style="{StaticResource Btn.FormDanger}" Content="{v:Loc delete_interview}" Click="DeleteTarget_Click" ToolTip="{v:Loc tt_delete_interview}"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" x:Name="TargetDetail">
+                            <!-- readiness of the active interview: the same snapshot as the pre-interview check -->
+                            <Border x:Name="InterviewReadinessCard" Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,16" AutomationProperties.LiveSetting="Polite">
+                                <DockPanel>
+                                    <Button x:Name="InterviewCheckBtn" DockPanel.Dock="Right" Style="{StaticResource Btn.Form}" Click="Readiness_Click" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                    <Border x:Name="IvBadge" DockPanel.Dock="Left" CornerRadius="10" Padding="8,2" BorderThickness="1" VerticalAlignment="Center" Margin="0,0,12,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock x:Name="IvBadgeIcon" Style="{StaticResource T.Icon}" FontSize="10" Margin="0,0,5,0"/>
+                                            <TextBlock x:Name="IvBadgeText" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Style="{StaticResource T.Label}" Text="{v:Loc preflight}" Margin="0,0,0,2"/>
+                                        <TextBlock x:Name="IvSummary" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
+                                        <TextBlock x:Name="IvApplies" Style="{StaticResource Hint}" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
                             <Grid x:Name="TargetFieldGrid">
                                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="{StaticResource S.ColumnGap}"/><ColumnDefinition/></Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
