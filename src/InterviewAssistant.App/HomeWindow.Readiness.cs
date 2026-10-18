@@ -33,6 +33,8 @@ public partial class HomeWindow
         PfFooterText.Text = $"{T(ReadinessSnapshot.StateKey(state))} · {PreInterviewPage.SummaryText(_vm)}";
         PfRunBtn.IsEnabled = !PagePreInterview.IsRunning;
         PfStartBtn.IsEnabled = PagePreInterview.CanStart;
+        // Get started reads the workspace (profiles, interviews): only rendered while it is the visible page.
+        if (_page == "start") RenderDashboard();
     }
 
     private void PfRun_Click(object sender, RoutedEventArgs e) => _ = PagePreInterview.RunAllAsync();

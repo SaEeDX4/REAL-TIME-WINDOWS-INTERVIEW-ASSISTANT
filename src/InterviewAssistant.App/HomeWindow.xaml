@@ -149,54 +149,143 @@
                 <Grid Margin="{StaticResource S.PageMargin}">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*" MaxWidth="{StaticResource S.ContentMaxWidth}"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
 
-                    <!-- ===== Get started ===== -->
+                    <!-- ===== Get started: the interview readiness dashboard =====
+                         Four steps (Done / Current / Upcoming, from SetupPlanner) and exactly ONE primary action: the next step.
+                         Everything else is a ghost or link button. -->
                     <StackPanel x:Name="PageStart" MaxWidth="760" HorizontalAlignment="Left">
-                        <TextBlock Style="{StaticResource H1}" Text="{v:Loc start_title}"/>
-                        <TextBlock Style="{StaticResource Hint}" Text="{v:Loc start_subtitle}"/>
+                        <StackPanel.Resources>
+                            <Style x:Key="StepCard" TargetType="Border" BasedOn="{StaticResource Card}">
+                                <Setter Property="Margin" Value="0,10,0,0"/>
+                                <Setter Property="Focusable" Value="True"/>
+                                <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
+                            </Style>
+                            <!-- step marker: check icon (done), step number on accent (current), outlined number (upcoming) -->
+                            <Style x:Key="StepMark" TargetType="Border">
+                                <Setter Property="Width" Value="30"/>
+                                <Setter Property="Height" Value="30"/>
+                                <Setter Property="CornerRadius" Value="15"/>
+                                <Setter Property="BorderThickness" Value="1.5"/>
+                                <Setter Property="VerticalAlignment" Value="Top"/>
+                                <Setter Property="Margin" Value="0,2,14,0"/>
+                            </Style>
+                            <Style x:Key="StepNum" TargetType="TextBlock">
+                                <Setter Property="FontSize" Value="13"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                <Setter Property="FlowDirection" Value="LeftToRight"/>
+                            </Style>
+                            <Style x:Key="StepIcon" TargetType="TextBlock" BasedOn="{StaticResource T.Icon}">
+                                <Setter Property="FontSize" Value="13"/>
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Listening}"/>
+                                <Setter Property="Text" Value="&#xE73E;"/>
+                            </Style>
+                            <Style x:Key="StepState" TargetType="TextBlock" BasedOn="{StaticResource T.Label}">
+                                <Setter Property="Margin" Value="0,0,0,2"/>
+                            </Style>
+                            <Style x:Key="StepTitle" TargetType="TextBlock">
+                                <Setter Property="FontSize" Value="14.5"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
+                                <Setter Property="TextWrapping" Value="Wrap"/>
+                                <Setter Property="AutomationProperties.HeadingLevel" Value="Level2"/>
+                            </Style>
+                            <Style x:Key="StepDetail" TargetType="TextBlock" BasedOn="{StaticResource T.Body}">
+                                <Setter Property="FontSize" Value="12.5"/>
+                                <Setter Property="Margin" Value="0,3,0,0"/>
+                            </Style>
+                            <Style x:Key="StepLinks" TargetType="WrapPanel">
+                                <Setter Property="Margin" Value="-6,6,0,0"/>
+                            </Style>
+                        </StackPanel.Resources>
+                        <TextBlock Style="{StaticResource H1}" Text="{v:Loc gs_title}"/>
+                        <TextBlock Style="{StaticResource Hint}" Text="{v:Loc gs_subtitle}"/>
 
-                        <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                        <!-- first run only: the authorized-use acknowledgement (the next-step button waits for it) -->
+                        <Border x:Name="AckCard" Style="{StaticResource Card}" Margin="0,16,0,0" BorderBrush="{StaticResource B.Accent}">
                             <StackPanel>
-                                <TextBlock x:Name="Step1Title" Style="{StaticResource T.Label}"/>
-                                <CheckBox x:Name="AckBox" Style="{StaticResource Check}" Margin="0,8,0,0" Checked="Ack_Changed" Unchecked="Ack_Changed">
-                                    <TextBlock Text="{v:Loc authorized_use}" TextWrapping="Wrap" Foreground="{StaticResource B.Text}" MaxWidth="560"/>
+                                <TextBlock Style="{StaticResource T.Label}" Text="{v:Loc start_step1}" AutomationProperties.HeadingLevel="Level2"/>
+                                <CheckBox x:Name="AckBox" Style="{StaticResource Check}" Margin="0,4,0,0" Checked="Ack_Changed" Unchecked="Ack_Changed">
+                                    <TextBlock Text="{v:Loc authorized_use}" TextWrapping="Wrap" Foreground="{StaticResource B.Text}" MaxWidth="600"/>
                                 </CheckBox>
                                 <TextBlock Style="{StaticResource Hint}" Text="{v:Loc start_step1_hint}"/>
                             </StackPanel>
                         </Border>
 
-                        <Border Style="{StaticResource Card}" Margin="0,10,0,0">
-                            <StackPanel>
-                                <TextBlock x:Name="Step2Title" Style="{StaticResource T.Label}"/>
-                                <TextBlock x:Name="Step2Status" Style="{StaticResource Hint}"/>
-                                <WrapPanel Margin="0,8,0,0">
-                                    <Button x:Name="GoAccountBtn" Style="{StaticResource Btn.Primary}" Content="{v:Loc start_sign_in_or_create}" Click="GoAccount_Click" Margin="0,0,8,0"/>
-                                    <Button x:Name="DeveloperModeBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc start_developer_mode}" Click="DeveloperMode_Click"/>
-                                </WrapPanel>
-                            </StackPanel>
+                        <!-- 1 · Account -->
+                        <Border x:Name="StepCard0" Style="{StaticResource StepCard}" Margin="0,16,0,0">
+                            <DockPanel>
+                                <Border x:Name="StepMark0" DockPanel.Dock="Left" Style="{StaticResource StepMark}">
+                                    <Grid><TextBlock x:Name="StepNum0" Style="{StaticResource StepNum}" Text="1"/><TextBlock x:Name="StepIcon0" Style="{StaticResource StepIcon}"/></Grid>
+                                </Border>
+                                <StackPanel>
+                                    <TextBlock x:Name="StepState0" Style="{StaticResource StepState}"/>
+                                    <TextBlock x:Name="StepTitle0" Style="{StaticResource StepTitle}" Text="{v:Loc account}"/>
+                                    <TextBlock x:Name="StepDetail0" Style="{StaticResource StepDetail}"/>
+                                    <WrapPanel Style="{StaticResource StepLinks}">
+                                        <Button x:Name="StepAccountLink" Style="{StaticResource Btn.Link}" Content="{v:Loc rd_fix_open_account}" Click="AccountBadge_Click"/>
+                                        <Button x:Name="DeveloperModeBtn" Style="{StaticResource Btn.Link}" Content="{v:Loc start_developer_mode}" Click="DeveloperMode_Click"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </DockPanel>
                         </Border>
 
-                        <Border Style="{StaticResource Card}" Margin="0,10,0,0">
-                            <StackPanel>
-                                <TextBlock x:Name="Step3Title" Style="{StaticResource T.Label}"/>
-                                <TextBlock x:Name="Step3Status" Style="{StaticResource Hint}"/>
-                                <WrapPanel Margin="0,8,0,0">
-                                    <Button x:Name="StartImportBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc import_resume}" Click="NewProfile_Click" Margin="0,0,8,0"/>
-                                    <Button x:Name="StartInterviewProfileBtn" Style="{StaticResource Btn.Ghost}" Content="{v:Loc start_complete_profile}" Click="GoInterviewProfile_Click"/>
-                                </WrapPanel>
-                            </StackPanel>
+                        <!-- 2 · Profile -->
+                        <Border x:Name="StepCard1" Style="{StaticResource StepCard}">
+                            <DockPanel>
+                                <Border x:Name="StepMark1" DockPanel.Dock="Left" Style="{StaticResource StepMark}">
+                                    <Grid><TextBlock x:Name="StepNum1" Style="{StaticResource StepNum}" Text="2"/><TextBlock x:Name="StepIcon1" Style="{StaticResource StepIcon}"/></Grid>
+                                </Border>
+                                <StackPanel>
+                                    <TextBlock x:Name="StepState1" Style="{StaticResource StepState}"/>
+                                    <TextBlock x:Name="StepTitle1" Style="{StaticResource StepTitle}" Text="{v:Loc gs_step_profile}"/>
+                                    <TextBlock x:Name="StepDetail1" Style="{StaticResource StepDetail}"/>
+                                    <WrapPanel Style="{StaticResource StepLinks}">
+                                        <Button x:Name="StartImportBtn" Style="{StaticResource Btn.Link}" Content="{v:Loc import_resume}" Click="NewProfile_Click"/>
+                                        <Button x:Name="StartInterviewProfileBtn" Style="{StaticResource Btn.Link}" Content="{v:Loc start_complete_profile}" Click="GoInterviewProfile_Click"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </DockPanel>
                         </Border>
 
-                        <Border Style="{StaticResource Card}" Margin="0,10,0,0">
-                            <StackPanel>
-                                <TextBlock x:Name="Step4Title" Style="{StaticResource T.Label}"/>
-                                <TextBlock x:Name="Step4Status" Style="{StaticResource Hint}"/>
-                                <WrapPanel Margin="0,8,0,0">
-                                    <Button x:Name="StartAddInterviewBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc start_add_interview}" Click="GoInterviews_Click" Margin="0,0,8,0"/>
-                                    <Button Style="{StaticResource Btn.Base}" Content="{v:Loc preflight}" Click="Readiness_Click"/>
-                                </WrapPanel>
-                            </StackPanel>
+                        <!-- 3 · Interview setup -->
+                        <Border x:Name="StepCard2" Style="{StaticResource StepCard}">
+                            <DockPanel>
+                                <Border x:Name="StepMark2" DockPanel.Dock="Left" Style="{StaticResource StepMark}">
+                                    <Grid><TextBlock x:Name="StepNum2" Style="{StaticResource StepNum}" Text="3"/><TextBlock x:Name="StepIcon2" Style="{StaticResource StepIcon}"/></Grid>
+                                </Border>
+                                <StackPanel>
+                                    <TextBlock x:Name="StepState2" Style="{StaticResource StepState}"/>
+                                    <TextBlock x:Name="StepTitle2" Style="{StaticResource StepTitle}" Text="{v:Loc gs_step_interview}"/>
+                                    <TextBlock x:Name="StepDetail2" Style="{StaticResource StepDetail}"/>
+                                    <WrapPanel Style="{StaticResource StepLinks}">
+                                        <Button x:Name="StartAddInterviewBtn" Style="{StaticResource Btn.Link}" Content="{v:Loc rd_fix_open_interviews}" Click="GoInterviews_Click"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </DockPanel>
                         </Border>
-                        <Button x:Name="DoneBtn" Style="{StaticResource Btn.Primary}" Content="{v:Loc start_interview}" Click="Done_Click" HorizontalAlignment="Left" Margin="0,16,0,0" Padding="18,8"/>
+
+                        <!-- 4 · Pre-interview check -->
+                        <Border x:Name="StepCard3" Style="{StaticResource StepCard}">
+                            <DockPanel>
+                                <Border x:Name="StepMark3" DockPanel.Dock="Left" Style="{StaticResource StepMark}">
+                                    <Grid><TextBlock x:Name="StepNum3" Style="{StaticResource StepNum}" Text="4"/><TextBlock x:Name="StepIcon3" Style="{StaticResource StepIcon}"/></Grid>
+                                </Border>
+                                <StackPanel>
+                                    <TextBlock x:Name="StepState3" Style="{StaticResource StepState}"/>
+                                    <TextBlock x:Name="StepTitle3" Style="{StaticResource StepTitle}" Text="{v:Loc preflight}"/>
+                                    <TextBlock x:Name="StepDetail3" Style="{StaticResource StepDetail}"/>
+                                    <WrapPanel Style="{StaticResource StepLinks}">
+                                        <Button x:Name="StartCheckLink" Style="{StaticResource Btn.Link}" Content="{v:Loc rd_open_check}" Click="Readiness_Click"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <!-- the one primary action: the next step (waits for the acknowledgement on first run) -->
+                        <Button x:Name="PrimaryActionBtn" Style="{StaticResource Btn.FormPrimary}" Click="PrimaryAction_Click" HorizontalAlignment="Left" Margin="0,20,0,0" Padding="22,6" MinWidth="180"/>
+                        <TextBlock x:Name="AckNote" Style="{StaticResource Hint}" Text="{v:Loc gs_ack_note}" Margin="0,14,0,0"/>
                     </StackPanel>
 
                     <!-- ===== Profiles ===== -->
