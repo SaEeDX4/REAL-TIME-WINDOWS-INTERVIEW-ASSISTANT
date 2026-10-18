@@ -14,7 +14,7 @@ namespace InterviewAssistant.Tests;
 /// <summary>rc.5 data export center: secret filter, readable account/profile exports, .iaprofile backup and import.</summary>
 public class Rc5DataExportTests
 {
-    private const string FakeApiKey = "sk-proj-AbCdEfGhIjKlMnOpQrStUvWx1234";
+    private const string FakeApiKey = "sk-proj-AbCdEfGhIjKlMnOpQrStUvWx1234";   // fake-credential: test fixture
     private const string FakeJwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk";
     private static readonly string[] Languages = { "en", "es", "fr", "de", "pt", "it", "ar", "fa", "zh", "hi" };
 
