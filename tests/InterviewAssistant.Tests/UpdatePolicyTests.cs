@@ -22,6 +22,13 @@ public class UpdatePolicyTests
     }
 
     [Fact]
+    public void CheckNow_SkipsTheInterval_ButNeverRunsDuringALiveSession()
+    {
+        Assert.True(UpdatePolicy.ShouldCheckNow(sessionActive: false));
+        Assert.False(UpdatePolicy.ShouldCheckNow(sessionActive: true));
+    }
+
+    [Fact]
     public void AppliesOnlyWhenIdleAndDownloaded()
     {
         Assert.False(UpdatePolicy.CanApplyNow(sessionActive: true, updateDownloaded: true));

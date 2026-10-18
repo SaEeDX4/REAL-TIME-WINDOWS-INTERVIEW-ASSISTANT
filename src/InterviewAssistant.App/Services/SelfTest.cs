@@ -280,6 +280,72 @@ public static class SelfTest
             home.Close(); await Idle();
             return (noQuestion && kept, $"question shown: {!noQuestion}; edit kept through fa → en: {kept}");
         });
+        await Check("Settings categories: deep link selects one category, Up/Down move, switching keeps edits, Updates shows the version (not on Account)", async () =>
+        {
+            w.OpenSettings("updates"); await Idle(); await Idle();
+            var home = w.Home;
+            if (home == null) return (false, "Home did not open");
+            var page = home.SettingsPageForTest;
+            var onUpdates = page.CurrentCategory == "updates" && page.CatUpdates.IsVisible && !page.CatAudio.IsVisible;
+            var version = page.UpdateVersion.Text == BuildInfo.Version && page.UpdateCommit.Text == BuildInfo.Commit && page.UpdateChannelText.Text.Length > 0;
+            // never faked: a build that cannot update says why and offers no check
+            var honest = page.UpdateStatus.Text.Length > 0 && (vm.Updates.CanCheck || !page.CheckUpdatesBtn.IsEnabled);
+            var notOnAccount = home.FindName("ChannelBox") == null && home.FindName("RestartUpdateBtn") == null;
+            w.OpenSettings("audio"); await Idle();
+            var onAudio = page.CurrentCategory == "audio" && page.CatAudio.IsVisible && !page.CatUpdates.IsVisible;
+            // keyboard: Down moves within the list and shows that category
+            var item = page.CategoryList.Items.Cast<System.Windows.Controls.ListBoxItem>().First(i => (string)i.Tag == "audio");
+            item.Focus(); System.Windows.Input.FocusManager.SetFocusedElement(home, item); await Idle();
+            PressKey(home, System.Windows.Input.Key.Down); await Idle();
+            var down = page.CurrentCategory == "answers" && page.CatAnswers.IsVisible && page.CategoryList.SelectedItem is System.Windows.Controls.ListBoxItem { Tag: "answers" };
+            var devKeyInAnswers = BuildFlavor.Developer ? page.DeveloperKeyPanel.IsVisible : page.DeveloperKeyPanel.Visibility != Visibility.Visible;
+            // switching category inside the page is not navigation: no question, the edit stays pending
+            w.OpenSettings("hotkeys"); await Idle();
+            page.HkManual.Text = "Ctrl+Alt+M";
+            page.ShowSection("window"); await Idle();
+            var kept = page.Guard.IsDirty && !Views.AppDialog.IsOpen(home) && page.CatWindow.IsVisible && home.CurrentPage == "settings" && page.HkManual.Text == "Ctrl+Alt+M";
+            page.ShowSection("bogus"); await Idle();
+            var fallback = page.CurrentCategory == "window";   // unknown section: the last used category
+            page.Discard(); await Idle();
+            home.Close(); await Idle();
+            var ok = onUpdates && version && honest && notOnAccount && onAudio && down && devKeyInAnswers && kept && fallback;
+            return (ok, $"updates {onUpdates} (version {version}, honest status {honest}, not on Account {notOnAccount}); audio {onAudio}; Down → answers {down}; "
+                        + $"developer key in Answers {devKeyInAnswers}; edit kept across categories {kept}; unknown → last used {fallback}");
+        });
+        await Check("Settings: Restore defaults asks in the in-app dialog (Cancel is the default and keeps values); a section reset changes only that section", async () =>
+        {
+            w.OpenSettings("window"); await Idle();
+            var home = w.Home!;
+            var page = home.SettingsPageForTest;
+            var s = vm.Settings;
+            var (opacity, transcript, lang, ack, firstRun, deviceId) = (s.WindowOpacity, s.SaveSessionTranscript, s.UiLanguage, s.AuthorizedUseAcknowledged, s.FirstRunCompleted, s.CloudDeviceId);
+            try
+            {
+                s.WindowOpacity = 0.8; s.SaveSessionTranscript = true; page.LoadFromSettings(); await Idle();
+                var dialog = page.ResetAsync(null);
+                await Idle(); await Idle();
+                var open = Views.AppDialog.IsOpen(home);
+                var focused = System.Windows.Input.FocusManager.GetFocusedElement(home) as System.Windows.Controls.Button;
+                var defaultCancel = focused?.Content as string == Core.Languages.Loc.T("dlg_cancel");
+                PressKey(home, System.Windows.Input.Key.Escape);
+                var cancelled = await Task.WhenAny(dialog, Task.Delay(2000)) == dialog && !dialog.Result && !Views.AppDialog.IsOpen(home);
+                var kept = Math.Abs(s.WindowOpacity - 0.8) < 1e-9 && s.SaveSessionTranscript && Math.Abs(page.OpacitySlider.Value - 0.8) < 1e-9 && !page.Guard.IsDirty;
+                // the confirmed path (same call the dialog's Restore defaults button makes), for one section
+                page.ApplyReset("window"); await Idle();
+                var fresh = new AppSettings();
+                var sectionOnly = Math.Abs(s.WindowOpacity - fresh.WindowOpacity) < 1e-9 && Math.Abs(page.OpacitySlider.Value - fresh.WindowOpacity) < 1e-9
+                                  && s.SaveSessionTranscript   // Privacy untouched
+                                  && s.UiLanguage == lang && s.AuthorizedUseAcknowledged == ack && s.FirstRunCompleted == firstRun && s.CloudDeviceId == deviceId
+                                  && !page.Guard.IsDirty;
+                home.Close(); await Idle();
+                return (open && defaultCancel && cancelled && kept && sectionOnly,
+                    $"dialog {open}; default Cancel {defaultCancel}; Escape cancels {cancelled}; values kept {kept}; Window reset only, account/first-run/language untouched {sectionOnly}");
+            }
+            finally
+            {
+                s.WindowOpacity = opacity; s.SaveSessionTranscript = transcript; s.Save(); w.ApplyAppearance();
+            }
+        });
         await Check("In-app dialog: overlay inside the window, destructive defaults to Cancel, Escape cancels, unsaved-changes question on close", async () =>
         {
             w.OpenHome(); await Idle();

@@ -104,10 +104,13 @@
                 <Button x:Name="NavSettings" Style="{StaticResource Nav}" Click="Nav_Click" Tag="settings" Content="{v:Loc settings}"/>
                 <Button x:Name="NavHelp" Style="{StaticResource Nav}" Click="Nav_Click" Tag="help" Content="{v:Loc nav_help}"/>
                 <Border Height="1" Background="{StaticResource B.Border}" Margin="6,12"/>
-                <TextBlock Text="{v:Loc ui_language}" Style="{StaticResource T.Label}" Margin="12,0,0,6"/>
+                <!-- the hint is secondary: an ⓘ next to the label instead of a paragraph (rc.5) -->
+                <StackPanel Orientation="Horizontal" Margin="12,0,0,4">
+                    <TextBlock Text="{v:Loc ui_language}" Style="{StaticResource T.Label}" Margin="0" VerticalAlignment="Center"/>
+                    <v:InfoTip Text="{v:Loc ui_language_hint}"/>
+                </StackPanel>
                 <ComboBox x:Name="UiLanguageBox" Margin="6,0" SelectionChanged="UiLanguage_Changed" DisplayMemberPath="DisplayName"
                           ToolTip="{v:Loc tt_ui_language}" AutomationProperties.Name="{v:Loc ui_language}"/>
-                <TextBlock Style="{StaticResource Hint}" Margin="12,6,6,0" FontSize="11" Text="{v:Loc ui_language_hint}"/>
             </StackPanel>
 
             <!-- content -->
@@ -539,20 +542,7 @@
                         <WrapPanel x:Name="LegalLinks"/>
                         <TextBlock x:Name="SupportEmailText" Style="{StaticResource Hint}"/>
 
-                        <TextBlock Text="{v:Loc updates}" Style="{StaticResource Section}"/>
-                        <TextBlock x:Name="BuildChannelText" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}"/>
-                        <Grid Margin="0,8,0,0">
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                            <TextBlock Text="{v:Loc update_preference}" Style="{StaticResource T.Body}" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <ComboBox x:Name="ChannelBox" Grid.Column="1" MinWidth="180" SelectionChanged="Channel_Changed" AutomationProperties.Name="{v:Loc update_preference}">
-                                <ComboBoxItem Content="{v:Loc channel_stable}" Tag="stable"/>
-                                <ComboBoxItem Content="{v:Loc channel_beta}" Tag="beta"/>
-                            </ComboBox>
-                            <Button x:Name="RestartUpdateBtn" Grid.Column="3" Style="{StaticResource Btn.Form}" Content="{v:Loc restart_to_update}" Click="RestartUpdate_Click" Visibility="Collapsed"/>
-                            <TextBlock x:Name="UpdateStatus" Grid.Row="1" Grid.ColumnSpan="4" Style="{StaticResource Hint}" Margin="0,6,0,0"/>
-                        </Grid>
-                        <TextBlock Style="{StaticResource Hint}" Text="{v:Loc updates_hint}"/>
+                        <!-- Updates moved to Settings → Updates in rc.5 -->
                     </StackPanel>
 
                     <!-- ===== Settings ===== -->
