@@ -20,7 +20,7 @@ Interviewer speaks
 
 ## Install (Windows 10/11 x64)
 - **Release build**: run `InterviewAssistant.Desktop-stable-Setup.exe` (per-user, no admin). Updates are delta-based and never install during an interview.
-- **CI build**: GitHub → Actions → latest green **windows-release** run → artifact `InterviewAssistant-Setup-unsigned` or the portable `InterviewAssistant-Windows-x64` ZIP. Unsigned builds trigger SmartScreen → *More info → Run anyway*.
+- **CI build**: GitHub → Actions → latest green **windows-release** run → artifact `InterviewAssistant-v<version>`, which holds `InterviewAssistant-Setup-v<version>.exe`, the portable `InterviewAssistant-Windows-x64-v<version>.zip`, their `.sha256` files, the release notes and `BUILD_INFO.txt`. Unsigned builds trigger SmartScreen → *More info → Run anyway*.
 
 ### Account vs developer mode
 | | Account (default in release builds) | Developer mode |

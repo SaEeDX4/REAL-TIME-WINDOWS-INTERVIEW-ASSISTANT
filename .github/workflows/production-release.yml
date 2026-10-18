@@ -49,9 +49,16 @@ jobs:
           ./scripts/smoke-test.ps1
           ./scripts/selftest.ps1
 
+      - name: Release gate — version, release notes, mandatory release documents, committed-secret scan
+        shell: pwsh
+        run: ./scripts/check-release.ps1 -Version ${{ steps.v.outputs.version }}
+
       - name: Release notes
         shell: pwsh
         run: |
+          # The reviewed notes of this version (docs/release) when they exist; otherwise the commit log.
+          $doc = "docs/release/RELEASE_NOTES-v${{ steps.v.outputs.version }}.md"
+          if (Test-Path $doc) { Copy-Item $doc artifacts/RELEASE_NOTES.md; exit 0 }
           $prev = git describe --tags --abbrev=0 HEAD^ 2>$null
           $range = if ($prev) { "$prev..HEAD" } else { "HEAD" }
           "## Interview Assistant ${{ steps.v.outputs.version }}`n" | Set-Content artifacts/RELEASE_NOTES.md

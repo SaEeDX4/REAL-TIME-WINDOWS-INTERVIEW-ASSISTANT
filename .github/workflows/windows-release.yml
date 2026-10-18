@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: read   # the upgrade test downloads the previous candidate's published installer from its CI run
 
 jobs:
   build:
@@ -69,6 +70,12 @@ jobs:
       - name: Install N, self-update to N+1, verify, uninstall
         shell: pwsh
         run: ./scripts/update-test.ps1
+
+      - name: Upgrade in place from the previous candidate (published Setup, SHA-256 verified), data kept, launches, uninstall
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/upgrade-test.ps1 -ToVersion ${{ steps.v.outputs.version }}
 
       # Only reached when every step above passed: the artifacts come from this exact, validated commit.
       - name: Release-candidate package (portable ZIP, Setup.exe, SHA-256, notes, build info)

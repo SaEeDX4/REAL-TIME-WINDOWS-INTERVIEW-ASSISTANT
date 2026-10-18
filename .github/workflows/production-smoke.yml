@@ -64,6 +64,8 @@ jobs:
           cfg=$(curl -fsS -m 20 "$BASE/api/v1/config")
           echo "$cfg" | jq '{transcriptionModel, answerModel, billingEnvironment, auth: (.auth | {available, supabaseUrl, emailPassword, oAuthProviders}), links}'
           if echo "$cfg" | grep -qE 'sk-[A-Za-z0-9_-]{16,}|pdl_(live|sdbx)_apikey|pdl_ntfset|service_role'; then echo "::error::secret-looking value in public config"; exit 1; fi
+          # Release candidates bill in the Paddle sandbox only; switching to live is a deliberate business step that updates this line.
+          if [ "$(echo "$cfg" | jq -r '.billingEnvironment')" != "sandbox" ]; then echo "::error::billing environment is not the Paddle sandbox"; exit 1; fi
           if [ "$(echo "$cfg" | jq -r '.auth.available')" != "true" ]; then echo "::warning::Desktop sign-in not configured — set Auth__PublishableKey in Railway"; fi
           if [ "$(echo "$cfg" | jq -r '.auth.emailConfirmedRedirectUrl')" = "null" ]; then echo "::warning::Sign-up confirmation page not configured — set Product__PublicBaseUrl in Railway"; fi
           if [ "$(echo "$cfg" | jq -r '.links.privacyPolicy')" = "null" ] || [ "$(echo "$cfg" | jq -r '.links.terms')" = "null" ]; then echo "::warning::Privacy policy / terms links not configured — set Product__PrivacyPolicyUrl and Product__TermsUrl"; fi

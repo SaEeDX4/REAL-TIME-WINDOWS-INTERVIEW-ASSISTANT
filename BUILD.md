@@ -1,7 +1,7 @@
 # Build
 
 ## Option A — download (no tools needed)
-GitHub → **Actions** → latest **windows-release** run → artifact `InterviewAssistant-Windows-x64` (or push a tag `v1.0.0` to get a GitHub Release). Unzip, run `InterviewAssistant.exe`.
+GitHub → **Actions** → latest **windows-release** run → artifact `InterviewAssistant-v<version>` (`InterviewAssistant-Setup-v<version>.exe`, `InterviewAssistant-Windows-x64-v<version>.zip` and their `.sha256` files; or push a tag `v1.0.0` to get a GitHub Release). Unzip, run `InterviewAssistant.exe`.
 
 ## Option B — build on Windows
 Requirements: Windows 10/11 x64, [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).

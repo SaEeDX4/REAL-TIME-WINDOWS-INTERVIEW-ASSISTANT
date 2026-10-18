@@ -110,3 +110,13 @@ Re-reviewed for 2.1.0-rc.4: **no package added, removed or upgraded** (only the 
 files). New test-only assets: 16 additional generated audio fixtures in `tests/fixtures/audio/` (CC0, produced by
 `scripts/generate-audio-fixtures.py` from eSpeak NG output and first-principles synthesis; not shipped). The shipped
 `licenses/` folder and `THIRD_PARTY_NOTICES.md` are unchanged.
+
+## rc.5
+
+Re-reviewed for 2.1.0-rc.5: **no package added, removed or upgraded** — every project's PackageReference set is the
+same as in rc.4 (`git diff a0bc946 -- '*.csproj'` changes only the app version). The new rc.5 code (pitch-run
+tracking, follow-up intent, readiness model, design-system controls, readable exports, the `.iaprofile` backup format
+with its ZIP/SHA-256 handling) uses only the .NET base class library and WPF. New test-only assets: 14 generated
+flat-intonation speech fixtures in `tests/fixtures/audio/speech_fu_*` (CC0, produced by
+`scripts/generate-audio-fixtures.py` from eSpeak NG output with SSML prosody ranges; not shipped — `package-rc.ps1`
+refuses anything under `tests\`). The shipped `licenses/` folder and `THIRD_PARTY_NOTICES.md` are unchanged.

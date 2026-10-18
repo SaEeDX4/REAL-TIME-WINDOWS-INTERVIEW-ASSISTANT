@@ -1,26 +1,40 @@
-INTERVIEW ASSISTANT — USER GUIDE (2.1.0-rc.4)
+INTERVIEW ASSISTANT — USER GUIDE (2.1.0-rc.5)
 =============================================
 
 GETTING STARTED
+Home -> Get started is your interview readiness dashboard: four steps (Account, Profile,
+Interview setup, Pre-interview check) and one button for the next thing to do.
 1. Open Interview Assistant. (This release candidate is not code-signed yet: if Windows
-   SmartScreen appears, choose "More info" -> "Run anyway".)
-2. Home -> Account: create an account or sign in. Confirm your e-mail if asked.
-3. Home -> Profiles -> Facts: Import resume. Review the extracted facts and tick only the ones
-   that are accurate, then Save profile. Only confirmed facts are ever presented as your
-   experience. You can add, edit and delete facts; each shows where it came from.
+   SmartScreen appears, choose "More info" -> "Run anyway".) The first time, confirm that you
+   will use the assistant only where it is permitted.
+2. Sign in or create an account (Home -> Account). Confirm your e-mail if asked. Forgot your
+   password? Choose "Forgot password?" next to the password field; if an account exists for
+   the e-mail, a reset link is sent.
+3. Home -> Profiles -> Experience & facts: Import resume. Review the extracted facts and tick
+   only the ones that are accurate, then Save profile. Only confirmed facts are ever presented
+   as your experience. You can add, edit and delete facts; each shows where it came from.
 4. Home -> Profiles -> Interview profile (optional): hobbies, motivation, goals, working style,
    things never to mention. Personal questions are answered only from what you write here;
    if a field is empty, the assistant tells you so instead of inventing an answer.
-5. Home -> Interviews: New interview. Enter the job title, company and paste the job
-   description, then press Prepare (it saves the interview first; takes about a minute).
-6. Run the Pre-interview check, then press Open Live Assistant.
+5. Home -> Interviews: New interview. Enter the job title, company and paste (or import) the
+   job description, then press Prepare (it saves the interview first; takes about a minute).
+6. Home -> Pre-interview check: the checks run by themselves. "Ready" or "Ready with warnings"
+   means you can start; fix anything marked "Not ready". Then press Start interview.
 
 BEFORE YOUR INTERVIEW
 - Join the call in Chrome, Meet, Zoom or Teams and play a short sound: the level meter in the
   Live Assistant should move.
-- Settings: choose the playback device (headset or speakers) you hear the interviewer on.
-- Pre-interview check (shield icon): PASS means ready, WARNING is optional, fix anything marked
-  FAIL.
+- Settings -> Audio: choose the playback device (headset or speakers) you hear the
+  interviewer on.
+- The Pre-interview check lists eight checks (playback device, audio signal, account and plan,
+  transcription, answer engine, interview prepared, prepared answers, window on top), each with
+  a fix button, plus Test audio / Test transcription / Test AI. The same result appears on Get
+  started, on the Interviews page, in the Home title bar and in the Live Assistant header; it
+  says "Out of date" when you change the interview or the audio device.
+- Interview Focus (Live Assistant -> More -> Interview Focus): places a compact window near
+  your camera (top centre, left or right) so you can glance at notes while keeping eye
+  contact. It only moves and resizes the window — it does not hide it from screen sharing or
+  recordings. "Restore previous size" puts it back.
 - Use the assistant only where assistance is permitted.
 
 LIVE ASSISTANT CONTROLS
@@ -28,26 +42,47 @@ LIVE ASSISTANT CONTROLS
 - Type a question ................ Ctrl+Alt+Q   (works while paused; uses no live minutes)
 - Show / hide the window ......... Ctrl+Alt+Space
 - Coach mode (keywords) .......... Ctrl+Alt+C
+- "?" opens Quick help for what you are doing right now, with your own hotkeys.
+- More (...) holds Compact view, Interview Focus, Home, the last report and Settings. The
+  window can be maximized; the answer stays in a readable column.
 - Shorter / Technical / Example / Full answer / Regenerate rework the answer you are looking
   at; the question keeps its place in the history (5/8 stays 5/8).
 - < and > browse earlier questions. Pause and resume continue the same session.
 - The stop button ends the interview and saves a report; it appears in Home -> Reports at once.
 - Your microphone is never captured — only the audio you hear from the interviewer.
-- Notification sounds, beeps, screenshot sounds and remarks addressed to another interviewer by
-  name are ignored and never answered.
+- Short follow-ups such as "Why?", "How so?", "Tell me more.", "Go on." or "Give me an
+  example." are answered as their own question. Notification sounds, beeps, screenshot sounds,
+  music and remarks addressed to another interviewer by name are ignored and never answered.
 - When the interviewer gives context before asking, the question is shown with a short context
   line and the answer addresses the actual question.
 
-ACCOUNT, LANGUAGE AND PRIVACY
-- Home -> Account shows minutes remaining this billing period and available today, your
-  devices with their app version, and your update preference.
-- The app language (Settings) changes immediately and is separate from the interview and
-  answer languages, which you choose per interview.
+SETTINGS
+- Home -> Settings has categories: Audio, Answers, Listening, Window, Hotkeys, Privacy and
+  Updates. Changes are saved with Save (or undone with Discard changes).
+- "Reset this section" and "Restore all defaults" reset preferences only — your account,
+  profiles, interviews and reports are never changed.
+- Settings -> Updates shows the version and build and the update preference. Updates install
+  when you close the app, never during an interview. (Unsigned test builds do not update
+  themselves: install the next version with its Setup.exe — your data is kept.)
+- The app language (Home sidebar) changes immediately and is separate from the interview and
+  answer languages, which you choose per interview. Unsaved edits are kept.
+
+ACCOUNT, DATA AND PRIVACY
+- Home -> Account: plan and minutes (this period and available today), your devices (remove
+  one with its Remove button), Security (change password, switch account), Privacy & data and
+  a separate Danger zone. The account menu at the top right offers the same actions.
+- Export my data: a readable report (HTML, recommended) or the raw data (JSON, advanced).
+  Exports never contain passwords, sign-in tokens or keys. Exporting and deleting your account
+  ask for your password.
+- Profiles -> Export: a readable profile (HTML), a backup to restore or move to another PC
+  (.iaprofile: the profile with its interviews, prepared answers and reports) or the raw data.
+  Profiles -> Import backup shows what a backup contains before it imports it as a new profile.
 - Signing out hides all of your profiles, interviews and reports; another account on the same
-  PC never sees them. Exporting your data or deleting your account asks for your password.
+  PC never sees them.
 - Deleting your account removes your data on the service and your sign-in (e-mail address,
-  password and linked Google/Microsoft/GitHub/Apple sign-in). Cancel an active subscription
-  in Manage billing first. Invoices stay with Paddle, the payment provider.
+  password and linked Google/Microsoft/GitHub/Apple sign-in). An active subscription must be
+  cancelled first (Manage billing). Invoices stay with Paddle, the payment provider. You are
+  then asked separately whether to delete the profiles, interviews and reports on this PC.
 - Live audio is streamed through the Interview Assistant service to the transcription
   provider; your PC never holds a provider key. Live transcription stops as soon as your
   live minutes stop (Pause, Stop, minutes used up, device removed).
@@ -55,16 +90,16 @@ ACCOUNT, LANGUAGE AND PRIVACY
   refunded"); a new payment restores it.
 - Log files older than 14 days are deleted automatically.
 - Reports are stored encrypted for your account. The interview transcript is saved to
-  Documents only if you turn it on in Settings.
+  Documents only if you turn it on in Settings -> Privacy.
 
-TROUBLESHOOTING AUDIO
-- "No interview audio": the meeting plays on a different device. Choose it in Settings, or
-  make it the Windows default playback device.
+TROUBLESHOOTING
+- "No interview audio": the meeting plays on a different device. Choose it in Settings ->
+  Audio, or make it the Windows default playback device.
 - Meter moves but nothing is transcribed: check the internet connection and run
   Test transcription in the Pre-interview check.
 - Bluetooth headsets: use the "Headphones"/"Stereo" output, not "Hands-Free".
 - Silence between questions is normal: the status shows "Listening · quiet".
 - Connection lost: a notification and a banner appear; prepared answers and typed questions
   keep working, and the app reconnects by itself.
-- Logs for support: Help & about -> Open log folder (and Copy build info). Logs contain no
-  resume text, answers or keys.
+- Help & about -> Diagnostics: a short health check, Copy diagnostics and Open log folder for
+  support. Diagnostics and logs contain no resume text, answers, passwords or keys.

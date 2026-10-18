@@ -60,7 +60,12 @@ if ($text2 -notmatch "no-update \(current $([regex]::Escape($VersionB))\)") { Fa
 @{ installed = $installed; updatedTo = $now; check = $text; postCheck = $text2; installer = $setup.Name; installerBytes = $setup.Length } |
     ConvertTo-Json | Set-Content (Join-Path $evidence "update-test.json")
 
-# 6) Uninstall cleanly.
+# 6) Uninstall cleanly: the uninstaller succeeds and the program folder and uninstall entry are gone.
 $update = Join-Path $installDir "Update.exe"
-if (Test-Path $update) { Start-Process $update -ArgumentList "--uninstall", "--silent" -Wait -ErrorAction SilentlyContinue }
+if (-not (Test-Path $update)) { Fail "Update.exe (uninstaller) not found" }
+$p = Start-Process $update -ArgumentList "--uninstall", "--silent" -PassThru -Wait
+if ($p.ExitCode -ne 0) { Fail "uninstall exited with $($p.ExitCode)" }
+Start-Sleep -Seconds 5
+if (Test-Path (Join-Path $installDir "current")) { Fail "program files still present after uninstall" }
+if (Test-Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\InterviewAssistant.Desktop") { Fail "uninstall entry still registered" }
 Write-Host "UPDATE TEST PASSED ($VersionA -> $VersionB)" -ForegroundColor Green
