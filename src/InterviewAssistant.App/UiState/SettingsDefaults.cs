@@ -33,6 +33,7 @@ public static class SettingsDefaults
         "AuthorizedUseAcknowledged", "FirstRunCompleted",                       // first run and authorized use
         "UiLanguage",                                                           // app language (Home sidebar)
         "Left", "Top", "Width", "Height", "HomeLeft", "HomeTop", "HomeWidth", "HomeHeight", "HomeMaximized",   // window placement
+        "FocusRestoreLeft", "FocusRestoreTop", "FocusRestoreWidth", "FocusRestoreHeight",                      // placement before Interview Focus
         "SettingsVersion",                                                      // file format
     };
 
@@ -40,6 +41,7 @@ public static class SettingsDefaults
     public static readonly IReadOnlyList<string> NotOnSettingsPage = new[]
     {
         "AnswerLanguage", "ReportLanguage", "StartInCoachMode", "ShowDiagnostics", "LiveIntroDismissed",
+        "InterviewFocusPreset", "InterviewFocusIntroSeen",                        // Interview Focus (Live window → More)
         "PriceTranscribePerMinute", "PriceInputPerMTok", "PriceOutputPerMTok",
     };
 

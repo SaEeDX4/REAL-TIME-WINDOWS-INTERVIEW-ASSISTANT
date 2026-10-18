@@ -46,6 +46,22 @@ public class LocalizationCoverageTests
     };
     private static readonly Regex Placeholder = new(@"\{\d+\}", RegexOptions.Compiled);
 
+    /// <summary>
+    /// rc.5: a key defined twice in one table silently keeps only one value (System.Text.Json takes the last). Parallel
+    /// feature work merged the same keys twice once; every table must define each key exactly once.
+    /// </summary>
+    [Fact]
+    public void NoTableDefinesAKeyTwice()
+    {
+        var dir = Path.Combine(RepoRoot, "src", "InterviewAssistant.Core", "Languages", "i18n");
+        foreach (var file in Directory.GetFiles(dir, "*.json"))
+        {
+            var keys = Regex.Matches(File.ReadAllText(file), @"^\s*""([^""]+)""\s*:", RegexOptions.Multiline).Select(m => m.Groups[1].Value).ToList();
+            var duplicates = keys.GroupBy(k => k).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+            Assert.True(duplicates.Count == 0, $"{Path.GetFileName(file)} defines {string.Join(", ", duplicates)} more than once");
+        }
+    }
+
     [Fact]
     public void EnglishTableIsTheReference()
     {

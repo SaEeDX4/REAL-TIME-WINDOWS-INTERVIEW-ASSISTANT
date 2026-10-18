@@ -125,6 +125,12 @@ public class Rc5SettingsTests
         public double Height { get; set; } = 560;
         public bool FirstRunCompleted { get; set; }
         public bool LiveIntroDismissed { get; set; }
+        public string? InterviewFocusPreset { get; set; }
+        public bool InterviewFocusIntroSeen { get; set; }
+        public double? FocusRestoreLeft { get; set; }
+        public double? FocusRestoreTop { get; set; }
+        public double? FocusRestoreWidth { get; set; }
+        public double? FocusRestoreHeight { get; set; }
         public double? HomeLeft { get; set; }
         public double? HomeTop { get; set; }
         public double HomeWidth { get; set; } = 980;
