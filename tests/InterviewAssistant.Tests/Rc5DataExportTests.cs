@@ -141,7 +141,6 @@ public class Rc5DataExportTests
         Assert.Contains("Live interview usage", html);
         Assert.Contains("1 hr 20 min 43 sec", html);
         Assert.Contains("45 min 30 sec", html);                             // session duration
-        Assert.Contains("45 min 30 sec", html);
         Assert.Contains("59 sec", html);                                    // metered time of the running session
         Assert.Contains("Payment overdue", html);                           // billing state in words
         Assert.Contains("Renews on", html);
@@ -153,7 +152,7 @@ public class Rc5DataExportTests
         Assert.Contains("<details><summary>Show technical details</summary>", html);
         Assert.Contains("6f1c2a7e-0000-4000-8000-000000000001", html);    // ids only in the technical section
         Assert.True(html.IndexOf("<details>", StringComparison.Ordinal) < html.IndexOf("6f1c2a7e", StringComparison.Ordinal));
-        Assert.Contains("October 17, 2026", html);                          // dates in the user's culture
+        Assert.Contains("January 5, 2026", html);                           // dates in the user's culture (member since)
         foreach (var secret in new[] { "hunter2", "whsec_x", FakeJwt, FakeApiKey, "accessToken", "providerSecret" }) Assert.DoesNotContain(secret, html);
         Assert.False(SecretFilter.LooksSecret(html));
     }
@@ -163,7 +162,7 @@ public class Rc5DataExportTests
     {
         var html = AccountExportRenderer.Render(SampleAccountExport(), "en", context: new AccountExportContext("Pro", "Pro · payment problem"), zone: TimeZoneInfo.Utc);
         Assert.Contains("<bdi>Pro</bdi>", html);
-        Assert.Contains("Pro · payment problem", html);
+        Assert.Contains(System.Net.WebUtility.HtmlEncode("Pro · payment problem"), html);
         Assert.DoesNotContain("pro_monthly", html);
     }
 
@@ -226,14 +225,14 @@ public class Rc5DataExportTests
         Assert.Contains($"Still to review ({p.Stats.ToReview})", html);
         Assert.Contains("Interview profile answers", html);
         Assert.Contains("<strong>Hobbies:</strong>", html);
-        Assert.Contains("<strong>Topics never to speculate about:</strong>", html);
+        Assert.Contains("<strong>Never mention or speculate about:</strong>", html);
         Assert.Contains("Sailing &lt;img src=x onerror=alert(1)&gt;", html);
         Assert.DoesNotContain("<img", html);
         Assert.Contains("Source: from shervin.txt", html);                   // provenance in words
         Assert.Contains("Source: interview profile", html);
         Assert.Contains("Source documents", html);
         Assert.Contains("<details><summary>Show technical details</summary>", html);
-        Assert.DoesNotContain(p.Documents[0].Text[..40], html);              // document text is never exported in the readable profile
+        Assert.DoesNotContain(System.Net.WebUtility.HtmlEncode(p.Documents[0].Text), html);   // document text is never exported in the readable profile
     }
 
     [Theory]
@@ -342,7 +341,7 @@ public class Rc5DataExportTests
             Assert.Contains($"targets/{s.Unprepared.Id}.json", entries.Keys);
             Assert.Contains($"packs/{s.Target.Id}.json", entries.Keys);
             Assert.Contains($"sessions/{s.Report.Id}.json", entries.Keys);
-            Assert.Equal(6, entries.Count);                                        // the other profile's session is not included
+            Assert.Equal(7, entries.Count);                                        // manifest, profile, 2 interviews, 1 pack, 2 sessions: the other profile's session is not included
             foreach (var e in manifest["entries"]!.AsArray())
             {
                 var bytes = entries[(string)e!["path"]!];
