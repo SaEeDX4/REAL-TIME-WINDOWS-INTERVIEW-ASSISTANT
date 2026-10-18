@@ -1,0 +1,39 @@
+# 2.1.0-rc.5 — manual regression checklist (A–W)
+
+Run on a real Windows 10/11 PC with the rc.5 installer from CI, signed in to a Paddle **sandbox** account. "Automated"
+names what CI already proves on every push (unit/engine suites on Linux and Windows, the in-app `--selftest` on a
+Windows runner, the install/update/upgrade/uninstall scripts); the manual step checks what automation cannot: real
+audio devices and meeting apps, real network, visual quality, screen readers. **Status: not yet run by a person for
+rc.5 — this file is the checklist, not a claim.** Record pass/fail and notes per row.
+
+| # | Area | Steps | Expected | Automated coverage |
+|---|---|---|---|---|
+| A | Upgrade rc.4 → rc.5 | Install rc.4, sign in, create a profile and an interview, run a short session; then run the rc.5 Setup over it | Upgrade in place; profile, interview, reports and settings kept; still signed in; rc.4 report opens; About shows 2.1.0-rc.5 | CI `upgrade-test.ps1`: published rc.4 Setup (SHA-256 verified) → rc.5 Setup, data kept, app starts and exits cleanly, uninstall verified |
+| B | About + installer hash | Help & about; compare the Setup/ZIP SHA-256 with the CI `.sha256` files | Version 2.1.0-rc.5, build hash, "Release Candidate", installed, **Unsigned build**, service sandbox; hashes match | self-test build information, `package-rc.ps1` |
+| C | **Real system sounds** | Live session, nobody speaking: Windows notification, Teams/Zoom/Meet chat sound, Win+Shift+S screenshot, error beep, door knock, YouTube music | No question, no AI request, history unchanged, nothing in the report; at most "Hearing audio"; no words flash | `RecordedStyleAudioTests`, `Rc5FollowUpTests.SamePhrasesOverNonSpeech_CreateNothing` |
+| D | **Imperative follow-ups** | Interviewer asks a question, you answer, then (flat, falling voice): "Tell me more.", "Walk me through that.", "Explain further.", "Go on.", "Give me an example.", "Elaborate.", "Continue.", "Can you expand on that?" — and quickly after a question (≤2 s) | Each answered once, as its own history item; the earlier answer stays | `Rc5FollowUpTests` (14 flat-intonation fixtures, quick follow-up) |
+| E | Short questions | "Why?", "Why." (falling), "How so?", "Really?" | Each answered once | `ShortTurnTests`, fixture suite |
+| F | Panel | "John, tell me more." / "Go on, Maria." vs "Shervin, tell me more." | Others: no answer; candidate's name: answered | `Rc5FollowUpTests` panel tests |
+| G | Honesty | Hobby question with a filled profile; motivation question with an empty field | Only confirmed words; amber "Not in your profile yet" card for the gap | `PersonalGroundingTests`, `UiPagesTests` |
+| H | **Pre-interview check in Home** | From Get started, from Interviews, from the Home title-bar pill and from the Live readiness indicator | One in-app page (no separate window); "Ready" / "Ready with warnings" / "Not ready", "n of 8 checks passed"; every row's fix button works; Start interview starts listening; the same state everywhere; "Out of date" after switching interview or audio device | self-test pre-interview + Get started checks, `Rc5ReadinessTests`, `Rc5ReadinessPageTests` |
+| I | **Get started** | Fresh install, signed out → signed in → profile → interview → prepared → checked | One primary button that is always the next step; acknowledgement only the first time, then a quiet note; no large empty space | self-test, `Rc5ReadinessTests` |
+| J | **Live gear → Settings** | With Home closed and with Home open on another page, click the Live gear | Settings appears directly (no Interviews/Get started flash) on the right category | `HomeRoute` tests, self-test deep links |
+| K | **Settings** | Categories with descriptions; change a value, switch category, Save / Discard; Reset this section; Restore all defaults → Cancel, then confirm; Settings → Updates → Check for updates | Edits survive category switches; reset changes only preferences (account, profiles, interviews, reports untouched); unsigned build says automatic updates are unavailable | `Rc5SettingsTests`, self-test categories + restore |
+| L | **Account** | Signed in at 1366×768 and maximized; header account menu (mouse and keyboard); Switch account; Sign out | Two columns that stack when narrow; one Sign out (menu); Switch account asks first, no "Signed out" toast, opens "Sign in with another account" | `Rc5AccountTests`, self-test account check |
+| M | **Forgot password / create account** | Forgot password with existing and unknown e-mail; Resend after the countdown; offline; create an account | Same sentence for both e-mails; dedicated states with one primary button; retry/timeout copy | `CloudAuthTests`, `Rc5AccountTests` |
+| N | **Delete account** | Delete account → dialog → Keep account; then with an active subscription; then delete for real (test account) | "Permanently delete your account?" with the lists and notes; blocked while the subscription can charge; re-authentication; separate local-data question | `Rc5AccountTests`, self-test delete dialog |
+| O | **Exports** | Export my data → Readable (open in a browser, print to PDF) and Raw JSON; Profiles → Export → Readable / Backup / Raw; Import backup on another PC or account | Human-readable report with sessions table and collapsed technical details; no passwords/tokens/keys; preview before import; imported as a new profile | `Rc5DataExportTests` (83), self-test export checks |
+| P | **Live window** | Toolbar at the minimum width and maximized; "?" Quick help in each state; More menu; Maximize/Restore; Interview Focus presets on one and two monitors (different DPI) | Calm toolbar, no diagnostics in the Live window; popovers close with Escape and return focus; answer in a readable column when maximized; focus presets inside the work area, honest first-use dialog, Restore previous size | `Rc5LiveWindowTests`, self-test header/maximize/focus checks |
+| Q | Diagnostics | Help & about → Diagnostics → Run self-test, Copy diagnostics, Open log folder | Friendly rows, no raw errors, no tokens/transcripts in the copied text | self-test diagnostics check |
+| R | Pause / resume / variant | Pause, typed question, resume; shorter/example variant of an older item | Paused speech ignored; history continues; the variant changes that item, no new entry | engine tests |
+| S | Network | Wi-Fi off 2 s, then 10 s, during a session | No toast for 2 s; "Connection lost — reconnecting…" then "Connection restored"; transcription resumes | `UiPagesTests`, engine reconnect tests |
+| T | Stop / report | Stop | Report created and selected; minutes billed; doubtful questions listed separately | report + billing tests |
+| U | Persian / Hindi / German | Switch the UI language on every page (Get started, Pre-interview, Settings, Account signed-in and signed-out, dialogs, Live, Quick help) with an unsaved edit open | Right-to-left mirrored in Persian/Arabic; no English left; no clipped text in German/Hindi; the unsaved edit is kept | self-test fa/hi scans, `LocalizationCoverageTests` |
+| V | DPI / sizes | 125 %, 150 %, 200 % on 1366×768, 1920×1080 and 4K | Form fields line up (one field layout), nothing clipped, dialogs centred, Account/auth columns switch cleanly | `Rc5DesignSystemTests` (structure); visual check is manual |
+| W | Accessibility | Keyboard only through every page (Tab/Shift+Tab, Enter/Escape, arrows in lists and menus); Narrator/NVDA; Windows high contrast | Visible focus everywhere; dialogs and popovers trap and return focus; status changes announced; states not by colour alone | partial (self-test focus checks); manual |
+
+## Install, update, uninstall
+
+- CI on every push: `update-test.ps1` (install N, self-update to N+1, verify, uninstall with exit-code and removal
+  checks) and `upgrade-test.ps1` (published rc.4 → rc.5 Setup over it). Manual: run the rc.5 Setup on a PC that has
+  rc.4 with real data, and uninstall from Windows Settings → Apps.
