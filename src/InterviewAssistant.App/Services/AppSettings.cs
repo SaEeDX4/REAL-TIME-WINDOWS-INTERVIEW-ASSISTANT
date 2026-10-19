@@ -100,7 +100,7 @@ public sealed class AppSettings
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {
-            AppLog.Warn("Settings unreadable, using defaults: " + ex.Message);
+            AppLog.Warn("Settings unreadable, using defaults: " + AppLog.Describe(ex));
         }
         return new AppSettings();
     }
@@ -115,7 +115,7 @@ public sealed class AppSettings
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            AppLog.Warn("Could not save settings: " + ex.Message);
+            AppLog.Warn("Could not save settings: " + AppLog.Describe(ex));
         }
     }
 

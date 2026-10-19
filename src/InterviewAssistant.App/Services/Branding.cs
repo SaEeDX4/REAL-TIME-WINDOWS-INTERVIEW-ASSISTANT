@@ -23,6 +23,6 @@ public static class Branding
             CompanyName = b.GetValueOrDefault("CompanyName", CompanyName);
             SupportUrl = b.GetValueOrDefault("SupportUrl", SupportUrl);
         }
-        catch (Exception ex) when (ex is JsonException or IOException) { AppLog.Warn("branding.json ignored: " + ex.Message); }
+        catch (Exception ex) when (ex is JsonException or IOException) { AppLog.Warn("branding.json ignored: " + AppLog.Describe(ex)); }
     }
 }
