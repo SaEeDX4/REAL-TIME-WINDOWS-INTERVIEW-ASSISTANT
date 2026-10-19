@@ -272,7 +272,8 @@ public class Rc5AccountTests
         Assert.DoesNotContain("EmailBox.Text =", forgot);   // pre-filled with what was typed
         var reset = Method(cs, "private async Task RequestResetAsync(");
         Assert.Contains("PasswordResetCopy.Requested", reset);
-        Assert.Contains("_resetCts?.Cancel()", reset);       // a newer request replaces the pending wait
+        // A newer request replaces the pending wait (PendingReset.Begin cancels the previous ticket; see SecurityAuditFixTests).
+        Assert.Contains("_reset.Begin(email)", reset);
         Assert.Contains("auth_reset_link_expired", Method(cs, "private void ShowResetError("));
         Assert.Contains("dlg_retry", Method(cs, "private void ShowResetError("));
     }

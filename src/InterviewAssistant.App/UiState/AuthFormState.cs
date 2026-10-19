@@ -106,6 +106,8 @@ public sealed class AuthFormState
     public bool ShowsPasswordRules => Mode == AuthMode.CreateAccount;
     public bool ShowsLegal => Mode == AuthMode.CreateAccount;
     public bool ShowsResend => Mode == AuthMode.ForgotSent;
+    /// <summary>The password-reset screens (e-mail step or link sent). Leaving them ends the wait for the reset link.</summary>
+    public bool InResetFlow => Mode is AuthMode.ForgotPassword or AuthMode.ForgotSent;
 
     public bool CanResend(DateTimeOffset now) => Mode == AuthMode.ForgotSent && !Busy && (ResendAvailableAt is not { } at || now >= at);
 
