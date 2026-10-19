@@ -34,7 +34,7 @@ public sealed class InterviewEngine : IAsyncDisposable
     private readonly UtteranceGate _gate;
     private readonly PendingContext _pending = new();
     private readonly SpeechEvidenceTimeline _timeline = new();
-    private readonly PitchRunTracker _pitchRuns = new();   // capture thread only
+    private readonly PitchRunTracker _pitchRuns = new();   // fed on the capture thread; OpenRun read by the partial trust boundary (thread-safe)
     private long _segmentStartedAt = -1;
     /// <summary>Start of the most recent segment's evidence window (kept after speech stops: partials arrive late).</summary>
     private long _partialWindowFrom = -1;
@@ -52,6 +52,7 @@ public sealed class InterviewEngine : IAsyncDisposable
     private CancellationTokenSource? _runCts;
     private Task? _tickLoop;
     private int _nextAnswerId;
+    private int _lastAnsweredIndex = -1;   // record index of the last question whose (non-variant) answer completed
     private long _lastAudioActivityMs;
     private bool _listening, _paused, _heardAudio, _noAudioWarned;
     private string? _liveText;
@@ -116,6 +117,13 @@ public sealed class InterviewEngine : IAsyncDisposable
             // Without the segment's start (lost in a reconnect) its audio window is unknown: abstain, never judge the words
             // by a fragment of the audio.
             var evidence = _segmentStartedAt >= 0 ? _timeline.Sum(_segmentStartedAt - Options.EvidenceLeadMs, now) : SpeechEvidence.Unheard;
+            // A pitch run still open at the stop (a tone that outlasts the speech VAD) counts as the live trust boundary saw
+            // it: the final decision must not see less of a held note than the partial check did.
+            if (!evidence.Unknown)
+            {
+                var (open, openFlat, openStretch) = _pitchRuns.OpenRun();
+                evidence = evidence with { RunHops = evidence.RunHops + open, FlatRunHops = evidence.FlatRunHops + openFlat, StretchHops = evidence.StretchHops + openStretch };
+            }
             _inSegment = false; _segmentStartedAt = -1;
             _turn.OnSpeechStopped(evidence, _transcriber?.LastStoppedItemId);
         }
@@ -366,8 +374,11 @@ public sealed class InterviewEngine : IAsyncDisposable
         }
         else
         {
-            if (_dupes.IsDuplicate(question.CoreQuestion, now)) { Metrics.IncDuplicate(); Log?.Invoke("Duplicate question suppressed"); return; }
-            _dupes.Register(question.CoreQuestion, now);
+            // A follow-up is a duplicate only of the same follow-up after the same answered question: "Tell me more." after the
+            // answer to "Tell me more." is a new ask; the same transcript echoed before anything new was answered is not.
+            int? scope = verdict.Kind == UtteranceKind.FollowUp || FollowUpIntent.IsStandaloneFollowUp(question.CoreQuestion) ? Volatile.Read(ref _lastAnsweredIndex) : null;
+            if (_dupes.IsDuplicate(question.CoreQuestion, now, scope)) { Metrics.IncDuplicate(); Log?.Invoke("Duplicate question suppressed"); return; }
+            _dupes.Register(question.CoreQuestion, now, scope);
             Metrics.IncQuestions();
             // Pace: evaluated only for real, accepted interviewer questions (from when the interviewer started speaking).
             var ev = _interrupt.InterviewerSpeechStarted(turn.SpeechStartMs >= 0 ? turn.SpeechStartMs : now);
@@ -388,8 +399,8 @@ public sealed class InterviewEngine : IAsyncDisposable
         var now = _clock.NowMs;
         var from = _partialWindowFrom >= 0 ? _partialWindowFrom : now - Options.EvidenceLeadMs;
         var evidence = _timeline.Sum(from, now);
-        var (openRun, openFlat) = _pitchRuns.OpenRun();
-        evidence = evidence with { RunHops = evidence.RunHops + openRun, FlatRunHops = evidence.FlatRunHops + openFlat };
+        var (openRun, openFlat, openStretch) = _pitchRuns.OpenRun();
+        evidence = evidence with { RunHops = evidence.RunHops + openRun, FlatRunHops = evidence.FlatRunHops + openFlat, StretchHops = evidence.StretchHops + openStretch };
         var text = partial.Trim();
         if (text.Length == 0) return false;
         // Live words are shown only once the audio clearly behaves like a voice: a pitch track long enough to rule out a
@@ -397,6 +408,9 @@ public sealed class InterviewEngine : IAsyncDisposable
         // the turn, where the full evidence decides — a short real "Why?" simply appears when it is final.
         if (!evidence.PitchJudged) return false;
         if (SpeechPlausibility.Assess(text, evidence) != AcousticSupport.Strong) return false;
+        // A one- or two-word follow-up ("Go on.", "Be specific.") is judged on its whole segment (too much voicing for its
+        // syllables is only known at the end): its words appear when the segment is final, never mid-sound.
+        if (FollowUpIntent.IsVeryShortImperative(text)) return false;
         // Prompt echoes are short reproductions of the prompt; long voiced partials are not worth the comparison cost.
         return TextNormalizer.WordCount(text) > 80 || !_gate.Echo.Check(text, evidence).IsEcho;
     }
@@ -498,6 +512,11 @@ public sealed class InterviewEngine : IAsyncDisposable
         var t0 = _clock.NowMs;
         var cls = QuestionClassifier.Classify(question, _kb.Context, _evidence);
         var match = _matcher.Match(question);
+        // A follow-up with no topic of its own ("Walk me through the process.") is about the previous answer: a prepared
+        // answer to some other question ("Tell me about yourself.") must not ground it. Prepared follow-up answers stay.
+        if (cls.IsFollowUp && match.Question is { } matched && !string.Equals(matched.Category, "FOLLOW_UP", StringComparison.OrdinalIgnoreCase) &&
+            (FollowUpIntent.IsStandaloneFollowUp(question) || UtteranceGate.IsEllipticalAsk(question)))
+            match = new MatchResult(null, 0, MatchConfidence.None, null, 0);
         var matchMs = _clock.NowMs - t0;
 
         // Language: detect per question (falls back to the locked interview language); memory is NOT reset on switches.
@@ -695,6 +714,7 @@ public sealed class InterviewEngine : IAsyncDisposable
                 record.CoachKeywords = view.Coach?.Keywords.ToList() ?? new();
                 record.Confidence = view.Confidence.ToString();
                 record.QualityFlags = view.ValidationFlags.Where(f => f.StartsWith("QUALITY_") || f.StartsWith("DROPPED_") || f.StartsWith("BRIDGE_")).Select(f => f.Split(':')[0]).Distinct().ToList();
+                if (!isVariant && bullets.Count > 0) Volatile.Write(ref _lastAnsweredIndex, record.Index);
             }
             // Only answers to heard questions inform the pace heuristic (typed questions and variants never do).
             if (firstBullet >= 0 && kind == AnswerKind.Live && !view.Superseded)
