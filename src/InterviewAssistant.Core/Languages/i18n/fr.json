@@ -886,7 +886,7 @@
  "pf_skipped_service": "Ignoré — nécessite le service. Les réponses préparées fonctionnent toujours.",
  "pf_skipped_sign_in": "Ignoré — nécessite une connexion. Les réponses préparées fonctionnent toujours.",
  "pf_skipped_unreachable": "Ignoré — le service est injoignable.",
- "pf_no_minutes": "{0} — plus de minutes en direct. Mettez à niveau dans Accueil → Compte.",
+ "pf_no_minutes": "{0} — plus de minutes en direct. Passez à un forfait supérieur.",
  "pf_device_registered": "ce PC est enregistré",
  "pf_account_ok": "{0} · {1} · {2} min restantes sur cette période · {3} min disponibles aujourd'hui · {4}",
  "pf_account_today_used": "{0} · {1} — la limite quotidienne de minutes en direct est atteinte (réinitialisation à 00:00 UTC). Les questions saisies fonctionnent toujours.",

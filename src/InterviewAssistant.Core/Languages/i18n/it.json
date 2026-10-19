@@ -886,7 +886,7 @@
  "pf_skipped_service": "Saltato — richiede il servizio. Le risposte preparate funzionano ancora.",
  "pf_skipped_sign_in": "Saltato — richiede l'accesso. Le risposte preparate funzionano ancora.",
  "pf_skipped_unreachable": "Saltato — il servizio non è raggiungibile.",
- "pf_no_minutes": "{0} — nessun minuto live rimanente. Aggiorna il piano in Home → Account.",
+ "pf_no_minutes": "{0} — nessun minuto live rimanente. Aggiorna il piano.",
  "pf_device_registered": "questo PC è registrato",
  "pf_account_ok": "{0} · {1} · {2} min rimanenti in questo periodo · {3} min disponibili oggi · {4}",
  "pf_account_today_used": "{0} · {1} — il limite di minuti live di oggi è esaurito (si azzera alle 00:00 UTC). Le domande scritte funzionano ancora.",

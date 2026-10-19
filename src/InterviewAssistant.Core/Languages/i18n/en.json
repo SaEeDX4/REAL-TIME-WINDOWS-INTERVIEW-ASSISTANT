@@ -886,7 +886,7 @@
  "pf_skipped_service": "Skipped — needs the service. Prepared answers still work.",
  "pf_skipped_sign_in": "Skipped — needs sign-in. Prepared answers still work.",
  "pf_skipped_unreachable": "Skipped — the service is unreachable.",
- "pf_no_minutes": "{0} — no live minutes left. Upgrade in Home → Account.",
+ "pf_no_minutes": "{0} — no live minutes left. Upgrade your plan.",
  "pf_device_registered": "this PC is registered",
  "pf_account_ok": "{0} · {1} · {2} min left this period · {3} min available today · {4}",
  "pf_account_today_used": "{0} · {1} — today's live-minute limit is used up (resets 00:00 UTC). Typed questions still work.",

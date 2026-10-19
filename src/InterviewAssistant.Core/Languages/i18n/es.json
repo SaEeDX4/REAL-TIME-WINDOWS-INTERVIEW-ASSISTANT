@@ -886,7 +886,7 @@
  "pf_skipped_service": "Omitido — requiere el servicio. Las respuestas preparadas siguen funcionando.",
  "pf_skipped_sign_in": "Omitido — requiere iniciar sesión. Las respuestas preparadas siguen funcionando.",
  "pf_skipped_unreachable": "Omitido — no se puede conectar con el servicio.",
- "pf_no_minutes": "{0} — no quedan minutos en vivo. Mejora tu plan en Inicio → Cuenta.",
+ "pf_no_minutes": "{0} — no quedan minutos en vivo. Mejora tu plan.",
  "pf_device_registered": "este PC está registrado",
  "pf_account_ok": "{0} · {1} · quedan {2} min en este periodo · {3} min disponibles hoy · {4}",
  "pf_account_today_used": "{0} · {1} — has agotado el límite diario de minutos en vivo (se restablece a las 00:00 UTC). Las preguntas escritas siguen funcionando.",

@@ -886,7 +886,7 @@
  "pf_skipped_service": "Übersprungen — erfordert den Dienst. Vorbereitete Antworten funktionieren weiterhin.",
  "pf_skipped_sign_in": "Übersprungen — erfordert eine Anmeldung. Vorbereitete Antworten funktionieren weiterhin.",
  "pf_skipped_unreachable": "Übersprungen — der Dienst ist nicht erreichbar.",
- "pf_no_minutes": "{0} — keine Live-Minuten mehr. Upgrade unter Startseite → Konto.",
+ "pf_no_minutes": "{0} — keine Live-Minuten mehr. Wählen Sie einen höheren Tarif.",
  "pf_device_registered": "dieser PC ist registriert",
  "pf_account_ok": "{0} · {1} · noch {2} Min. in diesem Zeitraum · heute {3} Min. verfügbar · {4}",
  "pf_account_today_used": "{0} · {1} — das heutige Live-Minuten-Limit ist aufgebraucht (Zurücksetzung um 00:00 UTC). Eingetippte Fragen funktionieren weiterhin.",
