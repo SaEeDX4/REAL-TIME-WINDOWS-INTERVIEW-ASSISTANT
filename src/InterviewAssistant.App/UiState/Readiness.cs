@@ -25,16 +25,27 @@ public sealed record ReadinessSnapshot(IReadOnlyList<ReadinessCheckResult> Check
     public int Passed => Checks.Count(c => c.Outcome == CheckOutcome.Pass);
     public int Warnings => Checks.Count(c => c.Outcome == CheckOutcome.Warning);
     public int Failed => Checks.Count(c => c.Outcome == CheckOutcome.Fail);
+    /// <summary>Optional tests the user has not run yet (neither passed nor warning).</summary>
+    public int NotTested => Checks.Count(c => c.Outcome == CheckOutcome.NotTested);
+    /// <summary>The checks that count for "n of m checks passed" (all of them minus the optional tests not run).</summary>
+    public int Required => Total - NotTested;
+
+    /// <summary>A result older than this is "Out of date": the meeting, the network or the plan may have changed since.</summary>
+    public static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(30);
     public bool IsRunning => Checks.Any(c => c.Outcome == CheckOutcome.Pending);
 
     public ReadinessCheckResult? Get(ReadinessCheckId id) => Checks.FirstOrDefault(c => c.Id == id);
 
-    /// <summary>The state for <paramref name="currentContext"/> (what is selected now).</summary>
-    public ReadinessState StateFor(string currentContext)
+    /// <summary>
+    /// The state for <paramref name="currentContext"/> (what is selected now). With <paramref name="now"/>, a finished
+    /// result older than <see cref="MaxAge"/> is <see cref="ReadinessState.Outdated"/>.
+    /// </summary>
+    public ReadinessState StateFor(string currentContext, DateTimeOffset? now = null)
     {
         if (Checks.Count == 0) return ReadinessState.NotChecked;
         if (IsRunning) return ReadinessState.Checking;
         if (!string.Equals(Context, currentContext, StringComparison.Ordinal)) return ReadinessState.Outdated;
+        if (now is { } t && CheckedAt is { } at && t - at > MaxAge) return ReadinessState.Outdated;
         if (Checks.Count < Total) return ReadinessState.NotChecked;
         return ReadinessVerdict.Evaluate(Checks.Select(c => c.Outcome)) switch
         {
@@ -94,27 +105,45 @@ public sealed class ReadinessStore
     /// <summary>Records one check result (a later result for the same check replaces the earlier one).</summary>
     public void Report(ReadinessCheckResult result)
     {
-        ReadinessSnapshot next;
-        lock (_gate)
+        lock (_publishGate)   // read-modify-write as one step: two writers never lose each other's result
         {
-            var list = _snapshot.Checks.Where(c => c.Id != result.Id).Append(result).OrderBy(c => c.Id).ToList();
-            var done = list.Count == _snapshot.Total && list.All(c => c.Outcome != CheckOutcome.Pending);
-            next = _snapshot with { Checks = list, CheckedAt = done ? _now() : _snapshot.CheckedAt };
+            ReadinessSnapshot next;
+            lock (_gate)
+            {
+                var list = _snapshot.Checks.Where(c => c.Id != result.Id).Append(result).OrderBy(c => c.Id).ToList();
+                var done = list.Count == _snapshot.Total && list.All(c => c.Outcome != CheckOutcome.Pending);
+                next = _snapshot with { Checks = list, CheckedAt = done ? _now() : _snapshot.CheckedAt };
+            }
+            Publish(next);
         }
-        Publish(next);
     }
 
     /// <summary>Forgets every result (sign-out: readiness belonged to the previous account).</summary>
     public void Clear() => Publish(ReadinessSnapshot.Empty);
 
+    /// <summary>
+    /// What the checks depend on changed (settings saved, interview re-prepared, profile saved): every surface
+    /// re-renders, and a result for the old revision now reads "Out of date".
+    /// </summary>
+    public void Touch() => Publish(Snapshot);
+
+    private readonly object _publishGate = new();
+
     private void Publish(ReadinessSnapshot s)
     {
-        lock (_gate) _snapshot = s;
-        Changed?.Invoke(s);
+        // Writers are serialized and listeners receive the snapshots in the order they were stored.
+        lock (_publishGate)
+        {
+            lock (_gate) _snapshot = s;
+            Changed?.Invoke(s);
+        }
     }
 
-    /// <summary>The context string the checks are bound to: who, which interview, which audio device.</summary>
-    public static string ContextOf(string? accountId, string? targetId, string? deviceId) => $"{accountId}|{targetId}|{deviceId}";
+    /// <summary>
+    /// The context string the checks are bound to: who, which interview, which audio device, and the revision of what
+    /// else they depend on (prepared answers, settings) — a change of any part makes a result "Out of date".
+    /// </summary>
+    public static string ContextOf(string? accountId, string? targetId, string? deviceId, int revision = 0) => $"{accountId}|{targetId}|{deviceId}|{revision}";
 }
 
 /// <summary>Steps of the Get started dashboard.</summary>

@@ -1,6 +1,11 @@
 namespace InterviewAssistant.App.UiState;
 
-public enum CheckOutcome { Pending, Pass, Warning, Fail }
+/// <summary>
+/// One check's result. <see cref="NotTested"/> is a test only the user can run with real meeting audio (the
+/// transcription test through the service): it is offered with its action but neither passes nor warns, so a fully
+/// working setup can still reach "Ready".
+/// </summary>
+public enum CheckOutcome { Pending, Pass, Warning, Fail, NotTested }
 
 public enum VerdictKind { Checking, Ready, ReadyWithWarnings, NotReady }
 

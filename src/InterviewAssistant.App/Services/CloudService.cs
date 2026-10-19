@@ -125,6 +125,7 @@ public sealed class CloudService
     public async Task<bool> RefreshAsync(CancellationToken ct)
     {
         if (Api == null) return false;
+        var (stateBefore, messageBefore) = (State, Message);
         if (State is CloudState.ServiceUnavailable or CloudState.SignedOut or CloudState.SessionExpired && IsSignedIn) SetState(CloudState.Connecting, Loc.T("acct_connecting"));
         try
         {
@@ -150,6 +151,21 @@ public sealed class CloudService
             var (state, message) = Classify(ex);
             if (state == CloudState.SignedOut && Auth != null) { Auth.SignOutLocal(); Account = null; }
             SetState(state, message);
+            return false;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // The caller gave up (page left, health check limit): nothing was learned — never leave "Connecting…" behind.
+            if (State == CloudState.Connecting) SetState(stateBefore, messageBefore);
+            return false;
+        }
+        catch (Exception ex) when (ex is AuthException or System.Text.Json.JsonException or NotSupportedException or HttpRequestException or TimeoutException or OperationCanceledException)
+        {
+            // The sign-in token could not be renewed (network, sign-in service down) or the answer was not the service's
+            // (a captive Wi-Fi login page): the service is unreachable for now, the account stays signed in.
+            LastRefreshError = ex;
+            AppLog.Warn($"Cloud refresh failed: {(ex as AuthException)?.Code ?? ex.GetType().Name}");
+            SetState(CloudState.ServiceUnavailable, Describe(ex));
             return false;
         }
     }

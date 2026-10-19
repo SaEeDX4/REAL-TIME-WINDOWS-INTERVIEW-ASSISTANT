@@ -761,6 +761,7 @@ public partial class HomeWindow : Window
             _vm.UseKnowledge(kb, label);
         }
         _profileGuard.MarkClean();
+        _vm.InvalidateReadiness();   // prepared interviews of this profile became stale
         var saved = _profile;
         RefreshProfiles(saved.Id);       // labels and counts; the saved record stays on screen
         RefreshTargets(_target?.Id);     // preparation states may have become stale
@@ -987,6 +988,7 @@ public partial class HomeWindow : Window
         finally
         {
             store.SaveTarget(t);
+            _vm.InvalidateReadiness();   // prepared (or failed): the last pre-interview result described the old preparation
             if (_target?.Id == t.Id) _target = t;
             RefreshTargets(t.Id);
             RefreshChecklist();

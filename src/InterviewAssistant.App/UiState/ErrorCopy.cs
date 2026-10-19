@@ -50,6 +50,8 @@ public static class ErrorCopy
         AuthException a => a.Message,
         TimeoutException or TaskCanceledException => Loc.T("svc_timeout"),
         HttpRequestException => Loc.T("svc_unreachable"),
+        // not the service's answer (a captive Wi-Fi login page, a proxy error page): the service is not reachable from here
+        System.Text.Json.JsonException or NotSupportedException => Loc.T("svc_unreachable"),
         _ => Loc.T("err_generic"),
     };
 

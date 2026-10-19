@@ -13,7 +13,7 @@ public static class ReadinessPresentation
         CheckOutcome.Warning => ReadinessState.ReadyWithWarnings,
         CheckOutcome.Fail => ReadinessState.NotReady,
         CheckOutcome.Pending => ReadinessState.Checking,
-        _ => ReadinessState.NotChecked,
+        _ => ReadinessState.NotChecked,   // no result yet, or an optional test not run (neutral grey)
     };
 
     /// <summary>Badge text of one check (PASS / WARNING / FAIL are the words the page subtitle explains).</summary>
@@ -23,6 +23,7 @@ public static class ReadinessPresentation
         CheckOutcome.Warning => "pf_warning",
         CheckOutcome.Fail => "pf_fail",
         CheckOutcome.Pending => "pf_checking",
+        CheckOutcome.NotTested => "rd_status_not_tested",
         _ => "rd_state_not_checked",
     };
 
@@ -100,6 +101,23 @@ public static class ReadinessPresentation
     /// </summary>
     public static int ShownPassed(ReadinessSnapshot s, string currentContext) =>
         s.Checks.Count > 0 && (s.IsRunning || string.Equals(s.Context, currentContext, StringComparison.Ordinal)) ? s.Passed : 0;
+
+    /// <summary>
+    /// The summary line every surface shows ("7 of 8 checks passed"; with an optional test not run yet:
+    /// "7 of 7 checks passed · 1 optional test to run"): key and arguments, one helper for the page, Home and Live.
+    /// </summary>
+    public static (string Key, object[] Args) Summary(ReadinessSnapshot s, string currentContext)
+    {
+        var passed = ShownPassed(s, currentContext);
+        var current = s.Checks.Count > 0 && (s.IsRunning || string.Equals(s.Context, currentContext, StringComparison.Ordinal));
+        return current && s.NotTested > 0
+            ? ("rd_summary_passed_untested", new object[] { passed, s.Required, s.NotTested })
+            : ("rd_summary_passed", new object[] { passed, s.Total });
+    }
+
+    /// <summary>Optional tests still to run (shown under "Ready" as a gentle to-do, never as a warning).</summary>
+    public static IReadOnlyList<ReadinessCheckResult> NotTestedYet(ReadinessSnapshot s) =>
+        s.Checks.Where(c => c.Outcome == CheckOutcome.NotTested).OrderBy(c => c.Id).ToList();
 
     /// <summary>The checks that block the interview (FAIL), in page order.</summary>
     public static IReadOnlyList<ReadinessCheckResult> Blockers(ReadinessSnapshot s) =>

@@ -90,6 +90,78 @@ public class Rc5ReadinessTests
         Assert.Single(seenByPage.Checks, c => c.Id == ReadinessCheckId.AudioSignal);
     }
 
+    [Fact]
+    public void CloudTranscriptionNotTestedYet_IsStillReady_AndTheSummarySaysWhatIsOptional()
+    {
+        // rc.5 UX audit H1: transcription can only be proven with real meeting audio, so it is an optional test —
+        // a fully working account setup reaches "Ready", never a permanent "Ready with warnings".
+        var s = Run((ReadinessCheckId.Transcription, CheckOutcome.NotTested)).Snapshot;
+        Assert.Equal(ReadinessState.Ready, s.StateFor(Ctx));
+        Assert.Equal(7, s.Passed);
+        Assert.Equal(7, s.Required);
+        var (key, args) = ReadinessPresentation.Summary(s, Ctx);
+        Assert.Equal("rd_summary_passed_untested", key);
+        Assert.Equal(new object[] { 7, 7, 1 }, args);
+        Assert.Single(ReadinessPresentation.NotTestedYet(s));
+        Assert.Empty(ReadinessPresentation.Warnings(s));
+        Assert.Equal("rd_status_not_tested", ReadinessPresentation.StatusKey(CheckOutcome.NotTested));
+    }
+
+    [Fact]
+    public void NotTestedNextToAFailure_IsStillNotReady()
+    {
+        var s = Run((ReadinessCheckId.Transcription, CheckOutcome.NotTested), (ReadinessCheckId.AccountPlan, CheckOutcome.Fail)).Snapshot;
+        Assert.Equal(ReadinessState.NotReady, s.StateFor(Ctx));
+    }
+
+    [Fact]
+    public void AllPassed_SummaryIsNOfEight()
+    {
+        var (key, args) = ReadinessPresentation.Summary(Run().Snapshot, Ctx);
+        Assert.Equal("rd_summary_passed", key);
+        Assert.Equal(new object[] { 8, 8 }, args);
+        // a result for something else never shows its numbers
+        Assert.Equal(new object[] { 0, 8 }, ReadinessPresentation.Summary(Run().Snapshot, "other").Args);
+    }
+
+    [Fact]
+    public void AnOldResult_IsOutOfDate()
+    {
+        // rc.5 UX audit H3: "Ready" from yesterday morning says nothing about this meeting.
+        var s = Run().Snapshot;
+        var checkedAt = s.CheckedAt!.Value;
+        Assert.Equal(ReadinessState.Ready, s.StateFor(Ctx, checkedAt + TimeSpan.FromMinutes(29)));
+        Assert.Equal(ReadinessState.Outdated, s.StateFor(Ctx, checkedAt + ReadinessSnapshot.MaxAge + TimeSpan.FromSeconds(1)));
+        Assert.True(ReadinessPresentation.ShouldAutoRun(ReadinessState.Outdated));
+    }
+
+    [Fact]
+    public void SavedSettingsOrProfile_MakeTheResultOutOfDate_ThroughTheRevision()
+    {
+        var before = ReadinessStore.ContextOf("user", "target", "device", revision: 3);
+        var after = ReadinessStore.ContextOf("user", "target", "device", revision: 4);
+        Assert.NotEqual(before, after);
+        var store = new ReadinessStore();
+        store.Begin(before);
+        foreach (var id in Enum.GetValues<ReadinessCheckId>()) store.Report(new ReadinessCheckResult(id, CheckOutcome.Pass));
+        Assert.Equal(ReadinessState.Ready, store.Snapshot.StateFor(before));
+        Assert.Equal(ReadinessState.Outdated, store.Snapshot.StateFor(after));
+        ReadinessSnapshot? seen = null;
+        store.Changed += x => seen = x;
+        store.Touch();   // surfaces re-render with the new context
+        Assert.Same(store.Snapshot, seen);
+    }
+
+    [Fact]
+    public void ConcurrentReports_AreNeverLost()
+    {
+        // error-state audit L1: probes report from thread-pool continuations
+        var store = new ReadinessStore();
+        store.Begin(Ctx);
+        Parallel.ForEach(Enum.GetValues<ReadinessCheckId>(), id => store.Report(new ReadinessCheckResult(id, CheckOutcome.Pass)));
+        Assert.Equal(8, store.Snapshot.Passed);
+    }
+
     [Theory]
     [InlineData(ReadinessState.Ready, "rd_state_ready")] [InlineData(ReadinessState.ReadyWithWarnings, "rd_state_warnings")]
     [InlineData(ReadinessState.NotReady, "rd_state_not_ready")] [InlineData(ReadinessState.NotChecked, "rd_state_not_checked")]

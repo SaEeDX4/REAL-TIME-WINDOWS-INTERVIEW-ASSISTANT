@@ -72,14 +72,13 @@ public partial class MainWindow
     /// <summary>Re-renders the indicator from the one readiness snapshot (state, colour, tooltip with the counts).</summary>
     private void RefreshReadiness()
     {
-        var snap = _vm.Readiness.Snapshot;
-        var state = snap.StateFor(_vm.ReadinessContext);
+        var state = _vm.ReadinessState;
         var label = Loc.T(ReadinessSnapshot.StateKey(state));
         ReadinessDot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, ReadinessSnapshot.BrushKey(state));
         ReadinessLabel.Text = label;
         var tip = state is ReadinessState.NotChecked or ReadinessState.Outdated
             ? Loc.F("live_rd_tt_run", label)
-            : Loc.F("live_rd_tt", label, snap.Passed, snap.Total);
+            : Loc.F("live_rd_tt", label, Views.PreInterviewPage.SummaryText(_vm));
         ReadinessBtn.ToolTip = tip;
         AutomationProperties.SetName(ReadinessBtn, tip);
     }

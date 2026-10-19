@@ -394,6 +394,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         Knowledge = kb;
         ActiveLabel = label;
         BuildEngine();
+        InvalidateReadiness();   // the prepared answers the checks looked at were replaced
         AppLog.Info($"Knowledge loaded: {kb.Questions.Count} prepared questions, {kb.Stories.Count} stories, {kb.Snippets.Count} snippets ({(kb.Questions.Count == 0 ? "generic" : "target pack")})");
     }
 
@@ -432,8 +433,20 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     /// <summary>The one readiness snapshot every surface shows (pre-interview page, Get started, Interviews, indicators).</summary>
     public UiState.ReadinessStore Readiness { get; } = new();
     /// <summary>What a readiness result is valid for: this account, the active interview and the playback device.</summary>
-    public string ReadinessContext => UiState.ReadinessStore.ContextOf(CurrentOwner, ActiveTargetId, Settings.PlaybackDeviceId);
-    public UiState.ReadinessState ReadinessState => Readiness.Snapshot.StateFor(ReadinessContext);
+    public string ReadinessContext => UiState.ReadinessStore.ContextOf(CurrentOwner, ActiveTargetId, Settings.PlaybackDeviceId, _readinessRevision);
+    /// <summary>The state every surface shows: for what is selected now, and "Out of date" once a result is older than 30 minutes.</summary>
+    public UiState.ReadinessState ReadinessState => Readiness.Snapshot.StateFor(ReadinessContext, DateTimeOffset.Now);
+    private int _readinessRevision;
+
+    /// <summary>
+    /// Something a finished pre-interview result depends on changed — prepared answers loaded or re-prepared, the profile
+    /// saved, settings applied (window on top, device): the result becomes "Out of date" everywhere at once.
+    /// </summary>
+    public void InvalidateReadiness()
+    {
+        Interlocked.Increment(ref _readinessRevision);
+        Readiness.Touch();
+    }
 
     /// <summary>Selects the interview used by the Live Assistant (stored per account workspace).</summary>
     public void SetActive(string? profileId, string? targetId)

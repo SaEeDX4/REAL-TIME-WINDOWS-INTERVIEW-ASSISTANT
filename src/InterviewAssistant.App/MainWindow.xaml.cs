@@ -287,6 +287,7 @@ public partial class MainWindow : Window
             }
             else _vm.BuildEngine();
         }
+        _vm.InvalidateReadiness();   // window on top, device or models may have changed: the last check no longer describes this setup
         SettingsApplied?.Invoke();
     }
 

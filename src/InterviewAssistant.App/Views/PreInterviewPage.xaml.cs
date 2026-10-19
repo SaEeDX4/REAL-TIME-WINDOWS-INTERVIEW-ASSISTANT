@@ -42,8 +42,11 @@ public sealed record ReadinessLine(string Icon, Brush Brush, string Text);
 /// <summary>
 /// The pre-interview check as a Home page. Runs the production probes (capture, account, transcription, answer
 /// engine) and writes every result to the one <see cref="ReadinessStore"/> (vm.Readiness); the page renders FROM the
-/// store, so Get started, the Interviews summary and the indicators always show the same thing. Leaving the page or
-/// closing Home cancels open-ended probes; a run cut short is forgotten (Not checked) rather than left "Checking".
+/// store, so Get started, the Interviews summary and the indicators always show the same thing. A run is bounded
+/// (about 15 s) and finishes even when the user leaves the page (e.g. through a row's own fix button); closing Home
+/// cancels it, and a run cut short is forgotten (Not checked) rather than left "Checking". Every failure — offline,
+/// an expired sign-in that cannot be renewed, a captive Wi-Fi page — ends the pending checks with a reason. No check
+/// runs while an interview is live (the AI and transcription tests would compete with the session).
 /// </summary>
 public partial class PreInterviewPage : UserControl
 {
@@ -56,7 +59,7 @@ public partial class PreInterviewPage : UserControl
     private CancellationTokenSource? _toolCts, _signalCts, _runCts;
     private int _generation;
     private string _runContext = "";
-    private bool _running, _shown, _rerunPending;
+    private bool _running, _shown;
     private ReadinessState _loggedState = ReadinessState.NotChecked;
 
     /// <summary>A fix needs another Home page ("settings/audio", "account", "interviews").</summary>
@@ -97,29 +100,31 @@ public partial class PreInterviewPage : UserControl
 
     // ================= page lifecycle =================
 
-    /// <summary>The page became visible: run the checks when there is no current result (or settings changed meanwhile).</summary>
+    /// <summary>The page became visible: run the checks when there is no current result (none yet, or out of date).</summary>
     public void OnShown()
     {
         _shown = true;
         Render();
-        if (!_running && (_rerunPending || ReadinessPresentation.ShouldAutoRun(State))) _ = RunAllAsync();
+        if (!_running && !_vm.SessionActive && ReadinessPresentation.ShouldAutoRun(State)) _ = RunAllAsync();
     }
 
-    /// <summary>The user went to another page: open-ended probes stop; a finished result stays.</summary>
+    /// <summary>
+    /// The user went to another page (often through a row's own fix button): a running test tool stops, the bounded run
+    /// finishes into the store so every surface still gets its result.
+    /// </summary>
     public void OnHidden()
     {
         _shown = false;
-        Cancel();
+        if (_toolCts is { IsCancellationRequested: false }) { _toolCts.Cancel(); ShowResult(false, T("rd_tool_stopped")); }
     }
 
-    /// <summary>Saved settings (e.g. another audio device) are checked again — now when the page is open, else when it is shown next.</summary>
+    /// <summary>Saved settings make the last result "Out of date" (see MainWindow.ApplySettings); an open page checks again at once.</summary>
     private void OnSettingsApplied() => Dispatcher.BeginInvoke(() =>
     {
-        if (_shown) { if (!_running) _ = RunAllAsync(); }
-        else if (_vm.Readiness.Snapshot.Checks.Count > 0) _rerunPending = true;
+        if (_shown && !_running && !_vm.SessionActive) _ = RunAllAsync();
     });
 
-    /// <summary>Cancels tools, the signal listener and an unfinished run (whose results are dropped).</summary>
+    /// <summary>Home is closing: cancels tools, the signal listener and an unfinished run (whose results are dropped).</summary>
     private void Cancel()
     {
         _toolCts?.Cancel(); _signalCts?.Cancel(); _runCts?.Cancel();
@@ -143,7 +148,7 @@ public partial class PreInterviewPage : UserControl
     private void OnStoreChanged(ReadinessSnapshot s)
     {
         if (!Dispatcher.CheckAccess()) { Dispatcher.BeginInvoke(() => OnStoreChanged(s)); return; }
-        var now = s.StateFor(_vm.ReadinessContext);
+        var now = _vm.ReadinessState;
         if (ReadinessPresentation.TransitionLog(_loggedState, now, s) is { } line) AppLog.Info(line);
         _loggedState = now;
         Render();
@@ -185,15 +190,15 @@ public partial class PreInterviewPage : UserControl
     /// <summary>"7 of 8 checks passed" for what is selected now (shared by every readiness surface).</summary>
     public static string SummaryText(MainViewModel vm)
     {
-        var s = vm.Readiness.Snapshot;
-        return Loc.F("rd_summary_passed", ReadinessPresentation.ShownPassed(s, vm.ReadinessContext), s.Total);
+        var (key, args) = ReadinessPresentation.Summary(vm.Readiness.Snapshot, vm.ReadinessContext);
+        return Loc.F(key, args);
     }
 
     private void Render()
     {
         if (_vm == null) return;
         var snap = _vm.Readiness.Snapshot;
-        var state = snap.StateFor(_vm.ReadinessContext);
+        var state = _vm.ReadinessState;
         var cloud = _vm.UsingCloud;
         var current = snap.Checks.Count > 0 && snap.Context == _vm.ReadinessContext;
         foreach (var row in _rows)
@@ -205,7 +210,7 @@ public partial class PreInterviewPage : UserControl
             row.Status = T(ReadinessPresentation.StatusKey(r?.Outcome));
             row.Icon = ReadinessPresentation.Icon(rs);
             row.Brush = BrushFor(rs);
-            row.Fix = r?.Outcome is CheckOutcome.Warning or CheckOutcome.Fail ? r.Fix : ReadinessFix.None;
+            row.Fix = r?.Outcome is CheckOutcome.Warning or CheckOutcome.Fail or CheckOutcome.NotTested ? r.Fix : ReadinessFix.None;
             row.FixLabel = ReadinessPresentation.FixLabelKey(row.Fix) is { } k ? T(k) : "";
         }
 
@@ -219,10 +224,12 @@ public partial class PreInterviewPage : UserControl
         SummaryHint.Text = T(ReadinessPresentation.HintKey(state));
 
         // Not ready: what blocks (and how to fix it). Ready with warnings: the optional improvements.
+        // Ready (all required checks passed): an optional test not run yet is a gentle to-do, never a warning.
         var lines = state switch
         {
             ReadinessState.NotReady => ReadinessPresentation.Blockers(snap),
-            ReadinessState.ReadyWithWarnings => ReadinessPresentation.Warnings(snap),
+            ReadinessState.ReadyWithWarnings => ReadinessPresentation.Warnings(snap).Concat(ReadinessPresentation.NotTestedYet(snap)).ToList(),
+            ReadinessState.Ready => ReadinessPresentation.NotTestedYet(snap),
             _ => Array.Empty<ReadinessCheckResult>(),
         };
         BlockersPanel.Visibility = lines.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -246,8 +253,8 @@ public partial class PreInterviewPage : UserControl
     public async Task RunAllAsync()
     {
         if (_running || _vm == null) return;
+        if (_vm.SessionActive) { BeginTool(T("pf_title")); ToolOutput.Text = T("rd_session_active"); return; }
         _running = true;
-        _rerunPending = false;
         var gen = ++_generation;
         _runCts?.Cancel();
         var cts = _runCts = new CancellationTokenSource();
@@ -256,9 +263,10 @@ public partial class PreInterviewPage : UserControl
         try
         {
             await CheckLocalAsync(gen);
+            if (gen != _generation) return;   // replaced or cancelled meanwhile: a stale run never touches the new one
             if (_vm.UsingCloud) { await RunCloudChecksAsync(gen, cts.Token); return; }
             var key = SecretStore.GetApiKey();
-            var signalTask = CheckSignalAsync(gen, TimeSpan.FromSeconds(10));
+            var signalTask = CheckSignalAsync(gen, TimeSpan.FromSeconds(10), cts.Token);
             Busy(gen, ReadinessCheckId.AccountPlan, T("pf_busy_key"));
             var auth = await OpenAiAuthProbe.CheckAsync(key);
             if (gen != _generation) return;
@@ -281,6 +289,13 @@ public partial class PreInterviewPage : UserControl
             await signalTask;
         }
         catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            // Offline, a sign-in that cannot be renewed, a captive Wi-Fi page, a provider error: every check this run
+            // still owes ends as a failure with a reason (never "Checking…" forever). Details go to the log only.
+            AppLog.Warn($"Pre-interview check stopped: {ex.GetType().Name}");
+            FailPending(gen, UiState.ErrorCopy.Describe(ex, includeReference: false));
+        }
         finally
         {
             if (gen == _generation) _running = false;
@@ -288,10 +303,24 @@ public partial class PreInterviewPage : UserControl
         }
     }
 
+    /// <summary>Ends every still-pending check of run <paramref name="gen"/> as a failure with <paramref name="reason"/>.</summary>
+    private void FailPending(int gen, string reason)
+    {
+        foreach (var c in _vm.Readiness.Snapshot.Checks.Where(c => c.Outcome == CheckOutcome.Pending).ToList())
+            Fail(gen, c.Id, reason, c.Id switch
+            {
+                ReadinessCheckId.AccountPlan => ReadinessFix.OpenAccount,
+                ReadinessCheckId.Transcription => ReadinessFix.TestTranscription,
+                ReadinessCheckId.AnswerEngine => ReadinessFix.TestAi,
+                ReadinessCheckId.AudioSignal => ReadinessFix.TestAudio,
+                _ => ReadinessFix.None,
+            });
+    }
+
     /// <summary>Account mode: entitlements from the server, answer test through the server proxy (typed-question path, no live minutes).</summary>
     private async Task RunCloudChecksAsync(int gen, CancellationToken ct)
     {
-        var signalTask = CheckSignalAsync(gen, TimeSpan.FromSeconds(10));
+        var signalTask = CheckSignalAsync(gen, TimeSpan.FromSeconds(10), ct);
         const ReadinessCheckId Acct = ReadinessCheckId.AccountPlan, Answer = ReadinessCheckId.AnswerEngine, Stt = ReadinessCheckId.Transcription;
         Busy(gen, Acct, T("pf_busy_account"));
         var refreshed = _vm.Cloud.IsSignedIn && await _vm.Cloud.RefreshAsync(ct);
@@ -340,7 +369,8 @@ public partial class PreInterviewPage : UserControl
                     else Fail(gen, Answer, Loc.Relocalize(answer.Note) ?? T("err_unknown"), ReadinessFix.TestAi);
                 }
                 catch (Exception ex) when (ex is ProviderException or InvalidOperationException or Client.BackendException) { Fail(gen, Answer, CloudService.Describe(ex), ReadinessFix.TestAi); }
-                Warn(gen, Stt, T("pf_stt_run_test"), ReadinessFix.TestTranscription);
+                // Live transcription is only proven with real meeting audio: an optional test the user runs (neither PASS nor WARNING).
+                Report(gen, Stt, CheckOutcome.NotTested, T("pf_stt_run_test"), ReadinessFix.TestTranscription);
             }
             else
             {
@@ -400,11 +430,11 @@ public partial class PreInterviewPage : UserControl
     /// a WARNING (the meeting may simply be silent yet), and the check keeps listening in the background so it turns
     /// PASS by itself once audio plays (or after a successful audio or transcription test).
     /// </summary>
-    private async Task CheckSignalAsync(int gen, TimeSpan window)
+    private async Task CheckSignalAsync(int gen, TimeSpan window, CancellationToken runToken)
     {
+        // Linked to this run: a test tool that proves the signal stops it, and a cancelled run stops it too.
         _signalCts?.Cancel();
-        _signalCts = new CancellationTokenSource();
-        var ct = _signalCts.Token;
+        var ct = (_signalCts = CancellationTokenSource.CreateLinkedTokenSource(runToken)).Token;
         Busy(gen, ReadinessCheckId.AudioSignal, T("pf_busy_signal"));
         try
         {
