@@ -39,7 +39,7 @@ public class LocalizationCoverageTests
     {
         ["es"] = new() { "fact_kind_personal", "channel_beta_build", "font_normal", "set_nav_audio" },
         ["pt"] = new() { "channel_beta_build", "font_normal" },
-        ["it"] = new() { "account", "password", "channel_beta_build", "set_nav_audio", "more_home", "exp_section_account", "exp_tech_account" },
+        ["it"] = new() { "account", "password", "channel_beta_build", "set_nav_audio", "exp_section_account", "exp_tech_account" },
         ["de"] = new() { "upgrade", "interviews", "report_default_label", "channel_beta_build", "about_version", "font_normal", "set_nav_audio",
                          "exp_docs_target", "exp_prev_interviews" },
         ["fr"] = new() { "question", "pause", "structure", "file_filter_documents", "fact_kind", "fact_kind_certification", "report_preview_meta",
