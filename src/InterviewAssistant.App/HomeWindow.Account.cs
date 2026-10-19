@@ -376,6 +376,7 @@ public partial class HomeWindow
                     _sections.Summary.Loaded(DateTimeOffset.Now);
                     await RefreshAccountSectionsAsync(summary: false);
                     Notify(T("toast_signed_in"), ToastKind.Success, _vm.Cloud.Account?.Email);
+                    if (!_vm.Settings.FirstRunCompleted) ShowRoute(new HomeRoute("start"));   // first run: on to step 2
                 }
             }
         }

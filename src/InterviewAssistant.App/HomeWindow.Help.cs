@@ -119,6 +119,13 @@ public partial class HomeWindow
             RenderHealthRows();
             return _healthRows;
         }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // never left on "Running…": the status says the check could not finish (details in the log only)
+            AppLog.Warn($"Health check stopped: {ex.GetType().Name}");
+            HelpDiagRunStatus.Text = T("help_diag_failed");
+            return _healthRows ?? Array.Empty<HealthRow>();
+        }
         finally
         {
             _healthRunning = false;
@@ -131,7 +138,11 @@ public partial class HomeWindow
         if (!_vm.UsingCloud) return ServiceReach.DeveloperMode;
         if (!_vm.Cloud.IsConfigured) return ServiceReach.NotConfigured;
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        var ok = await _vm.Cloud.RefreshAsync(cts.Token);
+        bool ok;
+        try { ok = await _vm.Cloud.RefreshAsync(cts.Token); }
+        catch (OperationCanceledException) { return ServiceReach.Unreachable; }
+        // a refresh cut off by the 10 s limit restores the previous state: that is "not reachable now", not "fine"
+        if (!ok && cts.IsCancellationRequested) return ServiceReach.Unreachable;
         return ok || _vm.Cloud.State is not (CloudState.ServiceUnavailable or CloudState.Connecting) ? ServiceReach.Reachable : ServiceReach.Unreachable;
     }
 

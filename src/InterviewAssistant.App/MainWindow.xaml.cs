@@ -22,6 +22,7 @@ public partial class MainWindow : Window
         _vm = new MainViewModel(Dispatcher);
         DataContext = _vm;
         _vm.Notify += (text, kind, detail) => Toasts.Show(text, detail, kind);
+        _vm.ConfirmAuthorizedUseAsync = ConfirmAuthorizedUseAsync;
         _vm.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.IsListening))
@@ -197,11 +198,12 @@ public partial class MainWindow : Window
     public async void OpenHome(string? route = null)
     {
         var target = route == null ? null : UiState.HomeRoute.Parse(route);
-        if (_home is { IsLoaded: true } home)
+        if (_home is { } home)   // also while it is still loading: a fast double click never opens a second Home
         {
-            if (target != null && !await home.NavigateAsync(target)) return;   // the user stayed with unsaved edits (asked in Home)
+            // restore first: an unsaved-changes question must never open inside a minimized window
             if (home.WindowState == WindowState.Minimized) home.WindowState = WindowState.Normal;
             home.Activate();
+            if (target != null && home.IsLoaded) await home.NavigateAsync(target);   // false = the user stayed with unsaved edits
             return;
         }
         _home = new HomeWindow(_vm, this, target) { Owner = this };

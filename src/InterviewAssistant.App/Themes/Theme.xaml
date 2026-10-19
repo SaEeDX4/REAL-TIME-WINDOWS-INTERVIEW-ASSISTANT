@@ -463,6 +463,8 @@
     <Style TargetType="PasswordBox" BasedOn="{StaticResource PasswordInput}"/>
 
     <Style TargetType="ToolTip">
+        <!-- a tool tip lives in its own popup: it reads in the direction of the control it explains (Persian, Arabic) -->
+        <Setter Property="FlowDirection" Value="{Binding PlacementTarget.FlowDirection, RelativeSource={RelativeSource Self}}"/>
         <Setter Property="Background" Value="{StaticResource B.Surface3}"/>
         <Setter Property="Foreground" Value="{StaticResource B.Text}"/>
         <Setter Property="BorderBrush" Value="{StaticResource B.Border}"/>

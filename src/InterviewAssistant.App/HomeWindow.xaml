@@ -121,8 +121,9 @@
             <!-- content -->
             <!-- Local tab scope: the page content comes before its sticky action bar (Tab order follows reading order) -->
             <DockPanel Grid.Row="1" Grid.Column="1" Margin="8,8,8,12" KeyboardNavigation.TabNavigation="Local">
+            <!-- sticky action bars are as wide as their page and start where it starts (never 850 px to the right of it) -->
             <!-- Settings: sticky save bar (explicit Save; shows when there are unsaved changes) -->
-            <Border x:Name="SettingsFooter" DockPanel.Dock="Bottom" Visibility="Collapsed" Margin="8,8,16,0" Padding="14,8" CornerRadius="{StaticResource R.Card}"
+            <Border x:Name="SettingsFooter" DockPanel.Dock="Bottom" Visibility="Collapsed" Margin="8,8,16,0" MaxWidth="{StaticResource S.ContentMaxWidth}" HorizontalAlignment="Left" Padding="14,8" CornerRadius="{StaticResource R.Card}"
                     Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
@@ -136,7 +137,7 @@
                 </DockPanel>
             </Border>
             <!-- Pre-interview check: sticky action bar (one primary: Start interview, enabled when nothing blocks) -->
-            <Border x:Name="PreInterviewFooter" DockPanel.Dock="Bottom" Visibility="Collapsed" Margin="8,8,16,0" Padding="14,8" CornerRadius="{StaticResource R.Card}"
+            <Border x:Name="PreInterviewFooter" DockPanel.Dock="Bottom" Visibility="Collapsed" Margin="8,8,16,0" MaxWidth="{StaticResource S.PageMaxWidth}" HorizontalAlignment="Left" Padding="14,8" CornerRadius="{StaticResource R.Card}"
                     Background="{StaticResource B.Surface}" BorderBrush="{StaticResource B.Border}" BorderThickness="1">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
@@ -309,7 +310,7 @@
                             <ListBox x:Name="ProfileList" Style="{StaticResource List}" MinHeight="120" MaxHeight="300" Margin="0,8,0,8" SelectionChanged="ProfileList_SelectionChanged"
                                      AutomationProperties.Name="{v:Loc profiles}"/>
                             <TextBlock x:Name="ProfilesEmpty" Style="{StaticResource Hint}" Text="{v:Loc warn_create_profile_first}" Margin="0,0,0,8" Visibility="Collapsed"/>
-                            <Button x:Name="ImportResumeBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc import_resume}" Click="NewProfile_Click" Margin="{StaticResource S.StackGap}" ToolTip="{v:Loc tt_import_resume}"/>
+                            <Button x:Name="ImportResumeBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc import_resume}" Click="NewProfile_Click" Margin="{StaticResource S.StackGap}" ToolTip="{v:Loc tt_import_resume}"/>
                             <Button x:Name="AddDocumentBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc add_document}" Click="AddResume_Click" Margin="{StaticResource S.StackGap}" ToolTip="{v:Loc tt_add_document}"/>
                             <Button x:Name="NewEmptyProfileBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc new_empty_profile}" Click="NewEmptyProfile_Click" Margin="{StaticResource S.StackGap}" ToolTip="{v:Loc tt_new_empty_profile}"/>
                             <Button x:Name="ExportProfileBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc export_ellipsis}" Click="ExportProfile_Click" Margin="{StaticResource S.StackGap}" ToolTip="{v:Loc exp_tt_export_profile}"/>
@@ -415,7 +416,7 @@
                             <TextBlock x:Name="InterviewsProfile" Style="{StaticResource Hint}"/>
                             <ListBox x:Name="TargetList" Style="{StaticResource List}" MinHeight="120" MaxHeight="300" Margin="0,8,0,8" SelectionChanged="TargetList_SelectionChanged" AutomationProperties.Name="{v:Loc interviews}"/>
                             <TextBlock x:Name="InterviewsEmpty" Style="{StaticResource Hint}" Text="{v:Loc interviews_empty}" Margin="0,0,0,8" Visibility="Collapsed"/>
-                            <Button x:Name="NewTargetBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc new_interview}" Click="NewTarget_Click"/>
+                            <Button x:Name="NewTargetBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc new_interview}" Click="NewTarget_Click"/>
                             <Border Style="{StaticResource Divider}"/>
                             <Button x:Name="DeleteTargetBtn" Style="{StaticResource Btn.FormDanger}" Content="{v:Loc delete_interview}" Click="DeleteTarget_Click" ToolTip="{v:Loc tt_delete_interview}"/>
                         </StackPanel>
@@ -583,9 +584,9 @@
                             </Grid>
                         </Border>
                         <WrapPanel Margin="0,10,0,0">
-                            <Button x:Name="HelpDiagCopyBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc help_diag_copy}" Click="CopyDiagnostics_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_help_diag_copy}"/>
-                            <Button Style="{StaticResource Btn.Base}" Content="{v:Loc open_log_folder}" Click="OpenLogs_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_logs}"/>
-                            <Button x:Name="HelpDiagRunBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc help_diag_run}" Click="RunHealthCheck_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_help_diag_run}"/>
+                            <Button x:Name="HelpDiagCopyBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc help_diag_copy}" Click="CopyDiagnostics_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_help_diag_copy}"/>
+                            <Button Style="{StaticResource Btn.Form}" Content="{v:Loc open_log_folder}" Click="OpenLogs_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_logs}"/>
+                            <Button x:Name="HelpDiagRunBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc help_diag_run}" Click="RunHealthCheck_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_help_diag_run}"/>
                         </WrapPanel>
                         <!-- in-app health check result: one pass / warn row per check -->
                         <TextBlock x:Name="HelpDiagRunStatus" Style="{StaticResource Hint}" Visibility="Collapsed" v:LiveRegion.Mode="Polite"/>
@@ -612,7 +613,7 @@
                             </Grid>
                         </Border>
                         <WrapPanel Margin="0,10,0,0">
-                            <Button Style="{StaticResource Btn.Base}" Content="{v:Loc copy_build_info}" Click="CopyBuildInfo_Click" Margin="0,0,8,0" ToolTip="{v:Loc tt_copy_build_info}"/>
+                            <Button Style="{StaticResource Btn.Form}" Content="{v:Loc copy_build_info}" Click="CopyBuildInfo_Click" Margin="0,0,8,0" ToolTip="{v:Loc tt_copy_build_info}"/>
                         </WrapPanel>
                     </StackPanel>
 

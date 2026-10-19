@@ -103,7 +103,8 @@ public class UiPagesTests
     {
         var xaml = App("HomeWindow.xaml");
         var actions = xaml[xaml.IndexOf("x:Name=\"ProfileActions\"", StringComparison.Ordinal)..xaml.IndexOf("x:Name=\"ProfileDetail\"", StringComparison.Ordinal)];
-        Assert.Contains("Btn.FormPrimary", Element(actions, "ImportResumeBtn"));
+        // rc.5 UX audit M2: one primary per view — Save profile; the list-pane Import is a regular button
+        Assert.Contains("Btn.Form}", Element(actions, "ImportResumeBtn"));
         Assert.Contains("{v:Loc import_resume}", Element(actions, "ImportResumeBtn"));
         foreach (var n in new[] { "AddDocumentBtn", "NewEmptyProfileBtn", "ExportProfileBtn" }) Assert.Contains("Btn.Form}", Element(actions, n));
         var delete = Element(actions, "DeleteProfileBtn");

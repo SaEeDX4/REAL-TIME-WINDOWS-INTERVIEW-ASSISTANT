@@ -162,6 +162,15 @@ public class Rc5ReadinessTests
         Assert.Equal(8, store.Snapshot.Passed);
     }
 
+    [Fact]
+    public void GetStarted_CheckStepIsNeverDone_BeforeTheSetupItChecks()
+    {
+        // a "Ready" result from earlier must not tick step 4 while step 3 (prepare) is still open
+        var f = Facts(prepared: false, readiness: ReadinessState.Ready);
+        Assert.False(SetupPlanner.IsDone(SetupStep.PreInterviewCheck, f));
+        Assert.Equal(StepStatus.Upcoming, SetupPlanner.Steps(f).Single(s => s.Step == SetupStep.PreInterviewCheck).Status);
+    }
+
     [Theory]
     [InlineData(ReadinessState.Ready, "rd_state_ready")] [InlineData(ReadinessState.ReadyWithWarnings, "rd_state_warnings")]
     [InlineData(ReadinessState.NotReady, "rd_state_not_ready")] [InlineData(ReadinessState.NotChecked, "rd_state_not_checked")]
@@ -184,6 +193,9 @@ public class Rc5ReadinessTests
     [InlineData(true, true, true, true, true, ReadinessState.NotReady, SetupAction.RunPreInterviewCheck)]
     [InlineData(true, true, true, true, true, ReadinessState.ReadyWithWarnings, SetupAction.StartInterview)]
     [InlineData(true, true, true, true, true, ReadinessState.Ready, SetupAction.StartInterview)]
+    // rc.5 UX audit M10: prepared knowingly without confirmed facts → the button no longer sticks on "Complete profile"
+    [InlineData(true, true, false, true, true, ReadinessState.Ready, SetupAction.StartInterview)]
+    [InlineData(true, true, false, true, false, ReadinessState.NotChecked, SetupAction.CompleteProfile)]
     public void GetStarted_OffersExactlyTheNextAction(bool account, bool profile, bool facts, bool interview, bool prepared, ReadinessState r, SetupAction expected) =>
         Assert.Equal(expected, SetupPlanner.PrimaryAction(Facts(account, profile, facts, interview, prepared, r)));
 

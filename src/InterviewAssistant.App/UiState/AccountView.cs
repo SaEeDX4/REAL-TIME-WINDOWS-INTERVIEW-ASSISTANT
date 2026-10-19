@@ -6,8 +6,11 @@ namespace InterviewAssistant.App.UiState;
 /// <summary>Responsive layout of the Account dashboard (two columns on wide content, one column below the breakpoint).</summary>
 public static class AccountLayout
 {
-    /// <summary>Content width (device-independent pixels) from which Plan/Devices and Security/Privacy sit side by side.</summary>
-    public const double TwoColumnMinWidth = 900;
+    /// <summary>
+    /// Content width (device-independent pixels) from which Plan/Devices and Security/Privacy sit side by side. 720 puts
+    /// the default 1040 px window (about 770 px of content) and 1366×768 at 125 % in two columns (rc.5 UX audit M3).
+    /// </summary>
+    public const double TwoColumnMinWidth = 720;
     /// <summary>Content width from which the signed-out page shows the product column next to the form.</summary>
     public const double AuthTwoColumnMinWidth = 760;
     /// <summary>Maximum width of the signed-out page (product column + form), and of its single centred column.</summary>

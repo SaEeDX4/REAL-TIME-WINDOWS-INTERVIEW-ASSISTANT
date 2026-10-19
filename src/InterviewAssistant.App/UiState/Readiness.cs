@@ -175,11 +175,19 @@ public static class SetupPlanner
     public static bool IsDone(SetupStep step, SetupFacts f) => step switch
     {
         SetupStep.Account => f.AccountReady,
-        SetupStep.Profile => f.AccountReady && f.HasProfile && f.HasConfirmedFacts,
+        SetupStep.Profile => f.AccountReady && f.HasProfile && ProfileUsable(f),
         SetupStep.InterviewSetup => f.AccountReady && f.HasInterview && f.InterviewPrepared,
-        SetupStep.PreInterviewCheck => f.Readiness is ReadinessState.Ready or ReadinessState.ReadyWithWarnings,
+        // a check result counts only for a usable setup (signed in, an interview prepared)
+        SetupStep.PreInterviewCheck => IsDone(SetupStep.Account, f) && IsDone(SetupStep.InterviewSetup, f)
+                                       && f.Readiness is ReadinessState.Ready or ReadinessState.ReadyWithWarnings,
         _ => false,
     };
+
+    /// <summary>
+    /// Confirmed facts are asked for until the user knowingly prepares an interview without them (Prepare allows it
+    /// after a warning); from then on the step detail keeps the reminder, but the next action moves on (rc.5 UX audit M10).
+    /// </summary>
+    private static bool ProfileUsable(SetupFacts f) => f.HasConfirmedFacts || f.InterviewPrepared;
 
     public static IReadOnlyList<SetupStepView> Steps(SetupFacts f)
     {
@@ -191,7 +199,7 @@ public static class SetupPlanner
     public static SetupAction PrimaryAction(SetupFacts f)
     {
         if (!f.AccountReady) return SetupAction.SignIn;
-        if (!f.HasProfile || !f.HasConfirmedFacts) return SetupAction.CompleteProfile;
+        if (!f.HasProfile || !ProfileUsable(f)) return SetupAction.CompleteProfile;
         if (!f.HasInterview) return SetupAction.CreateInterview;
         if (!f.InterviewPrepared) return SetupAction.PrepareInterview;
         if (f.Readiness is not (ReadinessState.Ready or ReadinessState.ReadyWithWarnings)) return SetupAction.RunPreInterviewCheck;

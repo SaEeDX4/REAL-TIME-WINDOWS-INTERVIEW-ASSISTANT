@@ -236,7 +236,7 @@
                 </v:FormField>
                 <WrapPanel Margin="{StaticResource S.ButtonRowMargin}">
                     <Button x:Name="CheckUpdatesBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc set_upd_check}" Click="CheckUpdates_Click" Margin="{StaticResource S.ButtonGap}"/>
-                    <Button x:Name="RestartUpdateBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc restart_to_update}" Click="RestartUpdate_Click" Margin="{StaticResource S.ButtonGap}" Visibility="Collapsed"/>
+                    <Button x:Name="RestartUpdateBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc restart_to_update}" Click="RestartUpdate_Click" Margin="{StaticResource S.ButtonGap}" Visibility="Collapsed"/>
                 </WrapPanel>
                 <TextBlock x:Name="UpdateStatus" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}" v:LiveRegion.Mode="Polite"/>
                 <!-- the install rule: stays visible -->

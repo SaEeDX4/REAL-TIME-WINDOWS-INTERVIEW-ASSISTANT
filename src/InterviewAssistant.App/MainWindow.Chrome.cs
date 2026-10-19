@@ -5,6 +5,7 @@ using System.Windows.Media;
 using InterviewAssistant.App.Services;
 using InterviewAssistant.App.UiState;
 using InterviewAssistant.App.ViewModels;
+using InterviewAssistant.App.Views;
 using InterviewAssistant.Core.Languages;
 
 namespace InterviewAssistant.App;
@@ -110,6 +111,34 @@ public partial class MainWindow
 
     /// <summary>Opens Home directly on the pre-interview check.</summary>
     private void Readiness_Click(object sender, RoutedEventArgs e) => OpenHome("preinterview");
+
+    // ---------------- authorized use ----------------
+
+    /// <summary>
+    /// The authorized-use acknowledgement before the first interview, whichever way it is started (Get started shows
+    /// the same statement as a check box). Confirming it is remembered; Cancel starts nothing.
+    /// </summary>
+    private async Task<bool> ConfirmAuthorizedUseAsync()
+    {
+        if (_vm.Settings.AuthorizedUseAcknowledged) return true;
+        if (!IsVisible) { Show(); }
+        Activate();
+        var result = await AppDialog.ShowAsync(this, new DialogRequest
+        {
+            Title = Loc.T("start_step1"),
+            Message = Loc.T("authorized_use") + "\n\n" + Loc.T("start_step1_hint"),
+            Tone = DialogTone.Info,
+            Actions = new List<DialogAction>
+            {
+                new() { Text = Loc.T("dlg_cancel"), Result = AppDialogResult.Cancel, IsCancel = true },
+                new() { Text = Loc.T("dlg_continue"), Result = AppDialogResult.Primary, Role = DialogButtonRole.Primary, IsDefault = true },
+            },
+        });
+        if (result != AppDialogResult.Primary) return false;
+        _vm.Settings.AuthorizedUseAcknowledged = true;
+        _vm.Settings.Save();
+        return true;
+    }
 
     // ---------------- More (overflow) ----------------
 

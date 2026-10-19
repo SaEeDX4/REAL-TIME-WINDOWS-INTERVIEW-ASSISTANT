@@ -736,6 +736,12 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private DispatcherTimer? _accountTimer;
 
     /// <summary>Start / pause. Re-entrancy guarded: a double click can never start two leases.</summary>
+    /// <summary>
+    /// Asks for the authorized-use acknowledgement (set by the Live window). Every start path — Live Start, the hotkey,
+    /// Get started, the pre-interview page — goes through <see cref="ToggleListeningAsync"/>, so none can skip it.
+    /// </summary>
+    public Func<Task<bool>>? ConfirmAuthorizedUseAsync { get; set; }
+
     public async Task ToggleListeningAsync(string? startToast = null)
     {
         if (_engine == null || _toggleBusy) return;
@@ -756,6 +762,9 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             else Toast(Loc.T("toast_paused_dev"), Views.ToastKind.Info);
             return;
         }
+        if (!Settings.AuthorizedUseAcknowledged && (ConfirmAuthorizedUseAsync == null || !await ConfirmAuthorizedUseAsync())) return;
+        // the first interview started (from Home or straight from the Live window): Home no longer opens at every launch
+        if (!Settings.FirstRunCompleted) { Settings.FirstRunCompleted = true; Settings.Save(); }
         if (_freshSessionOnStart) { _freshSessionOnStart = false; BuildEngine(); if (_engine == null) return; }
         if (UsingCloud)
         {

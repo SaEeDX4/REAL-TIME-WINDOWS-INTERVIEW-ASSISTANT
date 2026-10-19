@@ -174,7 +174,7 @@ public sealed class DialogHost : Grid
             Dispatcher.BeginInvoke(() => FocusFirst(top), System.Windows.Threading.DispatcherPriority.Input);
         };
         // A closing window completes every pending dialog (callers awaiting a result are never left hanging).
-        w.Closed += (_, _) => { foreach (var l in _layers.ToList()) Complete(l, AppDialogResult.Cancel); };
+        w.Closed += (_, _) => { _ownerClosed = true; foreach (var l in _layers.ToList()) Complete(l, AppDialogResult.Cancel); };
     }
 
     private static bool IsInside(DependencyObject ancestor, DependencyObject node)
@@ -187,8 +187,12 @@ public sealed class DialogHost : Grid
             (d is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : null) ?? LogicalTreeHelper.GetParent(d);
     }
 
+    private bool _ownerClosed;
+
     public Task<AppDialogResult> ShowAsync(DialogRequest r)
     {
+        // a late caller (a finished network wait, a timer) asking a closed window: answer Cancel, never wait forever
+        if (_ownerClosed) return Task.FromResult(AppDialogResult.Cancel);
         var res = Application.Current.Resources;
         var done = new TaskCompletionSource<AppDialogResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         var buttons = new Dictionary<Button, DialogAction>();

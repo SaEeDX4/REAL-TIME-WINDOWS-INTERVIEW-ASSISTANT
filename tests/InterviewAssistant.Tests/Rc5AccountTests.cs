@@ -276,7 +276,8 @@ public class Rc5AccountTests
     // ---------------- dashboard ----------------
 
     [Theory]
-    [InlineData(899, 1)] [InlineData(900, 2)] [InlineData(1600, 2)] [InlineData(400, 1)]
+    // rc.5 UX audit M3: the breakpoint moved from 900 to 720 so the default window shows two columns
+    [InlineData(719, 1)] [InlineData(720, 2)] [InlineData(772, 2)] [InlineData(1600, 2)] [InlineData(400, 1)]
     public void Dashboard_StacksBelowTheBreakpoint(double width, int columns) => Assert.Equal(columns, AccountLayout.DashboardColumns(width));
 
     [Fact]

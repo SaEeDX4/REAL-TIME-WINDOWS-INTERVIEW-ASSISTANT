@@ -166,7 +166,9 @@ public partial class HomeWindow : Window
         if (_vm.Cloud.IsSignedIn && _vm.Cloud.State == CloudState.SignedIn && _vm.Cloud.Account != null) _sections.Summary.Loaded(DateTimeOffset.Now);
         RefreshAll();
         UpdateDirtyIndicators();
-        var route = initial ?? new HomeRoute(!_vm.HasWorkspace && _vm.Cloud.IsConfigured ? "account" : _vm.Settings.AuthorizedUseAcknowledged && _vm.Settings.FirstRunCompleted ? "interviews" : "start");
+        // Home opens on the readiness dashboard: first run (step 1 is "Sign in", the acknowledgement is on top) and every
+        // later visit (the one next-step button before each interview). rc.5 UX audit H2/M9.
+        var route = initial ?? new HomeRoute("start");
         ShowRoute(route);
     }
 
@@ -870,6 +872,10 @@ public partial class HomeWindow : Window
         var pack = t != null ? Store?.GetPack(t.Id) : null;
         PrepSummary.Text = pack == null ? "" : F("prep_summary", pack.Questions.Count, pack.Stories.Count, pack.Gaps.Count, pack.CreatedUtc.ToLocalTime().ToString("g", Loc.Culture));
         UseBtn.IsEnabled = t?.Preparation is PreparationState.Prepared or PreparationState.Stale;
+        // one primary action: Prepare until the interview is prepared, then "Start interview" (Prepare stays as re-prepare)
+        var prepared = t?.Preparation == PreparationState.Prepared;
+        PrepareBtn.SetResourceReference(StyleProperty, prepared ? "Btn.Form" : "Btn.FormPrimary");
+        UseBtn.SetResourceReference(StyleProperty, prepared ? "Btn.FormPrimary" : "Btn.Form");
         RenderInterviewReadiness();
     }
 

@@ -34,6 +34,13 @@ public partial class HomeWindow
         PfFooterText.Text = $"{T(ReadinessSnapshot.StateKey(state))} · {PreInterviewPage.SummaryText(_vm)}";
         PfRunBtn.IsEnabled = !PagePreInterview.IsRunning;
         PfStartBtn.IsEnabled = PagePreInterview.CanStart;
+        // a disabled Start says why (the tool tip also shows on the disabled button)
+        PfStartBtn.ToolTip = T(PagePreInterview.CanStart ? "tt_pf_start" : state switch
+        {
+            ReadinessState.NotReady => "tt_pf_start_blocked",
+            ReadinessState.Checking => "rd_hint_checking",
+            _ => "tt_pf_start_run_first",
+        });
         RenderInterviewReadiness();
         RenderReadinessPill();
         // Get started reads the workspace (profiles, interviews): only rendered while it is the visible page.
@@ -85,6 +92,8 @@ public partial class HomeWindow
     /// </summary>
     private async Task StartInterviewAsync()
     {
+        // unsaved edits first (rc.5 UX audit L15): the interview never starts behind an open "Save changes?" question
+        if (!await ConfirmCloseAsync()) return;
         if (_vm.Settings.AuthorizedUseAcknowledged && !_vm.Settings.FirstRunCompleted) { _vm.Settings.FirstRunCompleted = true; _vm.Settings.Save(); }
         _main.Show();
         _main.Activate();
