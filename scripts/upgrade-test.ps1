@@ -86,13 +86,15 @@ if (-not (Test-Path $reportMarker)) { Fail "saved report removed by the upgrade"
 
 # 6) The upgraded build starts on the old user's settings, logs its version, stays up, and exits cleanly.
 $logToday = Join-Path $local "logs\app-$(Get-Date -Format yyyyMMdd).log"
-$logStart = if (Test-Path $logToday) { (Get-Item $logToday).Length } else { 0 }
+# count LINES already in today's log (a byte length cannot index the UTF-8 text: "·" and other characters are multi-byte)
+$linesBefore = if (Test-Path $logToday) { @(Get-Content $logToday -Encoding utf8).Count } else { 0 }
 $app = Start-Process $exe -PassThru
 Start-Sleep -Seconds 15
 if ($app.HasExited) { Fail "$ToVersion exited on its own after the upgrade (exit $($app.ExitCode))" }
 $null = $app.CloseMainWindow()
 if (-not $app.WaitForExit(20000)) { $app.Kill(); Fail "$ToVersion did not close within 20 s" }
-$log = if (Test-Path $logToday) { (Get-Content $logToday -Raw).Substring([int]$logStart) } else { "" }
+$log = if (Test-Path $logToday) { (Get-Content $logToday -Encoding utf8 | Select-Object -Skip $linesBefore) -join "`n" } else { "" }
+if ($log -notmatch [regex]::Escape("Version $ToVersion")) { Write-Host "---- log since launch ----"; Write-Host $log }
 if ($log -notmatch [regex]::Escape("Version $ToVersion")) { Fail "the upgraded app did not log 'Version $ToVersion' at startup" }
 if ($log -notmatch "Clean shutdown") { Fail "the upgraded app did not shut down cleanly" }
 $kept = Get-Content $settingsPath -Raw | ConvertFrom-Json
