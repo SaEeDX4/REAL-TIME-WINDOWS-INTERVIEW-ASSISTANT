@@ -286,7 +286,7 @@ public static class SelfTest
             await Idle(); await Idle();
             var dialogOpen = Views.AppDialog.IsOpen(home);
             PressKey(home, System.Windows.Input.Key.Escape);
-            var kept = await Task.WhenAny(dialog, Task.Delay(2000)) == dialog && !dialog.Result && !Views.AppDialog.IsOpen(home);
+            var kept = await Task.WhenAny(dialog, Task.Delay(2000)) == dialog && dialog.Result == Views.DeleteAccountChoice.Keep && !Views.AppDialog.IsOpen(home);
             home.Close(); await Idle();
             return (formShown && forgot && opened && closed && dialogOpen && kept,
                 $"sign-in form {formShown}; forgot state e-mail only {forgot}; menu opened {opened}, Escape closed {closed}; delete dialog shown {dialogOpen}, Keep account cancelled {kept}");

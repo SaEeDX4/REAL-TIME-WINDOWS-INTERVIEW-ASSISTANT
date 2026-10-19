@@ -6,6 +6,9 @@ using InterviewAssistant.Core.Languages;
 
 namespace InterviewAssistant.App.Views;
 
+/// <summary>What the user chose in the delete-account dialog.</summary>
+public enum DeleteAccountChoice { Keep, Delete, ManageBilling }
+
 /// <summary>
 /// Account deletion, step 1 (in-app dialog on <see cref="DialogHost"/>): what will be deleted, what happens to the
 /// subscription and to billing records, linked sign-in providers — "Keep account" is the default and Escape; "Delete
@@ -14,8 +17,10 @@ namespace InterviewAssistant.App.Views;
 /// </summary>
 public static class DeleteAccountDialog
 {
-    /// <param name="subscriptionBlocks">The subscription can still charge (the service would refuse): its note is a warning.</param>
-    public static async Task<bool> ConfirmAsync(Window owner, bool subscriptionBlocks)
+    /// <param name="subscriptionBlocks">The subscription can still charge, so the service would refuse: deletion is not
+    /// offered at all (no re-authentication only to be refused) — the primary action is "Manage billing", where the
+    /// subscription can be cancelled, and "Keep account" closes the dialog.</param>
+    public static async Task<DeleteAccountChoice> ConfirmAsync(Window owner, bool subscriptionBlocks)
     {
         var res = Application.Current.Resources;
         var body = new StackPanel();
@@ -36,17 +41,32 @@ public static class DeleteAccountDialog
         body.Children.Add(subscription);
         foreach (var key in new[] { "del_note_paddle", "del_note_providers", "del_note_local" }) body.Children.Add(DialogForm.Hint(Loc.T(key)));
 
-        var result = await AppDialog.ShowAsync(owner, new DialogRequest
-        {
-            Title = Loc.T("del_title"), Message = Loc.T("del_irreversible"), Tone = DialogTone.Danger, Body = body, MaxWidth = 520,
-            Actions = new[]
+        var actions = subscriptionBlocks
+            ? new[]
+            {
+                new DialogAction { Text = Loc.T("del_keep"), Result = AppDialogResult.Cancel, Role = DialogButtonRole.Secondary, IsCancel = true },
+                new DialogAction { Text = Loc.T("manage_billing"), Result = AppDialogResult.Secondary, Role = DialogButtonRole.Primary, IsDefault = true },
+            }
+            : new[]
             {
                 new DialogAction { Text = Loc.T("del_keep"), Result = AppDialogResult.Cancel, Role = DialogButtonRole.Secondary, IsCancel = true, IsDefault = true },
                 new DialogAction { Text = Loc.T("del_confirm"), Result = AppDialogResult.Primary, Role = DialogButtonRole.Destructive },
-            },
+            };
+        var result = await AppDialog.ShowAsync(owner, new DialogRequest
+        {
+            Title = Loc.T("del_title"), Message = Loc.T(subscriptionBlocks ? "del_note_subscription_blocks" : "del_irreversible"),
+            Tone = subscriptionBlocks ? DialogTone.Warning : DialogTone.Danger, Body = body, MaxWidth = 520, Actions = actions,
         });
-        return result == AppDialogResult.Primary;
+        return Choice(result, subscriptionBlocks);
     }
+
+    /// <summary>Only the unblocked dialog can return <see cref="DeleteAccountChoice.Delete"/>.</summary>
+    public static DeleteAccountChoice Choice(AppDialogResult result, bool subscriptionBlocks) => result switch
+    {
+        AppDialogResult.Primary when !subscriptionBlocks => DeleteAccountChoice.Delete,
+        AppDialogResult.Secondary when subscriptionBlocks => DeleteAccountChoice.ManageBilling,
+        _ => DeleteAccountChoice.Keep,
+    };
 
     /// <summary>After the deletion: keep (default, Escape) or delete this PC's copy of the account's profiles, interviews and reports.</summary>
     public static async Task<bool> AskDeleteLocalDataAsync(Window owner)

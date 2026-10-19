@@ -658,14 +658,20 @@ public partial class HomeWindow
     {
         if (_vm.Cloud.Api == null) return;
         DangerMessage.Clear();
-        if (!await DeleteAccountDialog.ConfirmAsync(this, AccountDeletion.SubscriptionBlocks(_vm.Cloud.Account?.Subscription))) return;
+        var blocks = AccountDeletion.SubscriptionBlocks(_vm.Cloud.Account?.Subscription);
+        var choice = await DeleteAccountDialog.ConfirmAsync(this, blocks);
+        // A subscription that can still charge blocks deletion: the dialog offers Manage billing instead of the deletion.
+        if (choice == DeleteAccountChoice.ManageBilling) { await RunBillingAsync(() => _vm.Cloud.OpenPortalAsync()); return; }
+        if (choice != DeleteAccountChoice.Delete) return;
         if (!await ReauthenticateAsync("reauth_reason_delete", DangerMessage) || _vm.Cloud.Api == null) return;
         try
         {
             if (_vm.SessionActive) await _vm.StopAsync();
-            var deleted = await _vm.Cloud.Api.DeleteAccountAsync(CancellationToken.None);
+            // This account's local folders, captured BEFORE the deletion: a sign-out during the request (401, refresh)
+            // closes the workspace, and the local-data question must still be asked.
             var localRoot = _vm.Workspace?.Store.Root;
             var viewer = _vm.Workspace?.ViewerDir;
+            var deleted = await _vm.Cloud.Api.DeleteAccountAsync(CancellationToken.None);
             _profileGuard.MarkClean(); _targetGuard.MarkClean();   // the account and its data are gone
             await _vm.SignOutAsync(quiet: true);   // the form below says the account was deleted
             _auth.Reset();
@@ -676,10 +682,14 @@ public partial class HomeWindow
             // user's to keep or remove.
             if (localRoot != null && await DeleteAccountDialog.AskDeleteLocalDataAsync(this))
             {
-                foreach (var dir in new[] { localRoot, viewer })
-                    try { if (dir != null && Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { AppLog.Error("Local data removal failed", ex); }
-                Notify(T("toast_local_data_deleted"), ToastKind.Info);
+                var failed = LocalData.Delete(localRoot, viewer);
+                if (failed == null) Notify(T("toast_local_data_deleted"), ToastKind.Info);
+                else
+                {
+                    // Not everything could be removed: say so and name the folder (the path stays out of the log).
+                    AppLog.Warn($"Local data removal failed: {failed.Value.Error}");
+                    await AlertAsync(T("err_generic") + "\n\n" + failed.Value.Folder, DialogTone.Warning);
+                }
             }
         }
         catch (Exception ex) when (ex is BackendException or System.Net.Http.HttpRequestException or TaskCanceledException)
