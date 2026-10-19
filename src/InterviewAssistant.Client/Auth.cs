@@ -127,6 +127,9 @@ public sealed class SupabaseAuth
     /// Enumeration-safe: an address without an account behaves exactly like an existing one (the request is reported as
     /// accepted through <paramref name="requestAccepted"/> and the listener waits for a link that never comes), so the
     /// app can never reveal whether an account exists. Rate limits, invalid addresses and network errors are still reported.
+    /// The recovery code is never exchanged while ANOTHER account is signed in on this PC (a link opened after the user
+    /// signed in elsewhere would otherwise silently replace that session): it fails with <c>signed_in_other_account</c>
+    /// and the current session stays as it is.
     /// </summary>
     public async Task<AuthSession> RecoverPasswordAsync(string email, TimeSpan timeout, CancellationToken ct, Action? requestAccepted = null)
     {
@@ -140,13 +143,31 @@ public sealed class SupabaseAuth
             if (!resp.IsSuccessStatusCode)
             {
                 var error = await Fail(resp, Core.Languages.Loc.T("auth_reset_send_failed"));
-                if (!RevealsAccountExistence(error.Code)) throw error;
+                if (!RevealsAccountExistence(error.Code) && !IsPerAddressRateLimit((int)resp.StatusCode, error.Code, error.Message)) throw error;
             }
         }
         requestAccepted?.Invoke();
         var code = await loop.WaitForCodeAsync(timeout, ct);
-        return await ExchangeCodeAsync(code, verifier, ct);
+        ct.ThrowIfCancellationRequested();
+        if (_session is { } current && !SameAddress(current.Email, email)) throw SignedInElsewhere();
+        // Checked again when the tokens arrive: a sign-in that completed during the exchange is not replaced either.
+        using var exchange = Request(HttpMethod.Post, $"{AuthBase}/token?grant_type=pkce", new { auth_code = code, code_verifier = verifier });
+        return await TokenRequestAsync(exchange, ct, accept: s => _session is not { } now || now.UserId == s.UserId);
     }
+
+    private static bool SameAddress(string? a, string? b) =>
+        !string.IsNullOrWhiteSpace(a) && string.Equals(a.Trim(), b?.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    private static AuthException SignedInElsewhere() => new("signed_in_other_account", Core.Languages.Loc.T("acct_password_not_changed"));
+
+    /// <summary>
+    /// Older auth servers report the per-address recovery e-mail limit as a bare 429 "For security purposes, you can only
+    /// request this after N seconds" (no error code). Like <c>over_email_send_rate_limit</c> it applies only to existing
+    /// accounts, so it is treated as accepted; the general request limit (<c>over_request_rate_limit</c>) is still reported.
+    /// </summary>
+    public static bool IsPerAddressRateLimit(int status, string? code, string? message) =>
+        status == 429 && code != "over_request_rate_limit" &&
+        (message ?? "").TrimStart().StartsWith("For security purposes", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Error codes that would tell the caller that no account exists for an address (treated as "accepted").</summary>
     /// <remarks>The per-address e-mail rate limit applies only to existing accounts, so it would reveal one too (the first
@@ -245,14 +266,15 @@ public sealed class SupabaseAuth
         return r;
     }
 
-    private async Task<AuthSession> TokenRequestAsync(HttpRequestMessage req, CancellationToken ct)
+    /// <param name="accept">Checked on the new session before it is stored; false = it is discarded (signed_in_other_account).</param>
+    private async Task<AuthSession> TokenRequestAsync(HttpRequestMessage req, CancellationToken ct, Func<AuthSession, bool>? accept = null)
     {
         using var resp = await Send(req, ct);
         if (!resp.IsSuccessStatusCode) throw await Fail(resp, Core.Languages.Loc.T("err_sign_in_failed"));
-        return await StoreTokensAsync(await resp.Content.ReadAsStringAsync(ct), ct);
+        return await StoreTokensAsync(await resp.Content.ReadAsStringAsync(ct), ct, accept);
     }
 
-    private Task<AuthSession> StoreTokensAsync(string json, CancellationToken ct)
+    private Task<AuthSession> StoreTokensAsync(string json, CancellationToken ct, Func<AuthSession, bool>? accept = null)
     {
         _ = ct;
         TokenResponse? t;
@@ -261,6 +283,7 @@ public sealed class SupabaseAuth
         if (t == null) throw new AuthException("bad_response", "Empty token response.");
         if (string.IsNullOrEmpty(t.AccessToken) || string.IsNullOrEmpty(t.RefreshToken)) throw new AuthException("bad_response", "Incomplete token response.");
         var session = new AuthSession(t.AccessToken, t.RefreshToken, _time.GetUtcNow().AddSeconds(Math.Max(60, t.ExpiresIn)), t.User?.Id ?? "", t.User?.Email ?? "");
+        if (accept != null && !accept(session)) throw SignedInElsewhere();
         _session = session;
         SignedOutReason = null;
         _store.Save(session);

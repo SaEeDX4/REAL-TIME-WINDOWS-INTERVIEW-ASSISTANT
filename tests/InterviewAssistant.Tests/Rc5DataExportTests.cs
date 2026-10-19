@@ -607,7 +607,8 @@ public class Rc5DataExportTests
         Assert.Contains("ExportDialog.ConfirmImportAsync(this, content.Preview)", export);
         Assert.Contains("ProfileLimitReachedAsync()", export);
         Assert.Contains("SecretFilter.Clean(export)", export);
-        Assert.True(export.IndexOf("ConfirmImportAsync", StringComparison.Ordinal) < export.IndexOf("ProfileBundle.Import(", StringComparison.Ordinal), "preview before import");
+        // The import reports removed instruction-like lines too (ProfileBundle.ImportWithReport, security review L1).
+        Assert.True(export.IndexOf("ConfirmImportAsync", StringComparison.Ordinal) < export.IndexOf("ProfileBundle.ImportWithReport(", StringComparison.Ordinal), "preview before import");
         var dialog = App(Path.Combine("Views", "ExportDialog.cs"));
         Assert.Contains("AppDialog.ShowAsync", dialog);
         Assert.DoesNotContain("MessageBox", dialog + export);

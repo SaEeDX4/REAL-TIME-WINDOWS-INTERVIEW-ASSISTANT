@@ -235,17 +235,26 @@ public sealed class CloudService
     /// <summary>Password reset: the e-mailed link returns to this PC; then <paramref name="askNewPassword"/> collects the new password.</summary>
     /// <remarks>
     /// Enumeration-safe: <paramref name="requested"/> runs once the request is accepted — for an existing and for an
-    /// unknown address alike — so the UI shows the same neutral notice either way.
+    /// unknown address alike — so the UI shows the same neutral notice either way. Never switches accounts: while another
+    /// account is signed in, nothing is requested, and a link opened after someone signed in is refused by
+    /// <see cref="SupabaseAuth.RecoverPasswordAsync"/> (the signed-in session stays as it is).
     /// </remarks>
     public async Task<(bool Ok, string? Error)> ResetPasswordAsync(string email, Func<Task<string?>> askNewPassword, Action? requested = null, CancellationToken ct = default)
     {
+        if (Auth?.Session is { } current && !string.Equals(current.Email?.Trim(), email.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            AppLog.Warn("Password reset refused: another account is signed in");
+            return (false, Loc.T("acct_password_not_changed"));
+        }
         var r = await AuthAction(async () =>
         {
             await Auth!.RecoverPasswordAsync(email, TimeSpan.FromMinutes(15), ct, requested);
+            ct.ThrowIfCancellationRequested();   // the reset screen was left: no new-password prompt
             var pw = await askNewPassword() ?? throw new AuthException("cancelled", Loc.T("acct_password_not_changed"));
             await Auth.UpdatePasswordAsync(pw, CancellationToken.None);
         }, "Password reset");
-        if (r.Ok) await RefreshAsync(CancellationToken.None);
+        // Also when the new password was not set: the link signed this account in, so its data is loaded like any sign-in.
+        if (r.Ok || IsSignedIn) await RefreshAsync(CancellationToken.None);
         return r;
     }
 

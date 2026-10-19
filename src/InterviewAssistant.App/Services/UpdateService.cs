@@ -130,6 +130,12 @@ public sealed class UpdateService
             SetStatus("Update check failed; will retry later.", "upd_failed");
             AppLog.Warn("Update check failed: " + ex.GetType().Name);
         }
+        catch (Exception ex)
+        {
+            // Any other updater failure (e.g. a Velopack-specific exception) is a failed check too, never a UI-level crash.
+            SetStatus("Update check failed; will retry later.", "upd_failed");
+            AppLog.Warn("Update check failed (unexpected): " + ex.GetType().Name);
+        }
         finally
         {
             IsChecking = false;
@@ -142,7 +148,7 @@ public sealed class UpdateService
     {
         if (_mgr == null || _pending == null) return;
         try { _mgr.WaitExitThenApplyUpdates(_pending, silent: true, restart: false); AppLog.Info("Update will install after exit"); }
-        catch (Exception ex) when (ex is IOException or InvalidOperationException) { AppLog.Warn("Could not schedule update: " + ex.Message); }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException) { AppLog.Warn("Could not schedule update: " + AppLog.Describe(ex)); }
     }
 
     /// <summary>User-initiated "Restart to update" — refused while a session is active.</summary>

@@ -121,7 +121,11 @@ public class Rc5AccountTests
         Assert.False(s.PrimarySubmits);
         Assert.True(s.ShowsResend);
         Assert.False(s.CanResend(t0.AddSeconds(5)));
-        Assert.Equal(25, s.ResendSecondsLeft(t0.AddSeconds(5)));
+        // The cooldown is 60 s (was 30 s): the auth server sends at most one recovery e-mail per address per 60 s, so an
+        // earlier Resend would cancel the working link while the new request is silently rate-limited.
+        Assert.True(AuthFormState.ResendCooldown >= TimeSpan.FromSeconds(60));
+        Assert.Equal(55, s.ResendSecondsLeft(t0.AddSeconds(5)));
+        Assert.False(s.CanResend(t0.AddSeconds(45)));     // still inside the server's per-address interval
         Assert.True(s.CanResend(t0 + AuthFormState.ResendCooldown));
         Assert.Equal(0, s.ResendSecondsLeft(t0 + AuthFormState.ResendCooldown));
         s.SetBusy(true);
@@ -268,7 +272,8 @@ public class Rc5AccountTests
         Assert.DoesNotContain("EmailBox.Text =", forgot);   // pre-filled with what was typed
         var reset = Method(cs, "private async Task RequestResetAsync(");
         Assert.Contains("PasswordResetCopy.Requested", reset);
-        Assert.Contains("_resetCts?.Cancel()", reset);       // a newer request replaces the pending wait
+        // A newer request replaces the pending wait (PendingReset.Begin cancels the previous ticket; see SecurityAuditFixTests).
+        Assert.Contains("_reset.Begin(email)", reset);
         Assert.Contains("auth_reset_link_expired", Method(cs, "private void ShowResetError("));
         Assert.Contains("dlg_retry", Method(cs, "private void ShowResetError("));
     }

@@ -226,6 +226,10 @@ public partial class HomeWindow
         ConfirmBox.PasswordChanged += (_, _) => ConfirmError.Clear();
         AuthProductName.Text = Branding.ProductName;
         _auth.Changed += ApplyAuthState;
+        // Leaving the reset screens (Back to sign in, a sign-in, sign-out, switch) ends the wait for the reset link, so
+        // a link opened later can never sign in on top of another account; so does closing the window.
+        _auth.Changed += () => { if (!_auth.InResetFlow) CancelPendingReset("the form left the reset state"); };
+        Closed += (_, _) => CancelPendingReset("window closed");
         ApplyAuthState();
     }
 
@@ -382,6 +386,7 @@ public partial class HomeWindow
                 PasswordBox.Clear(); ConfirmBox.Clear();
                 if (_vm.Cloud.IsSignedIn)
                 {
+                    CancelPendingReset("signed in");
                     _vm.OpenWorkspaceForCurrentAccount();   // this account's data only
                     if (!_vm.SessionActive) _vm.BuildEngine();
                     _auth.Reset();   // a later sign-out starts at the plain sign-in again
@@ -395,16 +400,23 @@ public partial class HomeWindow
         finally { _authBusyText = null; _auth.SetBusy(false); RefreshAll(); }
     }
 
-    // The pending reset waits up to 15 minutes for the link. A new request (e.g. a corrected address, or Resend) replaces it.
-    private CancellationTokenSource? _resetCts;
-    private string? _resetEmail;
+    // The pending reset waits up to 15 minutes for the link. A new request (e.g. a corrected address, or Resend) replaces
+    // it; leaving the reset screens, signing in or out, switching account or closing the window cancels it.
+    private readonly PendingReset _reset = new();
     /// <summary>The address of the last accepted reset request ("Resend" sends to it again).</summary>
     private string? _resetSentTo;
+
+    private void CancelPendingReset(string why)
+    {
+        if (_reset.Cancel()) AppLog.Info("Pending password reset cancelled: " + why);
+    }
 
     /// <summary>
     /// Password reset (the "Send reset link" button of the forgot-password state). Enumeration-safe: the same neutral
     /// notice appears for every syntactically valid address, whether or not an account exists, and it never claims that
     /// an e-mail was delivered. Rate limits are still reported; a timeout gets its own copy; every error offers a retry.
+    /// Only the current request (<see cref="PendingReset.IsCurrent"/>) may change the form: a cancelled or replaced one
+    /// never clears Busy, resets the state or shows its result.
     /// </summary>
     private async Task RequestResetAsync(string email, bool force)
     {
@@ -412,35 +424,49 @@ public partial class HomeWindow
         {
             _resetSentTo = email;
             _auth.SetBusy(false);
-            _auth.ResetRequested(DateTimeOffset.Now);
+            if (!_auth.ResetRequested(DateTimeOffset.Now)) return;
             AuthMessage.Show(PasswordResetCopy.Requested, MessageKind.Success, T("acct_reset_requested_hint"));
+            FocusAuthForm();   // the e-mail field that had the focus is hidden now
         }
         // Same address again while its link is awaited: nothing new to send (Resend sends again on purpose). Another address: the old wait ends.
-        if (!force && _resetCts != null && string.Equals(_resetEmail, email, StringComparison.OrdinalIgnoreCase)) { Requested(); return; }
-        _resetCts?.Cancel();
-        var cts = _resetCts = new CancellationTokenSource();
-        _resetEmail = email;
+        if (!force && _reset.IsPendingFor(email)) { Requested(); return; }
+        var ticket = _reset.Begin(email);
         var accepted = false;
         _auth.SetBusy(true);
         try
         {
+            // The auth server sends one recovery e-mail per address per interval and reports an earlier request as
+            // accepted without sending it. The previous link stopped working when its wait was cancelled, so wait out the interval.
+            var wait = _reset.WaitBeforeSending(email, DateTimeOffset.Now, AuthFormState.ResendCooldown);
+            if (wait > TimeSpan.Zero) await Task.Delay(wait, ticket.Token);
             var (ok, error) = await _vm.Cloud.ResetPasswordAsync(email, () => Prompt.NewPasswordAsync(this),
-                requested: () => Dispatcher.Invoke(() => { accepted = true; if (!cts.IsCancellationRequested) Requested(); }), ct: cts.Token);
-            if (cts.IsCancellationRequested) return;   // replaced by a newer request
-            if (ok)
+                requested: () => Dispatcher.Invoke(() =>
+                {
+                    accepted = true;
+                    _reset.MarkRequested(email, DateTimeOffset.Now);
+                    if (_reset.IsCurrent(ticket)) Requested();
+                }), ct: ticket.Token);
+            if (!_reset.IsCurrent(ticket)) return;   // replaced by a newer request, or the form/account moved on
+            if (ok || _vm.Cloud.IsSignedIn)
             {
+                // Done (or the link signed this account in although the new password was not set): a normal sign-in from here.
+                _reset.Release(ticket);
                 _auth.Reset();
-                AuthMessage.Show(T("acct_password_reset_done"), MessageKind.Success);
-                Notify(T("acct_password_reset_done"), ToastKind.Success);
                 _vm.OpenWorkspaceForCurrentAccount();
+                if (ok)
+                {
+                    AuthMessage.Show(T("acct_password_reset_done"), MessageKind.Success);
+                    Notify(T("acct_password_reset_done"), ToastKind.Success);
+                }
+                else Notify(error ?? T("acct_password_not_changed"), ToastKind.Warning);
             }
             else ShowResetError(error, accepted, email);
         }
-        catch (OperationCanceledException) when (cts.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (ticket.Token.IsCancellationRequested) { }
         finally
         {
-            if (ReferenceEquals(_resetCts, cts)) { _resetCts = null; _resetEmail = null; _auth.SetBusy(false); }
-            cts.Dispose();
+            if (_reset.Release(ticket)) _auth.SetBusy(false);
+            ticket.Dispose();
             RefreshAll();
         }
     }
@@ -454,6 +480,7 @@ public partial class HomeWindow
         if (_auth.Mode != AuthMode.ForgotPassword) { AppLog.Info("Password reset ended after the form left the reset state"); return; }
         AuthMessage.Show(text, MessageKind.Error, null, T("dlg_retry"));
         _authRetry = () => RequestResetAsync(email, force: true);
+        FocusAuthForm();   // back at the e-mail step
     }
 
     private async void Resend_Click(object sender, RoutedEventArgs e)
@@ -644,14 +671,20 @@ public partial class HomeWindow
     {
         if (_vm.Cloud.Api == null) return;
         DangerMessage.Clear();
-        if (!await DeleteAccountDialog.ConfirmAsync(this, AccountDeletion.SubscriptionBlocks(_vm.Cloud.Account?.Subscription))) return;
+        var blocks = AccountDeletion.SubscriptionBlocks(_vm.Cloud.Account?.Subscription);
+        var choice = await DeleteAccountDialog.ConfirmAsync(this, blocks);
+        // A subscription that can still charge blocks deletion: the dialog offers Manage billing instead of the deletion.
+        if (choice == DeleteAccountChoice.ManageBilling) { await RunBillingAsync(() => _vm.Cloud.OpenPortalAsync()); return; }
+        if (choice != DeleteAccountChoice.Delete) return;
         if (!await ReauthenticateAsync("reauth_reason_delete", DangerMessage) || _vm.Cloud.Api == null) return;
         try
         {
             if (_vm.SessionActive) await _vm.StopAsync();
-            var deleted = await _vm.Cloud.Api.DeleteAccountAsync(CancellationToken.None);
+            // This account's local folders, captured BEFORE the deletion: a sign-out during the request (401, refresh)
+            // closes the workspace, and the local-data question must still be asked.
             var localRoot = _vm.Workspace?.Store.Root;
             var viewer = _vm.Workspace?.ViewerDir;
+            var deleted = await _vm.Cloud.Api.DeleteAccountAsync(CancellationToken.None);
             _profileGuard.MarkClean(); _targetGuard.MarkClean();   // the account and its data are gone
             await _vm.SignOutAsync(quiet: true);   // the form below says the account was deleted
             _auth.Reset();
@@ -662,10 +695,14 @@ public partial class HomeWindow
             // user's to keep or remove.
             if (localRoot != null && await DeleteAccountDialog.AskDeleteLocalDataAsync(this))
             {
-                foreach (var dir in new[] { localRoot, viewer })
-                    try { if (dir != null && Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
-                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { AppLog.Error("Local data removal failed", ex); }
-                Notify(T("toast_local_data_deleted"), ToastKind.Info);
+                var failed = LocalData.Delete(localRoot, viewer);
+                if (failed == null) Notify(T("toast_local_data_deleted"), ToastKind.Info);
+                else
+                {
+                    // Not everything could be removed: say so and name the folder (the path stays out of the log).
+                    AppLog.Warn($"Local data removal failed: {failed.Value.Error}");
+                    await AlertAsync(T("err_generic") + "\n\n" + failed.Value.Folder, DialogTone.Warning);
+                }
             }
         }
         catch (Exception ex) when (ex is BackendException or System.Net.Http.HttpRequestException or TaskCanceledException)
@@ -688,6 +725,7 @@ public partial class HomeWindow
     private async void SignOut_Click(object sender, RoutedEventArgs e)
     {
         if (!await ConfirmSignOutAsync()) return;
+        CancelPendingReset("signed out");
         await _vm.SignOutAsync();
         _auth.Reset();
         EmailBox.Text = "";
@@ -706,6 +744,7 @@ public partial class HomeWindow
         var previous = _vm.Cloud.Account?.Email ?? _vm.Cloud.Auth?.Session?.Email ?? "";
         if (!await AppDialog.ConfirmAsync(this, F("switch_confirm_message", LtrIsolated(previous)), T("switch_account"), title: T("switch_confirm_title"))) return;
         if (!await ConfirmSignOutAsync()) return;
+        CancelPendingReset("switching account");
         await _vm.SignOutAsync(quiet: true);
         _auth.StartSwitch(previous);
         EmailBox.Text = "";

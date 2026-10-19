@@ -13,11 +13,25 @@ public static class AppLog
 
     public static void Info(string m) => Write("INFO", m);
     public static void Warn(string m) => Write("WARN", m);
-    public static void Error(string m, Exception? ex = null) => Write("ERROR", ex == null ? m : $"{m}: {ex.GetType().Name}: {ex.Message}");
+    public static void Error(string m, Exception? ex = null) => Write("ERROR", ex == null ? m : $"{m}: {Describe(ex)}");
+
+    /// <summary>
+    /// What the log keeps of an exception: file-system errors only by type (their message holds a path with the Windows
+    /// user name and, for exports, the candidate's name — and Copy diagnostics shares the last lines); others with their message.
+    /// </summary>
+    public static string Describe(Exception ex) =>
+        ex is IOException or UnauthorizedAccessException or System.Security.SecurityException ? ex.GetType().Name : $"{ex.GetType().Name}: {ex.Message}";
+
+    /// <summary>One log line: control characters (line breaks from untrusted text such as a hostile file's JSON keys) become spaces.</summary>
+    public static string Sanitize(string message)
+    {
+        if (!message.Any(char.IsControl)) return message;
+        return string.Create(message.Length, message, (span, m) => { for (int i = 0; i < m.Length; i++) span[i] = char.IsControl(m[i]) ? ' ' : m[i]; });
+    }
 
     private static void Write(string level, string message)
     {
-        var line = $"{DateTime.Now:HH:mm:ss.fff} {level} {KeyPattern.Replace(message, "$1…")}";
+        var line = $"{DateTime.Now:HH:mm:ss.fff} {level} {KeyPattern.Replace(Sanitize(message), "$1…")}";
         Ring.Enqueue(line);
         while (Ring.Count > 400 && Ring.TryDequeue(out _)) { }
         try
