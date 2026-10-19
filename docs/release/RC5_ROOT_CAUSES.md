@@ -19,6 +19,13 @@ the cause found in the code, the fix and the guard. rc.4 (`a0bc946`) artifacts a
 | "Ready" from the morning still showed in the afternoon / after settings changes | The context was only account, interview and device | Revision (settings, profile, preparation, knowledge) + 30-minute limit | `AnOldResult_IsOutOfDate`, `SavedSettingsOrProfile_MakeTheResultOutOfDate…` |
 | "Checking…" forever after a network problem | Only cancellation was caught; auth-server, HTML and JSON errors escaped `RunAllAsync` / `RefreshAsync` | Every failure ends the pending checks with a reason; refresh failures become ServiceUnavailable | error-state tests |
 
+## Found by the Windows self-test during rc.5
+
+| Symptom | Root cause | Fix | Guard |
+|---|---|---|---|
+| The in-app self-test hung after the first typed answer (every push from run 76) | Live auto-fit with an Auto vertical scroll bar: an answer near the fit boundary toggled the scroll bar, the width change raised SizeChanged, which scheduled another fit — an endless Loaded-priority loop that kept the CPU busy and starved all background and idle work. A real product bug, not only a test problem | `FitAnswer` remembers the inputs of the last fit (viewport height, the scroll viewer's outer width, the visible answer content, font preset) and does nothing for the same inputs | `AutoFit_NeverRefitsTheSameInputs`; the self-test now has a per-check limit and a watchdog that names a starved step |
+| Starting while signed out could wait on the acknowledgement dialog | The acknowledgement was asked before the sign-in precondition | Asked only when listening can start | `AuthorizedUse_IsAskedOnlyWhenListeningCanStart` |
+
 ## Navigation, first run, account
 
 | Symptom | Root cause | Fix |

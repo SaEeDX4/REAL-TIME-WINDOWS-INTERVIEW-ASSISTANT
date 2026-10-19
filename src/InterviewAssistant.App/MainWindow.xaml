@@ -339,7 +339,7 @@
                 <!-- shared input: the placeholder sits inside the field with the text's inset and hides while focused or filled.
                      Field and send button share the control-height token and are centred on one row (mirrored in RTL). -->
                 <TextBox x:Name="ManualInput" KeyDown="ManualInput_KeyDown" v:Watermark.Text="{Binding LTypeHint}" VerticalAlignment="Center"
-                         MinHeight="{StaticResource S.ControlHeight}" AutomationProperties.Name="{Binding LTypeHint}"/>
+                         Height="{StaticResource S.ControlHeight}" AutomationProperties.Name="{Binding LTypeHint}"/>
                 <Button x:Name="ManualSendBtn" Grid.Column="2" Style="{StaticResource Btn.FormPrimary}" Padding="0" VerticalAlignment="Center"
                         Width="{StaticResource S.ControlHeight}" Height="{StaticResource S.ControlHeight}"
                         Click="ManualSend_Click" ToolTip="{v:Loc tt_send}" AutomationProperties.Name="{v:Loc tt_send}">

@@ -46,7 +46,7 @@ High: H1 (readiness never Ready), H2 (acknowledgement skippable), H3 (stale Read
 | L6 | Card padding and badge variants drift | **Open** (design-system follow-up) |
 | L7 | Maximized answer indented from the question card | Fixed (answer column aligns left) |
 | L8 | Interview Focus on 1366×768 leaves little answer space | **Open**; compact view is one click away in More |
-| L9 | Fixed heights could clip Devanagari | Fixed (input MinHeight, larger context line) |
+| L9 | Fixed heights could clip Devanagari | Partly fixed: the context line is taller; the question field keeps the shared control height (it must line up with the send button; the self-test checks this). Manual row U covers Hindi |
 | L10 | Extra Tab stops on cards | Kept deliberately: the cards are now named UIA groups for screen readers |
 | L11 | Two count code paths | Fixed |
 | L12 | Home opened at every launch for Live-first users | Fixed |
