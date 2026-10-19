@@ -117,7 +117,7 @@ public class RecordedStyleAudioTests
         }
         total += AcousticAnalyzer.Analyze(new byte[4800], runs);   // the quiet after the sound closes the last pitch run
         return new SpeechEvidence(frames, total.DurationMs - 100, total.ActiveMs, total.VoicedMs, total.TonalMs, total.PitchPairs, total.SteadyPairs, total.JumpPairs,
-            0, total.TrackedHops, total.RunHops, total.FlatRunHops);
+            0, total.TrackedHops, total.RunHops, total.FlatRunHops, total.StretchHops);
     }
 
     private static string Classification(SpeechEvidence e) =>

@@ -85,7 +85,7 @@ public sealed class UtteranceGate
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex Logistics = new(
-        @"\b(can you hear me|can everyone hear|do you hear me|can you see (my|the) screen|are you able to see|is my (audio|video|screen|mic)|you('re| are) (on )?mute|you('re| are) muted|you('re| are) breaking up|my connection|your connection|(let me|i('ll| will)) share (my )?screen|(please |can you |could you )?share (your|the) screen|(keep|continue) sharing|stop sharing|(tell me|let me know) when (you('re| are)|you’re) ready|shall we (start|begin|get started)|are you ready( to (start|begin))?|give me (a |one )?(second|sec|moment|minute)|one (second|sec|moment)|bear with me|sorry about that|sorry,? (you go|go ahead|after you|i interrupted)|no,? (you go|go ahead)|you first|after you|let's (move on|wrap up|get started|take a (short )?break)|we('ll| will) (move on|come back)|let me (check|find|pull up|open)|i('ll| will) (be )?tak(e|ing) notes|we have (\d+|a few|about \d+|around \d+) minutes|(is|has) everyone (here|joined|ready)|let's wait for|we('re| are) waiting for|(i|we) can('t| not) hear (you|anything))\b",
+        @"\b(can you hear me|can everyone hear|do you hear me|can you see (my|the) screen|are you able to see|is my (audio|video|screen|mic)|you('re| are) (on )?mute|you('re| are) muted|you('re| are) breaking up|my connection|your connection|(let me|i('ll| will)) share (my )?screen|(please |can you |could you )?(share|show) (me |us )?(your|the|my) screen|(keep|continue) sharing|stop sharing|(tell (me|us)|let (me|us) know) when (you('re| are)|you’re) (ready|done|finished)|(tell (me|us)|let (me|us) know) (when|if) you can (see|hear) (me|us|my|the)|shall we (start|begin|get started)|are you ready( to (start|begin))?|give (me|us) (a |one )?(second|sec|moment|minute)|one (second|sec|moment)|bear with me|sorry about that|sorry,? (you go|go ahead|after you|i interrupted)|no,? (you go|go ahead)|you first|after you|let's (move on|wrap up|get started|take a (short )?break)|we('ll| will) (move on|come back)|let me (check|find|pull up|open)|i('ll| will) (be )?tak(e|ing) notes|we have (\d+|a few|about \d+|around \d+) minutes|(is|has) everyone (here|joined|ready)|let's wait for|we('re| are) waiting for|(i|we) can('t| not) hear (you|anything))\b",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex QuestionStart = new(
@@ -106,12 +106,23 @@ public sealed class UtteranceGate
     /// period ("Why.", "How so.", "What happened.", "And then."). A closed set of English interrogative forms — not a list
     /// of transcripts — so a lone "Why" stays answerable while "What a day." does not.
     /// </summary>
-    /// <summary>"Why.", "How so.", "And then." — see <see cref="EllipticalFollowUp"/>.</summary>
     public static bool IsEllipticalFollowUp(string sentence) => EllipticalFollowUp.IsMatch((sentence ?? "").Trim());
 
-    private static readonly Regex EllipticalFollowUp = new(
-        @"^((and|so|but|okay|ok|right|hm+|mm+)[,.]?\s+)?(why( not| so| exactly| is that| was that)?|how( so| come| exactly| do you mean)?|what happened( next| then| after that)?|what then|then what|and then( what)?|what else|anything else|like what|such as|for example|in what way|meaning|what do you mean|how did that go|what was the (result|outcome|impact))[.!…]*$",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    /// <summary>
+    /// The same elliptical follow-ups however they are punctuated ("Why?" and "Why." alike), plus "Really?" when asked:
+    /// what the turn detector and the classifier treat as a follow-up of the previous answer.
+    /// </summary>
+    public static bool IsEllipticalAsk(string sentence)
+    {
+        var t = (sentence ?? "").Trim();
+        return EllipticalFollowUp.IsMatch(t) || EllipticalAsked.IsMatch(t);
+    }
+
+    private const string EllipticalLead = @"^((and|so|but|okay|ok|right|hm+|mm+)[,.]?\s+)?";
+    private const string EllipticalCore = @"(why( not| so| exactly| is that| was that)?|how( so| come| exactly| do you mean)?|what happened( next| then| after that)?|what then|then what|and then( what)?|what else|anything else|like what|such as|for example|in what way|meaning|what do you mean|how did that go|what was the (result|outcome|impact))";
+
+    private static readonly Regex EllipticalFollowUp = new(EllipticalLead + EllipticalCore + @"[.!…]*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex EllipticalAsked = new(EllipticalLead + "(" + EllipticalCore + @"|really)\s*[?？؟]+[.!…]*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex Exclamative = new(
         @"^((and|so|oh|well|wow)[,.]?\s+)?(what an? |how (very |really )?(nice|great|good|interesting|cool|lovely|wonderful|funny|true|kind|exciting|impressive|fascinating|amazing)\b)",
@@ -124,7 +135,7 @@ public sealed class UtteranceGate
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex HandOver = new(
-        @"(?i:\b(do|did) you have any (more |other |further |follow-?up )?questions for (him|her|them)\b|\b(over to you|your turn|want to (ask|jump in|add|take (this|that|over))|anything to add))\s*,?\s*(?<name>[A-Z][\p{L}'-]+)?",
+        @"(?i:\b(do|did) you have any (more |other |further |follow-?up )?questions for (him|her|them)\b|\b(over to you|your turn|want to (ask|jump in|add|take (this|that|over))|anything to add|hear from|hand (it |this |that )?over to|pass (it |this |that )?(over )?to))\s*,?\s*(?<name>[A-Z][\p{L}'-]+)?",
         RegexOptions.Compiled);
 
     // Capitalised sentence openers that are not names.
@@ -148,6 +159,11 @@ public sealed class UtteranceGate
 
     private static readonly Regex LeadingVocative = new(@"^(?<name>[A-Z][\p{L}'-]{1,20})(\s+[A-Z][\p{L}'-]{1,20})?\s*[,—–:]\s*(?<rest>.+)$", RegexOptions.Compiled);
     private static readonly Regex TrailingVocative = new(@",\s*(?<name>[A-Z][\p{L}'-]{1,20})\s*[?.!]?\s*$", RegexOptions.Compiled);
+    // "Go on John." / "Tell me more Maria." — a name right after a complete follow-up, without the comma recognizers often drop.
+    private static readonly Regex BareTrailingName = new(@"^(?<ask>.+?)\s+(?<name>[A-Z][\p{L}'-]{1,20})\s*[?.!…]*\s*$", RegexOptions.Compiled);
+    // The follow-up is complete before that name: it ends on a word that takes no object ("more", "on", "going", "that",
+    // "elaborate"…). "Explain Snowflake." ends on a transitive verb: the capitalised word is its topic, not an addressee.
+    private static readonly Regex CompleteBeforeName = new(@"\b(more|on|going|further|deeper|that|this|it|again|elaborate|continue|example|examples|detail|details|specifics|specific|please)$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     /// <summary>
     /// Segment-level check (before a segment joins a turn): recognizer artefacts, prompt echoes and segments whose audio
@@ -182,8 +198,12 @@ public sealed class UtteranceGate
         }
 
         if (echo.IsEcho) return new(UtteranceKind.PromptEcho, "prompt echo: " + echo.Reason, support);
+        if (FollowUpIntent.IsVeryShortImperative(t) && NotClearlySpeech(t, evidence, support) is { } why)
+            return evidence.ActiveMs <= SpeechEvidence.ShortEventMs
+                ? new(UtteranceKind.ShortAcousticEvent, $"one- or two-word follow-up over sound that is not clearly speech ({why}): {evidence}", support)
+                : new(UtteranceKind.NonSpeech, $"one- or two-word follow-up over sound that is not clearly speech ({why}): {evidence}", support);
 
-        bool anyQuestion = false, anyOther = false, anyLogistics = false, anyImplicit = false, onlyFollowUps = true;
+        bool anyQuestion = false, anyOther = false, anyLogistics = false, anyImplicit = false, onlyFollowUps = true, namesCandidate = false;
         foreach (var s in sentences)
         {
             if (Logistics.IsMatch(s) && !HasRealAskBeyondLogistics(s)) { anyLogistics = true; continue; }
@@ -196,9 +216,14 @@ public sealed class UtteranceGate
             }
             if (to == Addressee.Other) { anyOther = true; continue; }
             anyQuestion = true;
+            if (NamesTheCandidate(s)) namesCandidate = true;
             // "Tell me more." / "Go on." refer back to the answer; "Why?" stays an (elliptical) question and "Describe a time…" a full one.
             if (!(FollowUpIntent.Classify(s) == FollowUpKind.Imperative && FollowUpIntent.IsStandaloneFollowUp(s))) onlyFollowUps = false;
         }
+        // A follow-up with no topic of its own takes the addressee of the turn it is in: "Over to you, Maria. Go on." and
+        // "John, do you want to take this? Go on." ask a colleague to go on — unless the candidate is named for it.
+        if (anyQuestion && onlyFollowUps && anyOther && !namesCandidate)
+            return new(UtteranceKind.OtherDirected, "follow-up after handing over to another participant", support);
         if (anyQuestion) return onlyFollowUps
             ? new(UtteranceKind.FollowUp, "candidate-directed follow-up", support)
             : new(UtteranceKind.Question, "question", support);
@@ -207,6 +232,25 @@ public sealed class UtteranceGate
         if (anyLogistics) return new(UtteranceKind.Logistics, "meeting logistics", support);
         return new(UtteranceKind.Context, "statement without a question", support);
     }
+
+    /// <summary>
+    /// Why a one- or two-word imperative follow-up is not carried by clear speech, or null when it is. So little text is
+    /// what a recognizer guesses for a knock or a sung note, so (when the audio was analysed) such a turn needs Strong
+    /// support, a continuous voiced stretch or a judged pitch track (a knock's ringing has neither), and no more voicing than
+    /// a slow speaker needs for its syllables (≤ 350 ms each — a sung melody or a held vowel has far more).
+    /// </summary>
+    public static string? NotClearlySpeech(string text, SpeechEvidence evidence, AcousticSupport support)
+    {
+        if (evidence.Unknown || evidence.Incomplete || !evidence.PitchTracked) return null;   // abstain: no (complete, tracked) audio
+        if (support != AcousticSupport.Strong) return $"{support} support";
+        if (evidence.StretchMeasured && !evidence.SustainedVoicing && !evidence.PitchJudged) return "no sustained voicing";
+        int syllables = Math.Max(2, SpeechPlausibility.Syllables(text));
+        if (evidence.VoicedMs > syllables * MaxVoicedMsPerShortSyllable) return $"{evidence.VoicedMs} ms voiced for {syllables} syllables";
+        return null;
+    }
+
+    /// <summary>Most voicing per syllable of a one- or two-word follow-up (slow, drawn-out speech stays well below).</summary>
+    public const int MaxVoicedMsPerShortSyllable = 350;
 
     /// <summary>"Sorry about that — so how would you prioritise…?" contains a real ask after the logistics phrase.</summary>
     private static bool HasRealAskBeyondLogistics(string s)
@@ -248,10 +292,29 @@ public sealed class UtteranceGate
         if (lead.Success && IsOtherName(lead.Groups["name"].Value) && IsQuestionSentence(lead.Groups["rest"].Value)) return Addressee.Other;
         var trail = TrailingVocative.Match(s);
         if (trail.Success && IsOtherName(trail.Groups["name"].Value)) return Addressee.Other;
+        var bare = BareTrailingName.Match(s);
+        if (bare.Success && IsOtherName(bare.Groups["name"].Value))
+        {
+            var ask = bare.Groups["ask"].Value.TrimEnd(' ', ',');
+            if (CompleteBeforeName.IsMatch(ask) && FollowUpIntent.IsStandaloneFollowUp(ask)) return Addressee.Other;
+        }
         if (_candidateNames.Count > 0 && Regex.IsMatch(s, @"\b(he|she)('s| is| was| has| did| does)\b", RegexOptions.IgnoreCase) &&
             Regex.IsMatch(s, @"\b(what do you think|do you agree|anything to add)\b", RegexOptions.IgnoreCase))
             return Addressee.Other; // discussing the candidate in the third person with a colleague
         return Addressee.Candidate;
+    }
+
+    /// <summary>The sentence calls the candidate by name ("Shervin, go on.", "Go on, Shervin.").</summary>
+    private bool NamesTheCandidate(string sentence)
+    {
+        if (_candidateNames.Count == 0) return false;
+        var s = sentence.Trim();
+        var lead = LeadingVocative.Match(s);
+        if (lead.Success && _candidateNames.Contains(lead.Groups["name"].Value)) return true;
+        var trail = TrailingVocative.Match(s);
+        if (trail.Success && _candidateNames.Contains(trail.Groups["name"].Value)) return true;
+        var bare = BareTrailingName.Match(s);
+        return bare.Success && _candidateNames.Contains(bare.Groups["name"].Value);
     }
 
     private bool IsOtherName(string name) =>

@@ -64,6 +64,8 @@ public sealed class HeardEvidence
     public int TrackedHops { get; set; }
     public int RunHops { get; set; }
     public int FlatRunHops { get; set; }
+    /// <summary>Hops in continuous voiced stretches of ≥ 160 ms (-1 = not measured: records written before this count existed).</summary>
+    public int StretchHops { get; set; } = -1;
     /// <summary>Acoustic support the live gate assigned (Strong, Weak, Unknown).</summary>
     public string Support { get; set; } = "";
 
@@ -71,11 +73,11 @@ public sealed class HeardEvidence
     {
         FramesObserved = e.FramesObserved, SpanMs = e.SpanMs, WindowMs = e.WindowMs, ActiveMs = e.ActiveMs, VoicedMs = e.VoicedMs,
         TonalMs = e.TonalMs, PitchPairs = e.PitchPairs, SteadyPairs = e.SteadyPairs, JumpPairs = e.JumpPairs, Support = support.ToString(),
-        TrackedHops = e.TrackedHops, RunHops = e.RunHops, FlatRunHops = e.FlatRunHops,
+        TrackedHops = e.TrackedHops, RunHops = e.RunHops, FlatRunHops = e.FlatRunHops, StretchHops = e.StretchHops,
     };
 
     public Audio.SpeechEvidence ToEvidence() =>
-        new(FramesObserved, SpanMs, ActiveMs, VoicedMs, TonalMs, PitchPairs, SteadyPairs, JumpPairs, WindowMs, TrackedHops, RunHops, FlatRunHops);
+        new(FramesObserved, SpanMs, ActiveMs, VoicedMs, TonalMs, PitchPairs, SteadyPairs, JumpPairs, WindowMs, TrackedHops, RunHops, FlatRunHops, StretchHops);
 }
 
 public sealed class InterruptionEvent

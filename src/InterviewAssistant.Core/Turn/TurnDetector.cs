@@ -49,6 +49,7 @@ public sealed class TurnDetector
     private int _nextTurnId;
     private (int Id, string Text, long SpeechStoppedAt, Audio.SpeechEvidence Evidence)? _lastFinal;
     private (int Id, string Text, Audio.SpeechEvidence Evidence)? _reopened;
+    private long _reopenGapMs = -1;   // speech_stopped of the reopened turn → speech_started of the new speech
 
     public TurnState State { get; private set; } = TurnState.Idle;
     public IReadOnlyList<Knowledge.TermAlias>? Aliases { get; set; }
@@ -82,6 +83,13 @@ public sealed class TurnDetector
     public int MaxPartialChars { get; set; } = 4000;
     /// <summary>Interviewer speech resuming within this time after the previous turn's speech stopped continues that turn.</summary>
     public int ContinuationWindowMs { get; set; } = 2500;
+    /// <summary>
+    /// A standalone follow-up ("Tell me more.", "Why?") inside the continuation window is its own turn only when it starts at
+    /// least this long after the previous turn's speech_stopped event (≈ 2 s of real silence once the VAD tail and the
+    /// speech_started lag are added): time for the candidate to have started answering. Sooner, the interviewer is still
+    /// asking — "What is your biggest weakness? … Explain." is one multi-part question, merged as in rc.4.
+    /// </summary>
+    public int FollowUpReplyAllowanceMs { get; set; } = 1800;
 
     public event Action<TurnState>? StateChanged;
     public event Action<string>? LiveTextChanged;
@@ -99,7 +107,7 @@ public sealed class TurnDetector
         _segments.Clear(); _partials.Clear(); _partialTrusted.Clear(); _partialCheckedAt.Clear(); _segmentsText = null; _droppedSegments = 0;
         _speechStoppedAt = _lastSegmentAt = _settleDeadline = -1;
         _awaitingSegments = 0;
-        _reopened = null;
+        _reopened = null; _reopenGapMs = -1;
         _turnEvidence = default; _turnStartMs = -1;
         _pendingEvidence.Clear();
         _evidenceByItem.Clear();
@@ -116,6 +124,7 @@ public sealed class TurnDetector
         if (_segments.Count == 0 && _partials.Count == 0 && _reopened == null && _lastFinal is { } last && _clock.NowMs - last.SpeechStoppedAt <= ContinuationWindowMs)
         {
             _reopened = (last.Id, last.Text, last.Evidence);
+            _reopenGapMs = _clock.NowMs - last.SpeechStoppedAt;
             continuation = true;
         }
         SetState(TurnState.SpeechStarted);
@@ -322,6 +331,7 @@ public sealed class TurnDetector
         var speechEnd = _speechStoppedAt;
         var count = _segments.Count;
         var reopened = _reopened;
+        var reopenGap = _reopenGapMs;
         // Evidence for segments whose transcript never arrived still belongs to this turn.
         var evidence = _turnEvidence;
         while (_pendingEvidence.Count > 0) evidence += _pendingEvidence.Dequeue();
@@ -331,10 +341,14 @@ public sealed class TurnDetector
         if (IsNonQuestion(text)) { SetState(TurnState.Listening); return; } // an acknowledgement never reopens or creates a turn
 
         int? revises = null;
-        // A short follow-up that points back at the answer ("Tell me more.", "Why?", "Give me another example.") after a
-        // complete question is a NEW ask, however quickly it follows: merging it would replace the previous question's
-        // answer instead of answering the follow-up. A follow-up after an unfinished question ("…and" + "go on") still merges.
-        if (reopened is { } follow && FollowUpIntent.IsStandaloneFollowUp(text) && IsCompleteAsk(follow.Text))
+        // A short follow-up that points back at the answer ("Tell me more.", "Why?", "Why.", "Give me another example.") after
+        // a complete question is a NEW ask once the candidate could have started answering — it starts at least
+        // FollowUpReplyAllowanceMs after the previous speech stopped: merging it would replace the previous question's answer
+        // instead of answering the follow-up. Said straight after the question ("What is your biggest weakness? … Explain."),
+        // it is part of one multi-part question and merges, as in rc.4, as does a follow-up after an unfinished question
+        // ("…and" + "go on"). Whether the previous answer was already on screen is deliberately not used: a prepared answer
+        // appears at once, long before the candidate can have said anything.
+        if (reopened is { } follow && FollowUpIntent.IsStandaloneFollowUp(text) && IsCompleteAsk(follow.Text) && reopenGap >= FollowUpReplyAllowanceMs)
         {
             reopened = null;
             FollowUpSplit?.Invoke(FollowUpIntent.Classify(text));

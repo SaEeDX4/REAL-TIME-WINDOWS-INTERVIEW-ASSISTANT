@@ -10,15 +10,16 @@ namespace InterviewAssistant.Core.Audio;
 /// <remarks>
 /// <see cref="TrackedHops"/>, <see cref="RunHops"/> and <see cref="FlatRunHops"/> come from a <see cref="PitchRunTracker"/>
 /// (pitch runs cross frame boundaries): periodic hops seen, hops in continuous pitch runs of at least five windows, and
-/// those of them in runs whose pitch never left a 2 % band — a held note, buzz or chord, not a voice.
+/// those of them in runs whose pitch never left a 2 % band — a held note, buzz or chord, not a voice. <see cref="StretchHops"/>:
+/// hops in continuous periodic stretches of at least 160 ms (any pitch movement).
 /// </remarks>
 public readonly record struct FrameAcoustics(int DurationMs, int ActiveMs, int VoicedMs, int TonalMs, int PitchPairs = 0, int SteadyPairs = 0, int JumpPairs = 0,
-    int TrackedHops = 0, int RunHops = 0, int FlatRunHops = 0)
+    int TrackedHops = 0, int RunHops = 0, int FlatRunHops = 0, int StretchHops = 0)
 {
     public static FrameAcoustics operator +(FrameAcoustics a, FrameAcoustics b) =>
         new(a.DurationMs + b.DurationMs, a.ActiveMs + b.ActiveMs, a.VoicedMs + b.VoicedMs, a.TonalMs + b.TonalMs,
             a.PitchPairs + b.PitchPairs, a.SteadyPairs + b.SteadyPairs, a.JumpPairs + b.JumpPairs,
-            a.TrackedHops + b.TrackedHops, a.RunHops + b.RunHops, a.FlatRunHops + b.FlatRunHops);
+            a.TrackedHops + b.TrackedHops, a.RunHops + b.RunHops, a.FlatRunHops + b.FlatRunHops, a.StretchHops + b.StretchHops);
 }
 
 /// <summary>
@@ -27,26 +28,53 @@ public readonly record struct FrameAcoustics(int DurationMs, int ActiveMs, int V
 /// "flat" when its whole pitch span stays under <see cref="FlatSpan"/> (2 %): a held note, a buzz with vibrato, a chord.
 /// A voice — even a calm, monotone "Tell me more." — glides by several percent within each voiced stretch (intonation,
 /// declination, micro-prosody), so its runs are not flat although consecutive hops differ by under 0.6 %.
-/// One tracker per audio stream (it is stateful); <see cref="Reset"/> when the stream restarts.
+/// It also measures continuous periodic STRETCHES (consecutive windows with a voice-range pitch, whatever the pitch does):
+/// hops in stretches of at least <see cref="MinStretchWindows"/> windows (160 ms). A spoken word of two or more
+/// syllables has one — vowels and voiced consonants run together — even when a low, creaky voice's pitch estimate jumps
+/// between harmonics and so forms no run; a door knock's ringing decays within ~120 ms per strike and has none.
+/// One tracker per audio stream (it is stateful); <see cref="Reset"/> when the stream restarts. Thread-safe: frames are
+/// tracked on the capture thread while <see cref="OpenRun"/> is read by the transcriber thread (partial trust boundary).
 /// </summary>
 public sealed class PitchRunTracker
 {
     public const int MinRunWindows = 5;
+    public const int MinStretchWindows = 8;
     public const double FlatSpan = 0.02;
     private const double JumpPerHop = 0.025;
+    private readonly object _sync = new();
     private double _last, _min, _max;
-    private int _len, _gap;
-    private int _tracked, _runHops, _flatHops;
+    private int _len, _stretch;
+    private int _tracked, _runHops, _flatHops, _stretchHops;
 
-    public void Reset() { lock (this) { _len = 0; _gap = 0; _last = 0; _tracked = _runHops = _flatHops = 0; } }
+    public void Reset() { lock (_sync) { _len = _stretch = 0; _last = 0; _tracked = _runHops = _flatHops = _stretchHops = 0; } }
+
+    /// <summary>
+    /// Tracks one frame's distinct analysis windows (periods, 0 = none; window start offsets; hop size in samples) and
+    /// returns the counts credited since the previous frame (runs and stretches are credited when they close).
+    /// </summary>
+    internal (int Tracked, int Runs, int Flat, int Stretch) Track(double[] period, int[] starts, int hops, int hop)
+    {
+        lock (_sync)
+        {
+            // Distinct windows only (the last hop may re-analyse the previous window); across frames one window is unseen.
+            for (int h = 0; h < hops; h++)
+            {
+                if (h > 0 && starts[h] == starts[h - 1]) continue;
+                Add(period[h], h == 0 ? 2 : (starts[h] - starts[h - 1]) / hop);
+            }
+            var r = (_tracked, _runHops, _flatHops, _stretchHops);
+            _tracked = _runHops = _flatHops = _stretchHops = 0;
+            return r;
+        }
+    }
 
     /// <summary>One analysis window: its pitch period (0 = none) and its distance in hops from the previous one.</summary>
-    internal void Add(double period, int hopsSincePrevious)
+    private void Add(double period, int hopsSincePrevious)
     {
-        _gap = hopsSincePrevious;
-        if (period <= 0) { Close(); return; }
+        if (period <= 0) { Close(); CloseStretch(); return; }
         _tracked++;
-        if (_len > 0 && Math.Abs(Math.Log(period / _last)) <= JumpPerHop * Math.Max(1, _gap))
+        _stretch++;
+        if (_len > 0 && Math.Abs(Math.Log(period / _last)) <= JumpPerHop * Math.Max(1, hopsSincePrevious))
         {
             _len++; _last = period; _min = Math.Min(_min, period); _max = Math.Max(_max, period);
             return;
@@ -65,22 +93,23 @@ public sealed class PitchRunTracker
         _len = 0;
     }
 
-    /// <summary>
-    /// The run still in progress as if it closed now (hops, flat hops): live decisions mid-sound must see a long held note
-    /// before it ends, not only the runs that already closed.
-    /// </summary>
-    public (int Runs, int Flat) OpenRun()
+    private void CloseStretch()
     {
-        lock (this)
-            return _len >= MinRunWindows ? (_len, Math.Log(_max / _min) < FlatSpan ? _len : 0) : (0, 0);
+        if (_stretch >= MinStretchWindows) _stretchHops += _stretch;
+        _stretch = 0;
     }
 
-    /// <summary>Counts since the previous call (runs are credited when they close).</summary>
-    internal (int Tracked, int Runs, int Flat) Take()
+    /// <summary>
+    /// The run and the stretch still in progress as if they closed now (run hops, flat hops, stretch hops): decisions
+    /// mid-sound must see a long held note before it ends, not only the runs that already closed.
+    /// </summary>
+    public (int Runs, int Flat, int Stretch) OpenRun()
     {
-        var r = (_tracked, _runHops, _flatHops);
-        _tracked = _runHops = _flatHops = 0;
-        return r;
+        lock (_sync)
+        {
+            var (runs, flat) = _len >= MinRunWindows ? (_len, Math.Log(_max / _min) < FlatSpan ? _len : 0) : (0, 0);
+            return (runs, flat, _stretch >= MinStretchWindows ? _stretch : 0);
+        }
     }
 }
 
@@ -189,18 +218,7 @@ public static class AcousticAnalyzer
             var (r, aboveVoice, lag) = Periodicity(w, mean);
             if (r >= VoicedCorrelation) { kind[h] = aboveVoice ? Tonal : Voiced; if (!aboveVoice) period[h] = lag; }
         }
-        (int Tracked, int Runs, int Flat) runCounts = default;
-        if (runs != null)
-            lock (runs)
-            {
-                // Distinct windows only (the last hop may re-analyse the previous window); across frames one window is unseen.
-                for (int h = 0; h < hops; h++)
-                {
-                    if (h > 0 && starts[h] == starts[h - 1]) continue;
-                    runs.Add(period[h], h == 0 ? 2 : (starts[h] - starts[h - 1]) / hop);
-                }
-                runCounts = runs.Take();
-            }
+        var runCounts = runs?.Track(period, starts, hops, hop) ?? default;
         int pairs = 0, steady = 0, jumps = 0;
         for (int h = 1; h < hops; h++)
         {
@@ -222,9 +240,9 @@ public static class AcousticAnalyzer
                 if (!Sustained(h, hops, kind, spectra)) voiced += msPerHop;
             }
         }
-        var (tracked, runHops, flatHops) = runCounts;
+        var (tracked, runHops, flatHops, stretchHops) = runCounts;
         return new FrameAcoustics(durationMs, Math.Min(active, durationMs), Math.Min(voiced, durationMs), Math.Min(tonal, durationMs), pairs, steady, jumps,
-            tracked, runHops, flatHops);
+            tracked, runHops, flatHops, stretchHops);
     }
 
     /// <summary>
@@ -367,7 +385,8 @@ public static class AcousticAnalyzer
 /// for; <see cref="SpanMs"/> the audio actually analysed in it (less when capture frames were missing).
 /// </summary>
 public readonly record struct SpeechEvidence(int FramesObserved, int SpanMs, int ActiveMs, int VoicedMs, int TonalMs,
-    int PitchPairs = 0, int SteadyPairs = 0, int JumpPairs = 0, int WindowMs = 0, int TrackedHops = 0, int RunHops = 0, int FlatRunHops = 0)
+    int PitchPairs = 0, int SteadyPairs = 0, int JumpPairs = 0, int WindowMs = 0, int TrackedHops = 0, int RunHops = 0, int FlatRunHops = 0,
+    int StretchHops = 0)
 {
     /// <summary>No audio was analysed (no capture data for the period): acoustic layers abstain.</summary>
     public bool Unknown => FramesObserved == 0;
@@ -396,14 +415,20 @@ public readonly record struct SpeechEvidence(int FramesObserved, int SpanMs, int
 
     /// <summary>
     /// A held tone: most of the continuous pitch sits in runs that never moved by 2 % (a note, a buzz with vibrato, a
-    /// chord), or the pitch is both hop-to-hop steady and at least half flat-run. Judged once <see cref="MinRunHops"/>
-    /// hops are in runs. Hop-to-hop steadiness ALONE never rejects: a calm, falling "Tell me more." changes its pitch by
-    /// under 0.6 % per 20 ms yet glides several percent over each word (the rc.4 regression). Evidence without run
+    /// chord), or the pitch is both hop-to-hop steady and at least half flat-run. Judged by the runs once
+    /// <see cref="MinRunHops"/> hops are in runs. Hop-to-hop steadiness ALONE never rejects a sound with enough run
+    /// evidence: a calm, falling "Tell me more." changes its pitch by under 0.6 % per 20 ms yet glides several percent
+    /// over each word (the rc.4 regression). With fewer run hops than that — a 300–400 ms buzz or piano note, a pulsing
+    /// tone whose pulses are too short for runs — the runs cannot judge, and the rc.4 rule (≥ 10 pitch pairs, ≥ 65 %
+    /// steady) still applies: no real speech fixture combines so few runs with so steady a pitch. Evidence without run
     /// tracking (recorded by older builds) keeps the rc.4 rule.
     /// </summary>
-    public bool HeldTone => PitchTracked
-        ? RunHops >= MinRunHops && (FlatRunShare >= MaxFlatRunShare || (PitchPairs >= MinPitchPairs && PitchSteadiness >= SteadyWithFlatRuns && FlatRunShare >= MinFlatRunShareWhenSteady))
+    public bool HeldTone => RunsJudged
+        ? FlatRunShare >= MaxFlatRunShare || (PitchPairs >= MinPitchPairs && PitchSteadiness >= SteadyWithFlatRuns && FlatRunShare >= MinFlatRunShareWhenSteady)
         : PitchPairs >= MinPitchPairs && PitchSteadiness >= MaxPitchSteadiness;
+
+    /// <summary>The held-tone test is decided by pitch runs (tracked, and at least <see cref="MinRunHops"/> hops in runs).</summary>
+    private bool RunsJudged => PitchTracked && RunHops >= MinRunHops;
 
     /// <summary>
     /// Voiced sound that also BEHAVES like a voice: little narrow-band energy and a pitch that moves rather than holding
@@ -426,10 +451,18 @@ public readonly record struct SpeechEvidence(int FramesObserved, int SpanMs, int
     /// </summary>
     public bool PitchJudged => PitchTracked ? RunHops >= MinRunHops : PitchPairs >= MinPitchPairs;
 
+    /// <summary>
+    /// At least one continuous voiced stretch of 160 ms or more was heard (<see cref="PitchRunTracker.MinStretchWindows"/>):
+    /// a spoken word of two or more syllables has one, a knock or a click does not.
+    /// </summary>
+    public bool SustainedVoicing => StretchHops > 0;
+    /// <summary>Stretches were measured (pitch tracked, and not a record written before the count existed: -1).</summary>
+    public bool StretchMeasured => PitchTracked && StretchHops >= 0;
+
     /// <summary>Why the audio does not behave like a voice (for diagnostics); empty when it does.</summary>
     public string NotVoiceReason => !HasSpeech ? "no voiced sound"
         : TooTonal ? $"tonal {TonalShare:P0}"
-        : HeldTone ? (PitchTracked ? $"held pitch {FlatRunShare:P0}" : $"steady pitch {PitchSteadiness:P0}") : "";
+        : HeldTone ? (RunsJudged ? $"held pitch {FlatRunShare:P0}" : $"steady pitch {PitchSteadiness:P0}") : "";
 
     /// <summary>
     /// A segment whose audio window is not known (e.g. its start was lost in a reconnect, or its evidence never arrived):
@@ -453,12 +486,12 @@ public readonly record struct SpeechEvidence(int FramesObserved, int SpanMs, int
     public static SpeechEvidence operator +(SpeechEvidence a, SpeechEvidence b) =>
         new(a.FramesObserved + b.FramesObserved, a.SpanMs + b.SpanMs, a.ActiveMs + b.ActiveMs, a.VoicedMs + b.VoicedMs, a.TonalMs + b.TonalMs,
             a.PitchPairs + b.PitchPairs, a.SteadyPairs + b.SteadyPairs, a.JumpPairs + b.JumpPairs, a.WindowMs + b.WindowMs,
-            a.TrackedHops + b.TrackedHops, a.RunHops + b.RunHops, a.FlatRunHops + b.FlatRunHops);
+            a.TrackedHops + b.TrackedHops, a.RunHops + b.RunHops, a.FlatRunHops + b.FlatRunHops, a.StretchHops + b.StretchHops);
 
     public override string ToString() => Unknown ? "acoustics: n/a"
         : $"voiced {VoicedMs} ms, active {ActiveMs} ms, tonal {TonalMs} ms over {SpanMs} ms" +
           (PitchPairs > 0 ? $", pitch steady {PitchSteadiness:P0} / jumps {PitchJumpShare:P0} of {PitchPairs}" : "") +
-          (RunHops > 0 ? $", flat runs {FlatRunShare:P0} of {RunHops}" : "");
+          (RunHops > 0 ? $", flat runs {FlatRunShare:P0} of {RunHops}" : "") + (StretchHops > 0 ? $", stretches {StretchHops}" : "");
 }
 
 /// <summary>
@@ -499,7 +532,8 @@ public sealed class SpeechEvidenceTimeline
                 frames++; total += a;
             }
             return new SpeechEvidence(frames, total.DurationMs, total.ActiveMs, total.VoicedMs, total.TonalMs,
-                total.PitchPairs, total.SteadyPairs, total.JumpPairs, (int)Math.Max(0, toMs - fromMs), total.TrackedHops, total.RunHops, total.FlatRunHops);
+                total.PitchPairs, total.SteadyPairs, total.JumpPairs, (int)Math.Max(0, toMs - fromMs), total.TrackedHops, total.RunHops, total.FlatRunHops,
+                total.StretchHops);
         }
     }
 }

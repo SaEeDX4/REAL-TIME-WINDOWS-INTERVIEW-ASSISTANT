@@ -75,7 +75,10 @@ public static class QuestionClassifier
 
         if (category == "GENERAL_BUSINESS" && mentionsCompany) category = "COMPANY_SPECIFIC";
         if (category == "GENERAL_BUSINESS" && mentionsEmployer) category = "RESUME_EXPERIENCE";
-        bool isFollowUp = FollowUpCue.IsMatch(lower) || TextNormalizer.WordCount(q) <= 4 && !lower.Contains("yourself");
+        // The same follow-up intent the gate and the turn detector use ("Walk me through the process.", "Why?") — so such an
+        // ask gets the FOLLOW-UP prompt line and is not grounded on an unrelated prepared answer.
+        bool isFollowUp = FollowUpCue.IsMatch(lower) || TextNormalizer.WordCount(q) <= 4 && !lower.Contains("yourself") ||
+                          FollowUpIntent.IsStandaloneFollowUp(q) || UtteranceGate.IsEllipticalAsk(q);
         if (isFollowUp && category == "GENERAL_BUSINESS") category = "FOLLOW_UP";
 
         AnswerMode mode;
