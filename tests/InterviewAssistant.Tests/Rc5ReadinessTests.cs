@@ -172,6 +172,20 @@ public class Rc5ReadinessTests
     }
 
     [Fact]
+    public void AutoFit_NeverRefitsTheSameInputs()
+    {
+        // rc.5 CI hang: with an Auto vertical scroll bar the fit oscillated (scroll bar on/off → width → SizeChanged → fit),
+        // an endless Loaded-priority loop that starved every idle task. The same inputs must not fit twice.
+        var d = new DirectoryInfo(AppContext.BaseDirectory);
+        while (d != null && !File.Exists(Path.Combine(d.FullName, "InterviewAssistant.sln"))) d = d.Parent;
+        var main = File.ReadAllText(Path.Combine(d!.FullName, "src", "InterviewAssistant.App", "MainWindow.xaml.cs"));
+        var fit = main[main.IndexOf("private void FitAnswer()", StringComparison.Ordinal)..];
+        Assert.Contains("if (key == _lastFitKey) return;", fit);
+        Assert.Contains("AnswerScroll.ActualWidth", fit);       // outer width: unchanged by the scroll bar
+        Assert.DoesNotContain("ViewportWidth", fit);
+    }
+
+    [Fact]
     public void AuthorizedUse_IsAskedOnlyWhenListeningCanStart()
     {
         // rc.5 UX audit H2: every start path asks for the acknowledgement — after "sign in first" / "not configured",

@@ -218,6 +218,8 @@ public partial class MainWindow : Window
 
     private bool _fitScheduled, _fitting;
     private const double FitSafetyPx = 4;
+    /// <summary>What the last completed fit was computed for: the same inputs never fit again.</summary>
+    private string? _lastFitKey;
     private void ScheduleFit()
     {
         if (_fitScheduled || !_vm.Settings.AutoFitAnswer) return;
@@ -235,6 +237,14 @@ public partial class MainWindow : Window
         _fitScheduled = false;
         var viewport = AnswerScroll.ViewportHeight - FitSafetyPx;
         if (viewport <= 0 || !IsVisible) return;
+        // The vertical scroll bar is Auto: near the fit boundary it appears and disappears, the content width changes and
+        // SizeChanged asks for another fit — an endless Loaded-priority loop that starved all idle work (rc.5 CI hang).
+        // The key uses the scroll viewer's outer width (not the viewport width, which the scroll bar changes).
+        var key = string.Join("\u001f", Math.Round(viewport), Math.Round(AnswerScroll.ActualWidth), _vm.Question, _vm.Note ?? "",
+            _vm.IsCoachView, _vm.IsProfileGap, _vm.IsThinking, _vm.Pending, _vm.CoachKeywords, _vm.CoachStructure, _vm.CoachReminder ?? "",
+            _vm.Settings.FontPreset, string.Join("\u001e", _vm.Bullets.Select(b => b.Text)));
+        if (key == _lastFitKey) return;
+        _lastFitKey = key;
         _fitting = true;
         try
         {
