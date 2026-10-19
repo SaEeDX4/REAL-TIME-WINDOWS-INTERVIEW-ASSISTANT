@@ -171,6 +171,20 @@ public class Rc5ReadinessTests
         Assert.Equal(StepStatus.Upcoming, SetupPlanner.Steps(f).Single(s => s.Step == SetupStep.PreInterviewCheck).Status);
     }
 
+    [Fact]
+    public void AuthorizedUse_IsAskedOnlyWhenListeningCanStart()
+    {
+        // rc.5 UX audit H2: every start path asks for the acknowledgement — after "sign in first" / "not configured",
+        // so a signed-out Start explains what to do and never waits on a dialog (the self-test relies on this)
+        var d = new DirectoryInfo(AppContext.BaseDirectory);
+        while (d != null && !File.Exists(Path.Combine(d.FullName, "InterviewAssistant.sln"))) d = d.Parent;
+        var vm = File.ReadAllText(Path.Combine(d!.FullName, "src", "InterviewAssistant.App", "ViewModels", "MainViewModel.cs"));
+        var core = vm[vm.IndexOf("private async Task ToggleListeningCoreAsync", StringComparison.Ordinal)..];
+        int At(string s) => core.IndexOf(s, StringComparison.Ordinal);
+        Assert.True(At("note_sign_in_to_listen") > 0 && At("note_sign_in_to_listen") < At("ConfirmAuthorizedUseAsync()"));
+        Assert.True(At("ConfirmAuthorizedUseAsync()") < At("BeginLeaseAsync()"));
+    }
+
     [Theory]
     [InlineData(ReadinessState.Ready, "rd_state_ready")] [InlineData(ReadinessState.ReadyWithWarnings, "rd_state_warnings")]
     [InlineData(ReadinessState.NotReady, "rd_state_not_ready")] [InlineData(ReadinessState.NotChecked, "rd_state_not_checked")]

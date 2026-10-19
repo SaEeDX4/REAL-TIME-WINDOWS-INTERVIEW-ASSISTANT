@@ -762,17 +762,18 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             else Toast(Loc.T("toast_paused_dev"), Views.ToastKind.Info);
             return;
         }
-        if (!Settings.AuthorizedUseAcknowledged && (ConfirmAuthorizedUseAsync == null || !await ConfirmAuthorizedUseAsync())) return;
-        // the first interview started (from Home or straight from the Live window): Home no longer opens at every launch
-        if (!Settings.FirstRunCompleted) { Settings.FirstRunCompleted = true; Settings.Save(); }
-        if (_freshSessionOnStart) { _freshSessionOnStart = false; BuildEngine(); if (_engine == null) return; }
+        // what the user must do first is said first (sign in, configure); the acknowledgement only when listening can start
         if (UsingCloud)
         {
             if (!Cloud.IsConfigured) { ShowLocalNote(Loc.T("note_not_configured_listen")); return; }
             if (!Cloud.IsSignedIn) { ShowLocalNote(Loc.T("note_sign_in_to_listen")); return; }
-            if (!await BeginLeaseAsync()) return;
         }
         else if (!SecretStore.HasKey) { ShowLocalNote(Loc.T("note_dev_key")); return; }
+        if (!Settings.AuthorizedUseAcknowledged && (ConfirmAuthorizedUseAsync == null || !await ConfirmAuthorizedUseAsync())) return;
+        // the first interview started (from Home or straight from the Live window): Home no longer opens at every launch
+        if (!Settings.FirstRunCompleted) { Settings.FirstRunCompleted = true; Settings.Save(); }
+        if (_freshSessionOnStart) { _freshSessionOnStart = false; BuildEngine(); if (_engine == null) return; }
+        if (UsingCloud && !await BeginLeaseAsync()) return;
         StartAudioPreview();
         if (_sessionStartedUtc == default) _sessionStartedUtc = DateTime.UtcNow;
         await _engine.StartListeningAsync();
