@@ -11,7 +11,8 @@ namespace InterviewAssistant.App.Views;
 /// <summary>
 /// A small ⓘ button that holds secondary help text instead of a grey paragraph under a field: the text opens as a tool
 /// tip on hover, on keyboard focus and on click (click again or Escape closes it). Screen readers get the text as the
-/// button's help text, with "More information" as its name. Use it only for secondary hints; warnings stay visible.
+/// button's help text, with "More information: <field>" as its name (<see cref="Subject"/>), so a list of ⓘ buttons is
+/// not eight identical names. Use it only for secondary hints; warnings stay visible.
 /// <c>&lt;v:InfoTip Text="{v:Loc set_end_wait_hint}"/&gt;</c>
 /// </summary>
 public sealed class InfoTip : Button
@@ -21,6 +22,12 @@ public sealed class InfoTip : Button
 
     /// <summary>The help text (localized).</summary>
     public string Text { get => (string)GetValue(TextProperty); set => SetValue(TextProperty, value); }
+
+    public static readonly DependencyProperty SubjectProperty = DependencyProperty.Register(nameof(Subject), typeof(string), typeof(InfoTip),
+        new FrameworkPropertyMetadata("", (d, _) => ((InfoTip)d).Render()));
+
+    /// <summary>What the tip explains (the field label); part of the accessible name.</summary>
+    public string Subject { get => (string)GetValue(SubjectProperty); set => SetValue(SubjectProperty, value); }
 
     private readonly ToolTip _tip;
     private readonly TextBlock _tipText;
@@ -42,7 +49,8 @@ public sealed class InfoTip : Button
         ToolTip = _tip;
         ToolTipService.SetInitialShowDelay(this, 250);
         ToolTipService.SetShowDuration(this, 60000);
-        SetBinding(AutomationProperties.NameProperty, new Binding("[info_more]") { Source = LocSource.Instance, Mode = BindingMode.OneWay });
+        // re-render on a UI language switch (the name contains the localized "More information")
+        System.ComponentModel.PropertyChangedEventManager.AddHandler(LocSource.Instance, (_, _) => Dispatcher.BeginInvoke(Render), "");   // weak: no leak
         Click += (_, _) => _tip.IsOpen = !_tip.IsOpen;
         GotKeyboardFocus += (_, _) => { if (Text.Length > 0) _tip.IsOpen = true; };
         LostKeyboardFocus += (_, _) => _tip.IsOpen = false;
@@ -54,6 +62,8 @@ public sealed class InfoTip : Button
     {
         _tipText.Text = Text;
         AutomationProperties.SetHelpText(this, Text);
+        var more = Core.Languages.Loc.T("info_more");
+        AutomationProperties.SetName(this, string.IsNullOrWhiteSpace(Subject) ? more : $"{more}: {Subject}");
         Visibility = string.IsNullOrEmpty(Text) ? Visibility.Collapsed : Visibility.Visible;
     }
 }

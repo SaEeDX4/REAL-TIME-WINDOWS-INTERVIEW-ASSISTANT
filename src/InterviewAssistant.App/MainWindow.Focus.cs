@@ -21,11 +21,12 @@ public partial class MainWindow
     {
         CloseMore();
         await ShowFocusDialogAsync();
+        MoreBtn.Focus();   // the dialog changed this window in place: keyboard users continue where they were
     }
 
     private void MoreFocusRestore_Click(object sender, RoutedEventArgs e)
     {
-        CloseMore();
+        CloseMore(restoreFocus: true);
         RestoreFocusPlacement();
     }
 
@@ -40,8 +41,6 @@ public partial class MainWindow
         var current = FocusPlacement.Parse(s.InterviewFocusPreset);
         var group = "focus-" + Guid.NewGuid().ToString("n");
         var options = new StackPanel();
-        KeyboardNavigation.SetDirectionalNavigation(options, KeyboardNavigationMode.Cycle);
-        AutomationProperties.SetName(options, Loc.T("focus_position"));
         var radios = new Dictionary<FocusPreset, RadioButton>();
         foreach (var preset in Enum.GetValues<FocusPreset>())
         {
@@ -50,7 +49,9 @@ public partial class MainWindow
             radios[preset] = rb;
             options.Children.Add(rb);
         }
-        var track = new Border { Child = options };
+        RovingRadios.Attach(options, () => radios.Values.ToList());   // one Tab stop; arrows choose a preset
+        var track = new AccessibleBorder { Child = options };
+        AutomationProperties.SetName(track, Loc.T("focus_position"));
         track.SetResourceReference(StyleProperty, "Seg.Track");
         var body = new StackPanel();
         body.Children.Add(new FormField { Label = Loc.T("focus_position"), Content = track });

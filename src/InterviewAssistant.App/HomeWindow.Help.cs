@@ -176,7 +176,7 @@ public partial class HomeWindow
         foreach (var r in _healthRows)
         {
             var pass = r.Outcome == HealthOutcome.Pass;
-            var row = new DockPanel { Margin = new Thickness(0, 4, 0, 4) };
+            var row = new DockPanel();
             var icon = new TextBlock { Text = pass ? "" : "", FontSize = 13, Margin = new Thickness(0, 1, 10, 0), VerticalAlignment = VerticalAlignment.Top };
             icon.SetResourceReference(StyleProperty, "T.Icon");
             icon.SetResourceReference(TextBlock.ForegroundProperty, pass ? "B.Listening" : "B.Thinking");
@@ -188,8 +188,10 @@ public partial class HomeWindow
             detail.SetResourceReference(StyleProperty, "T.Body");
             text.Children.Add(label); text.Children.Add(detail);
             row.Children.Add(icon); row.Children.Add(text);
-            AutomationProperties.SetName(row, $"{T(r.LabelKey)}: {T(pass ? "hc_pass" : "hc_warn")} — {T(r.DetailKey)}");
-            HelpDiagRows.Children.Add(row);
+            // a list item with the whole sentence as its name (a DockPanel has no automation peer: its name would be lost)
+            var item = new Views.AccessibleBorder { Child = row, IsListItem = true, Margin = new Thickness(0, 4, 0, 4) };
+            AutomationProperties.SetName(item, $"{T(r.LabelKey)}: {T(pass ? "hc_pass" : "hc_warn")} — {T(r.DetailKey)}");
+            HelpDiagRows.Children.Add(item);
         }
     }
 

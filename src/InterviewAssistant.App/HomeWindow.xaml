@@ -131,7 +131,7 @@
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                         <Ellipse x:Name="SettingsDirtyDot" Width="8" Height="8" Fill="{StaticResource B.Thinking}" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="SettingsDirtyText" Style="{StaticResource T.Body}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite"/>
+                        <TextBlock x:Name="SettingsDirtyText" Style="{StaticResource T.Body}" VerticalAlignment="Center" v:LiveRegion.Mode="Polite"/>
                     </StackPanel>
                 </DockPanel>
             </Border>
@@ -144,11 +144,12 @@
                         <Button x:Name="PfRunBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc pf_run_all}" Click="PfRun_Click" Margin="0,0,8,0"/>
                         <Button x:Name="PfStartBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc pf_start_interview}" Click="PfStart_Click" ToolTip="{v:Loc tt_pf_start}"/>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
-                        <Ellipse x:Name="PfFooterDot" Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <!-- a DockPanel (not a horizontal StackPanel) so long languages trim with "…" and the tool tip shows all of it -->
+                    <DockPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                        <Ellipse x:Name="PfFooterDot" DockPanel.Dock="Left" Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center"/>
                         <TextBlock x:Name="PfFooterText" Style="{StaticResource T.Body}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
-                                   AutomationProperties.LiveSetting="Polite"/>
-                    </StackPanel>
+                                   ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" v:LiveRegion.Mode="Polite"/>
+                    </DockPanel>
                 </DockPanel>
             </Border>
             <ScrollViewer x:Name="ContentScroll" VerticalScrollBarVisibility="Auto" KeyboardNavigation.TabIndex="0">
@@ -161,7 +162,7 @@
                          Everything else is a ghost or link button. -->
                     <StackPanel x:Name="PageStart" MaxWidth="{StaticResource S.ReadingMaxWidth}" HorizontalAlignment="Left">
                         <StackPanel.Resources>
-                            <Style x:Key="StepCard" TargetType="Border" BasedOn="{StaticResource Card}">
+                            <Style x:Key="StepCard" TargetType="v:AccessibleBorder" BasedOn="{StaticResource Card}">
                                 <Setter Property="Margin" Value="0,10,0,0"/>
                                 <Setter Property="Focusable" Value="True"/>
                                 <Setter Property="FocusVisualStyle" Value="{StaticResource FocusRing}"/>
@@ -221,7 +222,7 @@
                         </Border>
 
                         <!-- 1 · Account -->
-                        <Border x:Name="StepCard0" Style="{StaticResource StepCard}" Margin="0,16,0,0">
+                        <v:AccessibleBorder x:Name="StepCard0" Style="{StaticResource StepCard}" Margin="0,16,0,0">
                             <DockPanel>
                                 <Border x:Name="StepMark0" DockPanel.Dock="Left" Style="{StaticResource StepMark}">
                                     <Grid><TextBlock x:Name="StepNum0" Style="{StaticResource StepNum}" Text="1"/><TextBlock x:Name="StepIcon0" Style="{StaticResource StepIcon}"/></Grid>
@@ -236,10 +237,10 @@
                                     </WrapPanel>
                                 </StackPanel>
                             </DockPanel>
-                        </Border>
+                        </v:AccessibleBorder>
 
                         <!-- 2 · Profile -->
-                        <Border x:Name="StepCard1" Style="{StaticResource StepCard}">
+                        <v:AccessibleBorder x:Name="StepCard1" Style="{StaticResource StepCard}">
                             <DockPanel>
                                 <Border x:Name="StepMark1" DockPanel.Dock="Left" Style="{StaticResource StepMark}">
                                     <Grid><TextBlock x:Name="StepNum1" Style="{StaticResource StepNum}" Text="2"/><TextBlock x:Name="StepIcon1" Style="{StaticResource StepIcon}"/></Grid>
@@ -254,10 +255,10 @@
                                     </WrapPanel>
                                 </StackPanel>
                             </DockPanel>
-                        </Border>
+                        </v:AccessibleBorder>
 
                         <!-- 3 · Interview setup -->
-                        <Border x:Name="StepCard2" Style="{StaticResource StepCard}">
+                        <v:AccessibleBorder x:Name="StepCard2" Style="{StaticResource StepCard}">
                             <DockPanel>
                                 <Border x:Name="StepMark2" DockPanel.Dock="Left" Style="{StaticResource StepMark}">
                                     <Grid><TextBlock x:Name="StepNum2" Style="{StaticResource StepNum}" Text="3"/><TextBlock x:Name="StepIcon2" Style="{StaticResource StepIcon}"/></Grid>
@@ -271,10 +272,10 @@
                                     </WrapPanel>
                                 </StackPanel>
                             </DockPanel>
-                        </Border>
+                        </v:AccessibleBorder>
 
                         <!-- 4 · Pre-interview check -->
-                        <Border x:Name="StepCard3" Style="{StaticResource StepCard}">
+                        <v:AccessibleBorder x:Name="StepCard3" Style="{StaticResource StepCard}">
                             <DockPanel>
                                 <Border x:Name="StepMark3" DockPanel.Dock="Left" Style="{StaticResource StepMark}">
                                     <Grid><TextBlock x:Name="StepNum3" Style="{StaticResource StepNum}" Text="4"/><TextBlock x:Name="StepIcon3" Style="{StaticResource StepIcon}"/></Grid>
@@ -288,7 +289,7 @@
                                     </WrapPanel>
                                 </StackPanel>
                             </DockPanel>
-                        </Border>
+                        </v:AccessibleBorder>
 
                         <!-- the one primary action: the next step (waits for the acknowledgement on first run) -->
                         <Button x:Name="PrimaryActionBtn" Style="{StaticResource Btn.FormPrimary}" Click="PrimaryAction_Click" HorizontalAlignment="Left" Margin="0,20,0,0" Padding="22,6" MinWidth="180"/>
@@ -397,7 +398,7 @@
                             <v:InlineMessage x:Name="ProfileMessage" Margin="0,12,0,0"/>
                             <WrapPanel Margin="{StaticResource S.ButtonRowMargin}">
                                 <Button x:Name="SaveProfileBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc save_profile}" Click="SaveProfile_Click" Margin="{StaticResource S.ButtonGap}"/>
-                                <TextBlock x:Name="ProfileDirty" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="4,0,0,8" Foreground="{StaticResource B.Thinking}" AutomationProperties.LiveSetting="Polite"/>
+                                <TextBlock x:Name="ProfileDirty" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="4,0,0,8" Foreground="{StaticResource B.Thinking}" v:LiveRegion.Mode="Polite"/>
                             </WrapPanel>
                         </StackPanel>
                     </Grid>
@@ -420,7 +421,7 @@
                         </StackPanel>
                         <StackPanel Grid.Column="2" x:Name="TargetDetail">
                             <!-- readiness of the active interview: the same snapshot as the pre-interview check -->
-                            <Border x:Name="InterviewReadinessCard" Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,16" AutomationProperties.LiveSetting="Polite">
+                            <v:AccessibleBorder x:Name="InterviewReadinessCard" Style="{StaticResource Card}" Padding="14,10" Margin="0,0,0,16" v:LiveRegion.Mode="Polite">
                                 <DockPanel>
                                     <Button x:Name="InterviewCheckBtn" DockPanel.Dock="Right" Style="{StaticResource Btn.Form}" Click="Readiness_Click" VerticalAlignment="Center" Margin="12,0,0,0"/>
                                     <Border x:Name="IvBadge" DockPanel.Dock="Left" CornerRadius="10" Padding="8,2" BorderThickness="1" VerticalAlignment="Center" Margin="0,0,12,0">
@@ -435,7 +436,7 @@
                                         <TextBlock x:Name="IvApplies" Style="{StaticResource Hint}" Margin="0,2,0,0"/>
                                     </StackPanel>
                                 </DockPanel>
-                            </Border>
+                            </v:AccessibleBorder>
                             <Grid x:Name="TargetFieldGrid">
                                 <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="{StaticResource S.ColumnGap}"/><ColumnDefinition/></Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -467,7 +468,7 @@
                                 <Button x:Name="PrepareBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc prepare}" Click="Prepare_Click" Margin="{StaticResource S.ButtonGap}"/>
                                 <Button x:Name="SaveTargetBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc save}" Click="SaveTarget_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_save_interview}"/>
                                 <Button x:Name="UseBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc start_interview}" Click="UseTarget_Click" Margin="{StaticResource S.ButtonGap}"/>
-                                <TextBlock x:Name="TargetDirty" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="4,0,0,8" Foreground="{StaticResource B.Thinking}" AutomationProperties.LiveSetting="Polite"/>
+                                <TextBlock x:Name="TargetDirty" Style="{StaticResource Hint}" VerticalAlignment="Center" Margin="4,0,0,8" Foreground="{StaticResource B.Thinking}" v:LiveRegion.Mode="Polite"/>
                             </WrapPanel>
                             <ProgressBar x:Name="PrepProgress" Height="4" Margin="0,8,0,0" Minimum="0" Maximum="1" Foreground="{StaticResource B.Accent}" Background="{StaticResource B.Surface3}" BorderThickness="0"/>
                             <TextBlock x:Name="PrepStatus" Style="{StaticResource Hint}"/>
@@ -506,7 +507,8 @@
                                 <Grid>
                                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                                     <!-- actions for the selected report: secondary group, destructive set apart at the end -->
-                                    <DockPanel x:Name="ReportToolbar" Margin="0,0,0,8" AutomationProperties.Name="{v:Loc report_actions}">
+                                    <v:AccessibleBorder x:Name="ReportToolbarGroup" AutomationProperties.Name="{v:Loc report_actions}">
+                                    <DockPanel x:Name="ReportToolbar" Margin="0,0,0,8">
                                         <Button x:Name="DeleteReportBtn" DockPanel.Dock="Right" Style="{StaticResource Btn.FormDanger}" Content="{v:Loc delete}" Click="DeleteReport_Click"
                                                 ToolTip="{v:Loc tt_delete_report}" Margin="0,0,0,8" VerticalAlignment="Top"/>
                                         <Border DockPanel.Dock="Right" Width="1" Height="24" Background="{StaticResource B.Border}" Margin="4,6,12,8" VerticalAlignment="Top"/>
@@ -516,6 +518,7 @@
                                             <Button x:Name="ExportReportBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc save_as_html}" Click="ExportReport_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_save_report_html}"/>
                                         </WrapPanel>
                                     </DockPanel>
+                                    </v:AccessibleBorder>
                                     <!-- summary of the selected report -->
                                     <ScrollViewer x:Name="ReportPreview" Grid.Row="1" VerticalScrollBarVisibility="Auto" Focusable="False">
                                         <StackPanel>
@@ -570,7 +573,7 @@
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" MinWidth="140" MaxWidth="260"/><ColumnDefinition/></Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
                                 <TextBlock Style="{StaticResource AboutKey}" Text="{v:Loc help_diag_connection}"/>
-                                <TextBlock x:Name="HelpDiagConnection" Grid.Column="1" Style="{StaticResource AboutValue}" AutomationProperties.LiveSetting="Polite"/>
+                                <TextBlock x:Name="HelpDiagConnection" Grid.Column="1" Style="{StaticResource AboutValue}" v:LiveRegion.Mode="Polite"/>
                                 <TextBlock Grid.Row="1" Style="{StaticResource AboutKey}" Text="{v:Loc help_diag_audio}"/>
                                 <TextBlock x:Name="HelpDiagAudio" Grid.Row="1" Grid.Column="1" Style="{StaticResource AboutValue}"/>
                                 <TextBlock Grid.Row="2" Style="{StaticResource AboutKey}" Text="{v:Loc help_diag_latency}"/>
@@ -585,7 +588,7 @@
                             <Button x:Name="HelpDiagRunBtn" Style="{StaticResource Btn.Base}" Content="{v:Loc help_diag_run}" Click="RunHealthCheck_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_help_diag_run}"/>
                         </WrapPanel>
                         <!-- in-app health check result: one pass / warn row per check -->
-                        <TextBlock x:Name="HelpDiagRunStatus" Style="{StaticResource Hint}" Visibility="Collapsed" AutomationProperties.LiveSetting="Polite"/>
+                        <TextBlock x:Name="HelpDiagRunStatus" Style="{StaticResource Hint}" Visibility="Collapsed" v:LiveRegion.Mode="Polite"/>
                         <StackPanel x:Name="HelpDiagRows" Margin="0,6,0,0"/>
                         <TextBlock Text="{v:Loc help_about}" Style="{StaticResource Section}"/>
                         <Border Style="{StaticResource Card}">
@@ -619,7 +622,7 @@
                         <StackPanel x:Name="AccountHeader">
                             <TextBlock x:Name="AccountTitle" Style="{StaticResource H1}" Text="{v:Loc account}"/>
                             <!-- account-wide state only (signed in as …, connecting, update required); request failures are shown in their own section -->
-                            <TextBlock x:Name="AccountStatus" Style="{StaticResource Hint}" Foreground="{StaticResource B.TextDim}" FontSize="13" AutomationProperties.LiveSetting="Polite"/>
+                            <TextBlock x:Name="AccountStatus" Style="{StaticResource Hint}" Foreground="{StaticResource B.TextDim}" FontSize="13" v:LiveRegion.Mode="Polite"/>
                         </StackPanel>
 
                         <!-- signed out: product column + the auth form card, centred (max width); one centred column on narrow
@@ -762,13 +765,13 @@
                                                             <TextBlock Text="{Binding Label}" Style="{StaticResource T.Label}" Margin="0,0,0,4" TextWrapping="Wrap"/>
                                                             <TextBlock Text="{Binding Value}" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
                                                             <TextBlock Text="{Binding Detail}" Style="{StaticResource Hint}" Visibility="{Binding DetailVisibility}"/>
-                                                            <Border Visibility="{Binding BarVisibility}" Height="6" Margin="0,8,0,0" CornerRadius="3" Background="{StaticResource B.Surface3}"
+                                                            <v:AccessibleBorder Visibility="{Binding BarVisibility}" Height="6" Margin="0,8,0,0" CornerRadius="3" Background="{StaticResource B.Surface3}"
                                                                     AutomationProperties.Name="{Binding BarName}">
                                                                 <Grid>
                                                                     <Grid.ColumnDefinitions><ColumnDefinition Width="{Binding Filled}"/><ColumnDefinition Width="{Binding Rest}"/></Grid.ColumnDefinitions>
                                                                     <Border CornerRadius="3" Background="{Binding BarBrush}"/>
                                                                 </Grid>
-                                                            </Border>
+                                                            </v:AccessibleBorder>
                                                         </StackPanel>
                                                     </Border>
                                                 </DataTemplate>
@@ -780,7 +783,7 @@
                                             <Button x:Name="ManageBillingBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc manage_billing}" Click="Portal_Click" Margin="{StaticResource S.ButtonGap}" ToolTip="{v:Loc tt_manage_billing}"/>
                                         </WrapPanel>
                                         <v:InlineMessage x:Name="BillingMessage" ActionClick="BillingRetry_Click"/>
-                                        <TextBlock x:Name="UpgradeStatus" Style="{StaticResource Hint}" AutomationProperties.LiveSetting="Polite"/>
+                                        <TextBlock x:Name="UpgradeStatus" Style="{StaticResource Hint}" v:LiveRegion.Mode="Polite"/>
                                         <TextBlock x:Name="BillingTerms" Style="{StaticResource Hint}"/>
                                     </StackPanel>
                                 </Border>
@@ -881,7 +884,7 @@
                  click, Escape or choosing an item closes it and focus returns to the button -->
             <Grid x:Name="AccountMenuLayer" Grid.RowSpan="2" Grid.ColumnSpan="2" Visibility="Collapsed" Panel.ZIndex="50">
                 <Border Background="Transparent" MouseDown="AccountMenuBackdrop_MouseDown"/>
-                <Border x:Name="AccountMenuCard" Style="{StaticResource Card}" Padding="6" MinWidth="240" MaxWidth="340" HorizontalAlignment="Right" VerticalAlignment="Top"
+                <v:AccessibleBorder x:Name="AccountMenuCard" Style="{StaticResource Card}" Padding="6" MinWidth="240" MaxWidth="340" HorizontalAlignment="Right" VerticalAlignment="Top"
                         Effect="{StaticResource E.Shadow}" AutomationProperties.Name="{v:Loc acct_menu}" PreviewKeyDown="AccountMenu_PreviewKeyDown"
                         KeyboardNavigation.TabNavigation="Cycle" KeyboardNavigation.DirectionalNavigation="Contained">
                     <StackPanel x:Name="AccountMenuItems">
@@ -896,7 +899,7 @@
                         <Button x:Name="MenuSwitchAccount" Style="{StaticResource MenuItem}" Content="{v:Loc switch_account}" Click="MenuSwitchAccount_Click"/>
                         <Button x:Name="MenuSignOut" Style="{StaticResource MenuItem}" Content="{v:Loc sign_out}" Click="MenuSignOut_Click"/>
                     </StackPanel>
-                </Border>
+                </v:AccessibleBorder>
             </Grid>
 
             <!-- in-app dialogs: dim the whole window content (title bar and sidebar included) -->

@@ -90,11 +90,11 @@
                             </Ellipse.Style>
                         </Ellipse>
                         <!-- audio meter -->
-                        <Border DockPanel.Dock="Right" Width="48" Height="4" CornerRadius="2" Background="{StaticResource B.Surface3}" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="{v:Loc tt_audio_meter}">
+                        <v:LevelMeter DockPanel.Dock="Right" Width="48" Height="4" CornerRadius="2" Background="{StaticResource B.Surface3}" Margin="10,0,0,0" VerticalAlignment="Center" ToolTip="{v:Loc tt_audio_meter}" AutomationProperties.Name="{v:Loc tt_audio_meter}" Level="{Binding AudioLevel}">
                             <Border HorizontalAlignment="Left" CornerRadius="2" Background="{StaticResource B.Listening}" Width="{Binding AudioLevel, Converter={StaticResource LevelW}}"/>
-                        </Border>
+                        </v:LevelMeter>
                         <TextBlock Text="{Binding StatusText}" Margin="8,0,0,0" FontSize="11" FontWeight="SemiBold" Foreground="{Binding StatusBrush}" VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis" AutomationProperties.LiveSetting="Polite"/>
+                                   TextTrimming="CharacterEllipsis" v:LiveRegion.Mode="Polite"/>
                     </DockPanel>
                 </Border>
 
@@ -102,7 +102,7 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,4,0">
                     <Button x:Name="AdaptiveBadge" Style="{StaticResource Btn.Chip}" Padding="8,2" Background="{StaticResource B.AccentSoft}" BorderBrush="Transparent" Margin="0,0,6,0"
                             Visibility="Collapsed" ToolTip="{v:Loc tt_adaptive}" AutomationProperties.Name="{v:Loc tt_adaptive}" Click="Adaptive_Click">
-                        <TextBlock Text="{Binding AdaptiveLabel}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource B.Accent}"/>
+                        <TextBlock Text="{Binding AdaptiveLabel}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource B.Text}"/>
                     </Button>
                     <Button x:Name="PresentationChip" Style="{StaticResource Btn.Chip}" Padding="8,2" BorderBrush="Transparent" Margin="0,0,6,0" ToolTip="{v:Loc tt_presentation}" AutomationProperties.Name="{v:Loc tt_presentation}" Click="Presentation_Click">
                         <TextBlock x:Name="PresentationText" Text="{Binding PresentationLabel}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource B.TextDim}"/>
@@ -123,7 +123,8 @@
                     <!-- readiness (the one pre-interview snapshot): a labelled pill in setup mode, a dot during the interview -->
                     <Button x:Name="ReadinessBtn" Style="{StaticResource Btn.HeaderIcon}" Padding="8,5" Margin="2,0" Click="Readiness_Click">
                         <StackPanel Orientation="Horizontal">
-                            <Ellipse x:Name="ReadinessDot" Width="8" Height="8" VerticalAlignment="Center" Fill="{StaticResource B.TextFaint}"/>
+                            <!-- the state's icon, not a colour-only dot: check / warning / cross / clock -->
+                            <TextBlock x:Name="ReadinessDot" Style="{StaticResource T.Icon}" FontSize="11" VerticalAlignment="Center" Foreground="{StaticResource B.TextFaint}"/>
                             <TextBlock x:Name="ReadinessLabel" Margin="6,0,0,0" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" MaxWidth="150" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
                     </Button>
@@ -177,7 +178,7 @@
                         <TextBlock x:Name="WaitingText" Text="{Binding LWaiting}" FontSize="{Binding QuestionFontSize}" Foreground="{StaticResource B.TextFaint}" Visibility="Collapsed"/>
                         <StackPanel x:Name="SetupEmpty" Visibility="Collapsed">
                             <TextBlock x:Name="SetupEmptyText" Text="{v:Loc live_empty_setup}" FontSize="{Binding QuestionFontSize}" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap"
-                                       AutomationProperties.LiveSetting="Polite"/>
+                                       v:LiveRegion.Mode="Polite"/>
                             <Button x:Name="SetupHomeLink" Style="{StaticResource Btn.Link}" HorizontalAlignment="Left" Margin="-6,6,0,0" Click="Home_Click" ToolTip="{v:Loc tt_home}"
                                     AutomationProperties.Name="{v:Loc live_open_home}">
                                 <StackPanel Orientation="Horizontal">
@@ -321,10 +322,10 @@
                     </Button>
                 </WrapPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                    <Button Style="{StaticResource Btn.Ghost}" Command="{Binding PreviousCommand}" ToolTip="{v:Loc tt_previous}" AutomationProperties.Name="{v:Loc tt_previous}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE76B;" FontSize="11"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Command="{Binding PreviousCommand}" ToolTip="{v:Loc tt_previous}" AutomationProperties.Name="{v:Loc tt_previous}"><TextBlock x:Name="PrevGlyph" Style="{StaticResource T.Icon}" Text="&#xE76B;" FontSize="11"/></Button>
                     <TextBlock x:Name="HistoryCounterText" Text="{Binding HistoryLabel}" Foreground="{StaticResource B.TextFaint}" FontSize="11" VerticalAlignment="Center" Margin="2,0"
                                FlowDirection="LeftToRight" Visibility="{Binding HistoryLabel, Converter={StaticResource StrVis}}"/>
-                    <Button Style="{StaticResource Btn.Ghost}" Command="{Binding NextCommand}" ToolTip="{v:Loc tt_next}" AutomationProperties.Name="{v:Loc tt_next}"><TextBlock Style="{StaticResource T.Icon}" Text="&#xE76C;" FontSize="11"/></Button>
+                    <Button Style="{StaticResource Btn.Ghost}" Command="{Binding NextCommand}" ToolTip="{v:Loc tt_next}" AutomationProperties.Name="{v:Loc tt_next}"><TextBlock x:Name="NextGlyph" Style="{StaticResource T.Icon}" Text="&#xE76C;" FontSize="11"/></Button>
                 </StackPanel>
             </Grid>
 
@@ -351,7 +352,7 @@
             <!-- ===== Quick help: compact, context-aware popover under "?" (rc.5: replaces the big first-use overlay; opens by itself
                  once on first use, then only on "?"; Escape / click outside closes and focus returns to the button) ===== -->
             <Popup x:Name="QuickHelpPopup" PlacementTarget="{Binding ElementName=HelpBtn}" Placement="Custom" StaysOpen="True" AllowsTransparency="True" PopupAnimation="Fade">
-                <Border x:Name="QuickHelpCard" Style="{StaticResource Popover.Card}" Padding="16,14,16,12" Width="340" MaxWidth="340" FlowDirection="{v:LocFlow}"
+                <v:AccessibleBorder x:Name="QuickHelpCard" Style="{StaticResource Popover.Card}" Padding="16,14,16,12" Width="340" MaxWidth="340" FlowDirection="{v:LocFlow}"
                         AutomationProperties.Name="{v:Loc tt_help}">
                     <StackPanel>
                         <StackPanel x:Name="QuickHelpBody"/>
@@ -363,12 +364,12 @@
                             </StackPanel>
                         </DockPanel>
                     </StackPanel>
-                </Border>
+                </v:AccessibleBorder>
             </Popup>
 
             <!-- ===== More (overflow) menu: anchored under its button, Escape / click outside closes, focus returns ===== -->
             <Popup x:Name="MorePopup" PlacementTarget="{Binding ElementName=MoreBtn}" Placement="Custom" StaysOpen="True" AllowsTransparency="True" PopupAnimation="Fade">
-                <Border x:Name="MoreCard" Style="{StaticResource Popover.Card}" Padding="6" MinWidth="230" MaxWidth="320" FlowDirection="{v:LocFlow}" AutomationProperties.Name="{v:Loc tt_more}">
+                <v:AccessibleBorder x:Name="MoreCard" Style="{StaticResource Popover.Card}" Padding="6" MinWidth="230" MaxWidth="320" FlowDirection="{v:LocFlow}" AutomationProperties.Name="{v:Loc tt_more}">
                     <StackPanel>
                         <Button x:Name="MoreCompact" Style="{StaticResource Btn.MenuRow}" Click="MoreCompact_Click" AutomationProperties.Name="{v:Loc more_compact}">
                             <DockPanel>
@@ -418,9 +419,9 @@
                         </Button>
                         <!-- minutes left: here when the header has no room for the label -->
                         <TextBlock x:Name="MoreMinutes" Text="{Binding MinutesLeftLabel}" ToolTip="{Binding MinutesTooltip}" FontSize="11" Foreground="{StaticResource B.TextFaint}" Margin="10,6,10,4"
-                                   TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                                   TextWrapping="Wrap" v:LiveRegion.Mode="Polite"/>
                     </StackPanel>
-                </Border>
+                </v:AccessibleBorder>
             </Popup>
 
             <!-- notifications: bottom of the window, over the action/typing area — never over the answer text -->

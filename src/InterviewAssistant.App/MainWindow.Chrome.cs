@@ -47,6 +47,13 @@ public partial class MainWindow
     private static Visibility Vis(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Applies <see cref="LiveChrome"/> for the current session state, view and width.</summary>
+    /// <summary>A UI language switch flips the reading direction: the chevrons follow at once.</summary>
+    protected override void OnPropertyChanged(DependencyPropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+        if (e.Property == FlowDirectionProperty && IsLoaded) UpdateChrome();
+    }
+
     private void UpdateChrome()
     {
         var width = ActualWidth > 0 ? ActualWidth : Width;
@@ -55,11 +62,18 @@ public partial class MainWindow
         StartLabel.Visibility = Vis(c.StartLabel);
         StartBtn.Padding = c.StartLabel ? new Thickness(12, 4, 12, 4) : new Thickness(9, 4, 9, 4);
         AdaptiveBadge.Visibility = Vis(c.AdaptiveBadge && _vm.AdaptiveLabel.Length > 0);
+        // icon-font chevrons are not mirrored by WPF: in right-to-left layouts "previous" points right
+        var rtl = FlowDirection == FlowDirection.RightToLeft;
+        PrevGlyph.Text = rtl ? "\uE76C" : "\uE76B";
+        NextGlyph.Text = rtl ? "\uE76B" : "\uE76C";
         PresentationChip.Visibility = Vis(c.PresentationChip);
         MinutesText.Visibility = Vis(c.MinutesLabel && _vm.MinutesLeftLabel.Length > 0);
         // the overflow takes what the header has no room for
         MoreCoach.Visibility = Vis(c.PresentationInMore);
         MoreCoachCheck.Visibility = Vis(_vm.Presentation == Core.Live.Presentation.Coach);
+        // the check glyph is not the only cue: screen readers hear "on" / "off"
+        AutomationProperties.SetItemStatus(MoreCoach, Loc.T(_vm.Presentation == Core.Live.Presentation.Coach ? "a11y_on" : "a11y_off"));
+        AutomationProperties.SetItemStatus(MoreCompact, Loc.T(_vm.Settings.CompactMode ? "a11y_on" : "a11y_off"));
         MoreMinutes.Visibility = Vis(c.MinutesInMore && _vm.MinutesLeftLabel.Length > 0);
         MoreCompactCheck.Visibility = Vis(_vm.Settings.CompactMode);
         UpdateFocusMenu();
@@ -74,7 +88,8 @@ public partial class MainWindow
     {
         var state = _vm.ReadinessState;
         var label = Loc.T(ReadinessSnapshot.StateKey(state));
-        ReadinessDot.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, ReadinessSnapshot.BrushKey(state));
+        ReadinessDot.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, ReadinessSnapshot.BrushKey(state));
+        ReadinessDot.Text = ReadinessPresentation.Icon(state);
         ReadinessLabel.Text = label;
         var tip = state is ReadinessState.NotChecked or ReadinessState.Outdated
             ? Loc.F("live_rd_tt_run", label)
@@ -99,12 +114,13 @@ public partial class MainWindow
     // ---------------- More (overflow) ----------------
 
     private void More_Click(object sender, RoutedEventArgs e) { UpdateChrome(); _more.Toggle(); }
-    private void CloseMore() => _more.Close(restoreFocus: false);
+    /// <summary>Closes the menu. In-place actions (Compact, Coach, Restore size) return focus to the More button; navigation does not.</summary>
+    private void CloseMore(bool restoreFocus = false) => _more.Close(restoreFocus);
     internal bool MoreOpen => _more.IsOpen;
 
     private void MoreCompact_Click(object sender, RoutedEventArgs e)
     {
-        CloseMore();
+        CloseMore(restoreFocus: true);
         _vm.Settings.CompactMode = !_vm.Settings.CompactMode;
         ApplyCompact(_vm.Settings.CompactMode);
         _vm.Settings.Save();

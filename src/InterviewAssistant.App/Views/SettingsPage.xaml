@@ -129,9 +129,9 @@
                 </v:FormField>
                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                     <TextBlock Text="{v:Loc set_level}" Foreground="{StaticResource B.TextDim}" FontSize="12" VerticalAlignment="Center" MinWidth="40" Margin="0,0,8,0"/>
-                    <Border Width="200" Height="6" CornerRadius="3" Background="{StaticResource B.Surface3}" VerticalAlignment="Center" AutomationProperties.Name="{v:Loc set_level}">
+                    <v:LevelMeter Width="200" Height="6" CornerRadius="3" Background="{StaticResource B.Surface3}" VerticalAlignment="Center" AutomationProperties.Name="{v:Loc set_level}" Level="{Binding AudioLevel}">
                         <Border HorizontalAlignment="Left" CornerRadius="3" Background="{StaticResource B.Listening}" Width="{Binding AudioLevel, Converter={StaticResource LevelW}}"/>
-                    </Border>
+                    </v:LevelMeter>
                 </StackPanel>
             </StackPanel>
 
@@ -147,7 +147,7 @@
                             <Button Grid.Column="2" Style="{StaticResource Btn.Ghost}" Content="{v:Loc set_remove}" Click="RemoveKey_Click" Margin="4,0,0,0"/>
                         </Grid>
                     </v:FormField>
-                    <TextBlock x:Name="KeyStatus" Style="{StaticResource Hint}" AutomationProperties.LiveSetting="Polite"/>
+                    <TextBlock x:Name="KeyStatus" Style="{StaticResource Hint}" v:LiveRegion.Mode="Polite"/>
                     <!-- security statement: stays visible -->
                     <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_dev_key_hint}"/>
                 </StackPanel>
@@ -238,7 +238,7 @@
                     <Button x:Name="CheckUpdatesBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc set_upd_check}" Click="CheckUpdates_Click" Margin="{StaticResource S.ButtonGap}"/>
                     <Button x:Name="RestartUpdateBtn" Style="{StaticResource Btn.FormPrimary}" Content="{v:Loc restart_to_update}" Click="RestartUpdate_Click" Margin="{StaticResource S.ButtonGap}" Visibility="Collapsed"/>
                 </WrapPanel>
-                <TextBlock x:Name="UpdateStatus" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}" AutomationProperties.LiveSetting="Polite"/>
+                <TextBlock x:Name="UpdateStatus" Style="{StaticResource T.Body}" Foreground="{StaticResource B.Text}" v:LiveRegion.Mode="Polite"/>
                 <!-- the install rule: stays visible -->
                 <TextBlock Style="{StaticResource Hint}" Text="{v:Loc set_upd_install_note}" Margin="0,8,0,0"/>
             </StackPanel>

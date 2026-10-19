@@ -1086,7 +1086,7 @@ public partial class HomeWindow : Window
         var r = row?.Report;
         SetReportButtons(r != null, row != null);
         ReportSelectState.Visibility = row == null ? Visibility.Visible : Visibility.Collapsed;
-        ReportToolbar.Visibility = ReportPreview.Visibility = row == null ? Visibility.Collapsed : Visibility.Visible;
+        ReportToolbarGroup.Visibility = ReportToolbar.Visibility = ReportPreview.Visibility = row == null ? Visibility.Collapsed : Visibility.Visible;
         if (row == null) return;
         if (r == null)
         {

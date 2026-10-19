@@ -20,7 +20,7 @@ public partial class ExportChoiceList : UserControl
     public ExportChoiceList(IReadOnlyList<ExportChoice> choices, string groupName, string? selectedKey = null)
     {
         InitializeComponent();
-        AutomationProperties.SetName(Options, groupName);
+        AutomationProperties.SetName(OptionsGroup, groupName);
         var group = "export-" + Guid.NewGuid().ToString("n");
         foreach (var c in choices)
         {
@@ -35,7 +35,7 @@ public partial class ExportChoiceList : UserControl
         }
         var initial = _items.FindIndex(i => i.Choice.Key == selectedKey);
         if (_items.Count > 0) _items[Math.Max(0, initial)].Button.IsChecked = true;
-        Options.PreviewKeyDown += OnKey;
+        RovingRadios.Attach(Options, () => Buttons);
     }
 
     public string? SelectedKey => _items.FirstOrDefault(i => i.Button.IsChecked == true).Choice?.Key;
@@ -44,16 +44,4 @@ public partial class ExportChoiceList : UserControl
     public RadioButton? SelectedButton => _items.FirstOrDefault(i => i.Button.IsChecked == true).Button;
 
     internal IReadOnlyList<RadioButton> Buttons => _items.Select(i => i.Button).ToList();
-
-    private void OnKey(object sender, KeyEventArgs e)
-    {
-        var step = e.Key switch { Key.Down or Key.Right => 1, Key.Up or Key.Left => -1, _ => 0 };
-        if (step == 0 || _items.Count == 0) return;
-        if (FlowDirection == FlowDirection.RightToLeft && e.Key is Key.Left or Key.Right) step = -step;
-        var i = Math.Max(0, _items.FindIndex(x => x.Button.IsChecked == true));
-        var next = _items[(i + step + _items.Count) % _items.Count].Button;
-        next.IsChecked = true;
-        next.Focus();
-        e.Handled = true;
-    }
 }

@@ -894,6 +894,8 @@
  "pf_bank_none": "Prepare an interview to get instant answers.",
  "pf_bank_incomplete": "Only {0} prepared answers.",
  "pf_topmost_on": "The window stays above Chrome and the meeting.",
+ "a11y_on": "On",
+ "a11y_off": "Off",
  "pf_topmost_off": "The window can be hidden behind Chrome.",
  "pf_signal_ok": "Peak {0} dBFS on {1}",
  "pf_signal_none": "Nothing heard in {0} s on {1}",

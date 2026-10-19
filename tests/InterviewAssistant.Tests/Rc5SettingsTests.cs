@@ -349,7 +349,9 @@ public class Rc5SettingsTests
         var cs = App("Views/InfoTip.cs");
         Assert.Contains("public sealed class InfoTip : Button", cs);
         Assert.Contains("AutomationProperties.SetHelpText(this, Text);", cs);
-        Assert.Contains("new Binding(\"[info_more]\")", cs);
+        // rc.5 accessibility audit: the name is "More information: <field>", re-rendered on a language switch
+        Assert.Contains("Loc.T(\"info_more\")", cs);
+        Assert.Contains("$\"{more}: {Subject}\"", cs);
         Assert.Contains("GotKeyboardFocus +=", cs);
         Assert.Contains("Click += (_, _) => _tip.IsOpen = !_tip.IsOpen;", cs);
         Assert.Contains("Focusable = true;", cs);

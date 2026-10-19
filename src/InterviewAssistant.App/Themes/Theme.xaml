@@ -248,6 +248,11 @@
         <Setter Property="Foreground" Value="{StaticResource B.Accent}"/>
         <Setter Property="Padding" Value="6,2"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
+        <!-- the hover/pressed overlay lightens the background: the text turns brighter so it keeps 4.5:1 -->
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{StaticResource B.Text}"/></Trigger>
+            <Trigger Property="IsPressed" Value="True"><Setter Property="Foreground" Value="{StaticResource B.Text}"/></Trigger>
+        </Style.Triggers>
     </Style>
     <Style x:Key="Btn.Chip" TargetType="Button" BasedOn="{StaticResource Btn.Base}">
         <Setter Property="Padding" Value="11,5"/>
@@ -721,7 +726,7 @@
                             <ContentPresenter DockPanel.Dock="Right" Content="{TemplateBinding Accessory}" VerticalAlignment="Bottom" Margin="8,0,0,0"/>
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Bottom">
                                 <TextBlock x:Name="PART_Label" Text="{TemplateBinding Label}" Style="{StaticResource T.Label}" Margin="0" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                                <v:InfoTip x:Name="PART_Info" Text="{TemplateBinding Info}" Margin="4,-4,0,-4"/>
+                                <v:InfoTip x:Name="PART_Info" Text="{TemplateBinding Info}" Subject="{TemplateBinding Label}" Margin="4,-4,0,-4"/>
                             </StackPanel>
                         </DockPanel>
                         <ContentPresenter x:Name="PART_Content" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"/>

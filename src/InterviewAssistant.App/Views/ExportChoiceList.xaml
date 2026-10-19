@@ -52,5 +52,8 @@
         </Style>
     </UserControl.Resources>
     <!-- one tab stop for the group; arrow keys move the selection (handled in code) -->
-    <StackPanel x:Name="Options" KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained" Margin="0,4,0,0"/>
+    <!-- the group carries the question as its accessible name (a StackPanel has no automation peer) -->
+    <v:AccessibleBorder x:Name="OptionsGroup">
+        <StackPanel x:Name="Options" KeyboardNavigation.TabNavigation="Once" KeyboardNavigation.DirectionalNavigation="Contained" Margin="0,4,0,0"/>
+    </v:AccessibleBorder>
 </UserControl>

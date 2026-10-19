@@ -894,6 +894,8 @@
  "pf_bank_none": "Prepara un colloquio per ottenere risposte immediate.",
  "pf_bank_incomplete": "Solo {0} risposte preparate.",
  "pf_topmost_on": "La finestra resta sopra Chrome e la riunione.",
+ "a11y_on": "Attivo",
+ "a11y_off": "Disattivo",
  "pf_topmost_off": "La finestra può finire dietro Chrome.",
  "pf_signal_ok": "Picco {0} dBFS su {1}",
  "pf_signal_none": "Nessun suono rilevato in {0} s su {1}",

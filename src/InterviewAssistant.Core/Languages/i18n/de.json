@@ -894,6 +894,8 @@
  "pf_bank_none": "Bereiten Sie ein Interview vor, um sofortige Antworten zu erhalten.",
  "pf_bank_incomplete": "Nur {0} vorbereitete Antworten.",
  "pf_topmost_on": "Das Fenster bleibt über Chrome und dem Meeting.",
+ "a11y_on": "Ein",
+ "a11y_off": "Aus",
  "pf_topmost_off": "Das Fenster kann hinter Chrome verdeckt werden.",
  "pf_signal_ok": "Spitze {0} dBFS auf {1}",
  "pf_signal_none": "Kein Ton in {0} s auf {1}",

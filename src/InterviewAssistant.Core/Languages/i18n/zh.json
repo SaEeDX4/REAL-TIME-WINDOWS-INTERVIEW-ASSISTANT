@@ -894,6 +894,8 @@
  "pf_bank_none": "准备面试即可获得即时回答。",
  "pf_bank_incomplete": "仅有 {0} 个预备答案。",
  "pf_topmost_on": "窗口始终显示在 Chrome 和会议窗口之上。",
+ "a11y_on": "开",
+ "a11y_off": "关",
  "pf_topmost_off": "窗口可能会被 Chrome 遮挡。",
  "pf_signal_ok": "{1} 上的峰值为 {0} dBFS",
  "pf_signal_none": "{0} 秒内在 {1} 上未检测到声音",

@@ -26,8 +26,8 @@
         <TextBlock Style="{StaticResource Hint}" Text="{v:Loc pf_subtitle}"/>
 
         <!-- ===== summary: state, n of 8, last checked, what blocks ===== -->
-        <Border x:Name="SummaryCard" Style="{StaticResource Card}" Margin="0,16,0,0" Focusable="True" FocusVisualStyle="{StaticResource FocusRing}"
-                AutomationProperties.LiveSetting="Polite">
+        <v:AccessibleBorder x:Name="SummaryCard" Style="{StaticResource Card}" Margin="0,16,0,0" Focusable="True" FocusVisualStyle="{StaticResource FocusRing}"
+                v:LiveRegion.Mode="Polite">
             <StackPanel>
                 <Border x:Name="StateBadge" Style="{StaticResource Badge}" Padding="10,3">
                     <StackPanel Orientation="Horizontal">
@@ -55,7 +55,7 @@
                     <TextBlock x:Name="TypedStillWork" Style="{StaticResource Hint}" Text="{v:Loc pf_typed_still_work}" Margin="0,8,0,0"/>
                 </StackPanel>
             </StackPanel>
-        </Border>
+        </v:AccessibleBorder>
 
         <!-- ===== the eight checks (Tab moves row by row, then to the row's action) ===== -->
         <TextBlock Text="{v:Loc rd_checks_title}" Style="{StaticResource Section}"/>
@@ -63,8 +63,8 @@
             <ItemsControl x:Name="CheckRows" Focusable="False" AutomationProperties.Name="{v:Loc rd_checks_title}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border BorderBrush="{StaticResource B.Border}" BorderThickness="{Binding Separator}" Padding="18,12" Background="Transparent"
-                                Focusable="True" FocusVisualStyle="{StaticResource FocusRing}" AutomationProperties.Name="{Binding AccessibleName}">
+                        <v:AccessibleBorder BorderBrush="{StaticResource B.Border}" BorderThickness="{Binding Separator}" Padding="18,12" Background="Transparent"
+                                Focusable="True" FocusVisualStyle="{StaticResource FocusRing}" AutomationProperties.Name="{Binding AccessibleName}" IsListItem="True">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="28"/>
@@ -88,7 +88,7 @@
                                         Tag="{Binding}" Click="Fix_Click" Margin="12,0,0,0" VerticalAlignment="Center" MinHeight="30" Padding="12,4"
                                         AutomationProperties.Name="{Binding FixAccessibleName}"/>
                             </Grid>
-                        </Border>
+                        </v:AccessibleBorder>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
@@ -104,15 +104,15 @@
                     <Button x:Name="AudioBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc pf_test_audio}" Click="TestAudio_Click" Margin="{StaticResource S.ButtonGap}"/>
                     <Button x:Name="SttBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc pf_test_stt}" Click="TestStt_Click" Margin="{StaticResource S.ButtonGap}"/>
                     <Button x:Name="AiBtn" Style="{StaticResource Btn.Form}" Content="{v:Loc pf_test_ai}" Click="TestAi_Click" Margin="0,0,16,8"/>
-                    <Border Width="200" Height="6" CornerRadius="3" Background="{StaticResource B.Surface3}" VerticalAlignment="Center" Margin="0,0,0,8"
-                            AutomationProperties.Name="{v:Loc tt_audio_meter}" ToolTip="{v:Loc tt_audio_meter}">
+                    <v:LevelMeter Width="200" Height="6" CornerRadius="3" Background="{StaticResource B.Surface3}" VerticalAlignment="Center" Margin="0,0,0,8"
+                            AutomationProperties.Name="{v:Loc tt_audio_meter}" ToolTip="{v:Loc tt_audio_meter}" Level="{Binding AudioLevel}">
                         <Border HorizontalAlignment="Left" CornerRadius="3" Background="{StaticResource B.Listening}" Width="{Binding AudioLevel, Converter={StaticResource LevelW}}"/>
-                    </Border>
+                    </v:LevelMeter>
                 </WrapPanel>
                 <Border Style="{StaticResource Divider}" Margin="0,4,0,12"/>
-                <StackPanel AutomationProperties.LiveSetting="Polite">
-                    <TextBlock x:Name="ToolTitle" Text="{v:Loc pf_pick_test}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
-                    <TextBlock x:Name="ToolResult" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0" Visibility="Collapsed"/>
+                <StackPanel>
+                    <TextBlock x:Name="ToolTitle" v:LiveRegion.Mode="Polite" Text="{v:Loc pf_pick_test}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="ToolResult" v:LiveRegion.Mode="Polite" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,6,0,0" Visibility="Collapsed"/>
                     <TextBlock x:Name="ToolOutput" FontSize="12.5" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap" Margin="0,6,0,0"/>
                 </StackPanel>
                 <Expander x:Name="ToolDiagnostics" Header="{v:Loc pf_technical_details}" Margin="0,10,0,0" Foreground="{StaticResource B.TextFaint}" Visibility="Collapsed">
