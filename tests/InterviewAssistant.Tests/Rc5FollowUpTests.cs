@@ -138,15 +138,78 @@ public class Rc5FollowUpTests
         }
     }
 
+    /// <summary>
+    /// Short clips of in-range held tones (the first 300–400 ms of a buzz or a piano note) and pulsing tones (70 ms on /
+    /// 30 ms off): too few pitch-run hops for the run rule, so the rc.4 steady-pitch rule decides (rc.5 engine audit,
+    /// finding 1: before the fix rc.5 answered 12 of 18 phrases over these, rc.4 none).
+    /// </summary>
+    public static IEnumerable<object[]> ShortNonSpeech() => new[]
+    {
+        new object[] { "error_low_buzz__direct.wav", "first", 300 }, new object[] { "error_low_buzz__direct.wav", "first", 400 },
+        new object[] { "error_low_buzz__callq.wav", "first", 300 }, new object[] { "error_low_buzz__callq.wav", "first", 400 },
+        new object[] { "error_low_buzz__calln.wav", "first", 360 }, new object[] { "error_low_buzz__calln.wav", "first", 400 },
+        new object[] { "music_piano__callq.wav", "first", 360 }, new object[] { "music_piano__callq.wav", "first", 400 },
+        new object[] { "error_low_buzz__direct.wav", "pulsed", 70 }, new object[] { "error_low_buzz__callq.wav", "pulsed", 70 },
+        new object[] { "error_low_buzz__calln.wav", "pulsed", 70 }, new object[] { "music_band__calln.wav", "pulsed", 70 },
+    };
+
+    /// <summary>The first <paramref name="ms"/> ms of a fixture's sound ("first"), or the sound pulsed <paramref name="ms"/> ms
+    /// on / (100 − ms) ms off ("pulsed"), measured from its onset.</summary>
+    internal static byte[] Shape(string file, string shape, int ms)
+    {
+        var pcm = AudioFixtures.Pcm(AudioFixtures.Get(file));
+        var s = new short[pcm.Length / 2];
+        Buffer.BlockCopy(pcm, 0, s, 0, s.Length * 2);
+        int on = Math.Max(0, Array.FindIndex(s, v => Math.Abs((int)v) > 300));
+        short[] o;
+        if (shape == "first") { o = new short[Math.Min(s.Length, on + ms * 24)]; Array.Copy(s, o, o.Length); }
+        else { o = (short[])s.Clone(); for (int i = on; i < o.Length; i++) if ((i - on) / 24 % 100 >= ms) o[i] = 0; }
+        var b = new byte[o.Length * 2];
+        Buffer.BlockCopy(o, 0, b, 0, b.Length);
+        return b;
+    }
+
+    [Theory]
+    [MemberData(nameof(ShortNonSpeech))]
+    public void ShortAndPulsingHeldTones_AreNotVoiceLike(string file, string shape, int ms)
+    {
+        var e = RecordedStyleAudioTests.Evidence(Shape(file, shape, ms));
+        _out.WriteLine(e.ToString());
+        Assert.False(e.VoiceLike, $"{file} {shape} {ms}: {e}");
+    }
+
+    [Theory]
+    [MemberData(nameof(ShortNonSpeech))]
+    public async Task SamePhrasesOverShortNonSpeech_CreateNothing(string file, string shape, int ms)
+    {
+        var pcm = Shape(file, shape, ms);
+        foreach (var text in Positives)
+        {
+            var s = await PlayPcmAsync(pcm, text);
+            var what = $"{file} ({shape} {ms}) heard as '{text}'";
+            Assert.True(s.E.Memory.Questions.Count == 0, what + ": a question was recorded");
+            Assert.True(s.E.History.Count == 0, what + ": a history item was created");
+            Assert.True(s.P.Requests == 0, what + ": an AI request was made");
+            Assert.True(s.Started.Count == 0, what + ": an answer was started");
+            Assert.All(s.LiveTexts, t => Assert.True(t.Length == 0, $"{what}: live text '{t}'"));
+            Assert.Equal(0, s.E.Metrics.FollowUpsAccepted);
+        }
+    }
+
     // ---------------- engine: follow-ups in a conversation ----------------
 
     [Fact]
     public async Task QuickFollowUp_AfterACompleteQuestion_IsItsOwnTurn()
     {
         // rc.4: a follow-up starting within 2.5 s of the question was merged into it ("…? Tell me more.") and replaced
-        // its answer; no new history item appeared. A complete question followed by a self-contained follow-up is two asks.
+        // its answer; no new history item appeared. A complete question followed by a self-contained follow-up, once the
+        // candidate had time to start answering, is two asks.
+        // Changed after the rc.5 engine audit (finding 7): this test used a 1.5 s pause, which is a quick multi-part
+        // question ("…? Tell me more." before the candidate can have said anything) and now merges as in rc.4 — see
+        // Rc5EngineAuditTests.QuickMultiPartAsk_StillMerges. 2.2 s of silence is past the candidate-reply allowance and
+        // still inside the 2.5 s continuation window, so this still tests the split.
         var s = await Rc2EngineAcceptanceTests.StartAsync();
-        s.Say("What did you build at Teroxx?", 1500, "Tell me more.");   // the first turn has finalized; the second starts 1.5 s later
+        s.Say("What did you build at Teroxx?", 2200, "Tell me more.");   // the first turn has finalized; the second starts 2.2 s later
         await s.RunAsync(14_000);
         await s.SettleAsync();
         Assert.Equal(2, s.E.Memory.Questions.Count);
@@ -199,14 +262,15 @@ public class Rc5FollowUpTests
         Assert.Single(s.E.Memory.Questions);
     }
 
-    private async Task<InterviewSimulator> PlayAsync(string file, string? transcript)
+    private Task<InterviewSimulator> PlayAsync(string file, string? transcript) => PlayPcmAsync(AudioFixtures.Pcm(AudioFixtures.Get(file)), transcript);
+
+    internal static async Task<InterviewSimulator> PlayPcmAsync(byte[] pcm, string? transcript)
     {
-        var f = AudioFixtures.Get(file);
         var s = new InterviewSimulator(options: new EngineOptions { AutoTick = false });
         await s.StartAsync();
         await s.RunAsync(1000);
-        s.SoundFromPcm(AudioFixtures.Pcm(f), transcript, partials: true);
-        await s.RunAsync(f.DurationMs + 4500);
+        s.SoundFromPcm(pcm, transcript, partials: true);
+        await s.RunAsync(pcm.Length / 48 + 4500);
         await s.SettleAsync();
         return s;
     }
