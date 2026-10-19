@@ -54,20 +54,32 @@ public partial class HomeWindow
             PrivacyMessage.Show(CloudService.Describe(ex, includeReference: false), MessageKind.Error);
             return;
         }
-        // Raw JSON stays the service's format, minus anything that looks like a credential.
-        var clean = SecretFilter.Clean(export);
         string content;
-        if (html)
+        try
         {
-            var account = _vm.Cloud.Account;
-            var context = account == null ? null : new AccountExportContext(account.Entitlements.PlanName, MainViewModel.BillingLabel(account));
-            content = AccountExportRenderer.Render(clean, Loc.Language, Branding.ProductName, context);
+            // Raw JSON stays the service's format, minus anything that looks like a credential. A response the filter
+            // cannot check (malformed, too deep, duplicate names) is not exported at all.
+            var clean = SecretFilter.Clean(export);
+            if (html)
+            {
+                var account = _vm.Cloud.Account;
+                var context = account == null ? null : new AccountExportContext(account.Entitlements.PlanName, MainViewModel.BillingLabel(account));
+                content = AccountExportRenderer.Render(clean, Loc.Language, Branding.ProductName, context);
+            }
+            else content = JsonSerializer.Serialize(clean, IndentedJson);
         }
-        else content = JsonSerializer.Serialize(clean, IndentedJson);
-        try { await File.WriteAllTextAsync(dlg.FileName, content); }
+        catch (Exception ex) when (ex is JsonException or InvalidDataException or ArgumentException or InvalidOperationException
+            or KeyNotFoundException or FormatException or NullReferenceException or NotSupportedException)
+        {
+            AppLog.Warn($"Account export could not be prepared: {ex.GetType().Name}");
+            PrivacyMessage.Show(T("err_generic"), MessageKind.Error);
+            return;
+        }
+        // Written to a temporary file first: a full disk never leaves a truncated export under the chosen name.
+        try { await ExportFile.WriteTextAsync(dlg.FileName, content); }
         catch (Exception ex) when (IsStorageError(ex))
         {
-            AppLog.Error("Account export could not be saved", ex);
+            AppLog.Warn($"Account export could not be saved: {ex.GetType().Name}");   // the message holds the path (user name)
             PrivacyMessage.Show(T("exp_err_save"), MessageKind.Error);
             return;
         }
@@ -93,26 +105,27 @@ public partial class HomeWindow
         var dlg = new SaveFileDialog { FileName = $"{FileSlug(name)}{suffix}-{FileStamp()}{ext}", Filter = filter };
         if (dlg.ShowDialog(this) != true || _profile == null || Store == null) return;
         var profileId = _profile.Id;
+        var store = Store;
         try
         {
+            // Every format is written to a temporary file and moved into place when complete (no truncated file on a full disk).
             switch (format)
             {
                 case ExportDialog.ProfileHtml:
-                    var saved = Store.GetProfile(profileId) ?? _profile;
-                    await File.WriteAllTextAsync(dlg.FileName, ProfileExportRenderer.Render(saved, Loc.Language, Branding.ProductName));
+                    var saved = store.GetProfile(profileId) ?? _profile;
+                    await ExportFile.WriteTextAsync(dlg.FileName, ProfileExportRenderer.Render(saved, Loc.Language, Branding.ProductName));
                     break;
                 case ExportDialog.ProfileBackup:
-                    var store = Store;
-                    await Task.Run(() => { using var fs = File.Create(dlg.FileName); ProfileBundle.Write(store, profileId, fs, BuildInfo.Version); });
+                    await Task.Run(() => ExportFile.WriteAsync(dlg.FileName, fs => ProfileBundle.Write(store, profileId, fs, BuildInfo.Version)));
                     break;
                 default:
-                    using (var fs = File.Create(dlg.FileName)) Store.ExportProfile(profileId, fs);
+                    await ExportFile.WriteAsync(dlg.FileName, fs => store.ExportProfile(profileId, fs));
                     break;
             }
         }
         catch (Exception ex) when (IsStorageError(ex) || ex is KeyNotFoundException)
         {
-            AppLog.Error("Profile export failed", ex);
+            AppLog.Warn($"Profile export failed: {ex.GetType().Name}");   // the message holds the path (user and candidate name)
             Notify(T("err_profile_export"), ToastKind.Error);
             return;
         }
@@ -150,24 +163,41 @@ public partial class HomeWindow
             await AlertAsync(T("err_file_read"), DialogTone.Warning);
             return;
         }
+        catch (Exception ex)
+        {
+            // Untrusted input: whatever else goes wrong, the user gets the plain "not a valid backup" message, never a crash.
+            AppLog.Warn($"Profile backup rejected: unexpected {ex.GetType().Name}");
+            await AlertAsync(ExportDialog.Describe(ProfileBundleError.Invalid), DialogTone.Warning);
+            return;
+        }
 
         if (!await ExportDialog.ConfirmImportAsync(this, content.Preview) || Store == null) return;
         if (await ProfileLimitReachedAsync() || Store == null) return;   // the plan may have changed while the preview was open
         var original = content.Preview.ProfileName;
         var name = original.Length > 0 && Store.Profiles().Any(p => string.Equals(p.Name, original, StringComparison.CurrentCultureIgnoreCase)) ? F("exp_imported_name", original) : null;
         CandidateProfileRecord imported;
-        try { imported = ProfileBundle.Import(Store, content, name); }
-        catch (Exception ex) when (IsStorageError(ex) || ex is ProfileBundleException or ArgumentException)
+        int removedLines;
+        try { (imported, removedLines) = ProfileBundle.ImportWithReport(Store, content, name); }
+        catch (Exception ex) when (IsStorageError(ex))
         {
-            AppLog.Error("Profile backup import failed", ex);
+            AppLog.Warn($"Profile backup import failed: {ex.GetType().Name}");
             await AlertAsync(T("exp_import_failed"), DialogTone.Warning);
             return;
         }
-        AppLog.Info($"Profile backup imported: {content.Preview.Interviews} interviews, {content.Preview.Packs} packs, {content.Preview.Reports} reports");
+        catch (Exception ex)
+        {
+            // Anything else comes from the bundle's content (already rolled back): the plain "not a valid backup" message.
+            AppLog.Warn($"Profile backup import rejected: {ex.GetType().Name}");
+            await AlertAsync(ExportDialog.Describe(ProfileBundleError.Invalid), DialogTone.Warning);
+            return;
+        }
+        AppLog.Info($"Profile backup imported: {content.Preview.Interviews} interviews, {content.Preview.Packs} packs, {content.Preview.Reports} reports, {removedLines} instruction-like line(s) removed");
         RefreshProfiles(imported.Id, reload: true);
         RefreshReports();
         ShowPage("profiles");
         RefreshChecklist();
         Notify(T("exp_toast_imported"), ToastKind.Success, F("exp_toast_imported_detail", content.Preview.Interviews, content.Preview.Reports));
+        // Like an uploaded résumé: text that looked like instructions to the AI was removed, and the user is told.
+        if (removedLines > 0) await AlertAsync(T("warn_injection_in_document"), DialogTone.Warning);
     }
 }
