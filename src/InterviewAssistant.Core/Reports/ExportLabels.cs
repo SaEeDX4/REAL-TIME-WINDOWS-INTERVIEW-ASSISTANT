@@ -1,5 +1,8 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net;
+using System.Text;
+using System.Text.RegularExpressions;
 using InterviewAssistant.Core.Languages;
 
 namespace InterviewAssistant.Core.Reports;
@@ -47,20 +50,10 @@ public static class ExportLabels
     public static bool IsRtl(string? lang) => LanguageRegistry.IsRtl(Code(lang));
 
     /// <summary>
-    /// Culture for numbers and dates. Persian keeps its own (Solar Hijri) calendar; generic Arabic uses the Gregorian
-    /// calendar (the "ar" UI language is not specific to the Saudi Umm al-Qura calendar).
+    /// Culture for numbers and dates (<see cref="LanguageRegistry.FormattingCulture"/>): Persian keeps its own (Solar
+    /// Hijri) calendar; Arabic uses the Gregorian calendar so dates match payment receipts.
     /// </summary>
-    public static CultureInfo Culture(string? lang)
-    {
-        var code = Code(lang);
-        var culture = (CultureInfo)CultureInfo.GetCultureInfo(LanguageRegistry.Find(code)?.CultureName ?? "en-US").Clone();
-        if (code == "ar")
-        {
-            var greg = culture.OptionalCalendars.OfType<GregorianCalendar>().FirstOrDefault();
-            if (greg != null) culture.DateTimeFormat.Calendar = greg;
-        }
-        return culture;
-    }
+    public static CultureInfo Culture(string? lang) => LanguageRegistry.FormattingCulture(Code(lang));
 
     /// <summary>"0 sec", "59 sec", "1 hr 20 min 43 sec" (localized units; zero parts left out).</summary>
     public static string Duration(string? lang, long seconds)
@@ -74,8 +67,68 @@ public static class ExportLabels
         return string.Join(" ", parts);
     }
 
-    /// <summary>Calendar date in the user's culture and time zone (the stored value is UTC).</summary>
-    public static string Date(string? lang, DateTime utc, TimeZoneInfo? zone = null) => Local(utc, zone).ToString("D", Culture(lang));
+    /// <summary>
+    /// Calendar date in the user's culture and time zone (the stored value is UTC): the culture's long date without the
+    /// weekday ("18 ottobre 2026", not "domenica 18 ottobre 2026"), so it reads inside sentences like "Si rinnova il {0}".
+    /// </summary>
+    public static string Date(string? lang, DateTime utc, TimeZoneInfo? zone = null)
+    {
+        var culture = Culture(lang);
+        return Local(utc, zone).ToString(LongDateWithoutWeekday(culture), culture);
+    }
+
+    private static readonly ConcurrentDictionary<string, string> LongDatePatterns = new();
+
+    /// <summary>
+    /// <see cref="DateTimeFormatInfo.LongDatePattern"/> with the weekday ("ddd"/"dddd") and the separator after it (or
+    /// before it, at the end) removed: "dddd, MMMM d, yyyy" → "MMMM d, yyyy", "dddd, d 'de' MMMM 'de' yyyy" →
+    /// "d 'de' MMMM 'de' yyyy", "yyyy年M月d日dddd" → "yyyy年M月d日". Quoted literals are kept as they are. Falls back to
+    /// "d MMMM yyyy" when what is left has no day, month and year.
+    /// </summary>
+    public static string LongDateWithoutWeekday(CultureInfo culture)
+    {
+        var dtf = culture.DateTimeFormat;
+        return LongDatePatterns.GetOrAdd(dtf.LongDatePattern, StripWeekday);
+    }
+
+    private static string StripWeekday(string pattern)
+    {
+        // Split into quoted literals (kept) and pattern runs; drop each run of 3+ 'd' with its adjacent separator.
+        var parts = new List<(string Text, bool Literal)>();
+        var sb = new StringBuilder();
+        for (var i = 0; i < pattern.Length; i++)
+        {
+            var c = pattern[i];
+            if (c is '\'' or '"')
+            {
+                if (sb.Length > 0) { parts.Add((sb.ToString(), false)); sb.Clear(); }
+                var end = pattern.IndexOf(c, i + 1);
+                if (end < 0) end = pattern.Length - 1;
+                parts.Add((pattern[i..(end + 1)], true));
+                i = end;
+                continue;
+            }
+            if (c == '\\' && i + 1 < pattern.Length) { sb.Append(c).Append(pattern[++i]); continue; }
+            sb.Append(c);
+        }
+        if (sb.Length > 0) parts.Add((sb.ToString(), false));
+
+        var removed = false;
+        for (var i = 0; i < parts.Count; i++)
+        {
+            if (parts[i].Literal || !WeekdayRun.IsMatch(parts[i].Text)) continue;
+            parts[i] = (WeekdayRun.Replace(parts[i].Text, ""), false);
+            removed = true;
+        }
+        if (!removed) return pattern;
+        // A weekday at the end leaves its separator before it ("d MMMM yyyy, dddd"): trim it.
+        var result = string.Concat(parts.Select(p => p.Text)).Trim().TrimEnd(',', '\u060C', ' ', '\u00A0').Trim();
+        var unquoted = string.Concat(parts.Where(p => !p.Literal).Select(p => p.Text));
+        return unquoted.Contains('d') && unquoted.Contains('M') && unquoted.Contains('y') ? result : "d MMMM yyyy";
+    }
+
+    /// <summary>A weekday field ("ddd" or "dddd", not part of a longer run) and the separator that follows it.</summary>
+    private static readonly Regex WeekdayRun = new(@"(?<!d)d{3,4}(?!d)[\s\u00A0,\u060C.]*", RegexOptions.Compiled);
 
     /// <summary>Date and time in the user's culture and time zone.</summary>
     public static string DateAndTime(string? lang, DateTime utc, TimeZoneInfo? zone = null) => Local(utc, zone).ToString("g", Culture(lang));
