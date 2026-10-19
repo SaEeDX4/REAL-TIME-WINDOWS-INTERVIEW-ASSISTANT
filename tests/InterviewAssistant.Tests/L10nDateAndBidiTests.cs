@@ -139,4 +139,17 @@ public class L10nDateAndBidiTests
         // Billing and device dates use the Gregorian Arabic culture, not Loc.Culture (ar-SA on Umm al-Qura).
         Assert.DoesNotContain("Loc.Culture", cs);
     }
+
+    [Fact]
+    public void ArabicUiFormatting_EverywhereUsesTheGregorianCalendar()
+    {
+        // Loc.Format and Loc.Culture (billing "ends on", report times) share the formatting culture of the exports
+        var c = LanguageRegistry.FormattingCulture("ar");
+        Assert.IsType<GregorianCalendar>(c.DateTimeFormat.Calendar);
+        Assert.Contains("2026", string.Format(c, "{0:d}", Sunday));
+        Assert.IsNotType<GregorianCalendar>(LanguageRegistry.FormattingCulture("fa").DateTimeFormat.Calendar);
+        var loc = File.ReadAllText(Path.Combine(RepoRoot, "src", "InterviewAssistant.Core", "Languages", "Loc.cs"));
+        Assert.Contains("public static CultureInfo Culture => LanguageRegistry.FormattingCulture(_language);", loc);
+        Assert.Contains("var culture = LanguageRegistry.FormattingCulture(code);", loc);
+    }
 }

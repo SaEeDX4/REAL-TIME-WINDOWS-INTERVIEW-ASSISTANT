@@ -31,7 +31,8 @@ public static class Loc
 
     public static event Action? LanguageChanged;
     public static bool IsRtl => LanguageRegistry.IsRtl(_language);
-    public static CultureInfo Culture => CultureInfo.GetCultureInfo(LanguageRegistry.Find(_language)?.CultureName ?? "en-US");
+    /// <summary>Numbers and dates of the UI language (Arabic on the Gregorian calendar, see <see cref="LanguageRegistry.FormattingCulture"/>).</summary>
+    public static CultureInfo Culture => LanguageRegistry.FormattingCulture(_language);
 
     /// <summary>Translated text for the current UI language.</summary>
     public static string T(string key) => Get(_language, key);
@@ -49,7 +50,7 @@ public static class Loc
     public static string Format(string? language, string key, params object?[] args)
     {
         var code = LanguageRegistry.Find(language)?.Code ?? "en";
-        var culture = CultureInfo.GetCultureInfo(LanguageRegistry.Find(code)?.CultureName ?? "en-US");
+        var culture = LanguageRegistry.FormattingCulture(code);
         try { return string.Format(culture, Get(code, key), args); }
         catch (FormatException) { return Get("en", key); }
     }
