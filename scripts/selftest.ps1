@@ -12,7 +12,13 @@ if (Test-Path $Out) { Remove-Item $Out -Force }
 $Fixture = (Resolve-Path $Fixture).Path
 $p = Start-Process -FilePath $Exe -ArgumentList "--selftest", "`"$Out`"", "--fixture", "`"$Fixture`"" -PassThru
 $null = $p.Handle
-if (-not $p.WaitForExit(180000)) { $p.Kill(); throw "self-test timed out" }
+if (-not $p.WaitForExit(300000)) {
+    $p.Kill()
+    # show how far it got: every check is logged as "SELFTEST PASS|FAIL <name>"
+    Get-ChildItem (Join-Path $env:LOCALAPPDATA "InterviewAssistant\logs") -Filter *.log -ErrorAction SilentlyContinue |
+        ForEach-Object { Get-Content $_.FullName | Select-Object -Last 60 } | ForEach-Object { Write-Host $_ }
+    throw "self-test timed out"
+}
 if (-not (Test-Path $Out)) { throw "self-test produced no result file (exit code $($p.ExitCode))" }
 $r = Get-Content $Out -Raw | ConvertFrom-Json
 foreach ($c in $r.checks) {

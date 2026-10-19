@@ -23,7 +23,13 @@ public static class SelfTest
         async Task Check(string name, Func<Task<(bool, string)>> f)
         {
             var sw = Stopwatch.StartNew();
-            try { var (ok, d) = await f(); results.Add(new(name, ok, d, sw.ElapsedMilliseconds)); }
+            // a check that hangs (e.g. waiting on a dialog nobody answers) fails by name instead of stalling the whole run
+            try
+            {
+                var task = f();
+                if (await Task.WhenAny(task, Task.Delay(45_000)) != task) results.Add(new(name, false, "did not finish within 45 s", sw.ElapsedMilliseconds));
+                else { var (ok, d) = await task; results.Add(new(name, ok, d, sw.ElapsedMilliseconds)); }
+            }
             catch (Exception ex) { results.Add(new(name, false, ex.GetType().Name + ": " + ex.Message, sw.ElapsedMilliseconds)); }
             AppLog.Info($"SELFTEST {(results[^1].Ok ? "PASS" : "FAIL")} {name}: {results[^1].Detail}");
         }
