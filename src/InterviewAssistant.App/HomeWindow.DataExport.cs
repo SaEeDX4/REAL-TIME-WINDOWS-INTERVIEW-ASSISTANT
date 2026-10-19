@@ -72,7 +72,7 @@ public partial class HomeWindow
             or KeyNotFoundException or FormatException or NullReferenceException or NotSupportedException)
         {
             AppLog.Warn($"Account export could not be prepared: {ex.GetType().Name}");
-            PrivacyMessage.Show(T("err_generic"), MessageKind.Error);
+            PrivacyMessage.Show(T("exp_err_account_export"), MessageKind.Error);
             return;
         }
         // Written to a temporary file first: a full disk never leaves a truncated export under the chosen name.

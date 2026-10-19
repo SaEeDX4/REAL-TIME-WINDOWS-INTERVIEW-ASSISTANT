@@ -158,7 +158,7 @@ public sealed class SupabaseAuth
     private static bool SameAddress(string? a, string? b) =>
         !string.IsNullOrWhiteSpace(a) && string.Equals(a.Trim(), b?.Trim(), StringComparison.OrdinalIgnoreCase);
 
-    private static AuthException SignedInElsewhere() => new("signed_in_other_account", Core.Languages.Loc.T("acct_password_not_changed"));
+    private static AuthException SignedInElsewhere() => new("signed_in_other_account", Core.Languages.Loc.T("auth_reset_signed_in_other"));
 
     /// <summary>
     /// Older auth servers report the per-address recovery e-mail limit as a bare 429 "For security purposes, you can only

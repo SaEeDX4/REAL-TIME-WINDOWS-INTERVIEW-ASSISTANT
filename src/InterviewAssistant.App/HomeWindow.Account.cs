@@ -701,7 +701,7 @@ public partial class HomeWindow
                 {
                     // Not everything could be removed: say so and name the folder (the path stays out of the log).
                     AppLog.Warn($"Local data removal failed: {failed.Value.Error}");
-                    await AlertAsync(T("err_generic") + "\n\n" + failed.Value.Folder, DialogTone.Warning);
+                    await AlertAsync(F("del_local_failed", failed.Value.Folder), DialogTone.Warning);
                 }
             }
         }

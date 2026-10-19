@@ -244,7 +244,7 @@ public sealed class CloudService
         if (Auth?.Session is { } current && !string.Equals(current.Email?.Trim(), email.Trim(), StringComparison.OrdinalIgnoreCase))
         {
             AppLog.Warn("Password reset refused: another account is signed in");
-            return (false, Loc.T("acct_password_not_changed"));
+            return (false, Loc.T("auth_reset_signed_in_other"));
         }
         var r = await AuthAction(async () =>
         {
