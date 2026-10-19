@@ -25,8 +25,12 @@ public enum AuthField { Email, Password, ConfirmPassword }
 /// </summary>
 public sealed class AuthFormState
 {
-    /// <summary>"Resend" becomes available this long after a reset link was requested.</summary>
-    public static readonly TimeSpan ResendCooldown = TimeSpan.FromSeconds(30);
+    /// <summary>
+    /// "Resend" becomes available this long after a reset link was requested. At least the auth server's per-address
+    /// e-mail interval (60 s): a Resend cancels the first link's listener, and an earlier resend is silently rate-limited
+    /// (reported as accepted, for enumeration safety), which would leave the user with no working link.
+    /// </summary>
+    public static readonly TimeSpan ResendCooldown = TimeSpan.FromSeconds(60);
 
     /// <summary>Which sign-in flavour "Back to sign in" returns to (plain sign-in, or the switch-account sign-in).</summary>
     private AuthMode _signInMode = AuthMode.SignIn;

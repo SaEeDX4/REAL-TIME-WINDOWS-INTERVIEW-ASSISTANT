@@ -121,7 +121,11 @@ public class Rc5AccountTests
         Assert.False(s.PrimarySubmits);
         Assert.True(s.ShowsResend);
         Assert.False(s.CanResend(t0.AddSeconds(5)));
-        Assert.Equal(25, s.ResendSecondsLeft(t0.AddSeconds(5)));
+        // The cooldown is 60 s (was 30 s): the auth server sends at most one recovery e-mail per address per 60 s, so an
+        // earlier Resend would cancel the working link while the new request is silently rate-limited.
+        Assert.True(AuthFormState.ResendCooldown >= TimeSpan.FromSeconds(60));
+        Assert.Equal(55, s.ResendSecondsLeft(t0.AddSeconds(5)));
+        Assert.False(s.CanResend(t0.AddSeconds(45)));     // still inside the server's per-address interval
         Assert.True(s.CanResend(t0 + AuthFormState.ResendCooldown));
         Assert.Equal(0, s.ResendSecondsLeft(t0 + AuthFormState.ResendCooldown));
         s.SetBusy(true);
