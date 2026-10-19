@@ -109,7 +109,7 @@ public partial class MainWindow
                 // a technical value: always left-to-right, also inside a right-to-left layout
                 var keys = new TextBlock { Text = hk.Keys, FlowDirection = FlowDirection.LeftToRight, FontWeight = FontWeights.SemiBold, FontSize = 12, Margin = new Thickness(0, 2, 0, 2), VerticalAlignment = VerticalAlignment.Center };
                 keys.SetResourceReference(TextBlock.ForegroundProperty, "B.Text");
-                AutomationProperties.SetName(keys, $"{Loc.T(hk.LabelKey)}: {hk.Keys}");
+                AutomationProperties.SetName(keys, Loc.F("fmt_label_value", Loc.T(hk.LabelKey), hk.Keys));
                 Grid.SetRow(label, row); Grid.SetRow(keys, row); Grid.SetColumn(keys, 1);
                 grid.Children.Add(label); grid.Children.Add(keys);
             }

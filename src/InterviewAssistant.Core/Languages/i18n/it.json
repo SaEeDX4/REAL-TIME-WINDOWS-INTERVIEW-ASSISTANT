@@ -899,6 +899,8 @@
  "pf_topmost_on": "La finestra resta sopra Chrome e la riunione.",
  "a11y_on": "Attivo",
  "a11y_off": "Disattivo",
+ "fmt_label_value": "{0}: {1}",
+ "fmt_list_sep": ", ",
  "pf_topmost_off": "La finestra può finire dietro Chrome.",
  "pf_signal_ok": "Picco {0} dBFS su {1}",
  "pf_signal_none": "Nessun suono rilevato in {0} s su {1}",

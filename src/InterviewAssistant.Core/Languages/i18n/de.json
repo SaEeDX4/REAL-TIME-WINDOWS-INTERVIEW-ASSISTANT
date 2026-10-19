@@ -899,6 +899,8 @@
  "pf_topmost_on": "Das Fenster bleibt über Chrome und dem Meeting.",
  "a11y_on": "Ein",
  "a11y_off": "Aus",
+ "fmt_label_value": "{0}: {1}",
+ "fmt_list_sep": ", ",
  "pf_topmost_off": "Das Fenster kann hinter Chrome verdeckt werden.",
  "pf_signal_ok": "Spitze {0} dBFS auf {1}",
  "pf_signal_none": "Kein Ton in {0} s auf {1}",

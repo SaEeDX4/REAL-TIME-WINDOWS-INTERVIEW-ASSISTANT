@@ -899,6 +899,8 @@
  "pf_topmost_on": "विंडो Chrome और मीटिंग के ऊपर बनी रहती है।",
  "a11y_on": "चालू",
  "a11y_off": "बंद",
+ "fmt_label_value": "{0}: {1}",
+ "fmt_list_sep": ", ",
  "pf_topmost_off": "विंडो Chrome के पीछे छिप सकती है।",
  "pf_signal_ok": "{1} पर अधिकतम {0} dBFS",
  "pf_signal_none": "{1} पर {0} सेकंड में कुछ सुनाई नहीं दिया",

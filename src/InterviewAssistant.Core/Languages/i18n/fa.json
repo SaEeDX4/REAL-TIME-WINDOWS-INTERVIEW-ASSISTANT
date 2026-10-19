@@ -899,6 +899,8 @@
  "pf_topmost_on": "پنجره روی Chrome و جلسه باقی می‌ماند.",
  "a11y_on": "روشن",
  "a11y_off": "خاموش",
+ "fmt_label_value": "{0}: {1}",
+ "fmt_list_sep": "، ",
  "pf_topmost_off": "ممکن است پنجره پشت Chrome پنهان شود.",
  "pf_signal_ok": "اوج {0} dBFS روی {1}",
  "pf_signal_none": "در {0} ثانیه روی {1} صدایی شنیده نشد",

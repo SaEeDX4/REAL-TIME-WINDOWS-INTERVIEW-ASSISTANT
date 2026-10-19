@@ -81,7 +81,7 @@ public partial class HomeWindow
             cards[i].BorderBrush = current ? Res("B.Accent") : Res("B.Border");
             detailBlocks[i].Text = details[i];
             detailBlocks[i].Foreground = Res(status == StepStatus.Upcoming ? "B.TextFaint" : "B.TextDim");
-            AutomationProperties.SetName(cards[i], $"{i + 1}. {titles[i].Text}: {states[i].Text}. {details[i]}");
+            AutomationProperties.SetName(cards[i], $"{(i + 1).ToString(Loc.Culture)}. {F("fmt_label_value", titles[i].Text, states[i].Text)}. {details[i]}");
         }
 
         // secondary actions: links only

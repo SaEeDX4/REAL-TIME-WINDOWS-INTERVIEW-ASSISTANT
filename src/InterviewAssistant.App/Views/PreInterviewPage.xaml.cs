@@ -32,8 +32,8 @@ public sealed class ReadinessRow : ObservableObject
     public Visibility DetailVisibility => _detail.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility FixVisibility => _fix == ReadinessFix.None ? Visibility.Collapsed : Visibility.Visible;
     /// <summary>Screen readers hear the whole row: "Audio signal, PASS, Peak -18 dBFS on Headset".</summary>
-    public string AccessibleName => string.Join(", ", new[] { _title, _status, _detail }.Where(s => s.Length > 0));
-    public string FixAccessibleName => _fixLabel.Length == 0 ? "" : $"{_fixLabel}: {_title}";
+    public string AccessibleName => string.Join(Loc.T("fmt_list_sep"), new[] { _title, _status, _detail }.Where(s => s.Length > 0));
+    public string FixAccessibleName => _fixLabel.Length == 0 ? "" : Loc.F("fmt_label_value", _fixLabel, _title);
 }
 
 /// <summary>A line under "What blocks the interview" (or the optional improvements).</summary>
@@ -95,7 +95,30 @@ public partial class PreInterviewPage : UserControl
     }
 
     private static string T(string key) => Loc.T(key);
-    private static string F(string key, params object?[] args) => Loc.F(key, args);
+    /// <summary>
+    /// Formatted text for a check detail or tool line. The key and arguments are remembered, so a UI language switch
+    /// re-formats the finished results in the new language (Loc.Relocalize only knows texts without placeholders).
+    /// </summary>
+    private string F(string key, params object?[] args)
+    {
+        var text = Loc.F(key, args);
+        lock (_formatted)
+        {
+            if (_formatted.Count > 400) _formatted.Clear();   // bounded: a few dozen lines per run
+            _formatted[text] = (key, args);
+        }
+        return text;
+    }
+
+    private readonly Dictionary<string, (string Key, object?[] Args)> _formatted = new(StringComparer.Ordinal);
+
+    /// <summary>The same text in the current UI language (formatted lines, plain keys, service messages).</summary>
+    private string Relocal(string text)
+    {
+        lock (_formatted)
+            if (_formatted.TryGetValue(text, out var f)) { var now = Loc.F(f.Key, f.Args); _formatted[now] = f; return now; }
+        return Loc.Relocalize(text) ?? text;
+    }
     private Brush BrushFor(ReadinessState s) => (Brush)FindResource(ReadinessSnapshot.BrushKey(s));
 
     // ================= page lifecycle =================
@@ -206,7 +229,7 @@ public partial class PreInterviewPage : UserControl
             var r = current || snap.IsRunning ? snap.Get(row.Id) : null;
             var rs = ReadinessPresentation.StateOf(r?.Outcome);
             row.Title = T(ReadinessPresentation.TitleKey(row.Id, cloud));
-            row.Detail = r == null ? "" : Loc.Relocalize(r.Detail) ?? r.Detail;
+            row.Detail = r == null ? "" : Relocal(r.Detail);
             row.Status = T(ReadinessPresentation.StatusKey(r?.Outcome));
             row.Icon = ReadinessPresentation.Icon(rs);
             row.Brush = BrushFor(rs);
@@ -237,13 +260,13 @@ public partial class PreInterviewPage : UserControl
         BlockerList.ItemsSource = lines.Select(c =>
         {
             var s = ReadinessPresentation.StateOf(c.Outcome);
-            return new ReadinessLine(ReadinessPresentation.Icon(s), BrushFor(s), $"{T(ReadinessPresentation.TitleKey(c.Id, cloud))}: {T(ReadinessPresentation.FixHintKey(c.Id, cloud))}");
+            return new ReadinessLine(ReadinessPresentation.Icon(s), BrushFor(s), Loc.F("fmt_label_value", T(ReadinessPresentation.TitleKey(c.Id, cloud)), T(ReadinessPresentation.FixHintKey(c.Id, cloud))));
         }).ToList();
         TypedStillWork.Visibility = state == ReadinessState.NotReady && ReadinessPresentation.TypedQuestionsStillWork(snap) ? Visibility.Visible : Visibility.Collapsed;
         AutomationProperties.SetName(SummaryCard, string.Join(". ", new[] { StateText.Text, SummaryLine.Text, CheckedAtText.Text, SummaryHint.Text }.Where(x => x.Length > 0)));
 
         // Tool output already on screen follows a language switch too.
-        foreach (var tb in new[] { ToolTitle, ToolResult, ToolOutput }) tb.Text = Loc.Relocalize(tb.Text) ?? tb.Text;
+        foreach (var tb in new[] { ToolTitle, ToolResult, ToolOutput }) tb.Text = Relocal(tb.Text);
         StateChanged?.Invoke();
     }
 

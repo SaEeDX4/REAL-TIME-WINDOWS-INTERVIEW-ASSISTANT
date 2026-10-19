@@ -201,7 +201,7 @@ public partial class HomeWindow
             row.Children.Add(icon); row.Children.Add(text);
             // a list item with the whole sentence as its name (a DockPanel has no automation peer: its name would be lost)
             var item = new Views.AccessibleBorder { Child = row, IsListItem = true, Margin = new Thickness(0, 4, 0, 4) };
-            AutomationProperties.SetName(item, $"{T(r.LabelKey)}: {T(pass ? "hc_pass" : "hc_warn")} — {T(r.DetailKey)}");
+            AutomationProperties.SetName(item, F("fmt_label_value", T(r.LabelKey), $"{T(pass ? "hc_pass" : "hc_warn")} — {T(r.DetailKey)}"));
             HelpDiagRows.Children.Add(item);
         }
     }

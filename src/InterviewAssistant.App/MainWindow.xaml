@@ -375,46 +375,46 @@
                             <DockPanel>
                                 <TextBlock x:Name="MoreCompactCheck" DockPanel.Dock="Right" Style="{StaticResource T.Icon}" Text="&#xE73E;" FontSize="12" Foreground="{StaticResource B.Accent}" Margin="10,0,0,0"/>
                                 <TextBlock Style="{StaticResource T.Icon}" Text="&#xE73F;" FontSize="13" Margin="0,0,10,0" Foreground="{StaticResource B.TextDim}"/>
-                                <TextBlock Text="{v:Loc more_compact}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{v:Loc more_compact}" TextWrapping="Wrap"/>
                             </DockPanel>
                         </Button>
                         <Button x:Name="MoreCoach" Style="{StaticResource Btn.MenuRow}" Click="Presentation_Click" AutomationProperties.Name="{v:Loc more_coach}">
                             <DockPanel>
                                 <TextBlock x:Name="MoreCoachCheck" DockPanel.Dock="Right" Style="{StaticResource T.Icon}" Text="&#xE73E;" FontSize="12" Foreground="{StaticResource B.Accent}" Margin="10,0,0,0"/>
                                 <TextBlock Style="{StaticResource T.Icon}" Text="&#xE8FD;" FontSize="13" Margin="0,0,10,0" Foreground="{StaticResource B.TextDim}"/>
-                                <TextBlock Text="{v:Loc more_coach}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{v:Loc more_coach}" TextWrapping="Wrap"/>
                             </DockPanel>
                         </Button>
                         <Button x:Name="MoreFocus" Style="{StaticResource Btn.MenuRow}" Click="MoreFocus_Click" AutomationProperties.Name="{v:Loc more_focus}">
                             <DockPanel>
                                 <TextBlock Style="{StaticResource T.Icon}" Text="&#xE714;" FontSize="13" Margin="0,0,10,0" Foreground="{StaticResource B.TextDim}"/>
-                                <TextBlock Text="{v:Loc more_focus}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{v:Loc more_focus}" TextWrapping="Wrap"/>
                             </DockPanel>
                         </Button>
                         <Button x:Name="MoreFocusRestore" Style="{StaticResource Btn.MenuRow}" Click="MoreFocusRestore_Click" Visibility="Collapsed" AutomationProperties.Name="{v:Loc focus_restore}">
                             <DockPanel>
                                 <TextBlock Style="{StaticResource T.Icon}" Text="&#xE7A7;" FontSize="13" Margin="0,0,10,0" Foreground="{StaticResource B.TextDim}"/>
-                                <TextBlock Text="{v:Loc focus_restore}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{v:Loc focus_restore}" TextWrapping="Wrap"/>
                             </DockPanel>
                         </Button>
                         <Border Style="{StaticResource Divider}" Margin="8,4"/>
                         <Button x:Name="MoreHome" Style="{StaticResource Btn.MenuRow}" Click="Home_Click" ToolTip="{v:Loc tt_home}" AutomationProperties.Name="{v:Loc more_home}">
                             <DockPanel>
                                 <TextBlock Style="{StaticResource T.Icon}" Text="&#xE80F;" FontSize="13" Margin="0,0,10,0" Foreground="{StaticResource B.TextDim}"/>
-                                <TextBlock Text="{v:Loc more_home}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{v:Loc more_home}" TextWrapping="Wrap"/>
                             </DockPanel>
                         </Button>
                         <Button x:Name="MoreReport" Style="{StaticResource Btn.MenuRow}" Click="Report_Click" ToolTip="{v:Loc tt_last_report}" AutomationProperties.Name="{v:Loc more_last_report}"
                                 Visibility="{Binding LastReportPath, Converter={StaticResource StrVis}}">
                             <DockPanel>
                                 <TextBlock Style="{StaticResource T.Icon}" Text="&#xE9F9;" FontSize="13" Margin="0,0,10,0" Foreground="{StaticResource B.TextDim}"/>
-                                <TextBlock Text="{v:Loc more_last_report}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{v:Loc more_last_report}" TextWrapping="Wrap"/>
                             </DockPanel>
                         </Button>
                         <Button x:Name="MoreSettings" Style="{StaticResource Btn.MenuRow}" Click="Settings_Click" AutomationProperties.Name="{v:Loc settings}">
                             <DockPanel>
                                 <TextBlock Style="{StaticResource T.Icon}" Text="&#xE713;" FontSize="13" Margin="0,0,10,0" Foreground="{StaticResource B.TextDim}"/>
-                                <TextBlock Text="{v:Loc settings}" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{v:Loc settings}" TextWrapping="Wrap"/>
                             </DockPanel>
                         </Button>
                         <!-- minutes left: here when the header has no room for the label -->

@@ -899,6 +899,8 @@
  "pf_topmost_on": "تبقى النافذة فوق Chrome والاجتماع.",
  "a11y_on": "مفعّل",
  "a11y_off": "غير مفعّل",
+ "fmt_label_value": "{0}: {1}",
+ "fmt_list_sep": "، ",
  "pf_topmost_off": "قد تختفي النافذة خلف Chrome.",
  "pf_signal_ok": "الذروة {0} dBFS على {1}",
  "pf_signal_none": "لم يُسمع شيء خلال {0} ثانية على {1}",
