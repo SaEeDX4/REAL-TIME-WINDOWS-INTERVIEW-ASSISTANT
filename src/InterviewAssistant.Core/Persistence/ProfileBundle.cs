@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -6,6 +7,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using InterviewAssistant.Core.Domain;
+using InterviewAssistant.Core.Ingestion;
 
 namespace InterviewAssistant.Core.Persistence;
 
@@ -32,8 +34,9 @@ public sealed class ProfileBundleException : Exception
     public ProfileBundleException(ProfileBundleError error, string detail) : base($"{error}: {detail}") => Error = error;
 }
 
-/// <summary>Limits for reading an untrusted bundle. The defaults are far above any real profile.</summary>
-public sealed record ProfileBundleLimits(long MaxFileBytes = 64L << 20, long MaxEntryBytes = 32L << 20, long MaxTotalBytes = 160L << 20, int MaxEntries = 4000)
+/// <summary>Limits for reading an untrusted bundle. The defaults are far above any real profile (a large one is a few MB),
+/// and keep the memory an import can use bounded.</summary>
+public sealed record ProfileBundleLimits(long MaxFileBytes = 64L << 20, long MaxEntryBytes = 32L << 20, long MaxTotalBytes = 64L << 20, int MaxEntries = 4000)
 {
     public static readonly ProfileBundleLimits Default = new();
 }
@@ -68,6 +71,9 @@ public sealed class ProfileBundleManifest
 /// <summary>What the import preview shows (counts come from the validated content, not from the manifest's claims).</summary>
 public sealed record ProfileBundlePreview(string ProfileName, int Facts, int Interviews, int Packs, int Reports, DateTime CreatedUtc, string AppVersion);
 
+/// <summary>An imported profile, and how many instruction-like lines (prompt injection) were removed from its text.</summary>
+public sealed record ProfileBundleImport(CandidateProfileRecord Profile, int RemovedInstructionLines);
+
 /// <summary>A validated bundle, ready to preview and import.</summary>
 public sealed class ProfileBundleContent
 {
@@ -94,11 +100,12 @@ public static class ProfileBundle
     public const string FileExtension = ".iaprofile";
 
     private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
-    private static readonly JsonSerializerOptions Typed = new() { MaxDepth = 64 };
+    // Duplicate property names are refused (a hostile file could otherwise show one value in the preview and import another).
+    private static readonly JsonSerializerOptions Typed = new() { MaxDepth = 64, AllowDuplicateProperties = false };
     private static readonly JsonNodeOptions NodeOptions = new();
-    private static readonly JsonDocumentOptions DocOptions = new() { MaxDepth = 64 };
-    private static readonly Regex EntryName = new(@"^(?:manifest\.json|profile\.json|(?:targets|packs|sessions)/[A-Za-z0-9\-]{1,64}\.json)$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
-    private static readonly Regex SafeId = new(@"^[A-Za-z0-9\-]{1,64}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly JsonDocumentOptions DocOptions = new() { MaxDepth = 64, AllowDuplicateProperties = false };
+    private static readonly Regex EntryName = new(@"^(?:manifest\.json|profile\.json|(?:targets|packs|sessions)/[A-Za-z0-9\-]{1,64}\.json)\z", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+    private static readonly Regex SafeId = new(@"^[A-Za-z0-9\-]{1,64}\z", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     // ------------------------------------------------------------------ write
 
@@ -134,17 +141,32 @@ public static class ProfileBundle
         return manifest;
     }
 
-    private static byte[] Json<T>(T value) => Encoding.UTF8.GetBytes(SecretFilter.ToJson(value));
+    // Secrets are removed by property name, and values only when they are unmistakable credentials (an API key or a
+    // token pasted into notes): the backup restores the user's own prose exactly as written ("Secret: active clearance"
+    // stays). The readable and raw exports also redact credentials written as a sentence.
+    private static byte[] Json<T>(T value) => Encoding.UTF8.GetBytes(SecretFilter.ToJson(value, keepProse: true));
 
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 
     // ------------------------------------------------------------------ read (untrusted)
 
     /// <summary>Reads and fully validates a bundle. Throws <see cref="ProfileBundleException"/> for anything not acceptable.</summary>
+    /// <remarks>Any other failure while validating untrusted content (a null where a value is required, a duplicate JSON
+    /// property, a malformed value) is reported as <see cref="ProfileBundleError.Invalid"/> too: nothing else escapes.</remarks>
     public static ProfileBundleContent Read(Stream input, ProfileBundleLimits? limits = null)
     {
-        limits ??= ProfileBundleLimits.Default;
+        try { return ReadUnchecked(input, limits ?? ProfileBundleLimits.Default); }
+        catch (Exception ex) when (ex is NullReferenceException or ArgumentException or InvalidOperationException or KeyNotFoundException
+            or FormatException or JsonException or NotSupportedException or IndexOutOfRangeException or OverflowException or TargetInvocationException)
+        { throw new ProfileBundleException(ProfileBundleError.Invalid, ex.GetType().Name); }
+        catch (InvalidDataException ex) { throw new ProfileBundleException(ProfileBundleError.NotABundle, ex.GetType().Name); }
+    }
+
+    private static ProfileBundleContent ReadUnchecked(Stream input, ProfileBundleLimits limits)
+    {
         var buffer = ReadBounded(input, limits.MaxFileBytes, () => new ProfileBundleException(ProfileBundleError.TooLarge, "file"));
+        // The central directory's entry count is checked before it is parsed (ZipArchive would load every entry first).
+        if (DeclaredEntryCount(buffer) is { } declared && declared > limits.MaxEntries) throw new ProfileBundleException(ProfileBundleError.TooLarge, "entries");
         ZipArchive zip;
         try { zip = new ZipArchive(new MemoryStream(buffer, writable: false), ZipArchiveMode.Read); }
         catch (InvalidDataException ex) { throw new ProfileBundleException(ProfileBundleError.NotABundle, ex.GetType().Name); }
@@ -182,7 +204,8 @@ public static class ProfileBundle
             // The manifest lists exactly the other entries, each with its size and SHA-256.
             var listed = new Dictionary<string, ProfileBundleEntry>(StringComparer.Ordinal);
             foreach (var m in manifest.Entries)
-                if (m.Path == "manifest.json" || !EntryName.IsMatch(m.Path ?? "") || !listed.TryAdd(m.Path!, m)) throw new ProfileBundleException(ProfileBundleError.Tampered, "manifest entries");
+                if (m == null) throw new ProfileBundleException(ProfileBundleError.Invalid, "manifest entry");
+                else if (m.Path == "manifest.json" || !EntryName.IsMatch(m.Path ?? "") || !listed.TryAdd(m.Path!, m)) throw new ProfileBundleException(ProfileBundleError.Tampered, "manifest entries");
             if (listed.Count != files.Count - 1) throw new ProfileBundleException(ProfileBundleError.Tampered, "entry set");
             foreach (var (name, bytes) in files)
             {
@@ -196,6 +219,7 @@ public static class ProfileBundle
             if (!files.TryGetValue("profile.json", out var profileBytes)) throw new ProfileBundleException(ProfileBundleError.Invalid, "no profile");
             var profileNode = ParseObject(profileBytes);
             var profile = Deserialize<CandidateProfileRecord>(profileNode);
+            RequireValues(profile, "profile");
             if (!SafeId.IsMatch(profile.Id)) throw new ProfileBundleException(ProfileBundleError.Invalid, "profile id");
 
             var targets = new List<JsonObject>();
@@ -204,6 +228,7 @@ public static class ProfileBundle
             {
                 var node = ParseObject(bytes);
                 var t = Deserialize<InterviewTarget>(node);
+                RequireValues(t, "interview");
                 if (t.Id != IdOf(name) || t.ProfileId != profile.Id) throw new ProfileBundleException(ProfileBundleError.Invalid, "interview reference");
                 targetIds.Add(t.Id);
                 targets.Add(node);
@@ -213,6 +238,7 @@ public static class ProfileBundle
             {
                 var node = ParseObject(bytes);
                 var p = Deserialize<PreparedPack>(node);
+                RequireValues(p, "pack", maxDepth: 0);   // generated content: only the pack's own fields and lists
                 if (p.TargetId != IdOf(name) || !targetIds.Contains(p.TargetId)) throw new ProfileBundleException(ProfileBundleError.Invalid, "pack reference");
                 packs.Add(node);
             }
@@ -222,6 +248,7 @@ public static class ProfileBundle
             {
                 var node = ParseObject(bytes);
                 var s = Deserialize<StoredSession>(node);
+                RequireValues(s, "session");
                 if (s.Id != IdOf(name) || s.ProfileId != profile.Id) throw new ProfileBundleException(ProfileBundleError.Invalid, "session reference");
                 if (s.TargetId.Length > 0 && !SafeId.IsMatch(s.TargetId)) throw new ProfileBundleException(ProfileBundleError.Invalid, "session interview");
                 if (s.ReportJson.Length > 0) reports++;
@@ -264,7 +291,63 @@ public static class ProfileBundle
         var manifest = Deserialize<ProfileBundleManifest>(node);
         manifest.Entries ??= new();
         manifest.Counts ??= new();
+        manifest.AppVersion ??= "";
+        manifest.ProfileName ??= "";
+        foreach (var e in manifest.Entries)
+            if (e == null || e.Path == null || e.Sha256 == null) throw new ProfileBundleException(ProfileBundleError.Invalid, "manifest entry");
         return manifest;
+    }
+
+    /// <summary>
+    /// The JSON may say null where the app always has a value ("Id": null, "Facts": [null], "TargetId": null): such a
+    /// field, and a null item in a list, is rejected (properties the model declares nullable may be null).
+    /// </summary>
+    private static void RequireValues(object value, string what, int maxDepth = 16)
+    {
+        var context = new NullabilityInfoContext();
+        void Check(object obj, int depth)
+        {
+            foreach (var p in obj.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                if (p.GetIndexParameters().Length > 0 || p.SetMethod == null || p.PropertyType.IsValueType || p.IsDefined(typeof(JsonIgnoreAttribute))) continue;
+                var info = context.Create(p);
+                var v = p.GetValue(obj);
+                if (v == null)
+                {
+                    if (info.ReadState == NullabilityState.NotNull) throw new ProfileBundleException(ProfileBundleError.Invalid, $"{what}: {p.Name}");
+                    continue;
+                }
+                if (v is string || v is JsonNode) continue;
+                if (v is System.Collections.IEnumerable items)
+                {
+                    var element = info.GenericTypeArguments.Length == 1 ? info.GenericTypeArguments[0] : info.ElementType;
+                    foreach (var item in items)
+                    {
+                        if (item == null)
+                        {
+                            if (element?.ReadState == NullabilityState.NotNull) throw new ProfileBundleException(ProfileBundleError.Invalid, $"{what}: {p.Name}[]");
+                            continue;
+                        }
+                        if (depth < maxDepth && IsModel(item.GetType())) Check(item, depth + 1);
+                    }
+                    continue;
+                }
+                if (depth < maxDepth && IsModel(v.GetType())) Check(v, depth + 1);
+            }
+        }
+        Check(value, 0);
+    }
+
+    private static bool IsModel(Type t) => !t.IsValueType && t.Namespace?.StartsWith("InterviewAssistant.", StringComparison.Ordinal) == true;
+
+    /// <summary>Total entry count from the ZIP's end-of-central-directory record (null when there is none to read).</summary>
+    private static int? DeclaredEntryCount(byte[] zip)
+    {
+        // EOCD: signature 50 4B 05 06, then (at +10) the total number of entries (uint16); at most a 64 KB comment follows.
+        for (int i = zip.Length - 22; i >= 0 && i >= zip.Length - 22 - 0xFFFF; i--)
+            if (zip[i] == 0x50 && zip[i + 1] == 0x4B && zip[i + 2] == 0x05 && zip[i + 3] == 0x06)
+                return zip[i + 10] | zip[i + 11] << 8;   // 0xFFFF (ZIP64) is far above every limit too
+        return null;
     }
 
     private static JsonObject ParseObject(byte[] bytes)
@@ -304,8 +387,18 @@ public static class ProfileBundle
     /// reference (interview → profile, pack → interview, session → profile/interview, report → session) remapped.
     /// Nothing existing is overwritten; on a failure the partly imported profile is removed again. Returns the new profile.
     /// </summary>
-    public static CandidateProfileRecord Import(WorkspaceStore store, ProfileBundleContent content, string? name = null)
+    public static CandidateProfileRecord Import(WorkspaceStore store, ProfileBundleContent content, string? name = null) =>
+        ImportWithReport(store, content, name).Profile;
+
+    /// <summary>
+    /// <see cref="Import"/>, also reporting the instruction-like lines removed. The bundle's content is untrusted (anyone
+    /// can recompute its hashes), so it goes through the same guard as an uploaded résumé: documents, facts, interviews
+    /// and prepared packs are re-sanitized (<see cref="PromptInjectionGuard"/>), the documents' security flags are
+    /// recomputed rather than taken from the file, and document file names are sanitized again.
+    /// </summary>
+    public static ProfileBundleImport ImportWithReport(WorkspaceStore store, ProfileBundleContent content, string? name = null)
     {
+        var removed = 0;
         var newProfileId = NewId();
         while (store.GetProfile(newProfileId) != null) newProfileId = NewId();
         var targetMap = content.Targets.ToDictionary(t => (string)t["Id"]!, _ => NewId(), StringComparer.Ordinal);
@@ -313,6 +406,7 @@ public static class ProfileBundle
         var profileNode = content.Profile.DeepClone().AsObject();
         profileNode["Id"] = newProfileId;
         if (!string.IsNullOrWhiteSpace(name)) profileNode["Name"] = name;
+        removed += Guard(profileNode);
         var profile = Deserialize<CandidateProfileRecord>(profileNode);
         try
         {
@@ -322,6 +416,7 @@ public static class ProfileBundle
                 var node = t.DeepClone().AsObject();
                 node["Id"] = targetMap[(string)t["Id"]!];
                 node["ProfileId"] = newProfileId;
+                removed += Guard(node);
                 store.SaveTarget(Deserialize<InterviewTarget>(node));
             }
             foreach (var p in content.Packs)
@@ -331,6 +426,7 @@ public static class ProfileBundle
                 node["TargetId"] = targetId;
                 node["ProfileId"] = newProfileId;
                 if (node["Context"] is JsonObject ctx) { ctx["profile_id"] = newProfileId; ctx["target_id"] = targetId; }
+                removed += Guard(node);
                 store.SavePack(Deserialize<PreparedPack>(node));
             }
             foreach (var s in content.Sessions)
@@ -350,7 +446,58 @@ public static class ProfileBundle
             try { store.DeleteProfile(newProfileId); } catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException) { }
             throw;
         }
-        return store.GetProfile(newProfileId) ?? profile;
+        return new ProfileBundleImport(store.GetProfile(newProfileId) ?? profile, removed);
+    }
+
+    /// <summary>
+    /// Removes instruction-like lines from every text of an imported profile, interview or pack (in place) and returns
+    /// how many were removed. Source documents (objects with a Text, a FileName and SecurityFlags) get their flags
+    /// recomputed from their own text and their file name sanitized like an upload.
+    /// </summary>
+    private static int Guard(JsonNode? node, int depth = 0)
+    {
+        if (node == null || depth > 64) return 0;
+        var removed = 0;
+        switch (node)
+        {
+            case JsonObject o:
+                if (o["SecurityFlags"] is JsonArray && o.ContainsKey("FileName") && o["Text"] is JsonValue tv && tv.TryGetValue<string>(out var docText))
+                {
+                    var guarded = PromptInjectionGuard.Sanitize(docText);
+                    o["Text"] = guarded.Text;
+                    o["SecurityFlags"] = new JsonArray(guarded.Flags.Select(f => (JsonNode?)JsonValue.Create(f)).ToArray());
+                    o["FileName"] = UploadValidator.SanitizeFileName(o["FileName"] is JsonValue fv && fv.TryGetValue<string>(out var fn) ? fn : null);
+                    removed += guarded.Flags.Count;
+                }
+                foreach (var key in o.Select(kv => kv.Key).ToList())
+                {
+                    if (key is "SecurityFlags" or "Text" && o.ContainsKey("FileName") && o["SecurityFlags"] is JsonArray) continue;   // done above
+                    if (o[key] is JsonValue v && v.TryGetValue<string>(out var text))
+                    {
+                        if (!PromptInjectionGuard.LooksMalicious(text)) continue;
+                        var guarded = PromptInjectionGuard.Sanitize(text);
+                        o[key] = guarded.Text;
+                        removed += Math.Max(1, guarded.Flags.Count);
+                    }
+                    else removed += Guard(o[key], depth + 1);
+                }
+                break;
+            case JsonArray a:
+                for (int i = a.Count - 1; i >= 0; i--)
+                {
+                    if (a[i] is JsonValue v && v.TryGetValue<string>(out var text))
+                    {
+                        if (!PromptInjectionGuard.LooksMalicious(text)) continue;
+                        var guarded = PromptInjectionGuard.Sanitize(text);
+                        removed += Math.Max(1, guarded.Flags.Count);
+                        if (string.IsNullOrWhiteSpace(guarded.Text)) a.RemoveAt(i);   // a list item that was only an instruction
+                        else a[i] = guarded.Text;
+                    }
+                    else removed += Guard(a[i], depth + 1);
+                }
+                break;
+        }
+        return removed;
     }
 
     private static string RemapReport(string reportJson, string sessionId)
