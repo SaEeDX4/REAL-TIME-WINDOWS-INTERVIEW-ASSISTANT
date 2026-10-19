@@ -1046,6 +1046,8 @@
  "set_hotkey_conflict": "{0} ist bereits einer anderen Aktion zugewiesen. Wählen Sie ein anderes Tastenkürzel.",
  "set_hotkeys_hint": "Verwenden Sie Strg, Alt, Umschalt oder Win plus eine Taste, zum Beispiel Ctrl+Alt+Space. Jede Aktion braucht ein eigenes Tastenkürzel, das sich auch von denen für den Coach-Modus und die Antwortlänge unterscheidet.",
  "toast_settings_saved": "Einstellungen gespeichert",
+ "err_settings_not_saved": "Einstellungen konnten nicht gespeichert werden",
+ "err_settings_not_saved_detail": "Sie gelten jetzt, gehen aber beim Neustart der App verloren. Prüfen Sie, ob der Datenträger voll ist.",
  "toast_interview_saved": "Interview gespeichert",
  "tt_save_interview": "Jobtitel, Unternehmen, Sprachen und Stellenbeschreibung speichern (Vorbereiten speichert sie ebenfalls)",
  "acct_reset_requested": "Falls für diese E-Mail-Adresse ein Konto existiert, wurde ein Link zum Zurücksetzen des Passworts gesendet.",

@@ -1046,6 +1046,8 @@
  "set_hotkey_conflict": "{0} já está sendo usada por outra ação. Escolha outra tecla de atalho.",
  "set_hotkeys_hint": "Use Ctrl, Alt, Shift ou Win mais uma tecla, por exemplo Ctrl+Alt+Space. Cada ação precisa da sua própria tecla de atalho, diferente das do modo coach e do tamanho das respostas.",
  "toast_settings_saved": "Configurações salvas",
+ "err_settings_not_saved": "Não foi possível salvar as configurações",
+ "err_settings_not_saved_detail": "Elas valem agora, mas serão perdidas quando o aplicativo reiniciar. Verifique se o disco não está cheio.",
  "toast_interview_saved": "Entrevista salva",
  "tt_save_interview": "Salvar o cargo, a empresa, os idiomas e a descrição da vaga (Preparar também salva)",
  "acct_reset_requested": "Se existir uma conta para este e-mail, um link de redefinição de senha foi enviado.",

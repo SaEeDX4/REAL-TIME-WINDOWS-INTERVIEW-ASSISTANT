@@ -105,17 +105,20 @@ public sealed class AppSettings
         return new AppSettings();
     }
 
-    public void Save()
+    /// <summary>Writes the settings atomically. False = not written (disk full, read-only profile folder): the caller says so.</summary>
+    public bool Save()
     {
         try
         {
             var tmp = FilePath + ".tmp";
             File.WriteAllText(tmp, JsonSerializer.Serialize(this, Json));
             File.Move(tmp, FilePath, overwrite: true); // atomic replace: no half-written settings on crash
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             AppLog.Warn("Could not save settings: " + AppLog.Describe(ex));
+            return false;
         }
     }
 

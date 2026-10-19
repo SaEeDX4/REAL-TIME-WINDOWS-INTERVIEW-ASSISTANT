@@ -1046,6 +1046,8 @@
  "set_hotkey_conflict": "{0} 已被其他操作使用。请选择其他快捷键。",
  "set_hotkeys_hint": "请使用 Ctrl、Alt、Shift 或 Win 加一个键，例如 Ctrl+Alt+Space。每个操作都需要单独的快捷键，并且不能与教练模式和回答长度的快捷键相同。",
  "toast_settings_saved": "设置已保存",
+ "err_settings_not_saved": "无法保存设置",
+ "err_settings_not_saved_detail": "设置现在已生效，但应用重启后会丢失。请检查磁盘是否已满。",
  "toast_interview_saved": "面试已保存",
  "tt_save_interview": "保存职位名称、公司、语言和职位描述（“准备”也会保存这些内容）",
  "acct_reset_requested": "如果此电子邮件地址对应的账户存在，我们已发送密码重置链接。",

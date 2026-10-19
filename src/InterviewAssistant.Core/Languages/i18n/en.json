@@ -1046,6 +1046,8 @@
  "set_hotkey_conflict": "{0} is already used by another action. Choose a different hotkey.",
  "set_hotkeys_hint": "Use Ctrl, Alt, Shift or Win plus a key, for example Ctrl+Alt+Space. Each action needs its own hotkey, different from the coach-mode and answer-length shortcuts.",
  "toast_settings_saved": "Settings saved",
+ "err_settings_not_saved": "Settings could not be saved",
+ "err_settings_not_saved_detail": "They apply now but will be lost when the app restarts. Check that the disk is not full.",
  "toast_interview_saved": "Interview saved",
  "tt_save_interview": "Save the job title, company, languages and job description (Prepare saves them too)",
  "acct_reset_requested": "If an account exists for this e-mail, a password reset link has been sent.",

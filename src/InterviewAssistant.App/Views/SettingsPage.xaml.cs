@@ -38,6 +38,8 @@ public partial class SettingsPage : UserControl
     public DirtyStateGuard Guard { get; } = new("settings");
     /// <summary>Raised after a successful save (Home shows the confirmation).</summary>
     public event Action? Saved;
+    /// <summary>The settings file could not be written: the changes apply now but will not survive a restart.</summary>
+    public event Action? SaveFailed;
     /// <summary>Raised after defaults were restored: the category, or null for all (Home shows the confirmation).</summary>
     public event Action<string?>? DefaultsRestored;
 
@@ -374,14 +376,14 @@ public partial class SettingsPage : UserControl
         S.HotkeyManualInput = HkManual.Text.Trim();
         S.SaveSessionTranscript = SaveTranscriptBox.IsChecked == true;
         S.PlaybackDeviceId = (DeviceBox.SelectedItem as PlaybackDevice)?.Id;
-        S.Save();
+        var written = S.Save();
         _savedDeviceId = S.PlaybackDeviceId;
         _keyRemoved = false;
         using (Guard.Suspend()) KeyBox.Clear();
         KeyStatus.Text = SecretStore.HasKey ? Loc.F("set_key_saved", SecretStore.Mask(SecretStore.GetApiKey())) : Loc.T("set_key_none");
         Guard.MarkClean();
         _main?.ApplySettings(engineChanged, modelChanged);
-        Saved?.Invoke();
+        if (written) Saved?.Invoke(); else SaveFailed?.Invoke();
         return true;
 
         static (uint, uint) Combo(string text) => HotkeyService.TryParse(text, out var m, out var k) ? (m, k) : (0u, 0u);
@@ -418,7 +420,7 @@ public partial class SettingsPage : UserControl
         var preview = S.PlaybackDeviceId;   // an unsaved device preview is not a stored value
         S.PlaybackDeviceId = _savedDeviceId;
         var changed = SettingsDefaults.Reset(S, new AppSettings(), category);
-        S.Save();
+        var written = S.Save();
         _savedDeviceId = S.PlaybackDeviceId;
         if (category == null)
         {
@@ -434,7 +436,7 @@ public partial class SettingsPage : UserControl
         if (changed.Contains("UpdateChannel")) UpdateStatus.Text = Loc.T("updates_channel_restart");
         var (engineChanged, modelChanged) = SettingsDefaults.EffectOf(changed);
         _main?.ApplySettings(engineChanged, modelChanged);
-        DefaultsRestored?.Invoke(category);
+        if (written) DefaultsRestored?.Invoke(category); else SaveFailed?.Invoke();
     }
 
     // ================= updates =================

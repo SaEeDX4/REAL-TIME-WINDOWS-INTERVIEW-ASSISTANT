@@ -1046,6 +1046,8 @@
  "set_hotkey_conflict": "{0} est déjà utilisé par une autre action. Choisissez un autre raccourci.",
  "set_hotkeys_hint": "Utilisez Ctrl, Alt, Maj ou Win avec une touche, par exemple Ctrl+Alt+Space. Chaque action a besoin de son propre raccourci, différent de ceux du mode coach et de la longueur des réponses.",
  "toast_settings_saved": "Paramètres enregistrés",
+ "err_settings_not_saved": "Impossible d'enregistrer les paramètres",
+ "err_settings_not_saved_detail": "Ils s'appliquent maintenant mais seront perdus au redémarrage de l'application. Vérifiez que le disque n'est pas plein.",
  "toast_interview_saved": "Entretien enregistré",
  "tt_save_interview": "Enregistrer l'intitulé du poste, l'entreprise, les langues et la description du poste (Préparer les enregistre aussi)",
  "acct_reset_requested": "Si un compte existe pour cette adresse e-mail, un lien de réinitialisation du mot de passe a été envoyé.",

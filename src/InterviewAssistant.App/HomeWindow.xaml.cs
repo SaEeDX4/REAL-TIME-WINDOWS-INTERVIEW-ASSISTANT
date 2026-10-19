@@ -137,6 +137,7 @@ public partial class HomeWindow : Window
         PageSettings.Initialize(vm, main);
         PageSettings.Guard.Save = () => { if (PageSettings.Save()) return true; ShowPage("settings"); PageSettings.ShowSection("hotkeys"); return false; };
         PageSettings.Saved += () => Notify(T("toast_settings_saved"), ToastKind.Success);
+        PageSettings.SaveFailed += () => Notify(T("err_settings_not_saved"), ToastKind.Error, T("err_settings_not_saved_detail"));
         PageSettings.DefaultsRestored += category => Notify(category == null ? T("toast_defaults_restored")
             : F("toast_section_reset", T(SettingsCategories.All[SettingsCategories.IndexOf(category)].TitleKey)), ToastKind.Success);
         InitializeReadiness();

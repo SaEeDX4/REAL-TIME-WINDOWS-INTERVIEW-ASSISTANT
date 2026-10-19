@@ -1046,6 +1046,8 @@
  "set_hotkey_conflict": "{0} ya está asignada a otra acción. Elige otra tecla de acceso rápido.",
  "set_hotkeys_hint": "Usa Ctrl, Alt, Mayús o Win más una tecla, por ejemplo Ctrl+Alt+Space. Cada acción necesita su propia tecla de acceso rápido, distinta de las del modo coach y de la longitud de las respuestas.",
  "toast_settings_saved": "Configuración guardada",
+ "err_settings_not_saved": "No se pudo guardar la configuración",
+ "err_settings_not_saved_detail": "Se aplica ahora, pero se perderá al reiniciar la aplicación. Comprueba que el disco no esté lleno.",
  "toast_interview_saved": "Entrevista guardada",
  "tt_save_interview": "Guarda el puesto, la empresa, los idiomas y la descripción del puesto (Preparar también los guarda)",
  "acct_reset_requested": "Si existe una cuenta con este correo electrónico, se ha enviado un enlace para restablecer la contraseña.",

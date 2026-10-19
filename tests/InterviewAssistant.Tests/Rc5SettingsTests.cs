@@ -257,7 +257,8 @@ public class Rc5SettingsTests
         var cs = App("Views/SettingsPage.xaml.cs");
         Assert.Contains("AppDialog.ConfirmAsync(owner, message, Loc.T(\"set_restore_confirm\"), destructive: true, title: Loc.T(\"set_restore_title\"))", cs);
         Assert.Contains("SettingsDefaults.Reset(S, new AppSettings(), category)", cs);
-        Assert.Contains("_main?.ApplySettings(engineChanged, modelChanged);\n        DefaultsRestored?.Invoke(category);", cs);
+        // rc.5 error-state audit L2: the confirmation only when the file was written, else SaveFailed
+        Assert.Contains("_main?.ApplySettings(engineChanged, modelChanged);\n        if (written) DefaultsRestored?.Invoke(category); else SaveFailed?.Invoke();", cs);
         Assert.Contains("Guard.MarkClean();", cs);
         var en = Loc.TableFor("en");
         Assert.Equal("Restore defaults?", en["set_restore_title"]);
