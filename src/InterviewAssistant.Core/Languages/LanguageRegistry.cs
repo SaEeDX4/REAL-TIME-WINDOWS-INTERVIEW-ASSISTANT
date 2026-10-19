@@ -1,3 +1,6 @@
+using System.Collections.Concurrent;
+using System.Globalization;
+
 namespace InterviewAssistant.Core.Languages;
 
 public sealed record LanguageInfo(string Code, string EnglishName, string NativeName, bool IsRightToLeft, string Script, string CultureName)
@@ -38,6 +41,28 @@ public static class LanguageRegistry
     public static bool IsSupported(string? code) => Find(code) != null;
     public static bool IsRtl(string? code) => Find(code)?.IsRightToLeft ?? false;
     public static string EnglishName(string? code) => Find(code)?.EnglishName ?? "English";
+
+    private static readonly ConcurrentDictionary<string, CultureInfo> FormattingCultures = new();
+
+    /// <summary>
+    /// Read-only culture for numbers and dates in <paramref name="code"/> (English for an unknown code). Arabic uses
+    /// a clone of ar-SA on the Gregorian calendar: ar-SA defaults to the Umm al-Qura (Hijri) calendar, and billing
+    /// and export dates must match the Gregorian dates on payment receipts. Persian keeps its Solar Hijri calendar.
+    /// </summary>
+    public static CultureInfo FormattingCulture(string? code)
+    {
+        var info = Find(code) ?? All[0];
+        return FormattingCultures.GetOrAdd(info.Code, _ =>
+        {
+            var culture = CultureInfo.GetCultureInfo(info.CultureName);
+            if (info.Code != "ar" || culture.DateTimeFormat.Calendar is GregorianCalendar) return culture;
+            var gregorian = culture.OptionalCalendars.OfType<GregorianCalendar>().FirstOrDefault();
+            if (gregorian == null) return culture;
+            var clone = (CultureInfo)culture.Clone();
+            clone.DateTimeFormat.Calendar = gregorian;
+            return CultureInfo.ReadOnly(clone);
+        });
+    }
 
     /// <summary>
     /// Resolves the language answers must be written in.

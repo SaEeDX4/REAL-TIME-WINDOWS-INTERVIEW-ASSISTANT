@@ -26,6 +26,18 @@ public partial class HomeWindow
     /// <summary>State of the signed-out form (sign in, create account, forgot password, reset sent, switch account).</summary>
     private readonly AuthFormState _auth = new();
 
+    /// <summary>
+    /// Culture for the Account page's dates and times: the UI language's, with Arabic on the Gregorian calendar so
+    /// billing dates match the payment receipts (ar-SA alone would show Umm al-Qura dates).
+    /// </summary>
+    private static System.Globalization.CultureInfo DateCulture => LanguageRegistry.FormattingCulture(Loc.Language);
+
+    /// <summary>
+    /// Wraps an e-mail address or a version number in a left-to-right isolate (U+2066 … U+2069) before it goes into a
+    /// localized sentence, so bidi reordering in Arabic and Persian cannot scramble "2.1.0-rc.5" or "name@example.com".
+    /// </summary>
+    private static string LtrIsolated(string? text) => string.IsNullOrEmpty(text) ? "" : "\u2066" + text + "\u2069";
+
     private void RefreshAccount()
     {
         var c = _vm.Cloud;
@@ -37,7 +49,7 @@ public partial class HomeWindow
         // own section, next to the data it concerns — never as a page-wide error over data that is fine.
         var email = c.Account?.Email ?? c.Auth?.Session?.Email;
         AccountStatus.Text = c.IsSignedIn && c.State is CloudState.SignedIn or CloudState.ServiceUnavailable or CloudState.Connecting && email is { Length: > 0 }
-            ? F("acct_signed_in_email", email)
+            ? F("acct_signed_in_email", LtrIsolated(email))
             : c.State == CloudState.Connecting ? T("acct_connecting_service") : Loc.Relocalize(c.Message) ?? "";
         AccountStatus.Foreground = (Brush)FindResource(c.State is CloudState.AccountDisabled or CloudState.UpdateRequired or CloudState.SessionExpired
             || c.State == CloudState.ServiceUnavailable && !c.IsSignedIn ? "B.Thinking" : "B.TextDim");
@@ -68,12 +80,12 @@ public partial class HomeWindow
             var label = MainViewModel.BillingLabel(a);
             PlanSubText.Text = label != a.Entitlements.PlanName ? label : "";
             ShowPlanBadge(a.BillingState);
-            UsageMetrics.ItemsSource = PlanView.Metrics(a, d => d.ToLocalTime().ToString("d", Loc.Culture)).Select(MetricRow.From).ToList();
+            UsageMetrics.ItemsSource = PlanView.Metrics(a, d => d.ToLocalTime().ToString("d", DateCulture)).Select(MetricRow.From).ToList();
             ShowDevices(_devices);   // row texts follow the UI language
             BillingNotice.Text = a.BillingState switch
             {
-                BillingStates.PastDue => F("bill_notice_past_due", a.Subscription?.GraceUntilUtc?.ToLocalTime().ToString("d", Loc.Culture)),
-                BillingStates.Canceling => F("bill_notice_canceling", a.Subscription?.CurrentPeriodEndUtc?.ToLocalTime().ToString("d", Loc.Culture)),
+                BillingStates.PastDue => F("bill_notice_past_due", a.Subscription?.GraceUntilUtc?.ToLocalTime().ToString("d", DateCulture)),
+                BillingStates.Canceling => F("bill_notice_canceling", a.Subscription?.CurrentPeriodEndUtc?.ToLocalTime().ToString("d", DateCulture)),
                 BillingStates.Paused => T("bill_notice_paused"),
                 BillingStates.Expired => T("bill_notice_expired"),
                 BillingStates.Revoked => T("bill_notice_revoked"),
@@ -108,7 +120,7 @@ public partial class HomeWindow
     /// <summary>Inline status of each Account section (loading, failed with retry, saved data from …).</summary>
     private void RenderSections()
     {
-        string Time(DateTimeOffset t) => t.ToLocalTime().ToString("t", Loc.Culture);
+        string Time(DateTimeOffset t) => t.ToLocalTime().ToString("t", DateCulture);
         void Render(SectionState s, InlineMessage m, string failedKey, bool retry = true)
         {
             if (s.Status == SectionStatus.Failed)
@@ -194,7 +206,7 @@ public partial class HomeWindow
             b.Click += (_, _) => CloudService.OpenExternal(url);
             LegalLinks.Children.Add(b);
         }
-        SupportEmailText.Text = l?.SupportEmail is { Length: > 0 } mail ? F("legal_support_email", mail) : "";
+        SupportEmailText.Text = l?.SupportEmail is { Length: > 0 } mail ? F("legal_support_email", LtrIsolated(mail)) : "";
         LegalHeader.Visibility = LegalLinks.Children.Count > 0 || SupportEmailText.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -224,7 +236,7 @@ public partial class HomeWindow
     {
         var s = _auth;
         AuthHeading.Text = T(s.HeadingKey);
-        AuthSubtitle.Text = s.SubtitleKey is { } sub ? F(sub, s.PreviousEmail) : "";
+        AuthSubtitle.Text = s.SubtitleKey is { } sub ? F(sub, LtrIsolated(s.PreviousEmail)) : "";
         AuthSubtitle.Visibility = Vis(AuthSubtitle.Text.Length > 0);
         EmailPanel.Visibility = Vis(s.Shows(AuthField.Email));
         PasswordPanel.Visibility = Vis(s.Shows(AuthField.Password));
@@ -350,7 +362,7 @@ public partial class HomeWindow
                 confirm = ok && needsConfirmation;
                 return (ok, error);
             });
-            if (confirm && !_vm.Cloud.IsSignedIn && _auth.ToSignIn()) AuthMessage.Show(F("acct_confirm_email_sent", email), MessageKind.Success);
+            if (confirm && !_vm.Cloud.IsSignedIn && _auth.ToSignIn()) AuthMessage.Show(F("acct_confirm_email_sent", LtrIsolated(email)), MessageKind.Success);
         }
         else await RunAuth(() => _vm.Cloud.SignInAsync(email, pw));
     }
@@ -554,7 +566,7 @@ public partial class HomeWindow
         _devices = devices;
         bool IsThisPc(DeviceDto d) => d.IsCurrent || d.Id == _vm.Settings.CloudDeviceId;
         DeviceList.ItemsSource = devices.OrderByDescending(IsThisPc).ThenByDescending(d => d.LastSeenUtc)
-            .Select(d => new DeviceRow(d, d.Name, F("acct_device_meta", d.ClientVersion, d.LastSeenUtc.ToLocalTime().ToString("g", Loc.Culture)),
+            .Select(d => new DeviceRow(d, d.Name, F("acct_device_meta", LtrIsolated(d.ClientVersion), d.LastSeenUtc.ToLocalTime().ToString("g", DateCulture)),
                 IsThisPc(d) ? Visibility.Visible : Visibility.Collapsed, F("acct_device_remove_name", d.Name), !_deviceBusy)).ToList();
         DevicesEmpty.Visibility = devices.Count == 0 && _sections.Devices.HasData ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -692,7 +704,7 @@ public partial class HomeWindow
     private async void SwitchAccount_Click(object sender, RoutedEventArgs e)
     {
         var previous = _vm.Cloud.Account?.Email ?? _vm.Cloud.Auth?.Session?.Email ?? "";
-        if (!await AppDialog.ConfirmAsync(this, F("switch_confirm_message", previous), T("switch_account"), title: T("switch_confirm_title"))) return;
+        if (!await AppDialog.ConfirmAsync(this, F("switch_confirm_message", LtrIsolated(previous)), T("switch_account"), title: T("switch_confirm_title"))) return;
         if (!await ConfirmSignOutAsync()) return;
         await _vm.SignOutAsync(quiet: true);
         _auth.StartSwitch(previous);
