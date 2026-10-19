@@ -9,8 +9,13 @@ profiles, interviews, reports and settings are kept.
 - "Tell me more.", "Go on.", "Walk me through that.", "Explain further.", "Give me an example.", "Elaborate.",
   "Continue." and "Can you expand on that?" are answered as their own question, also when said flatly. The earlier
   answer stays in the history.
-- Notification sounds, beeps, screenshot sounds, music and knocks still never become questions.
-- A follow-up addressed to another interviewer by name ("John, tell me more.") is not answered; your own name is.
+- Asking the same follow-up again later ("Tell me more." twice) is answered again.
+- Notification sounds, beeps, screenshot sounds, short buzzes, music and knocks still never become questions; neither
+  do instructions such as "Go on mute, please.", "Continue to the next slide." or "Show me your screen."
+- A follow-up addressed to another interviewer ("John, tell me more.", "Over to you, Maria. Go on.") is not
+  answered; your own name is.
+- A quick two-part question ("Tell me about a time you led a team. Walk me through it.") stays one question; a
+  follow-up after a pause of about two seconds becomes its own.
 
 ## Know when you are ready
 - **Pre-interview check** is now a page in Home: eight checks with a fix button each, Test audio / transcription / AI,
