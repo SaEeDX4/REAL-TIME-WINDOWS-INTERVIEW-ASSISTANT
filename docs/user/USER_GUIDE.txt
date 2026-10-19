@@ -2,7 +2,7 @@ INTERVIEW ASSISTANT — USER GUIDE (2.1.0-rc.5)
 =============================================
 
 GETTING STARTED
-Home -> Get started is your interview readiness dashboard: four steps (Account, Profile,
+Home opens on Get started, your interview readiness dashboard: four steps (Account, Profile,
 Interview setup, Pre-interview check) and one button for the next thing to do.
 1. Open Interview Assistant. (This release candidate is not code-signed yet: if Windows
    SmartScreen appears, choose "More info" -> "Run anyway".) The first time, confirm that you
@@ -30,7 +30,8 @@ BEFORE YOUR INTERVIEW
   transcription, answer engine, interview prepared, prepared answers, window on top), each with
   a fix button, plus Test audio / Test transcription / Test AI. The same result appears on Get
   started, on the Interviews page, in the Home title bar and in the Live Assistant header; it
-  says "Out of date" when you change the interview or the audio device.
+  says "Out of date" after 30 minutes or when you change settings, the profile, the interview
+  or the audio device. The transcription test is optional ("Not tested" is not a warning).
 - Interview Focus (Live Assistant -> More -> Interview Focus): places a compact window near
   your camera (top centre, left or right) so you can glance at notes while keeping eye
   contact. It only moves and resizes the window — it does not hide it from screen sharing or
@@ -101,5 +102,5 @@ TROUBLESHOOTING
 - Silence between questions is normal: the status shows "Listening · quiet".
 - Connection lost: a notification and a banner appear; prepared answers and typed questions
   keep working, and the app reconnects by itself.
-- Help & about -> Diagnostics: a short health check, Copy diagnostics and Open log folder for
+- Help & about -> Diagnostics: Check app health, Copy diagnostics and Open log folder for
   support. Diagnostics and logs contain no resume text, answers, passwords or keys.
