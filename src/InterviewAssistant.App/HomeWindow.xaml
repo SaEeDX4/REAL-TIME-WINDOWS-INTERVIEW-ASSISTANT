@@ -72,8 +72,10 @@
 
             <!-- title bar -->
             <Grid Grid.ColumnSpan="2" Margin="18,12,10,6" Background="Transparent" MouseLeftButtonDown="Header_MouseDown">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock x:Name="TitleText" Style="{StaticResource H1}" VerticalAlignment="Center"/>
+                <!-- two columns: the left half trims instead of sliding under the account button on narrow windows -->
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" ClipToBounds="True">
+                    <TextBlock x:Name="TitleText" Style="{StaticResource H1}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                     <!-- readiness indicator: state dot + label (never colour alone); opens the pre-interview check -->
                     <Button x:Name="ReadinessPill" Style="{StaticResource Btn.Chip}" Margin="6,2,0,0" Padding="10,3" Click="ReadinessPill_Click" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
@@ -82,7 +84,7 @@
                         </StackPanel>
                     </Button>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                     <!-- one account button: avatar initial + e-mail; opens the account menu (signed out: "Sign in" → Account) -->
                     <Button x:Name="AccountMenuBtn" Style="{StaticResource Btn.Ghost}" Click="AccountMenuBtn_Click" Margin="0,0,8,0" Padding="6,3" MaxWidth="300"
                             ToolTip="{v:Loc tt_account_menu}" AutomationProperties.Name="{v:Loc acct_menu}">

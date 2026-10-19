@@ -169,7 +169,7 @@
                         <TextBlock Text="{Binding Question}" FlowDirection="{Binding QuestionFlowDirection}" FontSize="{Binding QuestionFontSize}" FontWeight="SemiBold" Foreground="{StaticResource B.Text}" TextWrapping="Wrap"
                                    Visibility="{Binding Question, Converter={StaticResource StrVis}}"/>
                         <!-- the interviewer's background before the actual ask: short, never the whole monologue -->
-                        <TextBlock x:Name="ContextLine" Margin="0,4,0,0" FontSize="11.5" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap" MaxHeight="34" TextTrimming="CharacterEllipsis"
+                        <TextBlock x:Name="ContextLine" Margin="0,4,0,0" FontSize="11.5" Foreground="{StaticResource B.TextDim}" TextWrapping="Wrap" MaxHeight="44" TextTrimming="CharacterEllipsis"
                                    ToolTip="{Binding ContextSummary}" Visibility="{Binding ContextSummary, Converter={StaticResource StrVis}}">
                             <Run Text="{v:Loc live_context}" FontWeight="SemiBold"/><Run Text=": "/><Run Text="{Binding ContextSummary, Mode=OneWay}"/>
                         </TextBlock>
@@ -204,7 +204,7 @@
                             <TextBlock Text="{Binding LAnswer}" Style="{StaticResource T.Label}"/>
                         </DockPanel>
                         <ScrollViewer x:Name="AnswerScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
-                            <StackPanel x:Name="AnswerContent" MaxWidth="820" HorizontalAlignment="Stretch" FlowDirection="{Binding AnswerFlowDirection}">
+                            <StackPanel x:Name="AnswerContent" MaxWidth="820" HorizontalAlignment="Left" FlowDirection="{Binding AnswerFlowDirection}">
                                 <!-- Coach Mode: 3 keywords + one structure line, large and glanceable -->
                                 <StackPanel Visibility="{Binding IsCoachView, Converter={StaticResource BoolVis}}" Margin="0,4,0,8">
                                     <TextBlock Text="{Binding LKeywords}" Style="{StaticResource T.Label}" Margin="0,0,0,4"/>
@@ -339,7 +339,7 @@
                 <!-- shared input: the placeholder sits inside the field with the text's inset and hides while focused or filled.
                      Field and send button share the control-height token and are centred on one row (mirrored in RTL). -->
                 <TextBox x:Name="ManualInput" KeyDown="ManualInput_KeyDown" v:Watermark.Text="{Binding LTypeHint}" VerticalAlignment="Center"
-                         Height="{StaticResource S.ControlHeight}" AutomationProperties.Name="{Binding LTypeHint}"/>
+                         MinHeight="{StaticResource S.ControlHeight}" AutomationProperties.Name="{Binding LTypeHint}"/>
                 <Button x:Name="ManualSendBtn" Grid.Column="2" Style="{StaticResource Btn.FormPrimary}" Padding="0" VerticalAlignment="Center"
                         Width="{StaticResource S.ControlHeight}" Height="{StaticResource S.ControlHeight}"
                         Click="ManualSend_Click" ToolTip="{v:Loc tt_send}" AutomationProperties.Name="{v:Loc tt_send}">
