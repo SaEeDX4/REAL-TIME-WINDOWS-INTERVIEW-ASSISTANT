@@ -17,12 +17,33 @@ public static class SelfTest
 {
     public sealed record CheckResult(string Name, bool Ok, string Detail, long Ms);
 
+    /// <summary>The check (and step) running now: the watchdog names it when the UI thread stops responding.</summary>
+    private static volatile string _step = "start";
+
     public static async Task<int> RunAsync(MainWindow w, MainViewModel vm, string outPath)
     {
         var results = new List<CheckResult>();
+        // Watchdog: a check that blocks the UI thread synchronously can't time out by itself; this thread says where it hangs.
+        var watchdog = new Thread(() =>
+        {
+            var blockedSince = 0L;
+            while (true)
+            {
+                Thread.Sleep(10_000);
+                // which priorities still run: Send only = starved by a stream of work; none = blocked synchronously
+                bool Runs(DispatcherPriority p) => w.Dispatcher.InvokeAsync(() => { }, p).Task.Wait(3_000);
+                if (Runs(DispatcherPriority.ApplicationIdle)) { blockedSince = 0; continue; }
+                if (blockedSince == 0) blockedSince = Environment.TickCount64;
+                AppLog.Warn($"SELFTEST WATCHDOG: idle work starved for {(Environment.TickCount64 - blockedSince) / 1000 + 3} s during '{_step}'; "
+                            + $"runs at Send {Runs(DispatcherPriority.Send)}, Normal {Runs(DispatcherPriority.Normal)}, Render {Runs(DispatcherPriority.Render)}, "
+                            + $"Loaded {Runs(DispatcherPriority.Loaded)}, Background {Runs(DispatcherPriority.Background)}, ContextIdle {Runs(DispatcherPriority.ContextIdle)}");
+            }
+        }) { IsBackground = true, Name = "selftest-watchdog" };
+        watchdog.Start();
         async Task Check(string name, Func<Task<(bool, string)>> f)
         {
             var sw = Stopwatch.StartNew();
+            _step = name;
             // a check that hangs (e.g. waiting on a dialog nobody answers) fails by name instead of stalling the whole run
             try
             {
@@ -93,10 +114,15 @@ public static class SelfTest
         await Check("Manual question → 3 prepared bullets in UI (no API key needed)", async () =>
         {
             var sw = Stopwatch.StartNew();
+            _step = "manual question: submit";
             await vm.SubmitManualAsync("How would you increase XAB adoption?");
+            _step = "manual question: snapshot";
             var expected = vm.Engine!.Current!.SnapshotBullets().Count;
+            _step = "manual question: wait for bullets";
             await WaitFor(() => vm.Bullets.Count >= expected && vm.Question.Contains("XAB"), 3000);
+            _step = "manual question: settle";
             await Task.Delay(300); await Idle(); // let any late notifications land: count must stay exact (no duplicates)
+            _step = "manual question: verify";
             var distinct = vm.Bullets.Select(b => b.Text).Distinct().Count();
             return (vm.Bullets.Count == 3 && distinct == 3 && vm.Question.Contains("XAB"), $"{vm.Bullets.Count} bullets ({distinct} distinct) in {sw.ElapsedMilliseconds} ms: \"{vm.Bullets.FirstOrDefault()?.Text}\"");
         });
