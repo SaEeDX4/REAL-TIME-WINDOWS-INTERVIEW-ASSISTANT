@@ -257,8 +257,9 @@ public class UiFoundationTests
     public void PreflightCopy_MatchesTheVerdictRule()
     {
         var en = Loc.TableFor("en");
-        Assert.Contains("WARNING is optional", en["pf_subtitle"]);
-        Assert.Contains("FAIL", en["pf_subtitle"]);
+        // rc.5 UX audit M6/M12 copy: sentence-case badges; a warning does not block, a failed check must be fixed.
+        Assert.Contains("a warning does not stop you from starting", en["pf_subtitle"]);
+        Assert.Contains("Fix anything marked " + en["pf_fail"], en["pf_subtitle"]);
         Assert.StartsWith("READY", en["pf_ready_warnings"]);
     }
 
